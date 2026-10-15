@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- CI: the KASAN workflow opens `/dev/kvm` to the runner user (the udev rule of GitHub's
+  2024-04-02 changelog), so QEMU can use KVM instead of emulation; aimed at the boot reports of
+  issue #18 and the job's length. Not yet confirmed on a run.
 - Fixed (journal 0112): a mount that failed on an allocation kept a reference on the lower root
   (finding F8, found by syzkaller); out of memory while resolving `lower=` was reported as
   `EINVAL`; the SQLite extension could drop a condition it had declared handled, on an older

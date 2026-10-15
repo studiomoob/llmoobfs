@@ -51,7 +51,18 @@ jobs:
             e2fsprogs btrfs-progs xfsprogs sqlite3 libsqlite3-dev git dmsetup acl
           python3 -m pip install --user --require-hashes -r vm/kasan-requirements.txt   # virtme-ng 1.41 and deps, by hash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          ls -la /dev/kvm || echo "no KVM: QEMU will use TCG"
+      - name: Let QEMU use KVM
+        if: steps.need.outputs.run == 'true'
+        # /dev/kvm exists on the hosted runners but belongs to group kvm, so QEMU fell back to
+        # emulation (TCG), where the debug kernel sometimes reports at boot (issue #18) and the job
+        # takes over an hour. The rule is the one of GitHub's changelog of 2024-04-02
+        # ("Hardware accelerated Android virtualization now available").
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+          if [ -w /dev/kvm ]; then echo "KVM usable"; else echo "no KVM: QEMU will use TCG"; fi
       - name: Fetch and verify the kernel source
         if: steps.need.outputs.run == 'true'
         run: |
