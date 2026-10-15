@@ -1,0 +1,143 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# syzkaller descriptions of the MoobFS layer (security roadmap S3, journal 0109). Copied into
+# sys/linux/ of a syzkaller checkout by vm/syzkaller-local.sh. Layouts follow the headers
+# moobfs_ioctl.h and moobfs_attr.h of the repository; the image (vm/syzkaller/image-setup.sh)
+# mounts the layer at /moob/layer over /moob/lower, with domains d0..d3 and typed files in them.
+
+include <uapi/linux/moobfs_ioctl.h>
+include <uapi/linux/moobfs_attr.h>
+include <uapi/linux/fcntl.h>
+
+# directories of the layer, usable wherever a directory descriptor is (getdents64, fchdir)
+resource fd_moobfs_root[fd_dir]
+resource fd_moobfs_dom[fd_dir]
+
+# The executor runs each program in a private root, so the program mounts the layer itself: a
+# directory it created as the lower (relative paths resolve from its working directory), another
+# as the mount point. Files, attributes, renames and queries then go through the layer.
+mount$moobfs_layer(src const[0], dst ptr[in, filename], type ptr[in, string["moobfs_layer"]], flags flags[mount_flags], opts ptr[in, moobfs_mount_data])
+umount2$moobfs(path ptr[in, filename], flags flags[umount_flags])
+
+moobfs_mount_data {
+	lower	stringnoz[moobfs_lowers]
+	opts	fs_options[moobfs_options]
+} [packed]
+
+moobfs_lowers = "lower=./file0,", "lower=./file1,", "lower=./file0/file1,", "lower=.,", "lower=./file2,"
+
+moobfs_options [
+	nolinks		stringnoz["nolinks"]
+	noindex		stringnoz["noindex"]
+	budget		fs_opt_dec_suffix["index_budget"]
+	depth		fs_opt_dec["domain_depth", int32[0:10]]
+	idle		fs_opt_dec["index_idle", int32]
+	lower		fs_opt_str["lower"]
+] [varlen]
+
+# a layer's root (QUERY, GET_INFO) and its domain directories (QUERY2), by any name
+openat$moobfs_root(fd const[AT_FDCWD], file ptr[in, filename], flags const[O_RDONLY], mode const[0]) fd_moobfs_root
+openat$moobfs_dom(fd const[AT_FDCWD], file ptr[in, filename], flags const[O_RDONLY], mode const[0]) fd_moobfs_dom
+openat$moobfs_file(fd const[AT_FDCWD], file ptr[in, filename], flags flags[open_flags], mode flags[open_mode]) fd
+
+ioctl$MOOB_IOC_QUERY(fd fd_moobfs_root, cmd const[MOOB_IOC_QUERY], arg ptr[inout, moob_query])
+ioctl$MOOB_IOC_GET_INFO(fd fd_moobfs_root, cmd const[MOOB_IOC_GET_INFO], arg ptr[out, moob_info])
+ioctl$MOOB_IOC_QUERY2(fd fd_moobfs_dom, cmd const[MOOB_IOC_QUERY2], arg ptr[inout, moob_query2])
+ioctl$MOOB_IOC_QUERY2_BATCH(fd fd_moobfs_dom, cmd const[MOOB_IOC_QUERY2_BATCH], arg ptr[in, moob_query2_batch])
+
+# typed attributes: valid and broken names, every type, broken encodings
+moob_xattr_names = "user.moob.kind", "user.moob.score", "user.moob.created", "user.moob.title", "user.moob.flag", "user.moob.weight", "user.moob.format", "user.moob.Bad", "user.moob.", "user.moob.a..b", "user.other", "security.selinux", "system.posix_acl_access"
+moob_attr_names = "kind", "score", "created", "title", "flag", "weight", "format", "", "Bad", "a..b"
+
+fsetxattr$moob(fd fd, name ptr[in, string[moob_xattr_names]], val ptr[in, moob_value], size bytesize[val], flags flags[setxattr_flags])
+setxattr$moob(path ptr[in, filename], name ptr[in, string[moob_xattr_names]], val ptr[in, moob_value], size bytesize[val], flags flags[setxattr_flags])
+fremovexattr$moob(fd fd, name ptr[in, string[moob_xattr_names]])
+fgetxattr$moob(fd fd, name ptr[in, string[moob_xattr_names]], val buffer[out], size len[val])
+
+moob_value [
+	str	moob_val_str
+	i64	moob_val_8[MOOB_T_INT64]
+	dbl	moob_val_8[MOOB_T_DOUBLE]
+	tm	moob_val_8[MOOB_T_TIME]
+	bool	moob_val_bool
+	raw	moob_val_raw
+	junk	array[int8, 0:16]
+] [varlen]
+
+moob_val_str {
+	type	const[MOOB_T_STRING, int8]
+	s	array[int8, 0:1100]
+} [packed]
+
+type moob_val_8[T] {
+	type	const[T, int8]
+	v	int64
+} [packed]
+
+moob_val_bool {
+	type	const[MOOB_T_BOOL, int8]
+	v	int8[0:2]
+} [packed]
+
+moob_val_raw {
+	type	const[MOOB_T_RAW, int8]
+	v	array[int8, 0:4200]
+} [packed]
+
+# Layouts of moobfs_ioctl.h with natural alignment, as the C compiler lays them out (sizes checked:
+# term 1098, query 4440, query2 4656, info 104, batch 32, result 272)
+moob_query_term {
+	name	string[moob_attr_names, 65]
+	op	int8[0:8]
+	type	int8[0:7]
+	flags	int8[0:2]
+	len	int16[0:1100]
+	value	array[int8, 1024]
+	pad	array[int8, 3]
+}
+
+moob_query_result {
+	ino		int64
+	flags		int32
+	path_len	int32
+	path		array[int8, 256]
+}
+
+moob_query {
+	version		int32[0:2]
+	nterms		int32[0:5]
+	limit		int32[0:4097]
+	flags		int32[0:1]
+	results		ptr64[out, array[moob_query_result]]
+	count		int32
+	truncated	int32
+	reserved	array[int64, 2]
+	terms		array[moob_query_term, 4]
+}
+
+moob_info {
+	data	array[int8, 104]
+}
+
+moob_query2 {
+	version		int32[1:3]
+	nterms		int32[0:5]
+	limit		int32[0:4097]
+	flags		int32[0:1]
+	results		ptr64[out, array[moob_query_result]]
+	count		int32
+	truncated	int32
+	order_by	string[moob_attr_names, 65]
+	order		int8[0:3]
+	order_type	int8[0:7]
+	pad		array[int8, 5]
+	cursor		array[int8, 128]
+	reserved	array[int64, 4]
+	terms		array[moob_query_term, 4]
+}
+
+moob_query2_batch {
+	version		int32[1:3]
+	nqueries	len[queries, int32]
+	queries		ptr64[inout, array[moob_query2, 0:9]]
+	reserved	array[int64, 2]
+}

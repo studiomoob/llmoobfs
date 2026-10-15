@@ -98,6 +98,21 @@ by fuzzing image and syscalls together. The current libFuzzer covers only the en
   coverage of `layer/`.
 - Done when: coverage of the ioctl and xattr handlers above a defined threshold, zero open
   reports, and reproducers of previous crashes kept in `tests/`.
+- **Status, 2026-10-14 (journal 0109):** set up (`vm/syzkaller/`, `vm/syzkaller-local.sh`); the
+  descriptions now also cover the mount and its options and `QUERY2`/`QUERY2_BATCH`, and each
+  program mounts the layer itself. A 30-minute run: 78 055 executions, the corpus reaching every
+  ioctl, no report. Two six-hour runs followed: the first found finding F8 (a failed mount pinned the lower root,
+  journal 0112); the second, with the fix, 567 085 executions and no report. Coverage of `layer/`:
+  90 % of PCs in `attr.c`, 68 % in `index.c`, 65 % in `main.c`; the release paths are not reached.
+- **Threshold, set on 2026-10-15** (journal 0109): the ioctl and attribute handlers (from
+  `moobl_root_ioctl()` through `query_run()`, `results_to_user()`, `moobl_xattr_get/set()` and the
+  validation in `common/attr.c`) at 85 % of their PCs or more, measured by the manager's
+  per-function coverage (78 % after the second run, the rest mostly error paths and the `QUERY2`
+  cursor); every function a program can reach exercised at least once; each function left out
+  listed with its reason; no open report; reproducers of past crashes kept in `tests/`. Not 100 %:
+  some code is out of a program's reach (domain release and the shrinker need memory pressure or a
+  budget of at least 1 MiB to overflow, about 1 700 files), and inlined functions show no coverage
+  of their own. Those paths are left to the suite's stress steps and to KCSAN (S8).
 
 ### S4. The lower layer as hostile input
 

@@ -13,6 +13,7 @@
  *           --cursor-in FILE             start from a cursor saved by --cursor-out
  *           --cursor-out FILE            save the cursor returned by the (first) call
  *           --raw                        print in the kernel's order (no sort by ino)
+ *           --bad-results                an unmapped results address (EFAULT path, journal 0113)
  *   query [--uid N] <domain-dir> q2batch [--limit N] -- <terms> [-- <terms>]...
  *                                                    one QUERY2_BATCH; prints "q<k>\t<ino>\t<path>"
  *                                                    per request, sorted by ino within each
@@ -21,6 +22,7 @@
  *   query <domain-dir> q2invalid                     malformed QUERY2 requests are refused
  *   query [--uid N] <dir> q2errno [opts] <terms...>  prints the errno of QUERY2 (0 on success)
  *   query [--uid N] <x> rename <old> <new>           prints the errno of rename(2) (0 on success)
+ *   query [--uid N] <mount> v1bad                    a v1 QUERY with a bad version; prints its errno
  *   query [--uid N] <domain-dir> race2 <seconds>     QUERY2 under churn (spec test 8): cycles the
  *                                                    plain, equality and ordered plans with small
  *                                                    pages; results must be well formed and openable
@@ -92,6 +94,14 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (fd < 0) { perror("open"); return 1; }
+	if (!strcmp(argv[2], "v1bad")) {	/* refused before anything is built (journal 0105) */
+		memset(&q, 0, sizeof q);
+		q.version = 99;
+		q.nterms = 1;
+		q.limit = 1;
+		printf("q1 %d\n", ioctl(fd, MOOB_IOC_QUERY, &q) ? errno : 0);
+		return 0;
+	}
 	res = calloc(MOOB_QUERY_MAX_LIMIT, sizeof *res);
 	if (!res) return 1;
 
@@ -100,7 +110,7 @@ int main(int argc, char **argv)
 		struct moob_query_result *all = NULL;
 		const char *cin = NULL, *cout = NULL;
 		size_t nall = 0;
-		int n, r, k = 3, pages = 0, first = 1, raw = 0, errmode = !strcmp(argv[2], "q2errno");
+		int n, r, k = 3, pages = 0, first = 1, raw = 0, bad = 0, errmode = !strcmp(argv[2], "q2errno");
 		__u32 i, limit = MOOB_QUERY_MAX_LIMIT;
 
 		memset(&q2, 0, sizeof q2);
@@ -120,6 +130,8 @@ int main(int argc, char **argv)
 				pages = 1; k++;
 			} else if (!strcmp(argv[k], "--raw")) {
 				raw = 1; k++;
+			} else if (!strcmp(argv[k], "--bad-results")) {
+				bad = 1; k++;
 			} else if (!strcmp(argv[k], "--cursor-in") && k + 1 < argc) {
 				cin = argv[k + 1]; k += 2;
 			} else if (!strcmp(argv[k], "--cursor-out") && k + 1 < argc) {
@@ -138,7 +150,7 @@ int main(int argc, char **argv)
 		q2.version = MOOB_QUERY2_VERSION;
 		q2.nterms = (__u32)n;
 		q2.limit = limit;
-		q2.results = (__u64)(uintptr_t)res;
+		q2.results = bad ? (__u64)8 : (__u64)(uintptr_t)res;	/* page 0 is never mapped */
 		for (;;) {
 			r = ioctl(fd, MOOB_IOC_QUERY2, &q2);
 			if (errmode) { printf("q2 %d\n", r ? errno : 0); return 0; }

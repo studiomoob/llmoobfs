@@ -201,6 +201,10 @@ run_lower() {
     same_query score ge int64 10 || fail "query-budget-$fs"
     umount $LAYER || fail "q-umount4-$fs"
     mount -t moobfs_layer -o lower=$LOWER,domain_depth=0 none $LAYER || fail "q-remount-final-$fs"
+    # a v1 QUERY from an ordinary user with a bad request is refused before anything is built
+    # (journal 0105): before, with domain_depth=0, it built the whole index first
+    [ "$($BIN/query --uid 1001 $LAYER v1bad)" = "q1 22" ] || fail "v1-bad-request-$fs"
+    [ "$($BIN/query $LAYER info | sed -n 's/^domains_built=\([0-9]*\) .*/\1/p')" = 0 ] || fail "v1-bad-request-built-$fs"
     # remount (journal 0106): read-only refuses writes and read-write restores them; an option
     # given on remount through mount(2) is ignored, as overlayfs does, and through the new mount
     # API (fsconfig) refused
@@ -416,6 +420,15 @@ run_lower() {
     umount $LAYER && mount -t moobfs_layer -o lower=$LOWER none $LAYER || fail "q2b-remount-$fs"
     [ "$($BIN/query --uid 1001 $LAYER/da q2errno --limit 3 --cursor-in /tmp/c1 kind eq string note)" = "q2 116" ] || fail "q2b-cursor-remount-$fs"
     q2ord remount-pages 30 --order title string desc --limit 7 --pages -- --order title string desc $LOWER/da
+    # results reach user space only after query_sem is released (finding F7, journal 0105): an
+    # unmapped results buffer gets EFAULT, and the semaphore is free afterwards, since a rebuild,
+    # which takes it for writing, completes (a directory renamed in the domain forces one)
+    [ "$($BIN/query --uid 1001 $LAYER/da q2errno --bad-results kind eq string note)" = "q2 14" ] || fail "q2-efault-$fs"
+    rb0=$($BIN/query $LAYER info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')
+    mkdir $LAYER/da/efd && mv $LAYER/da/efd $LAYER/da/efd2 || fail "q2-efault-rename-$fs"
+    timeout 30 $BIN/query --uid 1001 $LAYER/da q2 kind eq string note > /dev/null || fail "q2-efault-then-query-$fs"
+    [ "$($BIN/query $LAYER info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')" -gt "$rb0" ] || fail "q2-efault-no-rebuild-$fs (the test proved nothing)"
+    rmdir $LAYER/da/efd2 || fail "q2-efault-cleanup-$fs"
     echo "QUERY2_ORDER_PASS: $fs"
     # leapfrog intersection of equality terms (phase Q2c): answers equal the oracle, paging
     # works, and the plan is really taken: with a non-equality first term whose values fall

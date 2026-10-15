@@ -131,6 +131,16 @@ used here and is missing from this list, or is described wrongly, please open an
   The technique of journal 0096 (`tests/failnth.c`, `vm/kasan-guest.sh`), implemented. Read in the
   source tree of the kernel the tests are built with.
 
+### Projection of values (ADR-0014)
+
+- PostgreSQL documentation, "Index-Only Scans and Covering Indexes" (current version, read on
+  2026-10-14). https://www.postgresql.org/docs/current/indexes-index-only-scans.html
+- Linux 6.12.112, `fs/xfs/libxfs/xfs_fs.h`: `XFS_IOC_BULKSTAT`, `XFS_IOC_ATTRLIST_BY_HANDLE`,
+  `XFS_IOC_ATTRMULTI_BY_HANDLE`.
+
+  Returning values from the index instead of reading each file, and the caveat about trusting the
+  index's copy; kernel ioctls that return metadata of many files in one call.
+
 ### Query front-ends (ADR-0013, proposed; `docs/research-query-frontends.md`)
 
 The sources of the study are listed in its last section: SQLite's virtual table mechanism and
@@ -153,6 +163,16 @@ set. Read on 2026-10-14.
   How databases answer OR with several index scans, and how OR expansion keeps a row from being
   returned twice. Checked on 2026-10-14: the PostgreSQL and MySQL pages read; for Oracle, the
   search results and summaries of the two pages, not the pages in full.
+
+### syzkaller (security roadmap S3, journal 0109)
+
+- syzkaller, https://github.com/google/syzkaller, main branch at `8fb0ae89890497b4` (2026-10-14):
+  `docs/linux/setup_ubuntu-host_qemu-vm_x86-64-kernel.md`, `docs/linux/kernel_configs.md`,
+  `docs/syscall_descriptions.md`, `sys/linux/filesystem.txt` (the `fs_options` types and
+  `mount$tmpfs`, followed for the layer's mount), `tools/create-image.sh`.
+
+  The fuzzer and its documentation, used as written; the layer's descriptions follow the existing
+  filesystem descriptions.
 
 ### Copies to user space under a lock (journal 0105)
 

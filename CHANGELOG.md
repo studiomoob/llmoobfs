@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- syzkaller over the layer (journal 0109, security roadmap S3, in progress): kernel configuration,
+  syzlang descriptions of the mount, ioctls and typed attributes, seed programs and a runner
+  (`vm/syzkaller/`, `vm/syzkaller-local.sh`). First runs: no report; a six-hour run in progress.
 - Fixed (journal 0112): a mount that failed on an allocation kept a reference on the lower root
   (finding F8, found by syzkaller); out of memory while resolving `lower=` was reported as
   `EINVAL`; the SQLite extension could drop a condition it had declared handled, on an older

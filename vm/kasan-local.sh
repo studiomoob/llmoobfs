@@ -14,6 +14,8 @@ set -eu
 PATH=$PATH:/usr/sbin:/sbin   # mke2fs, mkfs.btrfs, mkfs.xfs and dmsetup for a non-root user
 KERNEL_VERSION=$(sed -n 's/^ *KERNEL_VERSION: *//p' .github/workflows/kasan.yml)
 KERNEL_SHA256=$(sed -n 's/^ *KERNEL_SHA256: *//p' .github/workflows/kasan.yml)
+# KCONFIG selects another fragment (vm/kcsan.config for the data-race run); give it its own KCACHE
+KCONFIG=${KCONFIG:-vm/kasan.config}
 KCACHE=${KCACHE:-$HOME/.cache/moobfs-kasan}
 KDIR=$KCACHE/linux-$KERNEL_VERSION
 R=$(pwd)
@@ -21,8 +23,8 @@ R=$(pwd)
 [ -w /dev/kvm ] || echo "kasan-local: /dev/kvm not writable; QEMU will emulate (slow)" >&2
 command -v vng >/dev/null || { echo "kasan-local: vng (virtme-ng) not in PATH" >&2; exit 1; }
 
-# kernel: rebuilt only when missing or when vm/kasan.config changed since the last build
-if [ ! -f "$KDIR/arch/x86/boot/bzImage" ] || ! cmp -s vm/kasan.config "$KDIR/.moobfs-kasan.config"; then
+# kernel: rebuilt only when missing or when $KCONFIG changed since the last build
+if [ ! -f "$KDIR/arch/x86/boot/bzImage" ] || ! cmp -s "$KCONFIG" "$KDIR/.moobfs-kasan.config"; then
     mkdir -p "$KCACHE"
     if [ ! -d "$KDIR" ]; then
         curl -fsSL -o "$KCACHE/linux.tar.xz" "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KERNEL_VERSION.tar.xz"
@@ -32,8 +34,8 @@ if [ ! -f "$KDIR/arch/x86/boot/bzImage" ] || ! cmp -s vm/kasan.config "$KDIR/.mo
         mv "$KDIR.tmp" "$KDIR"
         rm -f "$KCACHE/linux.tar.xz"
     fi
-    (cd "$KDIR" && vng --kconfig --config "$R/vm/kasan.config" && vng --build)
-    cp vm/kasan.config "$KDIR/.moobfs-kasan.config"
+    (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" && vng --build)
+    cp "$KCONFIG" "$KDIR/.moobfs-kasan.config"
 fi
 
 # module and test binaries, as in the workflow
