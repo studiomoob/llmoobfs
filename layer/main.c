@@ -266,10 +266,14 @@ static int moobl_d_revalidate_rcu(struct dentry *dentry)
 	return 1;
 }
 
+unsigned long moobl_neg_racy;	/* NEGATIVE ROUND: plain write from every CPU */
+
 static int moobl_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *lower;
 	int rc = 1;
+
+	moobl_neg_racy++;
 
 	if (flags & LOOKUP_RCU)
 		return moobl_d_revalidate_rcu(dentry);
