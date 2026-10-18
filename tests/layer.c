@@ -158,8 +158,8 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (argc == 4 && !strcmp(argv[1], "reserve")) {
-		/* the lower is mounted with a reserve owner that is not the mounter, so only
-		 * CAP_SYS_RESOURCE in the mounter credentials could spend the reserve */
+		/* an ordinary user fills the lower through the layer: whatever the reserve
+		 * owner (vm/suite.sh, step reserve), at least most of the reserve is left */
 		unsigned long long reserve;
 
 		snprintf(mnt, sizeof mnt, "%s", argv[2]);

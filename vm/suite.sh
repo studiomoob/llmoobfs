@@ -927,15 +927,18 @@ umount "$LAYER" && umount "$LOWER" || fail fl-final-umount
 echo "IO_ERROR_INJECTION_PASS"
 fi
 if want reserve; then
-# Reserved space: the mounter credentials carry no CAP_SYS_RESOURCE (as overlayfs), so an ordinary
-# user writing through the layer cannot spend the blocks ext4 reserves. The lower is mounted with a
-# reserve owner other than root: with resuid=0, ext4 itself grants the reserve to the mounter's
-# fsuid, whatever its capabilities (journal 0069).
-"$TOOLS/mke2fs" -q -F -t ext4 -b 4096 "$SCRATCH" || fail rs-mkfs
-mount -t ext4 -o resuid=4242 "$SCRATCH" "$LOWER" || fail rs-lower-mount
-mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail rs-layer-mount
-"$BIN/layer" reserve "$LAYER" "$LOWER" || fail rs-reserve
-umount "$LAYER" && umount "$LOWER" || fail rs-final-umount
+# Reserved space: an ordinary user writing through the layer cannot spend the blocks ext4
+# reserves. First with a reserve owner other than root, where only CAP_SYS_RESOURCE in the
+# mounter credentials could spend it (lowered, as overlayfs, journal 0069); then with the default
+# reserve owner, uid 0, which ext4 grants by the fsuid of the writing task: writes run with the
+# writer's fsuid, not the mounter's (finding F4, journal 0132).
+for opts in resuid=4242 defaults; do
+    "$TOOLS/mke2fs" -q -F -t ext4 -b 4096 "$SCRATCH" || fail "rs-mkfs-$opts"
+    mount -t ext4 -o "$opts" "$SCRATCH" "$LOWER" || fail "rs-lower-mount-$opts"
+    mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail "rs-layer-mount-$opts"
+    "$BIN/layer" reserve "$LAYER" "$LOWER" || fail "rs-reserve-$opts"
+    umount "$LAYER" && umount "$LOWER" || fail "rs-final-umount-$opts"
+done
 fi
 # Tracepoints of the index (journal 0102): tr_on clears the buffer and enables the named events
 # of the moobfs system, tr_count counts one event in the buffer.
