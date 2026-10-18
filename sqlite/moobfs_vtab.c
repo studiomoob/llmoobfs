@@ -488,7 +488,7 @@ static int mv_best_index(sqlite3_vtab *vt, sqlite3_index_info *ix)
 			 * SQLite's alone (journal 0120). ORDER BY needs no such test: SQLite does not
 			 * offer a vtab an ORDER BY term whose collation differs from the column's.
 			 */
-			if (op != MOOB_OP_EXISTS && sqlite3_stricmp(sqlite3_vtab_collation(ix, i), "BINARY"))
+			if (0 && op != MOOB_OP_EXISTS && sqlite3_stricmp(sqlite3_vtab_collation(ix, i), "BINARY"))
 				continue;
 			/* the EXISTS of required columns not covered keep their slots */
 			if (plan.nterm + uncovered -
