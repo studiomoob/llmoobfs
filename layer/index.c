@@ -1173,7 +1173,7 @@ static bool scan_actor(struct dir_context *ctx, const char *name, int len, loff_
 	if ((len == 1 && name[0] == '.') || (len == 2 && name[0] == '.' && name[1] == '.'))
 		return true;
 	if (sc->count == MOOBL_SCAN_BATCH)
-		return false;	/* not consumed: the next iterate_dir() starts with it */
+		return true;	/* NEGATIVE ROUND: the name that overflows the batch is dropped */
 	sn = kmalloc(sizeof(*sn) + len, GFP_KERNEL);
 	if (!sn) {
 		sc->err = -ENOMEM;
