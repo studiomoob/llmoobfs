@@ -11,7 +11,10 @@ set -u
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 OUT=$REPO/build/interop
 BIN=$OUT/bin   # moobfs-attr, moobfs_layer.ko, fselect, cshatag and kfmd when they were installed
-LOWER=/tmp/moob-lower LAYER=/tmp/moob-layer DEV=/dev/vda
+LOWER=/tmp/moob-lower LAYER=/tmp/moob-layer
+# the lower image: virtio-blk with virtme-ng 1.41 (CI), virtio-scsi with older releases
+DEV=${DEV:-/dev/vda}
+[ -b "$DEV" ] || DEV=/dev/sda
 PATH=$BIN:$PATH
 HOME=/tmp/home
 export PATH HOME
