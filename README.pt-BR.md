@@ -122,9 +122,9 @@ na sua própria execução, veja [Experimente numa VM](#experimente-numa-vm).
   arquivos de baixo ext4, btrfs e XFS apenas. Os testes da codificação de atributos também passam em
   s390x big-endian, com emulação; execuções em arm64 estão sendo medidas ([diário 0124](docs/history/0124-big-endian-pass-arm64-without-kvm.md)).
 - **Testado com** injeção de falhas dentro do módulo, o grupo `quick` do fstests nos três sistemas
-  de arquivos de baixo, syzkaller (duas rodadas de seis horas; um defeito achado e corrigido), uma
+  de arquivos de baixo, syzkaller (três rodadas de seis horas; um defeito achado e corrigido), uma
   primeira rodada do KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091,
-  0096, 0104, 0109, 0112, 0115).
+  0096, 0104, 0109, 0112, 0115, 0133).
 - **Ainda sem revisão humana externa.** Foi pedida em 2026-10-13. Duas revisões independentes do
   código, feitas por assistentes de IA ([diário 0111](docs/history/0111-review-5582e06.md),
   [diário 0114](docs/history/0114-second-inspection-of-5582e06.md)) e conferidas contra o kernel,
@@ -390,8 +390,8 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   [0082](docs/history/0082-index-lock-and-reclaim.md) e
   [0083](docs/history/0083-index-inspection-fixes.md). Todas as tags até agora carregam defeitos
   corrigidos depois: compile a partir da `main`. O fstests rodou só com o grupo `quick`
-  ([vm/fstests/](vm/fstests/README.md)); o syzkaller rodou duas rodadas de seis horas, abaixo do
-  limiar de cobertura do item S3 do [roteiro de segurança](docs/security-roadmap.md). O SELinux em
+  ([vm/fstests/](vm/fstests/README.md)); o syzkaller rodou três rodadas de seis horas; a última
+  medição ficou abaixo do limiar de cobertura do item S3 do [roteiro de segurança](docs/security-roadmap.md). O SELinux em
   modo enforcing foi exercitado uma vez (diário 0104); AppArmor e Smack não foram.
 - A autorização do `QUERY` vale só no momento da consulta (contrato TOCTOU); falsos negativos
   possíveis depois de renomear um diretório, até remontar ([spec-m3](docs/spec-m3.md) §3.1).
@@ -432,7 +432,7 @@ experimento M1 está congelado e roda como regressão na mesma VM.
 | Índice construído por domínio na primeira consulta, liberado sob pressão de memória ou acima do orçamento (shrinker); tracepoints | [0098](docs/history/0098-index-on-demand.md), [0101](docs/history/0101-domains-released.md), [0102](docs/history/0102-index-tracepoints.md), [ADR-0012](docs/decisions/0012-index-on-demand-and-reclaimable.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | SELinux em modo enforcing; checagem por resultado quando um LSM rotula os inodes da camada | [0104](docs/history/0104-selinux-investigation.md) | 6.12.112 com a política de referência do Debian |
 | SQL sobre um domínio por uma tabela virtual do SQLite (protótipo) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |
-| Descrições do syzkaller para a montagem, as ioctls e os atributos; duas rodadas de seis horas | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md) | 6.12.112 upstream com KCOV |
+| Descrições do syzkaller para a montagem, as ioctls e os atributos; três rodadas de seis horas | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md) | 6.12.112 upstream com KCOV |
 | Correções de segurança dos achados F9 a F12 (regra de homogeneidade, checagens sem o semáforo de consulta, acesso de escrita na montagem de baixo, lower idmapped recusado), cada uma com teste e rodada negativa | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 
 Não implementado: índice persistente, montagens em namespace de usuário ou idmapped, leituras em

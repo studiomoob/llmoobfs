@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- syzkaller: a third six-hour run on `main` (bf1a34b, the layer code of today's `main`), 720 747
+  executions, no report (journal 0133).
 - Negative rounds (journal 0131): the tests of journal 0120's items 9, 7 and 5 and the KCSAN filter
   each fail with their fix undone (or, for the filter, with a race added to the module).
 - `vm/build-tests.sh` is the one list of test programs for every VM harness and workflow; the

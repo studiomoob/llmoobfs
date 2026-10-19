@@ -114,8 +114,8 @@ of findings F6 to F12, so build from `main`. Not for production.** Facts as of 2
   filesystems ext4, btrfs and XFS only. The attribute encoding's tests also pass on big-endian
   s390x under emulation; arm64 runs are being measured ([journal 0124](docs/history/0124-big-endian-pass-arm64-without-kvm.md)).
 - **Tested with** fault injection inside the module, fstests' `quick` group on the three lower
-  filesystems, syzkaller (two six-hour runs; one defect found and fixed), a first KCSAN run (no
-  race in the module) and SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115).
+  filesystems, syzkaller (three six-hour runs; one defect found and fixed), a first KCSAN run (no
+  race in the module) and SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133).
 - **No outside human review yet.** It was requested on 2026-10-13. Two independent source reviews
   made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
   [journal 0114](docs/history/0114-second-inspection-of-5582e06.md)) and verified against the
@@ -374,7 +374,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
   [0082](docs/history/0082-index-lock-and-reclaim.md) and
   [0083](docs/history/0083-index-inspection-fixes.md). Every tag so far carries defects fixed
   later: build from `main`. fstests ran as the `quick` group only ([vm/fstests/](vm/fstests/README.md));
-  syzkaller ran for two six-hour rounds, below the coverage threshold of
+  syzkaller ran for three six-hour rounds, last measured below the coverage threshold of
   [security roadmap](docs/security-roadmap.md) S3. SELinux enforcing was exercised once (journal
   0104); AppArmor and Smack were not.
 - `QUERY` authorization holds at query time only (TOCTOU contract); possible false negatives
@@ -416,7 +416,7 @@ as a regression in the same VM.
 | Index built per domain by the first query, released under memory pressure or over its budget (shrinker); tracepoints | [0098](docs/history/0098-index-on-demand.md), [0101](docs/history/0101-domains-released.md), [0102](docs/history/0102-index-tracepoints.md), [ADR-0012](docs/decisions/0012-index-on-demand-and-reclaimable.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | SELinux enforcing; per-result checks when an LSM labels the layer's inodes | [0104](docs/history/0104-selinux-investigation.md) | 6.12.112 with the Debian reference policy |
 | SQL over a domain through a SQLite virtual table (prototype) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |
-| syzkaller descriptions of the mount, ioctls and attributes; two six-hour runs | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md) | upstream 6.12.112 with KCOV |
+| syzkaller descriptions of the mount, ioctls and attributes; three six-hour runs | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md) | upstream 6.12.112 with KCOV |
 | Security fixes of findings F9 to F12 (homogeneity rule, checks without the query semaphore, write access on the lower mount, idmapped lower refused), each with a test and a negative round | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 
 Not implemented: a persistent index, user-namespace or idmapped mounts, batch reads, a change

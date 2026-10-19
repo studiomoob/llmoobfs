@@ -75,7 +75,7 @@ assessment.
 - **You need it in production today, or in any critical setting.** Only a source pre-release tag exists; the
   module is one author's code; its own tests and two source reviews by AI assistants found
   kernel-side defects, security ones among them (findings F1 to F12 of ADR-0011); there is no
-  outside human review; fstests ran as its `quick` group only and syzkaller for two six-hour
+  outside human review; fstests ran as its `quick` group only and syzkaller for three six-hour
   rounds. A module bug can mean a kernel panic or data loss.
 - **The team cannot maintain an out-of-tree kernel module** across kernel updates, signing
   and DKMS; none of that tooling exists in the project.
