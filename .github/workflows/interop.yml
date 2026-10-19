@@ -1,0 +1,113 @@
+name: Interoperability probe
+# On demand only, never a required check. Boots a plain (non-debug) build of the pinned kernel
+# of kasan.yml with virtme-ng and runs vm/interop-guest.sh: what getfattr/setfattr, fselect,
+# cshatag, Recoll and KDE KFileMetaData see and do through a layer mount over ext4. The guest
+# shares the runner's root filesystem, so the tools installed here are the ones it runs.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: interop-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  KERNEL_VERSION: 6.12.112
+  KERNEL_SHA256: 164dc9d1f6c93c61a15e1f071c48379b467f2b17c469cce7223471968208ed03
+  # release assets; the fselect digest is the one GitHub lists for the asset, the cshatag
+  # one was computed from the downloaded release tarball (it publishes a GPG signature only)
+  FSELECT_VERSION: 0.10.3
+  FSELECT_SHA256: 01e25f362c04e41e565216b70b4859e8bfe27038fa3a240810ca954247364864
+  CSHATAG_VERSION: v2.2.1
+  CSHATAG_SHA256: c6814f831c63122beccf5cafdf47139ea63bb9be488c792da52d4cf13bd9ceed
+jobs:
+  interop:
+    name: xattr tools through the layer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build and guest dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential flex bison libelf-dev libssl-dev bc cpio kmod \
+            qemu-system-x86 qemu-utils python3-pip python3-venv udev \
+            e2fsprogs git attr
+          python3 -m pip install --user --require-hashes -r vm/kasan-requirements.txt   # virtme-ng 1.41 and deps, by hash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install the tools under test
+        run: |
+          mkdir -p build/interop/bin
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends recollcmd ||
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends recoll ||
+            echo "recoll: not installable"
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            libkf5filemetadata-dev qtbase5-dev cmake g++ || echo "KFileMetaData: not installable"
+          curl -fsSL -o build/fselect.gz \
+            "https://github.com/jhspetersson/fselect/releases/download/${FSELECT_VERSION}/fselect-x86_64-linux-musl.gz"
+          echo "${FSELECT_SHA256}  build/fselect.gz" | sha256sum -c -
+          gunzip -c build/fselect.gz > build/interop/bin/fselect && chmod 755 build/interop/bin/fselect
+          curl -fsSL -o build/cshatag.tar.gz \
+            "https://github.com/rfjakob/cshatag/releases/download/${CSHATAG_VERSION}/cshatag_${CSHATAG_VERSION}_linux-static_amd64.tar.gz"
+          echo "${CSHATAG_SHA256}  build/cshatag.tar.gz" | sha256sum -c -
+          tar -xzf build/cshatag.tar.gz -C build/interop/bin cshatag
+          dpkg-query -W -f '${Package} ${Version}\n' attr recollcmd recoll libkf5filemetadata3 libkf5filemetadata-dev 2>/dev/null || true
+          build/interop/bin/fselect --version || true
+      - name: Build the KFileMetaData helper
+        continue-on-error: true
+        run: |
+          mkdir -p build/kfmd
+          cat > build/kfmd/CMakeLists.txt << EOF
+          cmake_minimum_required(VERSION 3.16)
+          project(kfmd CXX)
+          find_package(Qt5 REQUIRED COMPONENTS Core)
+          find_package(KF5FileMetaData REQUIRED)
+          add_executable(kfmd $GITHUB_WORKSPACE/vm/interop-kfmd.cpp)
+          target_link_libraries(kfmd Qt5::Core KF5::FileMetaData)
+          EOF
+          cmake -S build/kfmd -B build/kfmd/out
+          cmake --build build/kfmd/out
+          cp build/kfmd/out/kfmd build/interop/bin/
+      - name: Let QEMU use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          if [ -w /dev/kvm ]; then echo "KVM usable"; else echo "no KVM: QEMU will use TCG"; fi
+      - name: Fetch and verify the kernel source
+        run: |
+          curl -fsSL -o build/linux.tar.xz "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz"
+          echo "${KERNEL_SHA256}  build/linux.tar.xz" | sha256sum -c -
+          mkdir -p build/linux
+          tar -xJf build/linux.tar.xz -C build/linux --strip-components=1
+      - name: Configure and build a plain kernel
+        run: |
+          cd build/linux
+          vng --kconfig --config ../../vm/interop.config
+          grep -E '^CONFIG_(EXT4_FS|MODULES|VIRTIO_BLK|KASAN)=' .config || true
+          vng --build
+      - name: Build the layer module and moobfs-attr against that kernel
+        run: |
+          make layer KDIR="$PWD/build/linux"
+          make attr-tools BUILD=build/interop/bin CFLAGS="-O2 -g -static"
+          cp layer/moobfs_layer.ko build/interop/bin/
+          truncate -s 64M build/interop/lower-ext4.img && mke2fs -q -F -t ext4 -b 4096 -L moob-lower build/interop/lower-ext4.img
+      - name: Run the probe inside the guest
+        run: |
+          cd build/linux
+          R="$GITHUB_WORKSPACE"
+          vng --user root --cpus 2 --memory 2G --verbose \
+            --rwdir "$R/build" --disk "$R/build/interop/lower-ext4.img" \
+            --exec "sh $R/vm/interop-guest.sh" 2>&1 | tee "$R/build/interop/console.log"
+          grep -q '^INTEROP_DONE' "$R/build/interop/console.log"
+      - name: Preserve the outputs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: interop-evidence
+          path: |
+            build/interop/console.log
+            build/interop/dmesg.txt
+          if-no-files-found: warn
