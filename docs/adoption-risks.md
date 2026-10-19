@@ -129,6 +129,10 @@ still spends the reserve through the layer. Closing it needs delegated writes to
 caller's fsuid for the allocation, or a deployment rule (`resuid` other than 0); recorded as F4 in
 ADR-0011 and in the README's limitations.
 
+*Note, 2026-10-19 (journal 0132).* F4 is completed: delegated writes now carry the writer's fsuid,
+fsgid and groups, so the reserve follows the writer with the default reserve owner too, and no
+deployment rule is needed.
+
 ## 5. Linux only, a module and root are required
 
 **Risk.** A client that depends on the layer stops working on macOS and Windows, in rootless

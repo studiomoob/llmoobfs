@@ -118,6 +118,12 @@ root mounter behaves the same. What the capability decides is the quota hard lim
 `resuid`. The layer now lowers the capability as overlayfs does, tested on ext4 with
 `resuid=4242`; the default-`resuid` case stays open and promise 2 is **not** met for it.
 
+*Note, 2026-10-19 (journal 0132).* The default-`resuid` case is closed: data writes, fallocate,
+clone and copy_file_range run with a copy of the mounter credentials carrying the writer's fsuid,
+fsgid and groups (as `ovl_create_or_link()` builds creation credentials), so ext4 decides the
+reserve as for a direct write. Tested on ext4 with `resuid=4242` and with the default reserve
+owner; promise 2 is met for both.
+
 **R-CRED-3 — `setattr` must not pass `ATTR_MODE` together with `ATTR_KILL_SUID|ATTR_KILL_SGID`.**
 Source: `fs/attr.c:435-444` — `notify_change` comments *"no function will ever call notify_change
 with both ATTR_MODE and ATTR_KILL_S*ID set"* and enforces it with `BUG()` at `:444`. References:
