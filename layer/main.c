@@ -360,23 +360,6 @@ int moobl_other_device(struct super_block *sb, struct dentry *lower)
 	return st.dev != MOOBL_SB(sb)->lower_dev;
 }
 
-/*
- * The layer's dentry cache compares names byte for byte, while a casefolded lower directory
- * (ext4, f2fs, tmpfs with casefold) answers a name in any case: two layer dentries would stand for
- * one lower entry, and a negative one could hide a file. A casefolded directory and every name in
- * it are refused, as overlayfs refuses a layer whose casefolding differs (issue #95).
- */
-bool moobl_casefolded(struct dentry *lower)
-{
-	struct inode *inode = d_inode(lower);
-
-	if (inode && S_ISDIR(inode->i_mode) && IS_CASEFOLDED(inode)) {
-		pr_warn_ratelimited("moobfs_layer: a casefolded lower directory is refused (%pd)\n", lower);
-		return true;
-	}
-	return false;
-}
-
 static struct dentry *moobl_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
@@ -387,16 +370,10 @@ static struct dentry *moobl_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
-	if (moobl_casefolded(parent->dentry))
-		return ERR_PTR(-EOPNOTSUPP);
 	lower_dentry = lookup_one_len_unlocked(dentry->d_name.name, parent->dentry,
 					       dentry->d_name.len);
 	if (IS_ERR(lower_dentry))
 		return ERR_CAST(lower_dentry);
-	if (moobl_casefolded(lower_dentry)) {
-		dput(lower_dentry);
-		return ERR_PTR(-EOPNOTSUPP);
-	}
 	err = moobl_other_device(dir->i_sb, lower_dentry);
 	if (err) {
 		dput(lower_dentry);
@@ -1647,8 +1624,6 @@ static int moobl_fill_super(struct super_block *sb, struct fs_context *fc)
 	 */
 	if (is_idmapped_mnt(sbi->lower.mnt))
 		return invalfc(fc, "lower cannot be an idmapped mount");
-	if (moobl_casefolded(sbi->lower.dentry))
-		return invalfc(fc, "lower cannot be a casefolded directory");
 	sb->s_stack_depth = sbi->lower.dentry->d_sb->s_stack_depth + 1;
 	{
 		struct kstat st;

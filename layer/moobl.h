@@ -113,7 +113,6 @@ static inline struct dentry *moobl_lower_dentry(struct dentry *dentry)
 /* main.c */
 struct inode *moobl_find_inode(struct super_block *sb, struct inode *lower);
 int moobl_other_device(struct super_block *sb, struct dentry *lower);
-bool moobl_casefolded(struct dentry *lower);
 
 /* index.c */
 void moobl_index_init(struct super_block *sb, u64 budget, bool enabled, unsigned int domain_depth,

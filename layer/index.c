@@ -1325,8 +1325,6 @@ static int scan_child(struct scan_job *job, struct scan_dir *cur, struct scan_na
 		err = err < 0 ? err : 0;
 		goto out;
 	}
-	if (moobl_casefolded(child))	/* refused by lookups, so out of the answers too */
-		goto out;
 	cpath = kasprintf(GFP_KERNEL, "%s%s%.*s", cur->path, cur->path[0] ? "/" : "", sn->len,
 			  sn->name);
 	if (!cpath) {
