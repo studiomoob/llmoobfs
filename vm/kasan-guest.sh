@@ -73,6 +73,7 @@ if [ -z "${MOOB_ONLY:-}" ] || case " ${MOOB_ONLY:-} " in *" faults "*) true ;; *
     "$BIN/failnth" "$LAYER" "$LOWER/fi" > "$OUT/failnth.txt" 2>&1; rc=$?
     cat "$OUT/failnth.txt"
     [ $rc -eq 0 ] || fail "fi-unexplained-error (see build/vng/failnth.txt)"
+    "$BIN/permission-gaps" faults "$LAYER" "$LOWER/fi" || fail fi-unprivileged-permissions
     for f in failslab fail_page_alloc; do echo 0 > /sys/kernel/debug/$f/require-start; echo 0 > /sys/kernel/debug/$f/require-end; done
     dmesg > "$OUT/dmesg-faults.txt"
     if ! kdiag "$OUT/dmesg-faults.txt" 'BUG: KASAN|KASAN: |BUG:|Oops:|^WARNING:|possible (circular|recursive) locking|INFO: (task|rcu)|UBSAN:'; then

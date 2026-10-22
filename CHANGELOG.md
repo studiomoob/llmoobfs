@@ -7,6 +7,26 @@
   memory cgroup. Add a bounded guest regression with separate buffer and index
   assertions. This leaves the per-mount budget and S9 fair sharing distinct.
 
+- Fix (journal 0179): when the least-recently-used domain is being built,
+  try another eligible built domain before refusing an index-budget build.
+  The native KVM concurrency test on the dedicated host failed before this
+  change and passed on ext4, btrfs and XFS after it. The full reference Docker
+  VM suite, full native KVM run and full local KASAN/UBSAN/lockdep run passed.
+  Publication and PR CI remain pending.
+
+- Fix/tests (journal 0178, issue 114 T9): propagate `ENOMEM` when a per-result
+  permission lookup cannot decide under an injected allocation failure,
+  instead of returning a successful answer that silently omits a readable
+  file. Exercise unprivileged plain, ordered and batched `QUERY2` over built
+  and fresh domains in the KASAN fault step. The full local KASAN and
+  `make vm-test` suites passed; publication remains pending. An additional
+  dedicated-host KVM run reproduced a separate issue 111 concurrent-budget
+  failure, recorded in journal 0178 for follow-up.
+
+- Documentation (journal 0177): reconcile the merged PR 126 and PR 75,
+  closed issues 110/111 and successful pull-request checks in current-state
+  roadmaps and both READMEs; preserve the dated pre-merge records.
+
 - Documentation (journal 0176): record the locally validated issue 110/111
   correction batch in PR 126, its publication gate and the paused follow-up order in
   the roadmap and security roadmap; reconcile issue 112 as completed and keep

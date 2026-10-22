@@ -129,6 +129,11 @@ caller's credentials (the ancestors were checked when the descriptor was opened)
 it passes, the results come from the partition without per-result checking: the homogeneity rule
 guarantees that whoever traverses the domain can read each file indexed in it. Timing contract
 (TOCTOU): the same as v1; a concurrent permission change takes effect from the next call.
+When fallback or an inode-labeling LSM requires a per-result path/permission
+check, an `ENOMEM` from that check refuses the call rather than silently
+omitting a readable result (correction, 2026-10-22, journal 0178). An ordinary
+access denial or stale path still excludes that candidate. The same rule
+applies to the per-result checks of v1 `QUERY`.
 
 ### 4.3 `MOOB_IOC_QUERY2_BATCH`
 

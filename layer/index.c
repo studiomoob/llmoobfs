@@ -922,52 +922,79 @@ static unsigned long reclaim_idle(const struct moobl_index *ix)
 
 /*
  * The built domain queried least recently, other than except, and not used in the last idle
- * jiffies; NULL when there is none. Domains are never removed from ix->domains before unmount,
- * so the walk needs no lock; the state is checked again under the locks by domain_release().
+ * jiffies; NULL when there is none. The cursor finds the next oldest candidate after a busy
+ * build mutex, ordered by (used_at, key). Domains are never removed from ix->domains before
+ * unmount, so the walk needs no lock; the state is checked again under domain_release()'s locks.
  * A plain walk rather than a list_lru: the domains of one mount are few, and the index memory
  * is not charged to a memory cgroup, so a per-cgroup, per-node list would buy nothing.
  */
 static struct moobl_domain *domain_lru(struct moobl_index *ix, struct moobl_domain *except,
-				       unsigned long idle, u64 *key)
+				       unsigned long idle, bool after, unsigned long after_used,
+				       u64 after_key, u64 *key, unsigned long *selected_used)
 {
 	struct moobl_domain *dom, *best = NULL;
-	unsigned long idx;
+	unsigned long idx, used, best_used = 0;
 
+	used = READ_ONCE(ix->outside.used_at);
 	if (READ_ONCE(ix->outside.state) == MOOBL_DOM_BUILT && &ix->outside != except &&
-	    time_after_eq(jiffies, READ_ONCE(ix->outside.used_at) + idle)) {
+	    time_after_eq(jiffies, used + idle) &&
+	    (!after || time_after(used, after_used))) {
 		best = &ix->outside;
+		best_used = used;
 		*key = 0;
 	}
 	xa_for_each(&ix->domains, idx, dom) {
+		used = READ_ONCE(dom->used_at);
 		if (dom == except || READ_ONCE(dom->state) != MOOBL_DOM_BUILT ||
-		    time_before(jiffies, READ_ONCE(dom->used_at) + idle))
+		    time_before(jiffies, used + idle) ||
+		    (after && !time_after(used, after_used) &&
+		     !(used == after_used && (u64)idx > after_key)))
 			continue;
-		if (!best || time_before(READ_ONCE(dom->used_at), READ_ONCE(best->used_at))) {
+		if (!best || time_before(used, best_used) ||
+		    (used == best_used && (u64)idx < *key)) {
 			best = dom;
+			best_used = used;
 			*key = idx;
 		}
 	}
+	if (best)
+		*selected_used = best_used;
 	return best;
 }
 
 /*
- * Releases the least recently queried built domain other than except. From the shrinker
+ * Releases the least recently queried available built domain other than except. From the shrinker
  * (reclaim), every lock is only tried: reclaim can run inside a query, a build or an index
  * update of this very mount. From a build over the budget the caller holds except->build, so
  * the other domain's build mutex is only tried (two builds could otherwise wait for each
- * other) and the rest is taken in the order of domain_ensure(). Returns whether one was
- * released.
+ * other) and the rest is taken in the order of domain_ensure(). A busy candidate does not hide
+ * later candidates that can be released. Returns whether one was released.
  */
 static bool domain_release(struct moobl_index *ix, struct moobl_domain *except, bool reclaim)
 {
 	unsigned long idle = reclaim ? reclaim_idle(ix) : 0;
 	struct moobl_domain *dom;
-	unsigned int nofs;
+	unsigned int nofs, attempts, limit;
 	bool done = false;
 	u64 key = 0;
+	unsigned long after_used = 0, selected_used;
+	u64 after_key = 0;
+	bool after = false;
 
-	dom = domain_lru(ix, except, idle, &key);
-	if (!dom || !mutex_trylock(&dom->build))
+	/* A busy oldest domain must not hide another domain that can make room. */
+	limit = READ_ONCE(ix->domains_built) + 1;
+	for (attempts = 0; attempts < limit; attempts++) {
+		dom = domain_lru(ix, except, idle, after, after_used, after_key,
+				 &key, &selected_used);
+		if (!dom)
+			return false;
+		if (mutex_trylock(&dom->build))
+			break;
+		after = true;
+		after_used = selected_used;
+		after_key = key;
+	}
+	if (attempts == limit)
 		return false;
 	if (reclaim) {
 		if (!down_write_trylock(&ix->query_sem))
@@ -2434,21 +2461,24 @@ struct moobl_resume {
  * not leave this mount nor follow symbolic links: a result is on this mount under its
  * recorded name, and anything else would be refused below anyway.
  */
-static bool caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino)
+/* 1 = readable, 0 = inaccessible/stale, -ENOMEM = unable to decide under memory pressure. */
+static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino)
 {
 	struct path p;
-	bool ok = false;
+	int err, ok = 0;
 
 	lockdep_assert_not_held(&IX(sb)->query_sem);
 	if (!path || !*path)
 		return false;
-	if (vfs_path_lookup(file->f_path.dentry, file->f_path.mnt, path,
-			    LOOKUP_NO_XDEV | LOOKUP_NO_SYMLINKS, &p))
-		return false;
+	err = vfs_path_lookup(file->f_path.dentry, file->f_path.mnt, path,
+			      LOOKUP_NO_XDEV | LOOKUP_NO_SYMLINKS, &p);
+	if (err)
+		return err == -ENOMEM ? err : 0;
 	if (p.mnt == file->f_path.mnt && p.dentry->d_sb == sb && d_inode(p.dentry) &&
-	    d_inode(p.dentry)->i_ino == ino &&
-	    !inode_permission(&nop_mnt_idmap, d_inode(p.dentry), MAY_READ))
-		ok = true;
+	    d_inode(p.dentry)->i_ino == ino) {
+		err = inode_permission(&nop_mnt_idmap, d_inode(p.dentry), MAY_READ);
+		ok = err == -ENOMEM ? err : !err;
+	}
 	path_put(&p);
 	return ok;
 }
@@ -2957,10 +2987,16 @@ chunk_done:
 			long rerr;
 
 			up_read(&ix->query_sem);
-			for (i = 0; i < ncand; i++)
-				cand[i].ok = caller_may_read(file, sb, cand[i].path, cand[i].ino);
+			for (i = 0; i < ncand && !err; i++) {
+				int readable = caller_may_read(file, sb, cand[i].path, cand[i].ino);
+
+				if (readable < 0)
+					err = readable;
+				else
+					cand[i].ok = readable;
+			}
 			rerr = query_repin(sb, file, sc, gen);
-			if (rerr)
+			if (rerr && !err)
 				err = rerr;
 		}
 		for (i = 0; i < ncand; i++) {

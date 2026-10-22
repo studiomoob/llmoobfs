@@ -13,12 +13,24 @@
 > **Experimental. Not for production.** One kernel series (6.12), tested in a VM only; no outside
 > human review yet (two independent source reviews by AI assistants, journals 0111 and 0114). The last
 > tag, `v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch.
-> The two findings of the [current review](docs/history/0144-independent-review.md)
-> have corrections in the review batch, which passed the full integrated VM suite.
-> The local batch KASAN/UBSAN/lockdep suite also passed; pull-request CI is a separate pre-merge gate.
+> The two findings of the [independent review](docs/history/0144-independent-review.md)
+> have corrections on `main`; the review batch passed the full integrated VM suite
+> and local KASAN/UBSAN/lockdep. The required pull-request checks passed before merge.
 > `v0.4.1-experimental` still contains both defects. A later review (journal 0151) found a third,
 > a chmod during an index build that left the file in `QUERY2` answers; fixed in journal 0152.
 > See [Limitations](#limitations).
+
+The later domain-rename and concurrent index-budget corrections were merged
+through [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) after its
+11 reported checks passed; issues 110 and 111 were closed. This does not
+resolve the remaining resource-cost questions in issues 116 and 118 or the
+complete validation and integration of the unprivileged allocation-fault
+correction for issue 114 ([roadmap](ROADMAP.md)).
+An unpublished follow-up found a remaining concurrent-budget refusal under
+native KVM on the dedicated host. Trying another eligible domain when the
+oldest one's build mutex is busy passed the full Docker VM, native KVM and
+local KASAN suites; PR CI and integration are still pending
+([journal 0179](docs/history/0179-kvm-overbudget-race-followup.md)).
 
 ## The problem
 
@@ -229,7 +241,13 @@ remain coverage exclusions. `ipc` is built but not invoked by the suite.
 
 For targeted permission and fixed independent-encoding checks, use
 `MOOB_ONLY=permgaps make vm-test` ([journal 0172](docs/history/0172-permission-test-gaps.md)).
-The release step also queries as uid 1001; allocation-fault queries remain root-only.
+The release step also queries as uid 1001. The KASAN fault step now tests
+unprivileged queries under injected allocation failures. Its targeted and
+full KASAN runs and the native `make vm-test` suite passed locally; publication
+and issue reconciliation remain pending ([journal 0178](docs/history/0178-unprivileged-allocation-fault-queries.md)).
+The budget-race follow-up was reproduced before its local fix and passed in
+the complete Docker VM, dedicated-host KVM and KASAN suites afterward
+([journal 0179](docs/history/0179-kvm-overbudget-race-followup.md)).
 
 
 ## What was measured

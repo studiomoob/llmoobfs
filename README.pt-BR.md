@@ -17,13 +17,25 @@
 > revisão humana externa (duas revisões independentes do código, feitas por assistentes de IA,
 > diários 0111 e 0114). A última tag, `v0.4.1-experimental` (2026-10-20), é um retrato do
 > código anterior a este lote de revisão. Os dois achados da
-> [revisão atual](docs/history/0144-independent-review.md) têm correções no lote de revisão,
-> que passou na suíte completa integrada em VM e na KASAN/UBSAN/lockdep local.
-> A CI do pull request é uma etapa separada e obrigatória antes do merge.
+> [revisão independente](docs/history/0144-independent-review.md) têm correções no lote de revisão,
+> já integrado à `main`. Ele passou na suíte completa integrada em VM e na
+> KASAN/UBSAN/lockdep local; as verificações obrigatórias do PR passaram antes do merge.
 > A `v0.4.1-experimental` ainda contém
 > ambos os defeitos. Uma revisão posterior (diário 0151) achou um terceiro, um chmod durante a
 > construção do índice que deixava o arquivo nas respostas do `QUERY2`; corrigido no diário 0152.
 > Veja [Limitações](#limitações).
+
+As correções posteriores para renomeação de domínio e orçamento do índice
+foram integradas pela [PR 126](https://github.com/studiomoob/llmoobfs/pull/126)
+após suas 11 verificações passarem; as issues 110 e 111 foram fechadas. Isso
+não resolve as questões de custo de recursos das issues 116 e 118 nem conclui
+a validação e integração da correção para falha de alocação sem privilégios da
+issue 114 ([roadmap](ROADMAP.md)).
+Um acompanhamento ainda não publicado encontrou uma recusa de orçamento
+concorrente sob KVM nativo na máquina dedicada. Tentar outro domínio elegível
+quando o mutex de construção do mais antigo está ocupado passou nas suítes
+completas de VM Docker, KVM nativo e KASAN local; a CI do PR e a integração
+ainda estão pendentes ([diário 0179](docs/history/0179-kvm-overbudget-race-followup.md)).
 
 ## O problema
 
@@ -243,7 +255,14 @@ continuam sendo lacunas de cobertura. `ipc` é compilado, mas não invocado pela
 
 Para conferir permissões e casos fixos de codificação com expectativas independentes,
 use `MOOB_ONLY=permgaps make vm-test` ([diário 0172](docs/history/0172-permission-test-gaps.md)).
-O passo de liberação também consulta como uid 1001; a injeção de falhas ainda consulta apenas como root.
+O passo de liberação também consulta como uid 1001. O passo de falhas sob KASAN
+agora testa consultas sem privilégios com falhas de alocação injetadas. As
+rodadas KASAN direcionada e completa e a suíte nativa `make vm-test` passaram
+localmente; publicação e conciliação da issue ainda estão pendentes
+([diário 0178](docs/history/0178-unprivileged-allocation-fault-queries.md)).
+O acompanhamento da corrida de orçamento foi reproduzido antes da correção
+local e passou nas suítes completas de VM Docker, KVM na máquina dedicada e
+KASAN depois dela ([diário 0179](docs/history/0179-kvm-overbudget-race-followup.md)).
 
 
 ## O que foi medido

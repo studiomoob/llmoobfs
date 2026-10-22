@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Issue 114 T5/T6/T8/T10. Dedicated VM only; no shared attribute validator.
+/* Issue 114 T5/T6/T8/T9/T10. Dedicated VM only; no shared attribute validator.
  * plant LOWER before mounting; check LAYER LOWER q2|v1 afterwards.
+ * The faults mode runs only under the pinned fault-injection KASAN guest.
  * Fixed bytes/expected membership come from spec-m2, not common/attr.c.
  */
 #define _GNU_SOURCE
@@ -411,18 +412,133 @@ static void release_check(void)
 	printf("UNPRIV_RELEASE_PASS: uid=1001, before release and after rebuild, releases=%llu\n", after - before);
 }
 
+struct fault_result { int hit, error; };
+
+/* Each child owns its fail-nth control descriptor. Opening it before dropping uid does not
+ * retain privilege for QUERY2: the domain fd is opened after all uid/gid slots are dropped.
+ * Linux 6.12.112 fs/proc/base.c proc_fail_nth_write has no write-time capability requirement.
+ */
+static struct fault_result fault_trial(const char *domain, int nth, int shape)
+{
+	int pipefd[2], status;
+	struct fault_result result;
+	pid_t pid;
+
+	MUST(!pipe(pipefd), "fault result pipe");
+	pid = fork();
+	MUST(pid >= 0, "fault fork");
+	if (!pid) {
+		struct moob_query2 q;
+		struct moob_query2_batch batch = {0};
+		char control[32], p[PATHCAP], rel[128];
+		unsigned char value[8];
+		int ctl = open("/proc/thread-self/fail-nth", O_RDWR), fd, n, r, saved;
+		unsigned int truncated;
+
+		close(pipefd[0]);
+		MUST(ctl >= 0, "own thread fail-nth descriptor");
+		MUST(!setgroups(0, NULL) && !setresgid(1001, 1001, 1001) &&
+		     !setresuid(1001, 1001, 1001), "fault child drop credentials");
+		MUST(geteuid() == 1001 && getegid() == 1001, "fault query actual identity");
+		fd = open_dir(layer, domain);
+		fill(&q, "test", 1);
+		if (shape == 1) {
+			strcpy(q.order_by, "rank"); q.order_type = 2; q.order = MOOB_ORDER_ASC;
+		}
+		batch.version = MOOB_QUERY2_VERSION;
+		batch.nqueries = 1;
+		batch.queries = (uint64_t)(uintptr_t)&q;
+		n = snprintf(control, sizeof(control), "%d", nth);
+		MUST(pwrite(ctl, control, (size_t)n, 0) == n, "arm child fail-nth");
+		errno = 0;
+		r = ioctl(fd, shape == 2 ? MOOB_IOC_QUERY2_BATCH : MOOB_IOC_QUERY2,
+			  shape == 2 ? (void *)&batch : (void *)&q);
+		saved = errno;
+		memset(control, 0, sizeof(control));
+		MUST(pread(ctl, control, sizeof(control) - 1, 0) > 0, "read child fail-nth");
+		result.hit = !strtoul(control, NULL, 10);
+		MUST(pwrite(ctl, "0", 1, 0) == 1, "disarm child fail-nth");
+		result.error = r ? saved : 0;
+		if (r)
+			MUST(result.hit && (saved == ENOMEM || saved == ENOSPC || saved == EIO ||
+			     saved == EAGAIN || saved == EINTR || saved == ENOBUFS), "explained unprivileged fault error");
+		else {
+			if (q.count != 1 || q.truncated || strcmp(results[0].path, "visible"))
+				fprintf(stderr, "T9_DIAG: domain=%s nth=%d shape=%d hit=%d count=%u truncated=%u path=%s\n",
+					domain, nth, shape, result.hit, q.count, q.truncated, results[0].path);
+			MUST(q.count == 1 && !q.truncated && !strcmp(results[0].path, "visible"),
+			     "T9 faulted success respects permissions and truncation");
+		}
+		snprintf(rel, sizeof(rel), "%s/visible", domain); path(p, lower, rel);
+		MUST(getxattr(p, "user.moob.test", value, sizeof(value)) == 2, "fault visible lower control");
+		snprintf(rel, sizeof(rel), "%s/private/hidden", domain); path(p, lower, rel);
+		MUST(getxattr(p, "user.moob.test", value, sizeof(value)) < 0 && errno == EACCES,
+		     "fault hidden lower control");
+		MUST(query(fd, "test", 0, 1, &truncated) == 1 && !truncated &&
+		     !strcmp(results[0].path, "visible"), "T9 unprivileged retry after fault");
+		MUST(!close(fd) && !close(ctl), "close fault descriptors");
+		MUST(write(pipefd[1], &result, sizeof(result)) == sizeof(result), "fault result write");
+		_exit(0);
+	}
+	close(pipefd[1]);
+	MUST(read(pipefd[0], &result, sizeof(result)) == sizeof(result), "fault result read");
+	MUST(!close(pipefd[0]) && waitpid(pid, &status, 0) == pid &&
+	     WIFEXITED(status) && !WEXITSTATUS(status), "fault child verdict");
+	return result;
+}
+
+static void faults(void)
+{
+	static const unsigned char text[] = {1, 'v'}, rank[] = {2, 0, 0, 0, 0, 0, 0, 0, 0};
+	int fresh, shape, calls = 0, total = 0;
+
+	umask(0);
+	for (fresh = 0; fresh < 2; fresh++) for (shape = 0; shape < 3; shape++) {
+		int n, hits = 0;
+
+		for (n = 1; n <= 256; n++) {
+			char domain[64], rel[128];
+			struct fault_result result;
+			unsigned int truncated;
+			int fd;
+
+			snprintf(domain, sizeof(domain), "uf-%d-%d-%03d", fresh, shape, n);
+			directory(layer, domain, 0755);
+			snprintf(rel, sizeof(rel), "%s/private", domain); directory(layer, rel, 0755);
+			snprintf(rel, sizeof(rel), "%s/visible", domain); file(layer, rel);
+			attribute(layer, rel, "user.moob.test", text, sizeof(text));
+			attribute(layer, rel, "user.moob.rank", rank, sizeof(rank));
+			snprintf(rel, sizeof(rel), "%s/private/hidden", domain); file(layer, rel);
+			attribute(layer, rel, "user.moob.test", text, sizeof(text));
+			attribute(layer, rel, "user.moob.rank", rank, sizeof(rank));
+			if (!fresh) {
+				fd = open_dir(layer, domain);
+				MUST(query(fd, "test", 0, 8, &truncated) == 2 && !truncated && !close(fd), "fault warm control");
+			}
+			snprintf(rel, sizeof(rel), "%s/private", domain); mode(layer, rel, 0700);
+			result = fault_trial(domain, n, shape);
+			calls++;
+			if (!result.hit) break;
+			hits++; total++;
+		}
+		MUST(n <= 256 && hits > 0, "unprivileged fault sweep terminates and injects real faults");
+		printf("UNPRIV_FAULT_CASE_PASS: uid=1001 fresh=%d shape=%d calls=%d faults=%d\n", fresh, shape, n, hits);
+	}
+	printf("UNPRIV_FAULT_PASS: uid=1001 operations=6 calls=%d faults=%d unexpected=0\n", calls, total);
+}
+
 int main(int argc, char **argv)
 {
 	setbuf(stdout, NULL);
 	if (argc == 3 && !strcmp(argv[1], "plant")) {
 		lower = argv[2]; plant(); return 0;
 	}
-	if (argc == 4 && !strcmp(argv[1], "release")) {
+	if (argc == 4 && (!strcmp(argv[1], "release") || !strcmp(argv[1], "faults"))) {
 		layer = argv[2]; lower = argv[3];
-		release_check();
+		if (!strcmp(argv[1], "release")) release_check(); else faults();
 		return 0;
 	}
-	MUST(argc == 5 && !strcmp(argv[1], "check"), "usage: permission-gaps plant LOWER | check LAYER LOWER q2|v1");
+	MUST(argc == 5 && !strcmp(argv[1], "check"), "usage: permission-gaps plant LOWER | check LAYER LOWER q2|v1 | release|faults LAYER LOWER");
 	layer = argv[2]; lower = argv[3]; legacy = !strcmp(argv[4], "v1");
 	MUST(legacy || !strcmp(argv[4], "q2"), "known query mode");
 	if (!legacy) {

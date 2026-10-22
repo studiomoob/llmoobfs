@@ -41,7 +41,7 @@ finished. New features wait for project review and the maintainer's decision.
 | 3. Remaining M3 | Client contract ([0070](docs/history/0070-client-contract.md)); batch content read dropped, change cursor stays in the client ([0072](docs/history/0072-m3-phase-3c.md)) | Attribute-value projection accepted in ADR-0014 but not implemented |
 | 4. S4 and S2 | Hostile-lower tests ([0073](docs/history/0073-s4-hostile-lower.md)); fstests `quick` passes on ext4, btrfs and XFS with exclusions ([0091](docs/history/0091-s2-fstests-clean-with-exclusions.md)) | Full fstests `auto` group |
 | 5. S6 and test infrastructure | Compatibility policy and `MOOB_ONLY` ([0084](docs/history/0084-s6-moob-only-kasan-required.md)); required KASAN job runs the suite when module/test inputs change | Other kernel series and distribution work remain under the security roadmap |
-| Review round 2, R2-5 and R2-7 | Domain-rename and concurrent index-budget corrections reproduced negatively and validated in the complete native VM suite on ext4, btrfs and XFS; the unchanged kernel/layer code passed KASAN/UBSAN/lockdep ([0174](docs/history/0174-root-path-race.md), [0175](docs/history/0175-over-budget-build-race.md)); combined [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) is open | Published-head CI, review and merge decision; then reconcile issues 110 and 111. This does not implement S9 fair budget shares or the broader S14–S21 test plan |
+| Review round 2, R2-5 and R2-7 | Domain-rename and concurrent index-budget corrections reproduced negatively and validated in the complete native VM suite on ext4, btrfs and XFS; the unchanged kernel/layer code passed local KASAN/UBSAN/lockdep ([0174](docs/history/0174-root-path-race.md), [0175](docs/history/0175-over-budget-build-race.md)); all 11 checks on [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) passed and it was merged on 2026-10-21 | Issues 110 and 111 were closed after the merge. This does not implement S9 fair budget shares or the broader S14–S21 test plan |
 | M4 report | Pilot complete ([0088](docs/history/0088-m4-report.md)); user-space index comparison measured ([0094](docs/history/0094-userspace-baseline-measured.md)); module comparisons with 40 repetitions and intervals ([0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md)) | Fresh SQLite/client comparisons with intervals, other profiles/hosts, concurrency scaling and default-budget saturation |
 | ADR-0012 — On-demand, reclaimable index | Domain build ([0098](docs/history/0098-index-on-demand.md)), releases ([0101](docs/history/0101-domains-released.md)), tracepoints ([0102](docs/history/0102-index-tracepoints.md)); steady-state cost measured ([0139](docs/history/0139-query-buffer-regression.md)) | Fair budget shares; performance residual investigation |
 | S3 — syzkaller | Five six-hour runs; fifth has no report and 88.7 % aggregate handler coverage ([0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md)) | `moobl_xattr_get` was at 0 PCs in the fifth run's report: the corpus kept almost no attribute read inside a mounted layer. Replayed with per-call coverage, the seeds reach 3 of its 4 PCs ([0154](docs/history/0154-xattr-get-coverage-explained.md)); the next run, with three new seeds, has to show it in the report |
@@ -59,16 +59,46 @@ maintainer's approval. This
 does not close the S3 per-function coverage gap or the performance residual.
 
 Pause checkpoint, 2026-10-21: the combined correction of issues 110 and 111
-is published as [PR 126](https://github.com/studiomoob/llmoobfs/pull/126); pause new implementation. Resume by checking
-required CI on the exact published head, reviewing the PR and its recorded
-limits, deciding whether to merge, and only then reconciling the two issues.
+had been published as [PR 126](https://github.com/studiomoob/llmoobfs/pull/126),
+and new implementation was paused. At that point, exact-head CI, review, a
+merge decision and issue reconciliation were the next steps.
 Issue 112's batch-error contract was merged by PR 125 and its issue closed;
 issue 114 remains partial because unprivileged allocation-fault coverage
 (T9) is deferred.
-The separate Dependabot PR 75 updates `ossf/scorecard-action`; its old checks
-passed, but its branch is behind `main` and must be refreshed and rechecked
-before a maintainer decides on that merge. This dependency PR is not part of
-the correction batch.
+The separate Dependabot PR 75 updated `ossf/scorecard-action`; at that
+checkpoint, its old checks had passed but the branch was behind `main` and
+needed refresh and recheck before a merge decision. That dependency update
+was not part of the correction batch.
+
+*Status correction, 2026-10-22 ([0177](docs/history/0177-merged-pr-state-reconciled.md)):*
+The checkpoint above records the state before merge. The exact published head
+of [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) passed its 11
+reported checks; the maintainer merged it on 2026-10-21 and issues 110 and
+111 were closed. [PR 75](https://github.com/studiomoob/llmoobfs/pull/75)
+also passed its nine reported checks and was merged separately that day.
+There are no open pull requests at this checkpoint. Resume with issue 114's
+remaining T9 test gap, then investigate the resource-cost issues 116 and 118;
+the pause did not imply production readiness or complete S9 fair sharing.
+
+*Local progress, 2026-10-22 ([0178](docs/history/0178-unprivileged-allocation-fault-queries.md)):*
+The T9 fault test found that an allocation failure during a per-result
+permission lookup could produce a successful but incomplete QUERY2 answer.
+The local correction makes that query return `ENOMEM` and adds unprivileged
+fault cases. The full local KASAN and native Docker VM suites passed;
+publication and issue reconciliation are pending. Issues 116 and 118 remain the next
+resource-cost investigations after this step. A separate direct KVM run on the
+dedicated Mac mini repeatedly returned `ENOMEM` in the issue 111 concurrent
+budget test on ext4, although the reference Docker VM and full KASAN runs
+passed. Investigate that KVM finding before treating the budget race as fully
+stabilized; journal 0178 records the exact results and limits.
+
+*Local follow-up, 2026-10-22 ([0179](docs/history/0179-kvm-overbudget-race-followup.md)):*
+The dedicated-host KVM failure reproduced in an isolated run. The local
+correction tries the next eligible built domain if the oldest one's build
+mutex is busy. The targeted KVM case and the full Docker VM, native KVM and
+KASAN/UBSAN/lockdep suites passed on the changed module, including budget
+checks on ext4, btrfs and XFS. This remains unpublished; PR CI and integration
+are separate gates. Issues 116 and 118 remain next in the stabilization order.
 
 Planned from ADR-0017 (accepted 2026-10-20, journal 0156), the answers to the design objections of
 review round 2:

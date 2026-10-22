@@ -44,9 +44,21 @@ with findings F1 to F5 added since. Outside review was requested on 2026-10-13 (
 defects were reproduced on an unfixed module, corrected, and validated in the
 complete native VM suite over ext4, btrfs and XFS. The corrected kernel/layer
 code passed KASAN/UBSAN/lockdep on the dedicated host. The combined
-[PR 126](https://github.com/studiomoob/llmoobfs/pull/126) is open; published-head CI,
-review and merge remain separate gates. Neither correction provides S9 fair
+[PR 126](https://github.com/studiomoob/llmoobfs/pull/126) was open at that
+checkpoint; published-head CI, review and merge were separate gates. Neither correction provides S9 fair
 budget sharing or completes the broader S14–S21 work below.
+
+*Status correction, 2026-10-22 (journal 0177):* the preceding update describes
+the pre-merge state. All 11 reported checks on PR 126 passed; it was merged
+on 2026-10-21, and issues 110 and 111 were closed. S9 fair sharing and the
+S14–S21 test plan remain separate work.
+
+*Local follow-up, 2026-10-22 (journal 0179):* a direct native KVM run exposed
+a repeatable remaining budget refusal under concurrent builds. The local
+correction skips a busy release candidate and tries the next eligible domain.
+Its negative control failed on ext4; targeted KVM, complete Docker VM, native
+KVM and KASAN/UBSAN/lockdep runs passed on the corrected module. PR CI and
+integration remain pending; this does not provide S9 fair sharing.
 
 *Status, 2026-10-18:* findings F1 to F12 recorded; all fixed but part of F2 (fair shares, S9; its silent partial answers fixed in journal 0130); F4 completed in journal 0132. Two source
 reviews by AI assistants (journals 0111, 0114) found F9 to F12, fixed in pull request #80 with
@@ -298,7 +310,10 @@ because it changes timing.
 Targeted test-gap follow-up (journal 0172): decisive search/truncation checks,
 attributed-directory comparisons, 18 independent fixed encoding fixtures and
 unprivileged queries across index release. These bounded scenarios do not
-complete S14/S15 below. Allocation-fault query coverage remains root-only (T9).
+complete S14/S15 below. Journal 0178 adds a separate unprivileged
+allocation-fault test for T9 and fixes a silent omission when a permission
+lookup runs out of memory. Full local KASAN and native Docker VM suites passed;
+integration remains pending.
 
 ### S14 to S21. Making the tests find what reviews found (added 2026-10-20, journal 0156)
 

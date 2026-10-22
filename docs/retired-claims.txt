@@ -53,6 +53,7 @@ last measured below the coverage threshold
 medição ficou abaixo do limiar de cobertura
 
 # Documentation audit, 2026-10-20 (journal 0146).
+
 speed not measured
 magnitude unknown
 near the budget, answers can be
@@ -90,3 +91,8 @@ verificação separada do lote com sanitizers continua pendente
 # Harness inventory corrected on 2026-10-21 (journal 0171).
 The QEMU phase is bounded by a 600-second timeout
 boots the disposable Linux VM that runs every test
+
+# Merged PR status, 2026-10-22 (journal 0177).
+combined [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) is open
+[PR 126](https://github.com/studiomoob/llmoobfs/pull/126) is open; published-head CI
+its branch is behind `main` and must be refreshed and rechecked
