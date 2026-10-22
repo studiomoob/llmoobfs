@@ -154,3 +154,24 @@ the changelog and history-index conflicts by keeping both records. The KASAN
 VM already in progress still tests the pre-merge source; its result must not
 be attributed to the integrated branch. Integrated native-KVM and sanitizer
 validation remain pending.
+
+## Sanitizer result and integrated targeted run — 2026-10-22
+
+The pre-PR-127 source copy's full `sh vm/kasan-local.sh` run ended with exit
+0, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS` and `MOOBFS_KASAN_PASS`.
+The guest printed `MEMCG_SKIPPED` because its pinned KASAN kernel has no
+memory controller. The harness's kernel-diagnostic filter passed; a broad
+manual text search also matched harmless boot lines about KASAN initialization,
+lockdep configuration and a processor-platform-limit event, which are not
+module diagnostics. This sanitizer result applies to the pre-merge source,
+not to the branch after PR 127 was integrated.
+
+In the dedicated host's Git checkout at `4eb3aaa`, a targeted native-KVM
+`MOOB_ONLY=memcg sh build/native-kvm.sh` exited 0. The buffer case measured
+`memory.current` 262,144 before, 2,277,376 while held and 180,224 after
+close (delta 2,015,232 bytes). The index case measured
+`slab_unreclaimable` zero before and 1,405,064 bytes after build, still
+1,405,064 after closing the query descriptor. It printed
+`MEMCG_ACCOUNT_PASS` and `MOOBFS_ONLY_PASS`. The full integrated native-KVM
+suite is running separately; neither these targeted markers nor the old
+KASAN pass are its verdict.
