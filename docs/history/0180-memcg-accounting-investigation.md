@@ -175,3 +175,23 @@ close (delta 2,015,232 bytes). The index case measured
 `MEMCG_ACCOUNT_PASS` and `MOOBFS_ONLY_PASS`. The full integrated native-KVM
 suite is running separately; neither these targeted markers nor the old
 KASAN pass are its verdict.
+
+## Integrated native-KVM full suite — 2026-10-22
+
+The full `sh build/native-kvm.sh` run in the dedicated host's Git checkout
+at `4eb3aaa` exited 0 after PR 127 had been integrated. The guest printed
+`MOOBFS_VM_PASS`, `MEMCG_ACCOUNT_PASS`, `MOOBFS_ACCEPTANCE_PASS` and
+`MOOBFS_LAYER_PASS`. The buffer's `memory.current` values were 262,144 before,
+2,277,376 while held and 180,224 after close (delta 2,015,232 bytes). The
+index's `slab_unreclaimable` rose from zero to 1,405,512 bytes and remained
+there after the query descriptor closed. The complete suite included ext4,
+btrfs and XFS lower filesystems, PR 127's over-budget race, git, SQLite WAL,
+memory client, fault/replay cases and 9,000 fsx operations per supported
+filesystem. A scan for kernel `BUG`, warning, Oops, KASAN, lockdep, soft lockup,
+RCU stall and suite fail markers in `build/vm/console.log` found none. The
+host-side log is `build/native-kvm-full-0180.log` in that checkout.
+
+This is the integrated native-KVM result. The earlier local Docker TCG run
+remains inconclusive. The integrated KASAN/UBSAN/lockdep run is now in progress
+on the dedicated host; no sanitizer pass is claimed for the integrated branch
+yet.
