@@ -48,7 +48,8 @@
  * The index lock is taken when a layer inode is evicted (moobl_index_inode_evicted), and
  * memory reclaim evicts inodes. An allocation made with the lock held must therefore not
  * recurse into filesystem reclaim, or the task would wait for the lock it holds. Every
- * section runs in a NOFS scope, so the allocations inside it can stay GFP_KERNEL.
+ * section runs in a NOFS scope, so the accounted allocations inside it can
+ * keep the reclaim behavior of GFP_KERNEL_ACCOUNT.
  */
 static inline unsigned int ix_write_lock(struct moobl_index *ix)
 {
@@ -269,7 +270,7 @@ static struct moobl_ix_name *name_get(struct moobl_index *ix, const char *name, 
 	}
 	if (charge(ix, sizeof(*nm)))
 		return ERR_PTR(-ENOMEM);
-	nm = kzalloc(sizeof(*nm), GFP_KERNEL);
+	nm = kzalloc(sizeof(*nm), GFP_KERNEL_ACCOUNT);
 	if (!nm) {
 		uncharge(ix, sizeof(*nm));
 		return ERR_PTR(-ENOMEM);
@@ -301,14 +302,14 @@ static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino)
 		return rec;
 	if (charge(ix, sizeof(*rec)))
 		return ERR_PTR(-ENOMEM);
-	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
+	rec = kzalloc(sizeof(*rec), GFP_KERNEL_ACCOUNT);
 	if (!rec) {
 		uncharge(ix, sizeof(*rec));
 		return ERR_PTR(-ENOMEM);
 	}
 	rec->ino = ino;
 	INIT_LIST_HEAD(&rec->entries);
-	if (xa_err(xa_store(&ix->inodes, ino, rec, GFP_KERNEL))) {
+	if (xa_err(xa_store(&ix->inodes, ino, rec, GFP_KERNEL_ACCOUNT))) {
 		kfree(rec);
 		uncharge(ix, sizeof(*rec));
 		return ERR_PTR(-ENOMEM);
@@ -482,7 +483,7 @@ static int index_put(struct moobl_index *ix, u64 ino, const struct moobl_place *
 		rec_drop(ix, rec);
 		return -ENOMEM;
 	}
-	e = kmalloc(sizeof(*e) + len, GFP_KERNEL);
+	e = kmalloc(sizeof(*e) + len, GFP_KERNEL_ACCOUNT);
 	if (!e) {
 		uncharge(ix, sizeof(*e) + len);
 		name_put_if_empty(ix, nm);
@@ -510,7 +511,7 @@ static int index_set_path(struct moobl_index *ix, struct moobl_ix_inode *rec, co
 		return 0;
 	if (charge(ix, len))
 		return -ENOMEM;	/* the old name is kept; QUERY will fall back to the dentry cache */
-	copy = kmemdup(path, len, GFP_KERNEL);
+	copy = kmemdup(path, len, GFP_KERNEL_ACCOUNT);
 	if (!copy) {
 		uncharge(ix, len);
 		return -ENOMEM;
@@ -847,14 +848,15 @@ static struct moobl_domain *domain_get(struct moobl_index *ix, u64 domain)
 	dom = xa_load(&ix->domains, (unsigned long)domain);
 	if (dom)
 		return dom;
-	dom = kzalloc(sizeof(*dom), GFP_KERNEL);
+	dom = kzalloc(sizeof(*dom), GFP_KERNEL_ACCOUNT);
 	if (!dom)
 		return NULL;
 	mutex_init(&dom->build);
 	INIT_LIST_HEAD(&dom->moved);
 	nofs = ix_write_lock(ix);
 	cur = xa_load(&ix->domains, (unsigned long)domain);
-	if (!cur && xa_err(xa_store(&ix->domains, (unsigned long)domain, dom, GFP_KERNEL)))
+	if (!cur && xa_err(xa_store(&ix->domains, (unsigned long)domain, dom,
+				     GFP_KERNEL_ACCOUNT)))
 		cur = ERR_PTR(-ENOMEM);
 	ix_write_unlock(ix, nofs);
 	if (cur) {
@@ -1018,8 +1020,8 @@ static void attr_buf_free(struct attr_buf *b)
 static int attr_buf_init(struct attr_buf *b)
 {
 	memset(b, 0, sizeof(*b));
-	b->list = kvmalloc(XATTR_LIST_MAX, GFP_KERNEL);
-	b->value = kmalloc(MOOB_ATTR_VALUE_MAX + 1, GFP_KERNEL);
+	b->list = kvmalloc(XATTR_LIST_MAX, GFP_KERNEL_ACCOUNT);
+	b->value = kmalloc(MOOB_ATTR_VALUE_MAX + 1, GFP_KERNEL_ACCOUNT);
 	if (!b->list || !b->value) {
 		attr_buf_free(b);
 		return -ENOMEM;
@@ -1034,7 +1036,7 @@ static int attr_buf_add(struct attr_buf *b, const char *name, size_t n)
 
 	if (need > b->cap) {
 		size_t cap = max_t(size_t, need, max_t(size_t, 2 * b->cap, PAGE_SIZE));
-		u8 *data = kvmalloc(cap, GFP_KERNEL);
+		u8 *data = kvmalloc(cap, GFP_KERNEL_ACCOUNT);
 
 		if (!data)
 			return -ENOMEM;
@@ -1252,7 +1254,7 @@ static bool scan_actor(struct dir_context *ctx, const char *name, int len, loff_
 		return true;
 	if (sc->count == MOOBL_SCAN_BATCH)
 		return false;	/* not consumed: the next iterate_dir() starts with it */
-	sn = kmalloc(sizeof(*sn) + len, GFP_KERNEL);
+	sn = kmalloc(sizeof(*sn) + len, GFP_KERNEL_ACCOUNT);
 	if (!sn) {
 		sc->err = -ENOMEM;
 		return false;
@@ -1317,7 +1319,7 @@ static int scan_push_dir(struct scan_job *job, struct scan_dir *cur, struct dent
 			 char *cpath)
 {
 	struct moobl_index *ix = IX(job->sb);
-	struct scan_dir *nd = kzalloc(sizeof(*nd), GFP_KERNEL);
+	struct scan_dir *nd = kzalloc(sizeof(*nd), GFP_KERNEL_ACCOUNT);
 	unsigned int dn = ix->domain_depth;
 
 	if (!nd) {
@@ -1406,7 +1408,8 @@ static int scan_child(struct scan_job *job, struct scan_dir *cur, struct scan_na
 			     MOOBL_MAX_DEPTH);
 		goto out;
 	}
-	cpath = kasprintf(GFP_KERNEL, "%s%s%.*s", cur->path, cur->path[0] ? "/" : "", sn->len,
+	cpath = kasprintf(GFP_KERNEL_ACCOUNT, "%s%s%.*s", cur->path,
+			  cur->path[0] ? "/" : "", sn->len,
 			  sn->name);
 	if (!cpath) {
 		err = -ENOMEM;
@@ -1498,11 +1501,11 @@ static int scan_job_init(struct scan_job *job, struct super_block *sb)
 static int scan_start(struct scan_job *job, struct dentry *lower, const char *path,
 		      unsigned int depth, bool domain_root)
 {
-	struct scan_dir *sd = kzalloc(sizeof(*sd), GFP_KERNEL);
+	struct scan_dir *sd = kzalloc(sizeof(*sd), GFP_KERNEL_ACCOUNT);
 
 	if (!sd)
 		return -ENOMEM;
-	sd->path = kstrdup(path, GFP_KERNEL);
+	sd->path = kstrdup(path, GFP_KERNEL_ACCOUNT);
 	if (!sd->path) {
 		kfree(sd);
 		return -ENOMEM;
@@ -1537,7 +1540,7 @@ static int scan_moved(struct scan_job *job, struct list_head *todo, struct dentr
 				break;
 			continue;
 		}
-		sd = kzalloc(sizeof(*sd), GFP_KERNEL);
+		sd = kzalloc(sizeof(*sd), GFP_KERNEL_ACCOUNT);
 		if (!sd) {
 			err = -ENOMEM;
 			break;
@@ -1873,7 +1876,7 @@ void moobl_index_destroy(struct super_block *sb)
 static void record_dentry_path(struct moobl_index *ix, struct moobl_ix_inode *rec,
 			       struct dentry *dentry)
 {
-	char *buf = (char *)__get_free_page(GFP_KERNEL);
+	char *buf = (char *)__get_free_page(GFP_KERNEL_ACCOUNT);
 	char *p = buf ? dentry_path_raw(dentry, buf, PAGE_SIZE) : ERR_PTR(-ENOMEM);
 
 	lockdep_assert_held_write(&ix->lock);
@@ -2033,14 +2036,14 @@ static struct moved_dir *dir_moved_prepare(struct moobl_index *ix, struct dentry
 		return NULL;
 	if (n && k > n)
 		*target = moobl_lower_inode(d_inode(domd))->i_ino;
-	buf = (char *)__get_free_page(GFP_KERNEL);
-	md = kzalloc(sizeof(*md), GFP_KERNEL);
+	buf = (char *)__get_free_page(GFP_KERNEL_ACCOUNT);
+	md = kzalloc(sizeof(*md), GFP_KERNEL_ACCOUNT);
 	if (!buf || !md)
 		goto fail;
 	p = dentry_path_raw(where, buf, PAGE_SIZE);
 	if (IS_ERR(p))
 		goto fail;
-	md->path = kstrdup(*p == '/' ? p + 1 : p, GFP_KERNEL);
+	md->path = kstrdup(*p == '/' ? p + 1 : p, GFP_KERNEL_ACCOUNT);
 	if (!md->path)
 		goto fail;
 	md->depth = k;
@@ -2183,7 +2186,7 @@ void moobl_index_perm_changed(struct super_block *sb, struct dentry *dentry)
 	if (d_is_dir(dentry) && depth_and_domain(ix, dentry, &depth, &domain) &&
 	    depth >= ix->domain_depth && domain)
 		if (xa_err(xa_store(&ix->fallback, (unsigned long)domain, xa_mk_value(1),
-				    GFP_KERNEL)))
+				    GFP_KERNEL_ACCOUNT)))
 			WRITE_ONCE(ix->fallback_all, true);	/* no memory to note it: check everywhere */
 	nofs = place_and_lock(ix, dentry, &pl);
 	index_touched(ix, d_inode(dentry)->i_ino);
@@ -2609,7 +2612,7 @@ static int add_candidate(struct moobl_index *ix, struct moobl_ix_entry *e,
 
 		/* the whole name: the permission check resolves it; only the reply is cut */
 		if (rel) {
-			c->path = kstrdup(rel, GFP_KERNEL);
+			c->path = kstrdup(rel, GFP_KERNEL_ACCOUNT);
 			if (!c->path)
 				err = -ENOMEM;
 		}
@@ -2617,7 +2620,7 @@ static int add_candidate(struct moobl_index *ix, struct moobl_ix_entry *e,
 	if (want_key) {
 		c->type = e->type;
 		c->len = e->len;
-		c->value = kmalloc(max_t(u16, e->len, 1), GFP_KERNEL);
+		c->value = kmalloc(max_t(u16, e->len, 1), GFP_KERNEL_ACCOUNT);
 		if (c->value)
 			memcpy(c->value, e->value, e->len);
 		else
@@ -2843,9 +2846,9 @@ static long query_run(struct super_block *sb, struct file *file,
 	bool exhausted = false;
 	long err = 0;
 
-	cand = kcalloc(MOOBL_QUERY_CHUNK, sizeof(*cand), GFP_KERNEL);
-	resume = kzalloc(sizeof(*resume), GFP_KERNEL);
-	pathbuf = (char *)__get_free_page(GFP_KERNEL);
+	cand = kcalloc(MOOBL_QUERY_CHUNK, sizeof(*cand), GFP_KERNEL_ACCOUNT);
+	resume = kzalloc(sizeof(*resume), GFP_KERNEL_ACCOUNT);
+	pathbuf = (char *)__get_free_page(GFP_KERNEL_ACCOUNT);
 	if (!cand || !resume || !pathbuf) {
 		err = -ENOMEM;
 		goto out;
@@ -3102,7 +3105,7 @@ static int query_hash(struct moobl_index *ix, const struct moob_query2 *q, u64 d
 		      bool fallback, u64 *out)
 {
 	size_t tsz = (size_t)q->nterms * sizeof(q->terms[0]);
-	struct moobl_qhash_head *h = kzalloc(sizeof(*h) + tsz, GFP_KERNEL);
+	struct moobl_qhash_head *h = kzalloc(sizeof(*h) + tsz, GFP_KERNEL_ACCOUNT);
 
 	if (!h)
 		return -ENOMEM;
@@ -3244,7 +3247,7 @@ static long query2_pin(struct super_block *sb, struct file *file, u64 domain)
 	for (tries = 0; tries < 8; tries++) {
 		dom = xa_load(&ix->domains, (unsigned long)domain);
 		if (!dom || !domain_fresh(ix, dom)) {
-			buf = (char *)__get_free_pages(GFP_KERNEL, 1);
+			buf = (char *)__get_free_pages(GFP_KERNEL_ACCOUNT, 1);
 			if (!buf)
 				return -ENOMEM;
 			gen = rename_gen(ix);
@@ -3340,9 +3343,9 @@ static long query2_exec(struct super_block *sb, struct file *file, struct moob_q
 	if (err)
 		return err;
 	/* execution copy of the terms: a plain scan must lead with a term without MISSING_OK */
-	t = kmemdup(q->terms, sizeof(q->terms), GFP_KERNEL);
-	start = kzalloc(sizeof(*start), GFP_KERNEL);
-	last = kzalloc(sizeof(*last), GFP_KERNEL);
+	t = kmemdup(q->terms, sizeof(q->terms), GFP_KERNEL_ACCOUNT);
+	start = kzalloc(sizeof(*start), GFP_KERNEL_ACCOUNT);
+	last = kzalloc(sizeof(*last), GFP_KERNEL_ACCOUNT);
 	if (!t || !start || !last) {
 		err = -ENOMEM;
 		goto out;
@@ -3447,7 +3450,7 @@ static long do_query2_batch(struct super_block *sb, struct file *file, void __us
 	    !all_zero(b.reserved, sizeof(b.reserved)))
 		return -EINVAL;
 	uq = u64_to_user_ptr(b.queries);
-	qs = kvmalloc_array(b.nqueries, sizeof(*qs), GFP_KERNEL);
+	qs = kvmalloc_array(b.nqueries, sizeof(*qs), GFP_KERNEL_ACCOUNT);
 	if (!qs)
 		return -ENOMEM;
 	if (copy_from_user(qs, uq, b.nqueries * sizeof(*qs))) {

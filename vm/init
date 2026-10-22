@@ -44,5 +44,7 @@ export BIN TOOLS MODS DEV_EXT4 DEV_BTRFS DEV_XFS DEV_SCRATCH DEV_LOG
 # moob_only=a,b on the kernel command line: run only those suite steps (see vm/suite.sh)
 MOOB_ONLY=$(sed -n 's/.*moob_only=\([a-z0-9,]*\).*/\1/p' /proc/cmdline | tr ',' ' ')
 export MOOB_ONLY
+MOOB_EXPECT_MEMCG=1 # the pinned Debian guest has CONFIG_MEMCG=y
+export MOOB_EXPECT_MEMCG
 . /suite.sh
 poweroff -f

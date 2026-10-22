@@ -1271,7 +1271,7 @@ struct moob_query_result *moobl_qbuf_get(struct file *file, u32 n)
 	spin_lock(&mf->lock);
 	if (mf->qbusy) {
 		spin_unlock(&mf->lock);
-		return kvmalloc_array(n, sizeof(*buf), GFP_KERNEL);
+		return kvmalloc_array(n, sizeof(*buf), GFP_KERNEL_ACCOUNT);
 	}
 	mf->qbusy = true;
 	if (mf->qcap >= n) {
@@ -1283,7 +1283,7 @@ struct moob_query_result *moobl_qbuf_get(struct file *file, u32 n)
 	mf->qcap = 0;
 	spin_unlock(&mf->lock);
 	kvfree(old);
-	buf = kvmalloc_array(n, sizeof(*buf), GFP_KERNEL);
+	buf = kvmalloc_array(n, sizeof(*buf), GFP_KERNEL_ACCOUNT);
 	spin_lock(&mf->lock);
 	if (buf) {
 		mf->qbuf = buf;

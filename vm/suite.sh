@@ -21,6 +21,7 @@
 #   permgaps            decisive search, truncation, directory and encoding checks (0172)
 #   rootpath            a domain directory renamed while a build waits to start (issue #110)
 #   overbudget          builds over the budget while other domains are built (issue #111)
+#   memcg               account a retained QUERY2 buffer to the calling memory cgroup (#116)
 #   stall               a FUSE mount that never answers, inside a checked domain (journal 0116)
 #   lowerro             a read-only, frozen or idmapped lower mount (journal 0117)
 #   bigdir              a domain built from a directory larger than one read batch (journal 0120)
@@ -44,7 +45,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|stall|lowerro|bigdir|xattrread) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|stall|lowerro|bigdir|xattrread) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -1516,6 +1517,37 @@ for fs in ext4 btrfs xfs; do
     umount "$LAYER" && rm -rf "$LOWER/ob" && umount "$LOWER" || fail "ob-cleanup-$fs"
     echo "OVERBUDGET_PASS: $fs, one domain $ob_one bytes, budget $ob_budget"
 done
+fi
+if want memcg; then
+# The Debian reference guest enables CONFIG_MEMCG; the pinned KASAN kernel does
+# not. In the latter, exercise the other suite steps but report this one as
+# skipped instead of pretending that an uncharged allocation was measured.
+cgroot=$(mktemp -d /tmp/moob-cgroup.XXXXXX) || fail memcg-tempdir
+if ! mount -t cgroup2 none "$cgroot"; then
+    [ "${MOOB_EXPECT_MEMCG:-0}" = 1 ] && fail memcg-cgroup2-mount
+    rmdir "$cgroot" || fail memcg-skip-cleanup
+    echo "MEMCG_SKIPPED: cgroup v2 unavailable in this guest"
+elif ! grep -qw memory "$cgroot/cgroup.controllers"; then
+    [ "${MOOB_EXPECT_MEMCG:-0}" = 1 ] && fail memcg-controller-unavailable
+    umount "$cgroot" && rmdir "$cgroot" || fail memcg-skip-cleanup
+    echo "MEMCG_SKIPPED: kernel built without the memory controller"
+else
+    echo +memory > "$cgroot/cgroup.subtree_control" || fail memcg-enable
+    mount -t ext4 "$DEV_EXT4" "$LOWER" || fail memcg-lower-mount
+    mkdir -m 755 "$LOWER/mc" "$LOWER/mc/empty" "$LOWER/mc/index" || fail memcg-domain-create
+    "$BIN/overbudget-race" plant "$LOWER/mc/index" 650 || fail memcg-index-plant
+    mount -t moobfs_layer -o lower="$LOWER/mc",domain_depth=1 none "$LAYER" || fail memcg-layer-mount
+    cg="$cgroot/buffer-$$"
+    mkdir "$cg" && [ -f "$cg/memory.current" ] || fail memcg-buffer-cgroup
+    run_logged /tmp/memcg-buffer.txt "$BIN/memcg-query" buffer "$cg" "$LAYER/empty" || fail memcg-query-uncharged
+    rmdir "$cg" || fail memcg-buffer-cgroup-cleanup
+    cg="$cgroot/index-$$"
+    mkdir "$cg" && [ -f "$cg/memory.stat" ] || fail memcg-index-cgroup
+    run_logged /tmp/memcg-index.txt "$BIN/memcg-query" index "$cg" "$LAYER/index" || fail memcg-index-uncharged
+    rmdir "$cg" && umount "$cgroot" && rmdir "$cgroot" || fail memcg-cgroup-cleanup
+    umount "$LAYER" && rm -rf "$LOWER/mc" && umount "$LOWER" || fail memcg-layer-cleanup
+    echo "MEMCG_ACCOUNT_PASS: retained QUERY2 buffer and built index charged to caller cgroup"
+fi
 fi
 if want stall && [ ! -c /dev/fuse ]; then
     echo "STALL_SKIPPED: this kernel has no /dev/fuse (the KASAN harness has FUSE built in)"
