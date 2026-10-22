@@ -70,6 +70,13 @@ checkpoint, its old checks had passed but the branch was behind `main` and
 needed refresh and recheck before a merge decision. That dependency update
 was not part of the correction batch.
 
+Integration update, 2026-10-22: PR 127 merged after all eleven checks passed,
+including KASAN/lockdep. It completed issue 114's remaining T9 test and the
+concurrent-budget follow-up of issue 111; issue 114 was reconciled and closed.
+Issue 116 is being validated separately in journal 0180, while issue 118 and
+the broader S9 fair-sharing policy remain open. The pause checkpoint above
+describes its earlier date, not the present publication state.
+
 *Status correction, 2026-10-22 ([0177](docs/history/0177-merged-pr-state-reconciled.md)):*
 The checkpoint above records the state before merge. The exact published head
 of [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) passed its 11

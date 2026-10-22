@@ -315,6 +315,11 @@ allocation-fault test for T9 and fixes a silent omission when a permission
 lookup runs out of memory. Full local KASAN and native Docker VM suites passed;
 integration remains pending.
 
+*Integration update, 2026-10-22:* PR 127 passed all eleven GitHub checks,
+including KASAN/lockdep, and merged into `main`. T9 is checked and issue 114
+is closed. The paragraph above records the earlier local-validation state;
+S14/S15 below remain separate coverage work.
+
 ### S14 to S21. Making the tests find what reviews found (added 2026-10-20, journal 0156)
 
 Planned, not started. Rounds 1 and 2 of the independent review found defects no test could see.

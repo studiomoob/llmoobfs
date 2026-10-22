@@ -95,3 +95,8 @@ PR 127 `MERGED` at 22:55:41 UTC with merge commit
 that commit and contained the PR head. The issue-116 local branch later merged
 this main at `aef412b` for integrated validation; no issue-116 publication is
 claimed here.
+
+The remaining T9 item in issue 114 was marked complete with the PR link and
+its passed checks, and the issue was closed as completed. Issue 111 was
+already closed. This reconciles the issue tracker with the merged tests; it
+does not close issue 116 or the broader S9 fair-sharing work.

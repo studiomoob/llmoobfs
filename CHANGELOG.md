@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Integration (journal 0179): PR 127 passed all eleven GitHub checks and
+  merged the unprivileged allocation-fault test/fix and concurrent budget
+  release correction. Issue 114's final T9 item was checked and the issue
+  closed; issue 116 remains a separate validation unit.
+
 - Fix (journal 0180, issue 116): charge user-triggered index, scan and query
   allocations, including the retained `QUERY2` result buffer, to the current
   memory cgroup. Add a bounded guest regression with separate buffer and index

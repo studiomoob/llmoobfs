@@ -27,15 +27,15 @@
 
 As correções posteriores para renomeação de domínio e orçamento do índice
 foram integradas pela [PR 126](https://github.com/studiomoob/llmoobfs/pull/126)
-após suas 11 verificações passarem; as issues 110 e 111 foram fechadas. Isso
-não resolve as questões de custo de recursos das issues 116 e 118 nem conclui
-a validação e integração da correção para falha de alocação sem privilégios da
-issue 114 ([roadmap](ROADMAP.md)).
-Um acompanhamento ainda não publicado encontrou uma recusa de orçamento
-concorrente sob KVM nativo na máquina dedicada. Tentar outro domínio elegível
-quando o mutex de construção do mais antigo está ocupado passou nas suítes
-completas de VM Docker, KVM nativo e KASAN local; a CI do PR e a integração
-ainda estão pendentes ([diário 0179](docs/history/0179-kvm-overbudget-race-followup.md)).
+após suas 11 verificações passarem; as issues 110 e 111 foram fechadas. Uma
+rodada KVM nativa posterior encontrou outra recusa concorrente de orçamento.
+A tentativa de liberar outro domínio elegível quando o mais antigo está em
+construção, junto com o teste restante de falha de alocação sem privilégios
+(T9), entrou pela [PR 127](https://github.com/studiomoob/llmoobfs/pull/127)
+após as onze verificações passarem, inclusive KASAN/lockdep ([diários 0178](docs/history/0178-unprivileged-allocation-fault-queries.md)
+e [0179](docs/history/0179-kvm-overbudget-race-followup.md)). A issue 114 foi
+fechada. A issue 118 sobre custo de recursos continua aberta; a issue 116
+está em validação separada no diário 0180 ([roadmap](ROADMAP.md)).
 
 ## O problema
 
@@ -256,9 +256,9 @@ continuam sendo lacunas de cobertura. `ipc` é compilado, mas não invocado pela
 Para conferir permissões e casos fixos de codificação com expectativas independentes,
 use `MOOB_ONLY=permgaps make vm-test` ([diário 0172](docs/history/0172-permission-test-gaps.md)).
 O passo de liberação também consulta como uid 1001. O passo de falhas sob KASAN
-agora testa consultas sem privilégios com falhas de alocação injetadas. As
-rodadas KASAN direcionada e completa e a suíte nativa `make vm-test` passaram
-localmente; publicação e conciliação da issue ainda estão pendentes
+testa consultas sem privilégios com falhas de alocação injetadas. As rodadas
+KASAN direcionada e completa e a suíte nativa `make vm-test` passaram
+localmente, seguidas pelas verificações e pelo merge da PR 127
 ([diário 0178](docs/history/0178-unprivileged-allocation-fault-queries.md)).
 O acompanhamento da corrida de orçamento foi reproduzido antes da correção
 local e passou nas suítes completas de VM Docker, KVM na máquina dedicada e
