@@ -144,3 +144,13 @@ Other local containers were left alone. The source, logs and branch are being
 transferred to a distinct Git checkout on the Mac mini while its KASAN VM
 continues in a separate disposable source copy. A full native-KVM run on the
 dedicated host is still required.
+
+The verified bundle at `e2ffd84` was cloned into the dedicated host's
+`~/moobfs-issue116-git-20261022` checkout; the source and test files matched
+the running pre-merge KASAN source byte for byte. PR 127 then passed all
+GitHub checks and was merged into `main` at `0d37836` by maintainer request
+(journal 0179). This branch merged that main at `aef412b`, resolving only
+the changelog and history-index conflicts by keeping both records. The KASAN
+VM already in progress still tests the pre-merge source; its result must not
+be attributed to the integrated branch. Integrated native-KVM and sanitizer
+validation remain pending.

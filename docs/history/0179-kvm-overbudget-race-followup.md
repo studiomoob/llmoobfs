@@ -82,3 +82,16 @@ the technical result; remote checks have not yet been counted as passed. No
 merge or issue state change was performed. The next work is to inspect the PR
 checks and review, then reconcile the journal and issue states after any
 authorized integration.
+
+## Integration update — 2026-10-22
+
+The maintainer authorized merging PR 127 after its GitHub KASAN job passed.
+All eleven checks reported `SUCCESS`, the PR was `CLEAN`, and the head was
+`dc6dcdbbd19f2864665cfb277d246c004b0d0c52`. A `gh pr merge --merge`
+attempt returned HTTP 401 and did not merge it. An authenticated REST merge
+request pinned to that head returned `merged=true`; a subsequent read found
+PR 127 `MERGED` at 22:55:41 UTC with merge commit
+`0d378360eb54c915b5c0e499ebc9350b09dd1612`. `origin/main` resolved to
+that commit and contained the PR head. The issue-116 local branch later merged
+this main at `aef412b` for integrated validation; no issue-116 publication is
+claimed here.
