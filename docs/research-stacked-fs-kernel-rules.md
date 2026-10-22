@@ -417,6 +417,16 @@ it is a cross-user degradation, not a crash. The allocations are **not** `__GFP_
 recommendation for userspace-triggered allocations is **not met**. (Per-uid accounting or
 `__GFP_ACCOUNT` are the S9 candidates.)
 
+**Dated update, 2026-10-22:** the status above describes the audited pre-0180
+source. ADR-0018 and journal 0180 introduce `GFP_KERNEL_ACCOUNT` for the index,
+scan and query allocations and the retained result buffer. A Debian guest test
+has separate positive and negative controls for the buffer and index charges.
+The shared `index_budget` fairness gap remains S9 work; the historical finding
+above is retained to show why this correction was made.
+The old `GFP_ATOMIC` location and line references in R-MEM-2 below also refer
+to the source at the time of that audit; current allocation sites must be read
+from `layer/index.c` rather than inferred from those historical line numbers.
+
 **R-MEM-2 — `GFP_ATOMIC` only where sleeping is disallowed; prefer `GFP_KERNEL`.**
 Source: `Documentation/core-api/memory-allocation.rst:39-52,107`.
 Status: **Complies.** `GFP_ATOMIC` appears only in `add_candidate` (`layer/index.c:1391,1399`),
@@ -514,7 +524,8 @@ KSPP self-protection rationale aligns with `Documentation/security/self-protecti
 
 - **R-LOCK-5** kernel-stall / `cond_resched` behaviour on a very large lower tree.
 - **R-MEM-1** memcg accounting (`__GFP_ACCOUNT`) — confirmed *absent*; the per-mount budget is the
-  only bound (F2).
+  only bound (F2) in the source audited here. See the dated update in section 7
+  and journal 0180 for the later accounting correction and its scope.
 - **R-SUBMIT-3** allocator fault injection and the full `CONFIG_PREEMPT`/`!SMP` lockdep matrix.
 - **syzkaller (S3) and adversarial-lower fuzzing (S4/S7)** — not part of this review; these are the
   open roadmap items this document is meant to feed.

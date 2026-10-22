@@ -409,6 +409,10 @@ KASAN harness runs the layer suite), and no benchmark exists.
   domain is built by a linear scan on its first query after mount, and again after it was
   released or a directory in it was renamed; the budget and the shrinker were tested on small
   trees only (journal 0101).
+- `QUERY2` can retain a result buffer of up to 1,114,112 bytes per open descriptor. This
+  code charges that buffer and user-triggered index/query allocations to the allocating
+  task's memory cgroup where supported (issue 116, journal 0180). The mount-wide index
+  budget is still shared, so this does not provide per-user fair sharing (S9).
 - Mounting needs `CAP_SYS_ADMIN` in the initial user namespace; user-namespace and idmapped
   mounts are refused, and so is an idmapped mount as `lower=`; no rootless containers.
 - UAPI v1 and v2 may change, with no compatibility promise ([compatibility.md](docs/compatibility.md)); the `-experimental` tags are source snapshots, with no binaries, packaging or support.

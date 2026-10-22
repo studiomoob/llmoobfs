@@ -430,6 +430,10 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   domínio é construído por uma varredura linear na primeira consulta depois da montagem, e de novo
   depois de ser liberado ou de ter um diretório renomeado dentro dele; o orçamento e o shrinker só
   foram testados em árvores pequenas (diário 0101).
+- `QUERY2` pode manter um buffer de resultados de até 1.114.112 bytes por descritor aberto.
+  Esse buffer e as alocações de índice/consulta acionadas pelo usuário são cobrados
+  do cgroup de memória da tarefa que os alocou, quando disponível (issue 116, diário 0180).
+  O orçamento do índice ainda é compartilhado pela montagem e não garante divisão justa por usuário (S9).
 - Montar exige `CAP_SYS_ADMIN` no namespace de usuário inicial; montagens em namespace de usuário
   e idmapped são recusadas, assim como uma montagem idmapped como `lower=`; não há contêineres sem
   root.

@@ -40,6 +40,12 @@ reproducibility. If the pinned Debian package disappears, update image and
 kernel together through a reviewed change and rerun the suite; do not substitute
 host headers silently.
 
+`MOOB_ONLY=memcg make vm-test` runs the bounded accounting regression alone in
+the Debian guest. It needs cgroup v2 with `CONFIG_MEMCG=y`; the Debian harness
+requires that controller and fails if it is missing. The upstream 6.12.112
+KASAN kernel used here has `CONFIG_MEMCG` disabled, so its full suite prints
+`MEMCG_SKIPPED` and tests memory safety, not cgroup charging.
+
 ## 3. Markers and what they mean
 
 A run is read from the console log. Success markers are printed only after the
@@ -48,6 +54,13 @@ ends the run. A full-suite marker covers the steps that ran, including any
 explicitly reported skips below; it does not imply every optional case ran.
 Markers come from three places: `vm/init` and `tests/mounted.c` (M1),
 `vm/suite.sh` and the test binaries it calls (layer), `vm/kasan-guest.sh` (KASAN).
+
+| Accounting marker | Proves | Does not prove |
+| --- | --- | --- |
+| `MEMCG_BUFFER_RESULT` | A maximum-size empty `QUERY2` result buffer is charged to the caller's cgroup while its descriptor remains open | Exact physical footprint or charge migration if the descriptor changes owner |
+| `MEMCG_INDEX_RESULT` | Building a bounded attributed domain raises the calling cgroup's unreclaimable slab charge | Fair sharing of the mount-wide index budget or charges to file owners |
+| `MEMCG_ACCOUNT_PASS` | Both accounting assertions passed in a guest with the memory controller enabled | Every allocation path or every kernel configuration |
+| `MEMCG_SKIPPED` | The guest lacks the memory controller; no accounting assertion ran | Accounting correctness; the Debian harness treats this as a failure |
 
 ### M1 regression (`vm/init`, Debian harness only)
 

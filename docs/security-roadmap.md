@@ -229,6 +229,10 @@ turning that rule on, and the build-time check of an unlisted kernel.
 
 ### S9. Resource limits and denial of service
 
+- Issue 116 / ADR-0018 accounts user-triggered query and index allocations to
+  the allocating task's memory cgroup; journal 0180 records a bounded guest
+  test. This addresses missing memcg charges, not the fair sharing below.
+
 - A per-mount and per-user cap on `QUERY` results and on index memory, already partly covered
   by `index_budget`; test the behavior when the cap is hit.
 - Cost of the mount-time scan with a large lower layer; `index=off` and a lazy index option

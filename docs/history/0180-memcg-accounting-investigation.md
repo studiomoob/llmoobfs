@@ -1,6 +1,6 @@
 # 0180 — Memory-cgroup accounting of query-triggered allocations (issue 116)
 
-Date: 2026-10-22. Status: **investigation in progress; no module change or VM result yet**.
+Date: 2026-10-22. Status: **in progress; targeted positive and negative VM results, full suites pending**.
 Estimated effort: M (one to three days). Started 2026-10-22; labor time has
 not yet been measured.
 
@@ -50,6 +50,97 @@ unbounded workload. Then audit the longer-lived index allocations and decide
 which charges need a code change and whether a new ADR is required.
 
 No memcg measurement, behavior correction, performance regression test or
-compatibility conclusion is claimed yet. The next update must record actual
-guest configuration, command, result and any discarded hypothesis before
-making a change to allocation flags.
+compatibility conclusion was claimed at the start of this investigation.
+
+## First experiment — 2026-10-22
+
+`tests/memcg-query.c` and a `MOOB_ONLY=memcg` guest step were added as an
+in-progress regression test. The guest mounts cgroup v2, enables the memory
+controller, creates a private child cgroup and an empty readable domain, then
+joins the helper to the cgroup before dropping to uid/gid 1001. The helper
+opens the domain, maps but does not touch a userspace result array, and issues
+an empty `QUERY2` at the legal maximum limit. It reads `memory.current` before
+the ioctl, while the descriptor retains its buffer, and after close. It
+requires at least half of the 1,114,112-byte buffer to be charged. The
+reference Debian initramfs guest requires the memory controller; the separate
+KASAN guest reports this step skipped because its kernel lacks `CONFIG_MEMCG`.
+
+The test compiled with static GCC and `-Wall -Wextra -Werror` on the dedicated
+host. The first direct native KVM wrapper attempt exited 127 before boot:
+`mke2fs` was outside the host user's `PATH`. This was a wrapper setup error,
+not a test result. The ephemeral wrapper was given `/usr/sbin:/sbin` and the
+same targeted command, `MOOB_ONLY=memcg sh build/native-kvm.sh`, was repeated
+against unchanged module code. The guest reported `before=262144`,
+`held=262144`, `closed=262144`, delta zero bytes for a 1,114,112-byte buffer,
+then `MOOBFS_VM_FAIL: memcg-query-uncharged`. The launcher exited 1. This is
+a decisive negative control for the retained buffer's missing charge in this
+guest; it does not yet measure index allocations.
+
+Next: apply accounting to query and index/scan allocations, rerun the targeted
+guest step, then measure the index separately and check for performance or
+reclaim side effects before any publication decision.
+
+## Corrected allocation paths and isolated negative rounds — 2026-10-22
+
+All allocation calls in `layer/index.c` that passed plain `GFP_KERNEL` now pass
+`GFP_KERNEL_ACCOUNT`. The `fs_reclaim_acquire()` and
+`fs_reclaim_release()` arguments are reclaim-context annotations, not
+allocations, and remain unchanged. The retained and concurrent-fallback
+result buffers in `layer/main.c` also use `GFP_KERNEL_ACCOUNT`. This makes the
+task's current memcg the charge target at allocation time; it does not
+implement S9 per-user budget shares or move a charge when an open descriptor
+is passed to a task in another cgroup. The per-open reuse remains because
+journal 0139 measured the cost of allocating that buffer on every query.
+
+The corrected targeted KVM run initially measured the empty-domain buffer:
+`memory.current` rose from 262,144 to 2,277,376 bytes while the descriptor
+held the 1,114,112-byte buffer, and was 180,224 bytes after close. The test
+was then expanded to plant 650 attributed files outside the helper's cgroup
+and query that separate domain with a one-result buffer. On the corrected
+source, the same bounded native KVM command completed with exit 0:
+`MEMCG_BUFFER_RESULT` delta 2,015,232 bytes;
+`MEMCG_INDEX_RESULT` `slab_unreclaimable` delta 1,407,568 bytes, unchanged
+after closing the descriptor; `MEMCG_ACCOUNT_PASS` and `MOOBFS_ONLY_PASS`.
+The larger-than-requested buffer charge reflects allocator granularity; it
+is not reported as the buffer's exact physical footprint.
+
+For an isolated index negative, the current index diff was backed up in
+`build/issue116-index-accounting.diff`. A separate disposable source copy
+kept the corrected buffer code and guest test but used the original
+`layer/index.c` from `origin/main`. The same targeted KVM command exited 1:
+the buffer still charged 2,097,152 bytes, while the index case showed zero
+change in `slab_unreclaimable` and failed at `memcg-index-uncharged`. The
+earlier unmodified-module run had already failed the buffer case with zero
+change in `memory.current`. These two negatives distinguish the effects; no
+production worktree file was reverted. The saved logs on the dedicated host
+are `build/memcg-negative-2.log`, `build/memcg-positive-2.log`, and
+`build/memcg-negative-index.log` in their respective disposable source copies.
+
+At this checkpoint, `make checkpatch`, `make test` (60 attribute checks and
+nine image tests), shell syntax, SPDX, site links, FAQ synchronization,
+retired-claim checks and `git diff --check` passed. Full KASAN/lockdep and a
+full native-KVM suite are still pending. No controlled performance comparison
+was run; a targeted `MOOB_ONLY` pass is not a full-suite result.
+
+The accounting policy and its separation from S9 are proposed in ADR-0018;
+the decision remains under validation until the full suites and resource-cost
+review complete.
+
+The testing guide now names the memcg markers and the KASAN configuration
+limit; the English and Portuguese READMEs disclose the retained per-open cost,
+and the security roadmap separates this accounting correction from S9 fair
+sharing. The earlier R-MEM-1 finding is preserved with a dated update rather
+than rewritten as though the 2026-10-12 audit had observed the new source.
+
+## Transfer to the dedicated host — 2026-10-22
+
+The local Docker `make vm-test` passed its M1 step and the ext4, btrfs and XFS
+layer steps. During the later SQLite acceptance work, the emulated guest
+reported an RCU stall and `watchdog: BUG: soft lockup` at guest time 1060 s.
+There was no full-suite pass marker. At the maintainer's request to move this
+work to the dedicated Mac mini, only the MoobFS test container was stopped;
+the command exited 2 and this run is **inconclusive**, not a regression pass.
+Other local containers were left alone. The source, logs and branch are being
+transferred to a distinct Git checkout on the Mac mini while its KASAN VM
+continues in a separate disposable source copy. A full native-KVM run on the
+dedicated host is still required.
