@@ -34,8 +34,12 @@ construção, junto com o teste restante de falha de alocação sem privilégios
 (T9), entrou pela [PR 127](https://github.com/studiomoob/llmoobfs/pull/127)
 após as onze verificações passarem, inclusive KASAN/lockdep ([diários 0178](docs/history/0178-unprivileged-allocation-fault-queries.md)
 e [0179](docs/history/0179-kvm-overbudget-race-followup.md)). A issue 114 foi
-fechada. A issue 118 sobre custo de recursos continua aberta; a issue 116
-está em validação separada no diário 0180 ([roadmap](ROADMAP.md)).
+fechada. A correção da cobrança ao cgroup de memória entrou pela
+[PR 129](https://github.com/studiomoob/llmoobfs/pull/129) após as onze
+verificações passarem, e a issue 116 foi fechada. A issue 118 sobre custo de
+recursos e a divisão justa S9 continuam abertas ([diário 0180](docs/history/0180-memcg-accounting-investigation.md),
+[roadmap](ROADMAP.md)); ainda não houve comparação controlada de desempenho
+antes e depois da cobrança.
 
 ## O problema
 

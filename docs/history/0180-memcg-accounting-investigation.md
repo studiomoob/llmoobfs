@@ -1,6 +1,6 @@
 # 0180 — Memory-cgroup accounting of query-triggered allocations (issue 116)
 
-Date: 2026-10-22. Status: **in progress; targeted positive and negative VM results, full suites pending**.
+Date: 2026-10-22. Status: **completed by PR 129 on 2026-10-23; see final addendum**.
 Estimated effort: M (one to three days). Started 2026-10-22; labor time has
 not yet been measured.
 
@@ -267,3 +267,18 @@ the same trailer. PR 128 remains a visible record of the failed attempt;
 PR 129 is the intended replacement. The branch needs its own exact-head CI
 before a merge decision. No new kernel behavior was introduced by this
 reconstruction.
+
+## Integration addendum — 2026-10-23
+
+The opening status and the dated checkpoints above describe the work as it
+stood at each observation. The exact head `90b3e68` of
+[PR 129](https://github.com/studiomoob/llmoobfs/pull/129) completed all eleven
+reported GitHub checks successfully, including the KASAN/lockdep job. With
+the maintainer's explicit approval, the PR merged into `main` as
+`40645e23ffca1bce0c665f77a7d36702371d0813` on 2026-10-23 at
+09:03:36 UTC. Issue 116 closed automatically one second later through the
+PR's `Closes #116` marker. The older PR 128 remains closed as the visible
+failed-DCO attempt. The merge did not add a performance measurement; the
+controlled before/after overhead comparison remains outstanding, and S9
+fair sharing is still separate. These are integration observations, not new
+local module or VM tests.

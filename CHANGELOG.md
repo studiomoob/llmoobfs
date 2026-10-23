@@ -2,33 +2,40 @@
 
 ## Unreleased
 
+- Documentation (journal 0181): reconcile the merged PR 129, its eleven
+  successful checks and closed issue 116 across current-state documentation;
+  preserve the earlier publication checkpoints and the unmeasured performance
+  overhead.
+
 - Integration (journal 0179): PR 127 passed all eleven GitHub checks and
   merged the unprivileged allocation-fault test/fix and concurrent budget
   release correction. Issue 114's final T9 item was checked and the issue
-  closed; issue 116 remains a separate validation unit.
+  closed. Issue 116 was handled separately in journal 0180 and PR 129.
 
 - Fix (journal 0180, issue 116): charge user-triggered index, scan and query
   allocations, including the retained `QUERY2` result buffer, to the current
   memory cgroup. Add a bounded guest regression with separate buffer and index
   assertions. The integrated full native-KVM and KASAN/UBSAN/lockdep suites
   passed locally; [PR 129](https://github.com/studiomoob/llmoobfs/pull/129)
-  replaces PR 128 after its documentation commits failed the DCO sign-off
-  gate. Controlled performance comparison and replacement-PR CI remain pending.
-  This leaves the per-mount budget and S9 fair sharing distinct.
+  replaced PR 128 after its documentation commits failed the DCO sign-off
+  gate. The replacement passed all eleven reported checks and merged as
+  `40645e2` on 2026-10-23, closing issue 116. Controlled before/after
+  performance comparison remains pending. The per-mount budget and S9 fair
+  sharing remain distinct.
 
 - Fix (journal 0179): when the least-recently-used domain is being built,
   try another eligible built domain before refusing an index-budget build.
   The native KVM concurrency test on the dedicated host failed before this
   change and passed on ext4, btrfs and XFS after it. The full reference Docker
   VM suite, full native KVM run and full local KASAN/UBSAN/lockdep run passed.
-  Publication and PR CI remain pending.
+  The correction was subsequently integrated by PR 127.
 
 - Fix/tests (journal 0178, issue 114 T9): propagate `ENOMEM` when a per-result
   permission lookup cannot decide under an injected allocation failure,
   instead of returning a successful answer that silently omits a readable
   file. Exercise unprivileged plain, ordered and batched `QUERY2` over built
   and fresh domains in the KASAN fault step. The full local KASAN and
-  `make vm-test` suites passed; publication remains pending. An additional
+  `make vm-test` suites passed; the correction was integrated by PR 127. An additional
   dedicated-host KVM run reproduced a separate issue 111 concurrent-budget
   failure, recorded in journal 0178 for follow-up.
 

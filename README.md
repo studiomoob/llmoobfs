@@ -29,8 +29,12 @@ unprivileged allocation-fault test for T9, were integrated by
 [PR 127](https://github.com/studiomoob/llmoobfs/pull/127) after all eleven
 checks passed, including KASAN/lockdep ([journals 0178](docs/history/0178-unprivileged-allocation-fault-queries.md)
 and [0179](docs/history/0179-kvm-overbudget-race-followup.md)). Issue 114 is
-closed. Resource-cost issue 118 remains open; issue 116 is under separate
-validation in journal 0180 ([roadmap](ROADMAP.md)).
+closed. The memcg accounting correction was merged through
+[PR 129](https://github.com/studiomoob/llmoobfs/pull/129) after all eleven
+reported checks passed, and issue 116 was closed. Resource-cost issue 118
+and S9 fair sharing remain open ([journal 0180](docs/history/0180-memcg-accounting-investigation.md),
+[roadmap](ROADMAP.md)); no controlled before/after performance comparison
+has measured the accounting overhead.
 
 ## The problem
 

@@ -126,6 +126,16 @@ KASAN/UBSAN/lockdep suites passed on the changed module, including budget
 checks on ext4, btrfs and XFS. This remains unpublished; PR CI and integration
 are separate gates. Issues 116 and 118 remain next in the stabilization order.
 
+*Integration update, 2026-10-23 ([0181](docs/history/0181-merged-memcg-state-reconciled.md)):*
+The exact head `90b3e68` of
+[PR 129](https://github.com/studiomoob/llmoobfs/pull/129) passed all eleven
+reported checks, including KASAN/lockdep, and was merged into `main` as
+`40645e2` with the maintainer's approval. Issue 116 closed automatically.
+The earlier checkpoints above retain their publication-time meaning. No
+controlled before/after performance comparison was run for the memcg change;
+issue 118 is the next resource-cost investigation, while S9 fair sharing
+remains separate.
+
 Planned from ADR-0017 (accepted 2026-10-20, journal 0156), the answers to the design objections of
 review round 2:
 - **Per-result checks as the default?** Measure every query answered with per-result permission

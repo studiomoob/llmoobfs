@@ -96,3 +96,7 @@ boots the disposable Linux VM that runs every test
 combined [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) is open
 [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) is open; published-head CI
 its branch is behind `main` and must be refreshed and rechecked
+
+# Merged memcg correction, 2026-10-23 (journal 0181).
+issue 116 is under separate validation
+a issue 116 está em validação separada

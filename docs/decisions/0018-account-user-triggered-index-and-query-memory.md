@@ -1,6 +1,6 @@
 # ADR-0018 — Account user-triggered index and query memory to memcg
 
-Date: 2026-10-22. Status: **accepted; replacement PR 129 open, CI and integration pending**.
+Date: 2026-10-22. Status: **accepted; integrated by PR 129 on 2026-10-23**.
 Estimated effort: M (one to three days).
 
 ## Context
@@ -68,3 +68,13 @@ is unquantified. The first publication, PR 128, failed its commit sign-off
 gate; [PR 129](https://github.com/studiomoob/llmoobfs/pull/129) is its
 replacement without a history rewrite. Acceptance of the design is not a
 pull-request CI or merge verdict. Issue 116 stays open until integration.
+
+## Integration update — 2026-10-23
+
+The preceding paragraph records the pre-merge validation gate. The exact
+replacement-PR head `90b3e68` passed all eleven reported GitHub checks,
+including KASAN/lockdep. With the maintainer's approval,
+[PR 129](https://github.com/studiomoob/llmoobfs/pull/129) merged as `40645e2`,
+and issue 116 closed automatically. No new controlled performance comparison
+was performed at integration; its overhead remains unquantified. S9 fair
+sharing remains a separate decision.
