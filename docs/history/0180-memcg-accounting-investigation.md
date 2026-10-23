@@ -195,3 +195,40 @@ This is the integrated native-KVM result. The earlier local Docker TCG run
 remains inconclusive. The integrated KASAN/UBSAN/lockdep run is now in progress
 on the dedicated host; no sanitizer pass is claimed for the integrated branch
 yet.
+
+## Integrated sanitizer result and cost review — 2026-10-22
+
+The full `PATH="$HOME/.cache/moobfs-kasan/venv/bin:$PATH" sh
+vm/kasan-local.sh` run on the dedicated host's Git checkout at `4eb3aaa`
+finished with exit 0. The guest printed `MOOBFS_ACCEPTANCE_PASS`,
+`MOOBFS_LAYER_PASS` and `MOOBFS_KASAN_PASS`; the harness found no KASAN,
+UBSAN, lockdep or other kernel diagnostic, including during allocation-fault
+injection. It printed `MEMCG_SKIPPED` because this pinned sanitizer kernel
+lacks `CONFIG_MEMCG`; the separate complete Debian native-KVM suite with
+`CONFIG_MEMCG=y` supplies the accounting evidence. The host-side log is
+`build/kasan-integrated-0180.log` and the final guest console is
+`build/vng/console.log` in the dedicated checkout. The production code and
+guest tests in that checkout match the local branch; only later documentation
+commits differ.
+
+The accounting change changes allocation flags, not allocation sizes,
+lifetimes, query limits or the per-mount index budget. Its intended cost is
+memcg charging and the possibility of a cgroup-limited allocation failing
+where an uncharged one could previously succeed. The complete native-KVM
+suite exercised index reclaim, over-budget concurrency and the existing
+benchmark-equivalence tests without a functional regression. No controlled
+before/after latency or throughput comparison was run, so this result does
+not quantify accounting overhead. Performance remains a documented limit,
+not a claim of unchanged speed.
+
+The local implementation and its positive and negative accounting controls,
+complete native-KVM suite, KASAN/UBSAN/lockdep suite and static checks have
+passed. ADR-0018 is accepted as the accounting policy on this evidence;
+publication and pull-request CI remain separate gates. Issue 116 remains
+open until the change is published, reviewed and integrated.
+
+After the final documentation update, `make test` passed 60 attribute checks
+and nine image tests; `make checkpatch`, SPDX, FAQ synchronization, site-link
+validation, retired-claim validation and `git diff --check` passed. These
+checks did not rerun the VMs because no production code or guest test changed
+after their completed runs.

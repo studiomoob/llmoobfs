@@ -77,6 +77,13 @@ Issue 116 is being validated separately in journal 0180, while issue 118 and
 the broader S9 fair-sharing policy remain open. The pause checkpoint above
 describes its earlier date, not the present publication state.
 
+Local validation update, 2026-10-22: issue 116's memcg correction passed
+separate negative controls, the full native-KVM suite on ext4, btrfs and XFS
+after PR 127 integration, and the full KASAN/UBSAN/lockdep suite. Its
+accounting policy is accepted in ADR-0018. No controlled performance
+comparison or pull-request CI has run for issue 116; its branch remains local
+and the issue open. S9 fair sharing remains separate.
+
 *Status correction, 2026-10-22 ([0177](docs/history/0177-merged-pr-state-reconciled.md)):*
 The checkpoint above records the state before merge. The exact published head
 of [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) passed its 11

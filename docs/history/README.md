@@ -196,4 +196,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0177 — Reconcile the merged review batch and dependency update](0177-merged-pr-state-reconciled.md)
 - [0178 — Unprivileged queries under allocation faults (issue 114, T9)](0178-unprivileged-allocation-fault-queries.md)
 - [0179 — Concurrent budget release under native KVM](0179-kvm-overbudget-race-followup.md)
-- [0180 — Memory-cgroup accounting of query-triggered allocations (issue 116; in progress)](0180-memcg-accounting-investigation.md)
+- [0180 — Memory-cgroup accounting of query-triggered allocations (issue 116; local validation complete, publication pending)](0180-memcg-accounting-investigation.md)

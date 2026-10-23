@@ -10,7 +10,9 @@
 - Fix (journal 0180, issue 116): charge user-triggered index, scan and query
   allocations, including the retained `QUERY2` result buffer, to the current
   memory cgroup. Add a bounded guest regression with separate buffer and index
-  assertions. This leaves the per-mount budget and S9 fair sharing distinct.
+  assertions. The integrated full native-KVM and KASAN/UBSAN/lockdep suites
+  passed locally; controlled performance comparison and PR CI remain pending.
+  This leaves the per-mount budget and S9 fair sharing distinct.
 
 - Fix (journal 0179): when the least-recently-used domain is being built,
   try another eligible built domain before refusing an index-budget build.

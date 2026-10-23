@@ -1,6 +1,6 @@
 # ADR-0018 — Account user-triggered index and query memory to memcg
 
-Date: 2026-10-22. Status: **proposed; local implementation under validation**.
+Date: 2026-10-22. Status: **accepted for the local implementation; publication pending**.
 Estimated effort: M (one to three days).
 
 ## Context
@@ -52,9 +52,17 @@ charge if a descriptor is passed to another cgroup.
 ## Validation and limits
 
 The targeted Debian 6.12.111 VM test in journal 0180 passed for the retained
-buffer and the built index, with separate negative controls for each. Full
-VM, KASAN/lockdep and performance validation are pending at this checkpoint.
-The project's pinned KASAN 6.12.112 kernel lacks `CONFIG_MEMCG`, so its run
-can detect memory-safety regressions but cannot prove cgroup charging. The
-reference Debian VM has `CONFIG_MEMCG=y` and must execute the accounting
-test, not silently skip it.
+buffer and the built index, with separate negative controls for each. After
+PR 127 was integrated, the full native-KVM suite passed on ext4, btrfs and
+XFS, including `MEMCG_ACCOUNT_PASS`, index release and the over-budget race.
+The full integrated KASAN/UBSAN/lockdep run also passed. The project's pinned
+KASAN 6.12.112 kernel lacks `CONFIG_MEMCG`, so that run detects memory-safety
+regressions but cannot prove cgroup charging. The Debian VM has
+`CONFIG_MEMCG=y` and executed the accounting test rather than silently
+skipping it.
+
+The accounting flags preserve the existing allocation sizes and lifetimes;
+they add cgroup charging and may cause allocation failure at a cgroup limit.
+No controlled before/after performance comparison was run, so the overhead
+is unquantified. Acceptance of this local policy is not a publication or
+pull-request CI verdict; issue 116 stays open until integration.
