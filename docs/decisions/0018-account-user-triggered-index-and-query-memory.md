@@ -1,6 +1,6 @@
 # ADR-0018 — Account user-triggered index and query memory to memcg
 
-Date: 2026-10-22. Status: **accepted for the local implementation; publication pending**.
+Date: 2026-10-22. Status: **accepted; PR 128 open, CI and integration pending**.
 Estimated effort: M (one to three days).
 
 ## Context
@@ -64,5 +64,7 @@ skipping it.
 The accounting flags preserve the existing allocation sizes and lifetimes;
 they add cgroup charging and may cause allocation failure at a cgroup limit.
 No controlled before/after performance comparison was run, so the overhead
-is unquantified. Acceptance of this local policy is not a publication or
-pull-request CI verdict; issue 116 stays open until integration.
+is unquantified. This policy was published in
+[PR 128](https://github.com/studiomoob/llmoobfs/pull/128); acceptance of the
+design is not a pull-request CI or merge verdict. Issue 116 stays open until
+integration.

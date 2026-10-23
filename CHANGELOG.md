@@ -11,7 +11,8 @@
   allocations, including the retained `QUERY2` result buffer, to the current
   memory cgroup. Add a bounded guest regression with separate buffer and index
   assertions. The integrated full native-KVM and KASAN/UBSAN/lockdep suites
-  passed locally; controlled performance comparison and PR CI remain pending.
+  passed locally; [PR 128](https://github.com/studiomoob/llmoobfs/pull/128) is
+  open, while controlled performance comparison and PR CI remain pending.
   This leaves the per-mount budget and S9 fair sharing distinct.
 
 - Fix (journal 0179): when the least-recently-used domain is being built,

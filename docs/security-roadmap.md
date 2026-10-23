@@ -244,8 +244,9 @@ turning that rule on, and the build-time check of an unlisted kernel.
 - Issue 116 / ADR-0018 accounts user-triggered query and index allocations to
   the allocating task's memory cgroup; journal 0180 records negative controls,
   full native-KVM and integrated KASAN/UBSAN/lockdep passes. The local branch
-  awaits publication and PR CI. This addresses missing memcg charges, not the
-  fair sharing below.
+  was published as [PR 128](https://github.com/studiomoob/llmoobfs/pull/128);
+  CI and integration are pending. This addresses missing memcg charges, not
+  the fair sharing below.
 
 - A per-mount and per-user cap on `QUERY` results and on index memory, already partly covered
   by `index_budget`; test the behavior when the cap is hit.

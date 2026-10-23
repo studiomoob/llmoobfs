@@ -84,6 +84,12 @@ accounting policy is accepted in ADR-0018. No controlled performance
 comparison or pull-request CI has run for issue 116; its branch remains local
 and the issue open. S9 fair sharing remains separate.
 
+Publication update, 2026-10-22: the maintainer authorized push and
+[PR 128](https://github.com/studiomoob/llmoobfs/pull/128) was opened for issue
+116. Its exact-head CI and review are the next gates; no check or merge is
+claimed at this checkpoint. The issue remains open, and the unmeasured
+performance overhead remains disclosed in ADR-0018 and journal 0180.
+
 *Status correction, 2026-10-22 ([0177](docs/history/0177-merged-pr-state-reconciled.md)):*
 The checkpoint above records the state before merge. The exact published head
 of [PR 126](https://github.com/studiomoob/llmoobfs/pull/126) passed its 11

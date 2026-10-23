@@ -232,3 +232,16 @@ and nine image tests; `make checkpatch`, SPDX, FAQ synchronization, site-link
 validation, retired-claim validation and `git diff --check` passed. These
 checks did not rerun the VMs because no production code or guest test changed
 after their completed runs.
+
+## Publication checkpoint — 2026-10-22
+
+After the maintainer authorized publication, the clean local branch
+`codex/issue116-memcg-0180` at `8d0c22b` was pushed without force. The GitHub
+base `main` remained `0d37836`, already integrated into this branch.
+[PR 128](https://github.com/studiomoob/llmoobfs/pull/128) was opened against
+`main` with head `8d0c22b278836a64c2b79c7a908ffa5a8305080e` and a
+technical description of the tests and limits. Its eleven reported checks
+were in progress at the first consultation. This publication is not a CI
+pass or merge; issue 116 remains open. The two late documentation commits
+were unsigned because the configured GPG secret key was unavailable in this
+session. There was no history rewrite or force-push.
