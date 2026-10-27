@@ -3,10 +3,12 @@
 path confinement, read-only mode and the identity check. Skipped without the mcp package or
 user extended attributes. The mounted, two-user acceptance is mcp_mounted.py (journal 0208)."""
 import asyncio
+import ctypes
 import os
 import shutil
 import sys
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -128,12 +130,84 @@ class Server(unittest.TestCase):
         self.assertEqual(out["uid"], os.getuid())
 
     def test_identity_refused(self):
-        with mock.patch("os.geteuid", return_value=0):
+        me, g = os.getuid(), os.getgid()
+        for ids in ((0, 0, 0), (me, 0, me), (me, me, 0), (me, me + 1, me)):
+            with mock.patch("os.getresuid", return_value=ids):
+                with self.assertRaises(SystemExit, msg=ids):
+                    srv.check_identity()
+        with mock.patch("os.getresuid", return_value=(me, me, me)), \
+                mock.patch("os.getresgid", return_value=(g, g + 1, g)):
             with self.assertRaises(SystemExit):
                 srv.check_identity()
-        with mock.patch("os.geteuid", return_value=os.getuid() + 1):
-            with self.assertRaises(SystemExit):
+        with mock.patch("os.getresuid", return_value=(me, me, me)), \
+                mock.patch("os.getresgid", return_value=(g, g, g)), \
+                mock.patch.object(srv, "_effective_capabilities", return_value=1 << 2):
+            with self.assertRaises(SystemExit):     # CAP_DAC_READ_SEARCH
                 srv.check_identity()
+
+    def test_component_swapped_for_a_link(self):
+        """Someone sharing the domain swaps a directory of the path for a link to a private
+        one, over and over, while the agent reads, writes and deletes there."""
+        outside = tempfile.mkdtemp(prefix="moobfs-mcp-out-")
+        dom = os.path.join(self.root, "alice")
+        memory = srv.Memory(self.root)
+        stop = threading.Event()
+        try:
+            os.chmod(outside, 0o700)
+            with open(os.path.join(outside, "x"), "w") as f:
+                f.write("private")
+            real = os.path.join(dom, "notes")
+            os.mkdir(real)
+            with open(os.path.join(real, "x"), "w") as f:
+                f.write("shared")
+            link = os.path.join(dom, "notes.link")
+            os.symlink(outside, link)
+            exchange = ctypes.CDLL(None, use_errno=True).renameat2
+            swaps, errors = [0], []
+
+            def swap():
+                while not stop.is_set():   # notes and notes.link trade places atomically
+                    if exchange(-100, os.fsencode(real), -100, os.fsencode(link), 2):
+                        errors.append(ctypes.get_errno())
+                        return
+                    swaps[0] += 1
+            t = threading.Thread(target=swap)
+            t.start()
+            seen = set()
+            for i in range(600):
+                for fn, args in ((memory.read, ("alice", "notes/x")),
+                                 (memory.write, ("alice", "notes/x", "agent", None, True)),
+                                 (memory.write, ("alice", f"notes/n{i}", "agent")),
+                                 (memory.delete, ("alice", f"notes/n{i}"))):
+                    try:
+                        out = fn(*args)
+                    except (srv.ToolError, FileNotFoundError):
+                        continue
+                    if isinstance(out, dict) and "content" in out:
+                        seen.add(out["content"])
+            stop.set()
+            t.join()
+            self.assertEqual(errors, [])
+            self.assertGreater(swaps[0], 1000)
+            self.assertNotIn("private", seen)
+            self.assertTrue(seen, "no read went through")
+            self.assertEqual(sorted(os.listdir(outside)), ["x"])
+            with open(os.path.join(outside, "x")) as f:
+                self.assertEqual(f.read(), "private")
+        finally:
+            stop.set()
+            shutil.rmtree(outside)
+
+    def test_fifo_does_not_hang_read(self):
+        os.mkfifo(os.path.join(self.root, "alice", "pipe"))
+        done = []
+        t = threading.Thread(target=lambda: done.append(
+            call(self.server, "read", {"domain": "alice", "path": "pipe"})))
+        t.daemon = True
+        t.start()
+        t.join(10)
+        self.assertTrue(done, "read of a FIFO did not return")
+        self.assertTrue(done[0][0])
 
 
 if __name__ == "__main__":
