@@ -61,6 +61,7 @@ static void make_name(char *out, size_t cap, unsigned slot)
 {
 	static const char *const bad[] = {
 		"Kind", "k-0", "k 0", ".k0", "k0.", "k..0", "k/0", "k\t0", "k\xc3\xa9", "K0", "",
+		"k\"0", "k\\0", "k\"}, {\"path\": \"x",
 	};
 	unsigned r = pick(10);
 

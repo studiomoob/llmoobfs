@@ -336,8 +336,23 @@ struct results {
 	size_t n, cap;
 };
 
+/*
+ * A record whose path_len does not fit the path field, or with no NUL after its path, is kept
+ * as a result with an unknown path: the header promises the length, not the terminator.
+ */
+static void check_record(struct moob_query_result *res)
+{
+	if (res->path_len >= MOOB_QUERY_PATH_MAX || res->path[res->path_len]) {
+		res->flags |= MOOB_RES_PATH_UNKNOWN;
+		res->path_len = 0;
+		res->path[0] = '\0';
+	}
+}
+
 static int append(struct results *r, const struct moob_query_result *page, size_t n)
 {
+	size_t i;
+
 	if (r->n + n > r->cap) {
 		size_t cap = r->cap ? r->cap : 256;
 		struct moob_query_result *v;
@@ -351,6 +366,8 @@ static int append(struct results *r, const struct moob_query_result *page, size_
 		r->cap = cap;
 	}
 	memcpy(r->v + r->n, page, n * sizeof *page);
+	for (i = 0; i < n; i++)
+		check_record(&r->v[r->n + i]);
 	r->n += n;
 	return 0;
 }
@@ -390,6 +407,8 @@ static int run_query2(int fd, const struct moob_query2 *proto, size_t max, __u32
 			q.results = (__u64)(uintptr_t)buf;
 			if (ioctl_retry(fd, MOOB_IOC_QUERY2, &q))
 				break;
+			if (q.count > q.limit)
+				return EPROTO;
 			if (append(out, buf, q.count))
 				return ENOMEM;
 			if (!q.truncated || (max && out->n >= max))
@@ -483,6 +502,8 @@ static int cmd_query(int argc, char **argv)
 		q.results = (__u64)(uintptr_t)buf;
 		v1 = 1;
 		rc = ioctl_retry(fd, MOOB_IOC_QUERY, &q) ? errno : 0;
+		if (!rc && q.count > q.limit)
+			rc = EPROTO;
 		if (!rc && append(&res, buf, q.count))
 			rc = ENOMEM;
 		truncated = q.truncated && !(max && res.n >= max);

@@ -646,6 +646,8 @@ static int mv_fetch(struct mv_cursor *c, struct mv_req *r)
 	}
 	if (tries == MV_TRIES)
 		return mv_fail(c, "QUERY2", EAGAIN);
+	if (r->q.count > r->q.limit)
+		return mv_fail(c, "QUERY2", EPROTO);
 	r->pos = 0;
 	r->done = !r->q.truncated;
 	return SQLITE_OK;
@@ -685,6 +687,10 @@ static int mv_fetch_first(struct mv_cursor *c)
 			return mv_fail(c, "QUERY2_BATCH", EAGAIN);
 		}
 		for (j = 0; j < n; j++) {
+			if (qs[j].count > qs[j].limit) {
+				sqlite3_free(qs);
+				return mv_fail(c, "QUERY2_BATCH", EPROTO);
+			}
 			c->req[i + j].q = qs[j];
 			c->req[i + j].pos = 0;
 			c->req[i + j].done = !qs[j].truncated;
@@ -864,7 +870,8 @@ static int mv_column(sqlite3_vtab_cursor *cur, sqlite3_context *ctx, int col)
 	struct mv_cursor *c = (struct mv_cursor *)cur;
 	struct mv_vtab *t = (struct mv_vtab *)cur->pVtab;
 	const struct moob_query_result *res = mv_row(c);
-	int known = !(res->flags & (MOOB_RES_PATH_UNKNOWN | MOOB_RES_PATH_TRUNCATED));
+	int known = !(res->flags & (MOOB_RES_PATH_UNKNOWN | MOOB_RES_PATH_TRUNCATED)) &&
+		    res->path_len < MOOB_QUERY_PATH_MAX && !res->path[res->path_len];
 	unsigned char buf[MOOB_ATTR_VALUE_MAX];
 	char name[MOOB_ATTR_PREFIX_LEN + MOOB_ATTR_NAME_MAX + 1];
 	ssize_t n;

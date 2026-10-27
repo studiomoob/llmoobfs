@@ -23,6 +23,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <limits.h>
+#include <grp.h>
 #include "query-common.h"
 
 static struct moob_query_term terms[MOOB_QUERY_MAX_TERMS];
@@ -216,9 +217,22 @@ int main(int argc, char **argv)
 
 	for (;;) {
 		if (argc >= 3 && !strcmp(argv[1], "--uid")) {
-			uid_t u = (uid_t)strtoul(argv[2], NULL, 10);
+			char *end;
+			unsigned long v;
+			uid_t u;
 
-			if (setgid(u) || setuid(u)) { perror("setuid"); return 1; }
+			errno = 0;
+			v = strtoul(argv[2], &end, 10);
+			u = (uid_t)v;
+			if (errno || end == argv[2] || *end || (unsigned long)u != v || u == (uid_t)-1) {
+				fprintf(stderr, "moobfs-index: --uid needs a numeric uid\n");
+				return 64;
+			}
+			/* root's supplementary groups would let the walk see what this uid cannot */
+			if ((!geteuid() && setgroups(0, NULL)) || setgid(u) || setuid(u)) {
+				perror("setuid");
+				return 1;
+			}
 			argv += 2; argc -= 2;
 		} else if (argc >= 2 && !strcmp(argv[1], "--domain")) {
 			domain_mode = 1;

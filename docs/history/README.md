@@ -232,3 +232,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0210 — Security batch 1: domain records dropped on rmdir (#113), QUERY2 over a slow lower (#118)](0210-security-batch-1-domain-records-and-slow-lower.md)
 - [0211 — Harness hygiene: workflow steps input, uninstall paths, syzkaller image writes](0211-harness-input-and-path-hygiene.md)
 - [0212 — Python library: checked terms, int64 range, no helper processes, scan on the directory](0212-python-library-input-checks.md)
+- [0213 — Every moobfs-check string escaped; --uid without root's groups](0213-tool-json-strings-and-uid.md)

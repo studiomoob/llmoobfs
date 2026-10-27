@@ -41,6 +41,7 @@
 #define _GNU_SOURCE
 #include <fcntl.h>
 #include <unistd.h>
+#include <grp.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/xattr.h>
@@ -71,7 +72,8 @@ int main(int argc, char **argv)
 
 	if (argc >= 3 && !strcmp(argv[1], "--uid")) {
 		uid_t u = (uid_t)strtoul(argv[2], NULL, 10);
-		if (setgid(u) || setuid(u)) { perror("setuid"); return 1; }
+		/* the same identity as moobfs-index --uid, which the suite compares it with */
+		if ((!geteuid() && setgroups(0, NULL)) || setgid(u) || setuid(u)) { perror("setuid"); return 1; }
 		argv += 2; argc -= 2;
 	}
 	if (argc >= 4 && !strcmp(argv[2], "open")) {	/* query [--uid N] <mount> open <relpath> */

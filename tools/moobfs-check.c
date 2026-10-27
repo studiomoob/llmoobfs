@@ -128,19 +128,40 @@ static int check_domain(const char *path, const struct stat *st, int level)
 	return why ? left_out(path, NULL, why) : 0;
 }
 
-static void report(const char *path, const char *name, const char *why)
+/*
+ * Every string of the document goes through here: an attribute name that fails validation, a
+ * directory name inside a left-out reason or a path can hold any byte but NUL.
+ */
+static void json_str(const char *s)
+{
+	putchar('"');
+	for (; *s; s++) {
+		if (*s == '"' || *s == '\\')
+			putchar('\\');
+		if ((unsigned char)*s < 0x20)
+			printf("\\u%04x", (unsigned char)*s);
+		else
+			putchar(*s);
+	}
+	putchar('"');
+}
+
+static const char *relative(const char *path)
 {
 	const char *rel = path + root_len;
 
-	if (*rel == '/')
-		rel++;
-	printf("%s\n    {\"path\": \"", first_problem ? "" : ",");
-	for (; *rel; rel++) {
-		if (*rel == '"' || *rel == '\\') putchar('\\');
-		if ((unsigned char)*rel < 0x20) printf("\\u%04x", (unsigned char)*rel);
-		else putchar(*rel);
-	}
-	printf("\", \"attribute\": \"%s\", \"problem\": \"%s\"}", name ? name : "", why);
+	return *rel == '/' ? rel + 1 : rel;
+}
+
+static void report(const char *path, const char *name, const char *why)
+{
+	printf("%s\n    {\"path\": ", first_problem ? "" : ",");
+	json_str(relative(path));
+	printf(", \"attribute\": ");
+	json_str(name ? name : "");
+	printf(", \"problem\": ");
+	json_str(why);
+	putchar('}');
 	first_problem = 0;
 	problems++;
 }
@@ -308,16 +329,11 @@ int main(int argc, char **argv)
 
 		printf("  \"domain_depth\": %d,\n  \"left_out\": [", domain_depth);
 		for (k = 0; k < nlefts; k++) {
-			const char *rel = lefts[k].path + root_len;
-
-			if (*rel == '/') rel++;
-			printf("%s\n    {\"path\": \"", k ? "," : "");
-			for (; *rel; rel++) {
-				if (*rel == '"' || *rel == '\\') putchar('\\');
-				if ((unsigned char)*rel < 0x20) printf("\\u%04x", (unsigned char)*rel);
-				else putchar(*rel);
-			}
-			printf("\", \"reason\": \"%s\"}", lefts[k].why);
+			printf("%s\n    {\"path\": ", k ? "," : "");
+			json_str(relative(lefts[k].path));
+			printf(", \"reason\": ");
+			json_str(lefts[k].why);
+			putchar('}');
 		}
 		printf("%s],\n  \"left_out_count\": %zu,\n", nlefts ? "\n  " : "", nlefts);
 	}

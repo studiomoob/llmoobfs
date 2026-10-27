@@ -18,6 +18,8 @@ while [ "$seed" -le "$SEEDS" ]; do
     "$BUILD/hostile" plant "$T/low" "$seed" 200 > "$T/plant.txt" || fail "plant $seed"
     grep -q 'attributes_set=0 ' "$T/plant.txt" && fail "no user extended attributes on $T"
     "$BUILD/moobfs-check" "$T/low" > "$T/check.json"; [ $? -eq 2 ] || fail "check $seed did not report problems"
+    python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["problem_count"] == len(d["problems"])' "$T/check.json" ||
+        fail "check $seed printed a document that is not JSON or miscounts its problems"
     for n in k0 k1 k2 k3 k4 k5; do
         "$BUILD/moobfs-index" "$T/low" $n exists - - > /dev/null || fail "index $n $seed"
     done

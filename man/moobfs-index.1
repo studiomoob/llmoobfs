@@ -1,5 +1,5 @@
 .\" SPDX-License-Identifier: GPL-2.0-only
-.Dd October 18, 2026
+.Dd October 27, 2026
 .Dt MOOBFS-INDEX 1
 .Os
 .Sh NAME
@@ -57,7 +57,10 @@ An operator ending in
 also matches files without the attribute.
 .Bl -tag -width Ds
 .It Fl -uid Ar N
-drop privileges to that user first, so the walk sees only what the user may reach
+switch to uid and gid
+.Ar N
+first; run as root, also drop every supplementary group, so the walk sees only what that uid
+and gid reach
 .It Fl -domain
 treat
 .Ar directory

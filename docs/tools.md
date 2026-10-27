@@ -112,6 +112,10 @@ For example, a clean one-file tree with a version-1 marker and one typed attribu
 moobfs-index [--uid N] [--domain] [--json] [--order NAME TYPE asc|desc] [--limit N] <dir> [terms...]
 ```
 
+`--uid N` switches to uid and gid N before the walk; run as root, it also drops every
+supplementary group (journal 0213), so the walk sees only what uid and gid N reach. A value that
+is not a decimal uid is a usage error.
+
 By default, each result remains an `inode<TAB>path` line, sorted by inode unless `--order`
 selects value order. `--json` emits one object after the walk and after `--limit` is applied:
 
@@ -133,8 +137,9 @@ output and exit statuses retain that policy's compatibility promise. `dir`, `cou
 `ino`, and `path` use the same names and types as `moobfs query --json` where they represent
 the same values. The oracle has no kernel path-unknown or path-truncated flags.
 
-Strings carry the bytes of the name as stored: `"`, `\` and control characters are escaped,
-and nothing else is converted. Linux names need not be UTF-8, so a tree with such a name
+Strings carry the bytes of the name as stored: `"`, `\` and control characters are escaped in
+every string, attribute names and `left_out` reasons included (before journal 0213 only paths
+were), and nothing else is converted. Linux names need not be UTF-8, so a tree with such a name
 produces a document that strict JSON parsers reject; `moobfs query --json` behaves the same.
 
 | Exit | Meaning |

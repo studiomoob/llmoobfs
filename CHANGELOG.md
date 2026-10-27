@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Tool output (journal 0213): `moobfs-check` escapes every string of its JSON document, not only
+  paths; an invalid attribute name or a directory name inside a `left_out` reason could forge
+  problem entries or break the document. `moobfs-index --uid` refuses a non-numeric uid and, as
+  root, drops supplementary groups (so does the test client `tests/query.c`). `moobfs query` and
+  the SQLite table refuse a result count above the request's limit and treat a path without its
+  terminator as unknown.
+
 - Python library input checks (journal 0212): a `Term` validates any `Value`, including one
   built by hand, before its payload is copied into the request (a wrong-sized payload wrote past
   the term's 1024-byte field); integers and times outside 64 bits raise `ValueError` instead of
