@@ -4,7 +4,7 @@ Status: roadmap item C2 ([ADR-0022](decisions/0022-kernel-freeze-and-user-space-
 What was actually run is in [journal 0197](history/0197-first-contact-and-install.md); the
 section [What was tested](#what-was-tested) at the end summarizes it.
 
-> **Experimental. Not for production.** MoobFS is kernel code with no outside human review yet.
+> **Experimental. Not for production.** MoobFS is kernel code that no outside human has reviewed yet.
 > A defect is a kernel crash for the whole machine. Install it only on a **dedicated test host
 > or VM** whose data you can lose. For anything else, SQLite or plain files remain the
 > recommendation ([when-not-to-use.md](when-not-to-use.md)).

@@ -1,7 +1,8 @@
 # How to help
 
-MoobFS is an experimental kernel module with one maintainer and no outside human review yet (two
-source reviews by AI assistants, journals 0111 and 0114). This
+MoobFS is an experimental kernel module with one maintainer and no outside human review of the kernel code yet (two
+source reviews by AI assistants, journals 0111 and 0114; a first outside contributor reviewed the scripts, tools and Python library, pull requests
+161 to 163). This
 page says what would help most, by how much kernel knowledge it takes. Read the status block at
 the top of the [README](../README.md) first: nothing here is ready for production, and the
 project says where it loses as readily as where it wins.

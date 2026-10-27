@@ -181,7 +181,7 @@ Evidence: two uids, two namespaces, mode bits and POSIX ACLs, remount, a five-se
 `chmod`/`rename`/`unlink` against `QUERY`, over the three lower filesystems, in the Debian VM
 and under KASAN on 6.12.112 ([journal 0020](history/0020-phase-3b-query-authorization.md)).
 The timing channel was measured (`QUERY2` against v1, journal
-[0043](history/0043-timing-channel-query2.md)); no outside human review exists.
+[0043](history/0043-timing-channel-query2.md)); no outside human review of the kernel code exists.
 
 `MOOB_IOC_GET_INFO` returns `struct moob_info`: UAPI and format versions, the attribute
 limits above, capabilities advertised from the lower filesystem type (`MOOB_CAP_REFLINK`,

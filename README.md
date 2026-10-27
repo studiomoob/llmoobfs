@@ -150,8 +150,9 @@ Facts as of 2026-10-25:
 - **Tested with** fault injection inside the module, fstests' `quick` group on the three lower
   filesystems, syzkaller (five six-hour runs; one defect found and fixed), a first KCSAN run (no
   race in the module) and SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143).
-- **No outside human review yet.** It was requested on 2026-10-13. Two independent source reviews
-  made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
+- **No outside human review of the kernel code yet.** It was requested on 2026-10-13. A first
+  outside contributor reviewed the scripts, tools and Python library with an AI assistant
+  (2026-10-27, pull requests 161 to 163). Two independent source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
   [journal 0114](docs/history/0114-second-inspection-of-5582e06.md)) and verified against the
   kernel found four security defects (findings F9 to F12 of ADR-0011), reported as private
   advisories and fixed in journals 0116 and 0117; our own tests and reviews found others before.
@@ -179,8 +180,9 @@ For anything beyond a disposable VM, SQLite or plain files remain the recommenda
 
 ## How to help
 
-The project has one maintainer and no outside human review yet. What would help most, by how much
-kernel knowledge it takes, is in **[docs/help-wanted.md](docs/help-wanted.md)**: a review of the
+The project has one maintainer and no outside human review of the kernel code yet; a first
+outside contributor reviewed the scripts, tools and Python library (pull requests 161 to 163).
+What would help most, by how much kernel knowledge it takes, is in **[docs/help-wanted.md](docs/help-wanted.md)**: a review of the
 credential model or of the index locking, if you know the VFS; a check of whether your memory
 system fits, if you build one; a run of the tests on your machine or on another kernel; and
 documentation or reproducibility corrections that need no kernel knowledge. Rules for changes are in
@@ -490,7 +492,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
   (journals 0139 and 0143). No speed or efficiency claim beyond the conditions stated in
   [What was measured](#what-was-measured) may be made from them; no comparison with FUSE
   exists, and the comparison with the bare lower filesystem on the current module is pending.
-- No outside human review. Two independent source reviews by AI assistants (journals
+- No outside human review of the kernel code. Two independent source reviews by AI assistants (journals
   [0111](docs/history/0111-review-5582e06.md) and [0114](docs/history/0114-second-inspection-of-5582e06.md))
   and the project's own tests found and fixed kernel-side defects, security ones among them; the
   findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F14),

@@ -58,7 +58,7 @@ instead: the path is resolved with the caller's credentials and `inode_permissio
 required. Results the caller cannot read are omitted silently, and `count`/`truncated` refer only
 to visible results. A test compares answers with the lower kernel's own decision for random
 modes, owners and groups (journal 0116). Path-based LSMs (AppArmor, Landlock) do not filter
-results; no outside human review has taken place.
+results; no outside human review of the kernel code has taken place.
 [`docs/spec-query-v2.md` §3; `docs/decisions/0011-threat-and-credential-model.md`; journals 0104, 0116]
 
 ## 7. What is the TOCTOU contract?

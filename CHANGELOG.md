@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- First outside contributor (journal 0214): pull requests 161 to 163 reviewed and merged, with
+  small follow-ups at merge (a locale-independent `steps` filter, a bound at the copy of a term
+  payload). The public surfaces now say there is no outside human review of the kernel code yet
+  and name the contributor's review of the scripts, tools and Python library.
+
 - Tool output (journal 0213): `moobfs-check` escapes every string of its JSON document, not only
   paths; an invalid attribute name or a directory name inside a `left_out` reason could forge
   problem entries or break the document. `moobfs-index --uid` refuses a non-numeric uid and, as
