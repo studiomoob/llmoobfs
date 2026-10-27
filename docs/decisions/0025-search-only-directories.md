@@ -45,7 +45,10 @@ is listable and searchable by everyone who can traverse the domain:
 - **Per-result checks** (fallback mode, `domain_depth=0`, labelled files): after the lookup, the
   caller must also have `MAY_READ` on every directory strictly between the queried directory and
   the result (`caller_may_list_above()` in `layer/index.c`). A result whose ancestors no longer
-  lead to the queried directory is refused.
+  lead to the queried directory is refused. The lookup and the walk run under the `rename_lock`
+  sequence counter: a positive answer counts only if no rename happened between them, so the
+  directories checked are the ones the recorded path went through. Otherwise it is decided
+  again, and after four tries the result is left out, as a stale result is.
 - The three mirrors of the rule (`tools/moobfs-index.c`, `tools/moobfs-check.c`,
   `python/src/moobfs/scan.py`) follow, so they keep giving the kernel's answers.
 
@@ -58,7 +61,15 @@ is listable and searchable by everyone who can traverse the domain:
 - **Judge condition 2 against the classes that can query `D` (read and search on it, which
   `QUERY2` requires) instead of those that can traverse it.** It would admit more files, for
   files as well as directories, so it is a change of the rule beyond this fix. Left for a later
-  decision with its own tests.
+  decision with its own tests. It matters most for an owner or group working in their own `0751`-style
+  subdirectories of a more open domain: they lose those files from `QUERY2` unless the
+  directory is made `o+rx`, an incentive to open directories rather than close them. To be raised
+  with the maintainer (independent review of journal 0215).
+- **Leave the window between lookup and walk** (a rename there checks another chain). Rejected:
+  it would reveal only that a file used to be under a directory and needs write access to
+  those directories, but closing it costs one sequence-counter read, the pattern `where_is()`
+  already uses. Checking `MAY_READ` per component during resolution was not chosen: it needs a
+  component-by-component walk of our own instead of `vfs_path_lookup()`.
 
 ## Compatibility
 

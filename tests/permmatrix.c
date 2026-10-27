@@ -45,7 +45,8 @@
 #define NSUB 4
 static const mode_t file_modes[] = { 0644, 0604, 0640, 0600, 0444, 0404, 0440, 0004, 0040, 0400,
 				     0664, 0606 };
-static const mode_t dir_modes[] = { 0755, 0705, 0750, 0711, 0701, 0710, 0700, 0751, 0715 };
+static const mode_t dir_modes[] = { 0755, 0705, 0750, 0711, 0701, 0710, 0700, 0751, 0715,
+				    0754, 0745 };
 static const uid_t uids[] = { 1001, 1002, 1003 };
 static const gid_t gids[] = { 2001, 2002 };
 
@@ -55,6 +56,38 @@ static const struct ident idents[] = {
 	{ 1002, 2001, 0, { 0 } }, { 1002, 2002, 0, { 0 } }, { 1003, 2002, 1, { 2001 } },
 	{ 1004, 3000, 0, { 0 } }, { 1004, 3000, 1, { 2001 } }, { 1004, 3000, 1, { 2002 } },
 };
+
+/*
+ * An access ACL with a named user entry (journal 0215), written as the kernel's xattr format
+ * (include/uapi/linux/posix_acl_xattr.h): version 2, then the entries in the required order.
+ * The owner, group and other entries keep the mode's bits; the mask grants everything, so the
+ * group class bits of the mode become rwx. Any named entry makes the ACL extended, so the rule
+ * leaves the inode out unless condition 1 applies, which it never does with an ACL.
+ */
+static int set_named_acl(const char *path, mode_t mode, uid_t uid, unsigned int perm)
+{
+	unsigned char buf[4 + 5 * 8];
+	static const unsigned short tags[] = { 0x01, 0x02, 0x04, 0x10, 0x20 };
+	unsigned int perms[5] = { (mode >> 6) & 7, perm, (mode >> 3) & 7, 7, mode & 7 };
+	unsigned int ids[5] = { ~0u, uid, ~0u, ~0u, ~0u };
+	int i;
+
+	buf[0] = 2; buf[1] = buf[2] = buf[3] = 0;
+	for (i = 0; i < 5; i++) {
+		unsigned char *e = buf + 4 + 8 * i;
+
+		e[0] = (unsigned char)tags[i]; e[1] = 0;
+		e[2] = (unsigned char)perms[i]; e[3] = 0;
+		e[4] = (unsigned char)ids[i]; e[5] = (unsigned char)(ids[i] >> 8);
+		e[6] = (unsigned char)(ids[i] >> 16); e[7] = (unsigned char)(ids[i] >> 24);
+	}
+	return setxattr(path, "system.posix_acl_access", buf, sizeof buf, 0);
+}
+
+static int has_acl(const char *path)
+{
+	return getxattr(path, "system.posix_acl_access", NULL, 0) > 0;
+}
 
 static unsigned long long rng;
 static unsigned int pick(unsigned int n)
@@ -67,6 +100,7 @@ static int plant(const char *lower, unsigned long long seed)
 {
 	char path[4096];
 	const char val[] = { MOOB_T_STRING, 'v' };
+	mode_t m;
 	int i;
 
 	rng = seed;
@@ -77,9 +111,12 @@ static int plant(const char *lower, unsigned long long seed)
 		return 1;
 	}
 	for (i = 0; i < NSUB; i++) {
+		mode_t dm = dir_modes[pick(sizeof dir_modes / sizeof dir_modes[0])];
+		static const unsigned int dir_acl_perms[] = { 05, 01, 04 };
+
 		snprintf(path, sizeof path, "%s/pm/s%d", lower, i);
-		if (mkdir(path, 0755) || chown(path, uids[pick(3)], gids[pick(2)]) ||
-		    chmod(path, dir_modes[pick(sizeof dir_modes / sizeof dir_modes[0])])) {
+		if (mkdir(path, 0755) || chown(path, uids[pick(3)], gids[pick(2)]) || chmod(path, dm) ||
+		    (!pick(3) && set_named_acl(path, dm, 1004, dir_acl_perms[pick(3)]))) {
 			perror(path);
 			return 1;
 		}
@@ -92,9 +129,10 @@ static int plant(const char *lower, unsigned long long seed)
 		else
 			snprintf(path, sizeof path, "%s/pm/s%d/f%d", lower, sub, i);
 		fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0600);
+		m = file_modes[pick(sizeof file_modes / sizeof file_modes[0])];
 		if (fd < 0 || close(fd) || setxattr(path, MOOB_ATTR_PREFIX "pm", val, sizeof val, 0) ||
-		    chown(path, uids[pick(3)], gids[pick(2)]) ||
-		    chmod(path, file_modes[pick(sizeof file_modes / sizeof file_modes[0])])) {
+		    chown(path, uids[pick(3)], gids[pick(2)]) || chmod(path, m) ||
+		    (!pick(4) && set_named_acl(path, m, 1002, pick(2) ? 04 : 0))) {
 			perror(path);
 			return 1;
 		}
@@ -103,8 +141,9 @@ static int plant(const char *lower, unsigned long long seed)
 }
 
 /*
- * The homogeneity rule of docs/spec-query-v2.md §3 over lower modes (no ACLs are planted):
- * the class bits need, 04 (read) for files, 05 (read and search) for directories, 01 for
+ * The homogeneity rule of docs/spec-query-v2.md §3 over lower modes; an inode with an
+ * extended ACL (the only ACLs planted) is never admitted, by either condition. The class bits
+ * need are 04 (read) for files, 05 (read and search) for directories, 01 for
  * directories under the rule before journal 0215. others_only is the condition 1 before
  * journal 0116, where the bits of others alone admitted the inode.
  */
@@ -128,7 +167,7 @@ static int collect(const char *lower, struct expect *ex)
 {
 	char path[4096];
 	struct stat dom, st, sub;
-	int n = 0, i, s;
+	int n = 0, i, s, acl;
 
 	snprintf(path, sizeof path, "%s/pm", lower);
 	if (stat(path, &dom))
@@ -144,15 +183,17 @@ static int collect(const char *lower, struct expect *ex)
 				continue;
 			ex[n].ino = st.st_ino;
 			ex[n].sub = s;
-			ex[n].old_in = rule(&st, &dom, 04, 1);
-			ex[n].prev_in = ex[n].new_in = rule(&st, &dom, 04, 0);
+			acl = has_acl(path);
+			ex[n].old_in = !acl && rule(&st, &dom, 04, 1);
+			ex[n].prev_in = ex[n].new_in = !acl && rule(&st, &dom, 04, 0);
 			if (s >= 0) {
 				snprintf(path, sizeof path, "%s/pm/s%d", lower, s);
 				if (stat(path, &sub))
 					return -1;
-				ex[n].old_in = ex[n].old_in && rule(&sub, &dom, 01, 1);
-				ex[n].prev_in = ex[n].prev_in && rule(&sub, &dom, 01, 0);
-				ex[n].new_in = ex[n].new_in && rule(&sub, &dom, 05, 0);
+				acl = has_acl(path);
+				ex[n].old_in = ex[n].old_in && !acl && rule(&sub, &dom, 01, 1);
+				ex[n].prev_in = ex[n].prev_in && !acl && rule(&sub, &dom, 01, 0);
+				ex[n].new_in = ex[n].new_in && !acl && rule(&sub, &dom, 05, 0);
 			}
 			n++;
 			break;

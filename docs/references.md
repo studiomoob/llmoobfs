@@ -545,3 +545,6 @@ research documents. Two page ranges could not be confirmed and are omitted: Büt
 - plocate's `access_rx_cache.cpp` ([source](https://git.sesse.net/?p=plocate;a=blob;f=access_rx_cache.cpp)),
   read on 2026-10-27: a path from a database built as root is shown only when the caller passes
   `access(dir, R_OK | X_OK)` on every directory above it. Prior art for ADR-0025.
+- `rename_lock` and `read_seqbegin()`/`read_seqretry()` (`include/linux/seqlock.h`, `fs/dcache.c`),
+  already used by `where_is()`: the per-result check takes a positive answer only when no rename
+  happened between its lookup and its walk of the parent directories.

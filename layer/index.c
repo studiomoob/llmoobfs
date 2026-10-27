@@ -2847,28 +2847,42 @@ static int caller_may_list_above(struct dentry *top, struct dentry *d)
 	return ok;
 }
 
-/* 1 = readable, 0 = inaccessible/stale, -ENOMEM = unable to decide under memory pressure. */
+/*
+ * 1 = readable, 0 = inaccessible/stale, -ENOMEM = unable to decide under memory pressure.
+ * The directories checked must be the ones the recorded path went through: a rename between
+ * the lookup and the walk above would check another chain. A positive answer therefore holds
+ * only if no rename happened meanwhile (rename_lock, as where_is() and path lookup use it);
+ * otherwise it is decided again, and left out after a few tries, as a stale result is.
+ */
 static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino)
 {
 	struct path p;
+	unsigned int seq, tries;
 	int err, ok = 0;
 
 	lockdep_assert_not_held(&IX(sb)->query_sem);
 	if (!path || !*path)
 		return false;
-	err = vfs_path_lookup(file->f_path.dentry, file->f_path.mnt, path,
-			      LOOKUP_NO_XDEV | LOOKUP_NO_SYMLINKS, &p);
-	if (err)
-		return err == -ENOMEM ? err : 0;
-	if (p.mnt == file->f_path.mnt && p.dentry->d_sb == sb && d_inode(p.dentry) &&
-	    d_inode(p.dentry)->i_ino == ino) {
-		err = inode_permission(&nop_mnt_idmap, d_inode(p.dentry), MAY_READ);
-		ok = err == -ENOMEM ? err : !err;
-		if (ok == 1)
-			ok = caller_may_list_above(file->f_path.dentry, p.dentry);
+	for (tries = 0; tries < 4; tries++) {
+		seq = read_seqbegin(&rename_lock);
+		err = vfs_path_lookup(file->f_path.dentry, file->f_path.mnt, path,
+				      LOOKUP_NO_XDEV | LOOKUP_NO_SYMLINKS, &p);
+		if (err)
+			return err == -ENOMEM ? err : 0;
+		ok = 0;
+		if (p.mnt == file->f_path.mnt && p.dentry->d_sb == sb && d_inode(p.dentry) &&
+		    d_inode(p.dentry)->i_ino == ino) {
+			err = inode_permission(&nop_mnt_idmap, d_inode(p.dentry), MAY_READ);
+			ok = err == -ENOMEM ? err : !err;
+			if (ok == 1)
+				ok = caller_may_list_above(file->f_path.dentry, p.dentry);
+		}
+		path_put(&p);
+		if (ok != 1 || !read_seqretry(&rename_lock, seq))
+			return ok;
+		cond_resched();
 	}
-	path_put(&p);
-	return ok;
+	return 0;
 }
 
 /* First entry strictly after the resume key, or the first entry when no key. */

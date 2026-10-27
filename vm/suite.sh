@@ -1529,6 +1529,39 @@ chmod 0711 "$LAYER/d/s" || fail "pm-so-chmod"
 grep -q 's/f' /tmp/pm-so.txt && fail "pm-so-leak (a search-only directory's file named per result)"
 "$BIN/query" "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-owner-missing"
 umount "$LAYER" || fail "pm-so-umount"
+# The two other places the rule is applied, with no permission change and so no fallback: a
+# search-only directory created through the layer in a built domain (place_dentry_above), and
+# one renamed during the domain's first build (dir_moved_prepare). Its file stays out of the
+# partition: uid 1001 does not get it and it is counted heterogeneous.
+pm_hetero() { "$BIN/query" "$LAYER" info | sed -n 's/.*heterogeneous=\([0-9]*\).*/\1/p'; }
+rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-cr-mkdir"
+mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-cr-mount"
+# no mkdir -m nor chmod through the layer: busybox mkdir -m chmods, and a chmod of a directory
+# puts the domain in fallback mode
+(umask 022; mkdir "$LAYER/d" && : > "$LAYER/d/top") && "$BIN/moobfs-attr" set "$LAYER/d/top" kind string so > /dev/null || fail "pm-cr-domain"
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q top || fail "pm-cr-build"
+h0=$(pm_hetero)
+(umask 066; mkdir "$LAYER/d/s") && [ "$(stat -c %a "$LAYER/d/s")" = 711 ] || fail "pm-cr-mkdir-0711"
+(umask 022; : > "$LAYER/d/s/f") && "$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-cr-file"
+[ "$(stat -c %a "$LAYER/d/s/f")" = 644 ] || fail "pm-cr-file-mode"
+"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-cr-fallback (the partition was not what answered)"; }
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-cr.txt || fail "pm-cr-query"
+grep -q 's/f' /tmp/pm-cr.txt && fail "pm-cr-leak (a file created under a search-only directory answered)"
+[ "$(pm_hetero)" -gt "$h0" ] || fail "pm-cr-not-heterogeneous"
+umount "$LAYER" || fail "pm-cr-umount"
+rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" && mkdir -m 711 "$LOWER/pmx/d/s" || fail "pm-mv-mkdir"
+"$BIN/query-build-limit" plant6 "$LOWER/pmx/d/s" 600 || fail "pm-mv-plant"
+mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mv-mount"
+mountpoint -q /sys/kernel/tracing || mount -t tracefs tracefs /sys/kernel/tracing || fail "pm-mv-tracefs"
+echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-on"
+"$BIN/query-build-moved" "$LAYER/d" any; pm_rc=$?
+echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-off"
+[ "$pm_rc" -eq 0 ] || fail "pm-mv-no-move-during-build"
+"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-mv-fallback (the partition was not what answered)"; }
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-mv.txt || fail "pm-mv-query"
+grep -q 't/' /tmp/pm-mv.txt && fail "pm-mv-leak (a directory moved during the build answered)"
+[ "$(pm_hetero)" -ge 600 ] || fail "pm-mv-not-heterogeneous"
+umount "$LAYER" || fail "pm-mv-umount"
 rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup"
 echo "PERMMATRIX_STEP_PASS: 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
 fi
