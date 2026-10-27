@@ -37,8 +37,8 @@
 #   xattrread           a listed typed value that fails getxattr must fail a build or invalidate
 #                       a built domain; an attribute removed between list/get is skipped
 #   domainrecs          removed domain directories leave no record and no fallback mark (#113)
-#   domainreuse         a domain directory removed on the lower and its inode number reused by a
-#                       new one: the new domain is not answered from the removed one's index
+#   domainreuse         domain directories and files removed on the lower and their inode numbers
+#                       reused: the new ones are not answered from the removed ones' index
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
@@ -2098,59 +2098,118 @@ done
 echo "DOMAINRECS_PASS: removed domain directories leave no record and no fallback mark; a removed directory's descriptor gets ENOENT"
 fi
 if want domainreuse; then
-# GHSA-756j-cgwq-gvwm (journal 0216): domain records are keyed by the inode number of the domain
-# directory. A directory removed on the lower, behind the layer, after a QUERY2 built its domain,
-# and a new directory given the same number used to be answered from the removed one's entries,
-# to the new owner. The record now also keeps the directory's i_generation. ext4 and XFS reuse
-# numbers; btrfs does not, so there the step only checks that nothing else changes.
+# GHSA-756j-cgwq-gvwm (journal 0216): domain records and file records are keyed by inode number.
+# A tree removed on the lower, behind the layer, and new inodes given the same numbers used to be
+# answered from the removed ones' entries, to their new owner. The records now also keep the
+# lower inode's i_generation. ext4 and XFS reuse numbers; btrfs does not, so there the step only
+# checks that nothing else changes. Three cases: a reused domain directory queried first with
+# QUERY2, a reused domain directory queried first with the mount-wide v1 QUERY (the rebuild of
+# domain_ensure_all), and a reused file number given a new file in another, built domain.
+du_entries() { "$BIN/query" "$LAYER" info | sed -n 's/.* entries=\([0-9]*\).*/\1/p'; }
+# du_free <path>: removes a tree on the lower and waits until its inodes are free. The layer's
+# dentries hold the lower ones until reclaimed, and one drop_caches=2 left them allocated in a
+# fresh guest (likely drop_slab() stopping before the parent of a file was unused); a few rounds
+# free them. XFS then frees unlinked inodes in its background inactivation, which statfs pushes.
+du_free() {
+    rm -rf "$1" && sync || fail "du-remove-$du_fs"
+    for k in 1 2 3 4; do echo 2 > /proc/sys/vm/drop_caches; done
+    stat -f "$LOWER" > /dev/null && sleep 1
+}
+# du_dir <prefix> <ino>: new 0700 directories on the lower until one gets ino (the others stay);
+# sets du_new, or du_new='' when the filesystem gave it to none of 64
+du_dir() {
+    du_new='' i=0
+    while [ $i -lt 64 ]; do
+        mkdir -m 700 "$LOWER/du/$1$i" || fail "du-dir-$du_fs-$1$i"
+        if [ "$(stat -c %i "$LOWER/du/$1$i")" = "$2" ]; then du_new=$1$i; return; fi
+        i=$((i + 1))
+    done
+}
+# du_alice <dir> <file>: a 0700 domain of uid 1001 with one file, built by a QUERY2 of uid 1001.
+# XFS frees a whole inode chunk once all its inodes are free, and gives new inodes a new chunk: a
+# file made in the directory, next to it, and moved out keeps the chunk and the numbers free.
+du_alice() {
+    mkdir -m 700 "$LOWER/du/$1" && chown 1001:1001 "$LOWER/du/$1" || fail "du-alice-$du_fs-$1"
+    : > "$LOWER/du/$1/keep" && mv "$LOWER/du/$1/keep" "$LOWER/du/keep-$1" || fail "du-keep-$du_fs-$1"
+    : > "$LAYER/$1/$2" && chown 1001:1001 "$LAYER/$1/$2" && chmod 600 "$LAYER/$1/$2" &&
+        "$BIN/moobfs-attr" set "$LAYER/$1/$2" kind string decision &&
+        "$BIN/moobfs-attr" set "$LAYER/$1/$2" secret string s3cret || fail "du-file-$du_fs-$1"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/$1" q2 kind eq string decision | cut -f2)" = "$2" ] ||
+        fail "du-build-$du_fs-$1"
+}
 for du_fs in ext4 xfs btrfs; do
     case $du_fs in ext4) du_dev=$DEV_EXT4 ;; xfs) du_dev=$DEV_XFS ;; btrfs) du_dev=$DEV_BTRFS ;; esac
     mount -t "$du_fs" "$du_dev" "$LOWER" || fail "du-lower-mount-$du_fs"
     rm -rf "$LOWER/du" && mkdir -m 755 "$LOWER/du" || fail "du-mkdir-$du_fs"
     mount -t moobfs_layer -o lower="$LOWER/du",domain_depth=1 none "$LAYER" || fail "du-mount-$du_fs"
-    mkdir -m 700 "$LOWER/du/alice" && chown 1001:1001 "$LOWER/du/alice" || fail "du-alice-$du_fs"
-    # XFS frees a whole inode chunk once all its inodes are free, and gives a new directory a new
-    # chunk: a file made in alice, next to it, and moved out keeps alice's chunk and number free
-    : > "$LOWER/du/alice/keep" && mv "$LOWER/du/alice/keep" "$LOWER/du/keep" || fail "du-keep-$du_fs"
-    : > "$LAYER/alice/plan.md" && chown 1001:1001 "$LAYER/alice/plan.md" &&
-        chmod 600 "$LAYER/alice/plan.md" || fail "du-plan-$du_fs"
-    "$BIN/moobfs-attr" set "$LAYER/alice/plan.md" kind string decision || fail "du-attr-$du_fs"
-    [ "$("$BIN/query" --uid 1001 "$LAYER/alice" q2 kind eq string decision | cut -f2)" = plan.md ] ||
-        fail "du-build-$du_fs"
+    du_note=''
+    # 1. a reused domain directory, QUERY2 first
+    du_alice alice plan.md
     du_ino=$(stat -c %i "$LOWER/du/alice")
-    # The layer's dentries hold the lower ones until reclaimed, and one drop_caches=2 left alice's
-    # inode allocated in a fresh guest (likely drop_slab() stopping before the parent of plan.md
-    # was unused); a few rounds free it. XFS then frees the unlinked inode in its background
-    # inactivation (inodegc), which statfs pushes.
-    rm -rf "$LOWER/du/alice" && sync || fail "du-remove-$du_fs"
-    for k in 1 2 3 4; do echo 2 > /proc/sys/vm/drop_caches; done
-    stat -f "$LOWER" > /dev/null && sleep 1
-    # new directories on the lower until one gets the removed number (the others stay meanwhile)
-    du_new='' du_note="inode $du_ino reused by" i=0
+    du_free "$LOWER/du/alice"
+    du_dir bob "$du_ino"
+    if [ -n "$du_new" ]; then
+        chown 1002:1002 "$LOWER/du/$du_new" || fail "du-chown-$du_fs"
+        du_got=$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision) || fail "du-query-$du_fs"
+        [ -z "$du_got" ] || fail "du-stale-$du_fs: $du_new (inode $du_ino) answered $du_got"
+        : > "$LAYER/$du_new/own.md" && chown 1002:1002 "$LAYER/$du_new/own.md" &&
+            "$BIN/moobfs-attr" set "$LAYER/$du_new/own.md" kind string decision || fail "du-own-$du_fs"
+        [ "$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision | cut -f2)" = own.md ] ||
+            fail "du-own-answer-$du_fs"
+        du_note="QUERY2-first: inode $du_ino reused by $du_new;"
+    elif [ "$du_fs" != btrfs ]; then
+        fail "du-no-reuse-$du_fs (inode $du_ino not reused in 64 directories)"
+    fi
+    # 2. a reused domain directory, the mount-wide v1 QUERY first: it must build the new domain
+    # again by itself, so the removed file's two entries leave the index
+    du_alice carol notes.md
+    du_ino=$(stat -c %i "$LOWER/du/carol")
+    du_e0=$(du_entries)
+    du_free "$LOWER/du/carol"
+    du_dir dave "$du_ino"
+    if [ -n "$du_new" ]; then
+        chown 1002:1002 "$LOWER/du/$du_new" || fail "du-v1-chown-$du_fs"
+        "$BIN/query" "$LAYER" secret eq string s3cret > /tmp/du-v1.txt || fail "du-v1-$du_fs"
+        [ -s /tmp/du-v1.txt ] && fail "du-v1-stale-$du_fs: $(cat /tmp/du-v1.txt)"
+        du_e1=$(du_entries)
+        [ "$du_e1" -eq $((du_e0 - 2)) ] ||
+            fail "du-v1-entries-$du_fs: $du_e0 entries with carol's file, $du_e1 after the v1 QUERY on $du_new"
+        [ -z "$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 secret eq string s3cret)" ] ||
+            fail "du-v1-q2-$du_fs"
+        du_note="$du_note v1-first: inode $du_ino reused by $du_new;"
+    elif [ "$du_fs" != btrfs ]; then
+        fail "du-v1-no-reuse-$du_fs (inode $du_ino not reused in 64 directories)"
+    fi
+    # 3. a reused file number: erin's file removed on the lower, a new file of uid 1002 in frank's
+    # built domain given its number and one attribute through the layer; erin's other value must
+    # not move into frank's partition
+    mkdir -m 700 "$LOWER/du/frank" && chown 1002:1002 "$LOWER/du/frank" || fail "du-frank-$du_fs"
+    [ -z "$("$BIN/query" --uid 1002 "$LAYER/frank" q2 kind eq string mine)" ] || fail "du-frank-build-$du_fs"
+    du_alice erin secret.md
+    du_fino=$(stat -c %i "$LOWER/du/erin/secret.md")
+    du_free "$LOWER/du/erin"
+    du_new='' i=0
     while [ $i -lt 64 ]; do
-        mkdir -m 700 "$LOWER/du/bob$i" || fail "du-bob-$du_fs-$i"
-        if [ "$(stat -c %i "$LOWER/du/bob$i")" = "$du_ino" ]; then du_new=bob$i; break; fi
+        : > "$LAYER/frank/x$i" || fail "du-x-$du_fs-$i"
+        if [ "$(stat -c %i "$LAYER/frank/x$i")" = "$du_fino" ]; then du_new=x$i; break; fi
         i=$((i + 1))
     done
-    if [ -z "$du_new" ]; then
-        [ "$du_fs" = btrfs ] || fail "du-no-reuse-$du_fs (inode $du_ino not reused in 64 directories)"
-        du_new=bob0 du_note="no inode number reused (btrfs), so"
+    if [ -n "$du_new" ]; then
+        chown 1002:1002 "$LAYER/frank/$du_new" &&
+            "$BIN/moobfs-attr" set "$LAYER/frank/$du_new" kind string mine || fail "du-x-attr-$du_fs"
+        du_got=$("$BIN/query" --uid 1002 "$LAYER/frank" q2 secret eq string s3cret) || fail "du-x-query-$du_fs"
+        [ -z "$du_got" ] || fail "du-file-stale-$du_fs: frank/$du_new (inode $du_fino) answered $du_got"
+        [ "$("$BIN/query" --uid 1002 "$LAYER/frank" q2 kind eq string mine | cut -f2)" = "$du_new" ] ||
+            fail "du-x-own-$du_fs"
+        du_note="$du_note file: inode $du_fino reused by frank/$du_new"
+    else
+        du_note="$du_note file: inode $du_fino not reused in 64 files"
+        [ "$du_fs" = ext4 ] && fail "du-file-no-reuse-ext4 (inode $du_fino not reused in 64 files)"
     fi
-    chown 1002:1002 "$LOWER/du/$du_new" || fail "du-chown-$du_fs"
-    du_got=$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision) || fail "du-query-$du_fs"
-    [ -z "$du_got" ] || fail "du-stale-$du_fs: $du_new (inode $du_ino) answered $du_got"
-    : > "$LAYER/$du_new/own.md" && chown 1002:1002 "$LAYER/$du_new/own.md" &&
-        "$BIN/moobfs-attr" set "$LAYER/$du_new/own.md" kind string decision || fail "du-own-$du_fs"
-    [ "$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision | cut -f2)" = own.md ] ||
-        fail "du-own-answer-$du_fs"
-    # the mount-wide v1 QUERY builds every domain the same way (domain_ensure_all)
-    "$BIN/query" "$LAYER" kind eq string decision > /tmp/du-v1.txt || fail "du-v1-$du_fs"
-    grep -q 'plan\.md$' /tmp/du-v1.txt && fail "du-v1-stale-$du_fs: $(cat /tmp/du-v1.txt)"
-    grep -q "^[0-9]*	$du_new/own\.md\$" /tmp/du-v1.txt || fail "du-v1-own-$du_fs: $(cat /tmp/du-v1.txt)"
     umount "$LAYER" && rm -rf "$LOWER/du" && umount "$LOWER" || fail "du-cleanup-$du_fs"
-    echo "DOMAINREUSE_$du_fs: $du_note $du_new; QUERY2 and QUERY answered only its own file"
+    echo "DOMAINREUSE_$du_fs: ${du_note:-no inode number reused}"
 done
-echo "DOMAINREUSE_PASS: a reused domain directory inode is not answered from the removed directory's index"
+echo "DOMAINREUSE_PASS: reused domain directory and file inode numbers are not answered from the removed ones' index"
 fi
 if want pylib && ! command -v python3 > /dev/null 2>&1; then
     echo "PYLIB_SKIPPED: no python3 in this guest (the KASAN harness boots the host's root)"

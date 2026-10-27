@@ -88,6 +88,7 @@ struct moobl_ix_name {
 
 struct moobl_ix_inode {
 	u64 ino;
+	u32 gen;			/* the lower inode's i_generation: with ino, one inode */
 	struct list_head entries;	/* this inode's typed attributes */
 	struct inode *upper;		/* cached layer inode, or NULL */
 	char *path;			/* mount-relative path recorded at scan or write time */
@@ -294,13 +295,23 @@ static void name_put_if_empty(struct moobl_index *ix, struct moobl_ix_name *nm)
 	uncharge(ix, sizeof(*nm));
 }
 
-static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino)
+static void rec_drop(struct moobl_index *ix, struct moobl_ix_inode *rec);
+
+/*
+ * The record of inode (ino, gen), created if there is none. A record with the same number and
+ * another generation belongs to a file removed on the lower, behind the layer, whose number the
+ * lower filesystem gave to a new file (GHSA-756j-cgwq-gvwm): its entries are the removed file's
+ * values and go with it, or the next index_put() would move them into the new file's partition.
+ */
+static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino, u32 gen)
 {
 	struct moobl_ix_inode *rec = xa_load(&ix->inodes, ino);
 
 	lockdep_assert_held_write(&ix->lock);
-	if (rec)
+	if (rec && rec->gen == gen)
 		return rec;
+	if (rec)
+		rec_drop(ix, rec);
 	if (charge(ix, sizeof(*rec)))
 		return ERR_PTR(-ENOMEM);
 	rec = kzalloc(sizeof(*rec), GFP_KERNEL_ACCOUNT);
@@ -309,6 +320,7 @@ static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino)
 		return ERR_PTR(-ENOMEM);
 	}
 	rec->ino = ino;
+	rec->gen = gen;
 	INIT_LIST_HEAD(&rec->entries);
 	if (xa_err(xa_store(&ix->inodes, ino, rec, GFP_KERNEL_ACCOUNT))) {
 		kfree(rec);
@@ -451,7 +463,7 @@ static int rec_set_partition(struct moobl_index *ix, struct moobl_ix_inode *rec,
 }
 
 /* Replaces or inserts one typed attribute. Caller holds the write lock. */
-static int index_put(struct moobl_index *ix, u64 ino, const struct moobl_place *pl,
+static int index_put(struct moobl_index *ix, u64 ino, u32 gen, const struct moobl_place *pl,
 		     const char *name, const u8 *value, size_t size)
 {
 	struct moobl_ix_inode *rec;
@@ -463,7 +475,7 @@ static int index_put(struct moobl_index *ix, u64 ino, const struct moobl_place *
 	lockdep_assert_held_write(&ix->lock);
 	if (value[0] == MOOB_T_RAW)
 		return 0;	/* raw payloads are stored but never indexed */
-	rec = inode_rec_get(ix, ino);
+	rec = inode_rec_get(ix, ino, gen);
 	if (IS_ERR(rec))
 		return PTR_ERR(rec);
 	err = rec_set_partition(ix, rec, pl);
@@ -1331,7 +1343,7 @@ static int attrs_read(struct dentry *lower, struct attr_buf *b)
 }
 
 /* Puts what b holds in place of whatever the index has for ino. Caller holds the write lock. */
-static int index_replace(struct moobl_index *ix, u64 ino, const struct moobl_place *pl,
+static int index_replace(struct moobl_index *ix, u64 ino, u32 gen, const struct moobl_place *pl,
 			 const struct attr_buf *b)
 {
 	struct moobl_ix_inode *rec = xa_load(&ix->inodes, ino);
@@ -1350,7 +1362,7 @@ static int index_replace(struct moobl_index *ix, u64 ino, const struct moobl_pla
 		u16 size;
 
 		memcpy(&size, b->data + off, sizeof(size));
-		err = index_put(ix, ino, pl, name, b->data + off + sizeof(size) + nl, size);
+		err = index_put(ix, ino, gen, pl, name, b->data + off + sizeof(size) + nl, size);
 		off += sizeof(size) + nl + size;
 	}
 	return err;
@@ -1431,7 +1443,7 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 			continue;
 		}
 		list_del(&ld.list);
-		err = index_replace(ix, li->i_ino, &cur, b);
+		err = index_replace(ix, li->i_ino, READ_ONCE(li->i_generation), &cur, b);
 		rec = err ? NULL : xa_load(&ix->inodes, li->i_ino);
 		if (rec && path)
 			err = index_set_path(ix, rec, path);	/* a scan has no other source of the name */
@@ -2293,7 +2305,8 @@ int moobl_index_set(struct super_block *sb, struct dentry *dentry, const char *n
 		ix_write_unlock(ix, nofs);
 		return 0;
 	}
-	err = index_put(ix, inode->i_ino, &pl, name, value, size);
+	err = index_put(ix, inode->i_ino, READ_ONCE(moobl_lower_inode(inode)->i_generation), &pl,
+			name, value, size);
 	if (err) {
 		/* the lower write already succeeded: the domain is built again by the next query */
 		domain_lost(ix, pl.domain, err);
@@ -2628,7 +2641,9 @@ void moobl_index_inode_cached(struct super_block *sb, struct inode *inode)
 		return;
 	nofs = ix_write_lock(ix);
 	rec = xa_load(&ix->inodes, inode->i_ino);
-	if (rec)
+	if (rec && rec->gen != READ_ONCE(moobl_lower_inode(inode)->i_generation))
+		rec_drop(ix, rec);	/* a removed file's record: see inode_rec_get() */
+	else if (rec)
 		rec->upper = inode;
 	ix_write_unlock(ix, nofs);
 }

@@ -1,9 +1,10 @@
-# 0216 — A domain record keeps its directory's generation (GHSA-756j-cgwq-gvwm)
+# 0216 — Domain and file records keep the lower inode's generation (GHSA-756j-cgwq-gvwm)
 
 Date: 2026-10-27. Status: on the private branch `sec/ghsa-756j` of the advisory's temporary
 fork; embargoed until the advisory is published. Work started: 2026-10-27 17:45
-America/Sao_Paulo; ended: 2026-10-27 18:45. Wall-clock time, not an
-engineering-effort measurement. Estimated effort: S.
+America/Sao_Paulo; first round ended 18:45; the second round, after an independent review,
+started 18:50 (see "Second round"). Wall-clock time, not an engineering-effort measurement.
+Estimated effort: S.
 
 ## Goal and decision
 
@@ -32,9 +33,11 @@ generation (`fs/ext4/ialloc.c:1290`); XFS a random one on v5 filesystems without
 (`fs/xfs/libxfs/xfs_inode_util.c:746`); btrfs the transaction that created it
 (`fs/btrfs/inode.c:6297`), and it does not reuse numbers within a mount.
 
-No ADR: no promise, format or interface changes. ADR-0011's non-promise 2 already says results
-from changes behind the layer may be stale but never come from a domain the caller cannot
-traverse; this restores that.
+No ADR: no promise, format or interface changes. ADR-0011's non-promise 2 says results from
+changes behind the layer may be stale but never come from a domain the caller cannot traverse.
+The domain check alone does not restore it: file records are keyed by inode number too (second
+round below). With both checks, an answer comes only from records of the inode the query or the
+write names, on a filesystem that sets `i_generation` (limitations).
 
 Alternatives not taken: the change time of the directory, which changes with every entry added
 or removed and would rebuild domains for nothing; an identity read from an extended attribute,
@@ -91,14 +94,53 @@ the layer:
 
 ## Limitations
 
-- A filesystem that leaves `i_generation` at 0 and reuses inode numbers is not protected by this
-  check. The suite's lowers (ext4, XFS, btrfs) all set it.
+- A filesystem that leaves `i_generation` at 0 and reuses inode numbers is not protected by these
+  checks. The suite's lowers (ext4, XFS, btrfs) all set it. An NFS client never sets it (0 for
+  every inode), and FUSE takes it from the server (`fuse_iget()`, `fs/fuse/inode.c`), where
+  libfuse leaves it 0 unless the filesystem fills it; neither is a supported lower.
 - ext4's generation is 32 random bits: one reuse in 2^32 keeps the same generation, as for NFS.
-- The owner of a directory can set its generation (`EXT4_IOC_SETVERSION`, `fs/ext4/ioctl.c`); that only makes
-  their own domain rebuild.
-- The record of the removed directory and its entries stay until the number is reused and
-  queried, or until unmount, as before (journal 0210, limitations).
-- btrfs subvolumes repeat inode numbers across subvolumes under one lower; not covered here.
+- On ext4 the owner of an inode can set its generation with `EXT4_IOC_SETVERSION`
+  (`fs/ext4/ioctl.c`). After a reuse, the new owner could set it to the removed inode's value,
+  learned before the removal (for example with `name_to_handle_at()` on the lower), and make the
+  stale record fresh again. That needs direct access to the lower (the layer passes only
+  `moobl_root_ioctl()`, not this ioctl), and in the build's kernel the ioctl returns `ENOTTY` on a
+  filesystem with `metadata_csum`, the `mke2fs` default.
+- The records of a tree removed behind the layer and their entries stay until the numbers are
+  reused and queried or set, or until unmount, as before (journal 0210, limitations).
+- btrfs subvolumes repeat inode numbers, but the layer never enters one: lookup and the scan
+  refuse a directory on another device (`moobl_other_device()`, `layer/main.c`), so a subvolume is
+  never a domain nor a file of one.
+
+## Second round: file records (independent review)
+
+An independent read-only review of the branch found the same root cause one level down, and the
+coordinator confirmed it in the code: `ix->inodes` is keyed by inode number as well. When a tree
+is removed on the lower, its files' records stay; when the lower gives one of their numbers to a
+new file in another, built domain and an attribute is set on it through the layer,
+`moobl_index_set()` → `index_put()` → `inode_rec_get()` returned the removed file's record and
+`rec_set_partition()` moved all its entries into the new file's partition, where the new owner's
+`QUERY2` matched and returned the removed file's values. A scan or adoption is not affected:
+`index_replace()` frees the old entries first.
+
+Decision: `struct moobl_ix_inode` keeps the lower inode's `i_generation`. `inode_rec_get()` takes
+it; a record with the same number and another generation is dropped whole (`rec_drop()`) and a new
+one made. `index_replace()` and `moobl_index_set()` pass the lower inode's generation, and
+`moobl_index_inode_cached()` drops such a record instead of attaching the new layer inode to it.
+This is correct for hard links and renames: they are the same inode with the same generation, and
+they move records through `moobl_index_renamed()` and `moobl_index_linked()`, which read the file
+again. The alternative, dropping a record in `moobl_index_set()` whenever its domain differs from
+the file's place, was not taken: a hard link in another domain would lose the file's other
+attributes, and a number reused within the same shared domain would not be caught.
+
+The review also asked for a step where the mount-wide v1 `QUERY` runs before any `QUERY2` on the
+reused directory, so that the check of `domain_ensure_dom()` reached from `domain_ensure_all()`
+is tested on its own; the step now does that and checks the index's entry count. The check in
+`query_repin()` is defence in depth and cannot be tested: the query's open descriptor holds the
+domain directory's inode, so its number cannot be reused while the query runs.
+
+Generation 0: no warning is logged. ext4 gives generation 0 to the root inode and to inodes that
+`mke2fs -d` writes, so a domain directory with generation 0 does not show that its filesystem
+lacks generations, and a warning would fire on ordinary trees. The limitation is recorded instead.
 
 ## Next step
 
