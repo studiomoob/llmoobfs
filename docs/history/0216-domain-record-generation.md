@@ -3,7 +3,7 @@
 Date: 2026-10-27. Status: on the private branch `sec/ghsa-756j` of the advisory's temporary
 fork; embargoed until the advisory is published. Work started: 2026-10-27 17:45
 America/Sao_Paulo; first round ended 18:45; the second round, after an independent review,
-started 18:50 and ended 20:05 (see "Second round"). Wall-clock time, not an engineering-effort measurement.
+started 18:50 and ended 20:22 (see "Second round"). Wall-clock time, not an engineering-effort measurement.
 Estimated effort: S.
 
 ## Goal and decision
