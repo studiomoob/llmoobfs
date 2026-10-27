@@ -160,7 +160,9 @@ Fatos em 2026-10-25:
   de arquivos de baixo, syzkaller (cinco rodadas de seis horas; um defeito achado e corrigido), uma
   primeira rodada do KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091,
   0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143).
-- **Ainda sem revisão humana externa.** Foi pedida em 2026-10-13. Duas revisões independentes do
+- **Ainda sem revisão humana externa do código do kernel.** Foi pedida em 2026-10-13. Um primeiro
+  colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um assistente de IA
+  (2026-10-27, pull requests 161 a 163). Duas revisões independentes do
   código, feitas por assistentes de IA ([diário 0111](docs/history/0111-review-5582e06.md),
   [diário 0114](docs/history/0114-second-inspection-of-5582e06.md)) e conferidas contra o kernel,
   acharam quatro defeitos de segurança (achados F9 a F12 do ADR-0011), relatados como avisos de
@@ -191,7 +193,9 @@ recomendação ([when-not-to-use.md](docs/when-not-to-use.md)). A lista completa
 
 ## Como ajudar
 
-O projeto tem um mantenedor e ainda nenhuma revisão humana externa. O que mais ajudaria, organizado por
+O projeto tem um mantenedor e ainda nenhuma revisão humana externa do código do kernel; um
+primeiro colaborador de fora revisou scripts, ferramentas e a biblioteca Python (pull requests 161
+a 163). O que mais ajudaria, organizado por
 quanto conhecimento de kernel exige, está em **[docs/help-wanted.md](docs/help-wanted.md)**: uma
 revisão do modelo de credenciais ou das travas do índice, se você conhece o VFS; uma verificação
 de se o seu sistema de memória se encaixa, se você constrói um; uma rodada dos testes na sua
@@ -516,7 +520,7 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   condições descritas em [O que foi medido](#o-que-foi-medido) pode ser feita a partir deles; não
   existe comparação com FUSE, e a comparação com o sistema de arquivos de baixo puro no módulo atual
   está pendente.
-- Sem revisão humana externa. Duas revisões independentes do código, feitas por assistentes de IA
+- Sem revisão humana externa do código do kernel. Duas revisões independentes do código, feitas por assistentes de IA
   (diários [0111](docs/history/0111-review-5582e06.md) e [0114](docs/history/0114-second-inspection-of-5582e06.md)),
   e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
   segurança; os achados estão no [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)

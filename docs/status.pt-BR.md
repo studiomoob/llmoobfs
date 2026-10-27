@@ -12,8 +12,9 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 ## Última tag e correções posteriores
 
 **Experimental. Não é para produção.** Uma série de kernel (6.12), testada só em VM; ainda sem
-revisão humana externa (duas revisões independentes do código, feitas por assistentes de IA,
-diários 0111 e 0114). A última tag, `v0.4.1-experimental` (2026-10-20), é um retrato do
+revisão humana externa do código do kernel (duas revisões independentes do código, feitas por
+assistentes de IA, diários 0111 e 0114; um primeiro colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um assistente de IA,
+pull requests 161 a 163). A última tag, `v0.4.1-experimental` (2026-10-20), é um retrato do
 código anterior às correções que hoje estão na `main`. Os dois achados da
 [revisão independente](history/0144-independent-review.md) têm correções na
 `main`. Esse lote passou na suíte completa integrada em VM e na
