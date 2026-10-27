@@ -235,4 +235,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0213 — Every moobfs-check string escaped; --uid without root's groups](0213-tool-json-strings-and-uid.md)
 - [0214 — First outside contributor: review and merge of pull requests 161 to 163](0214-first-outside-contributor-prs-161-163.md)
 - [0215 — Search-only directories: read and search on every directory on the way (ADR-0025)](0215-search-only-directories.md)
+- [0216 — A domain record keeps its directory's generation (GHSA-756j-cgwq-gvwm)](0216-domain-record-generation.md)
 - [0217 — Rebase before pushing; pull requests enter with a merge commit](0217-rebase-before-push-merge-commits.md)

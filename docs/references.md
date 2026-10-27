@@ -548,3 +548,16 @@ research documents. Two page ranges could not be confirmed and are omitted: Büt
 - `rename_lock` and `read_seqbegin()`/`read_seqretry()` (`include/linux/seqlock.h`, `fs/dcache.c`),
   already used by `where_is()`: the per-result check takes a positive answer only when no rename
   happened between its lookup and its walk of the parent directories.
+
+## 17. Inode reuse and domain records (GHSA-756j-cgwq-gvwm, journal 0216)
+
+- `generic_encode_ino32_fh()`, `fs/libfs.c`, Linux 6.12.112: an NFS file handle pairs the inode
+  number with `i_generation` (`FILEID_INO32_GEN`), the model for `domain_fresh_for()`.
+- `ovl_encode_real_fh()` (`fs/overlayfs/copy_up.c`) and `ovl_verify_fh()`
+  (`fs/overlayfs/namei.c`), Linux 6.12.112: overlayfs origin and index records name a lower inode
+  by its file handle, not its number.
+- `exportfs_encode_fid()` in `fs/notify/fanotify/fanotify.c`, Linux 6.12.112: fanotify FIDs.
+- Generation of a new inode, Linux 6.12.112: ext4 `__ext4_new_inode()` (`fs/ext4/ialloc.c`,
+  random); XFS `xfs_iget_cache_miss()` (`fs/xfs/xfs_icache.c`, random on v5 without `ikeep`) and
+  `xfs_inode_uninit()` (`fs/xfs/libxfs/xfs_inode_util.c`, bumped on free); btrfs
+  `btrfs_create_new_inode()` (`fs/btrfs/inode.c`, the creating transaction).
