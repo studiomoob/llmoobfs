@@ -4,9 +4,10 @@
 
 - GHSA-756j-cgwq-gvwm (journal 0216, reported privately by an external reviewer): a domain
   directory removed on the lower, behind the layer, and a new directory given its inode number
-  (ext4, XFS) were answered from the removed directory's index. A domain record now also keeps
-  the directory's `i_generation`, and a record whose generation differs is built again. New suite
-  step `domainreuse`; its regression test fails without the fix.
+  (ext4, XFS) were answered from the removed directory's index, and a new file given a removed
+  file's number took over its record and values. Domain and file records now also keep the lower
+  inode's `i_generation`; a domain record whose generation differs is built again, a file record
+  is dropped. New suite step `domainreuse`; each of its three cases fails without its fix.
 
 - Search-only directories (journal 0215, ADR-0025, finding F15 of ADR-0011): an intermediate
   directory must grant read as well as search for the files under it to be answered. Before,

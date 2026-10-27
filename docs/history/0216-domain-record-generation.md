@@ -3,7 +3,7 @@
 Date: 2026-10-27. Status: on the private branch `sec/ghsa-756j` of the advisory's temporary
 fork; embargoed until the advisory is published. Work started: 2026-10-27 17:45
 America/Sao_Paulo; first round ended 18:45; the second round, after an independent review,
-started 18:50 (see "Second round"). Wall-clock time, not an engineering-effort measurement.
+started 18:50 and ended 20:05 (see "Second round"). Wall-clock time, not an engineering-effort measurement.
 Estimated effort: S.
 
 ## Goal and decision
@@ -46,14 +46,18 @@ its directory, which covers only mount-wide queries.
 
 ## Changes
 
-- `layer/moobl.h`: `struct moobl_domain` gains `lower_gen`.
+- `layer/moobl.h`: `struct moobl_domain` gains `lower_gen`; `layer/index.c`'s
+  `struct moobl_ix_inode` gains `gen` (second round).
 - `layer/index.c`: `domain_fresh_for()`; `domain_ensure_dom()` samples the generation when a
   build begins and checks it before building; `query_repin()` and `query2_pin()` check it.
-- `vm/suite.sh` and `docs/testing.md`: step `domainreuse` on ext4, XFS and btrfs. A domain built as uid 1001 is
-  removed on the lower; directories are made on the lower until one gets the removed number
-  (ext4 and XFS must reuse it within 64; btrfs need not); `QUERY2` as uid 1002 on it must
-  return nothing, then only its own file, and the mount-wide v1 `QUERY` must not list the
-  removed file.
+- `vm/suite.sh` and `docs/testing.md`: step `domainreuse` on ext4, XFS and btrfs. A domain built
+  as uid 1001 is removed on the lower; directories are made on the lower until one gets the
+  removed number (ext4 and XFS must reuse it within 64; btrfs need not); `QUERY2` as uid 1002 on
+  it must return nothing, then only its own file. After the second round, three cases: that one;
+  the same with the mount-wide v1 `QUERY` first, which must drop the removed file's two entries;
+  and a reused file number in another built domain, given one attribute through the layer, whose
+  owner's `QUERY2` must not match the removed file's other value (ext4 must reuse the number
+  within 64 files; XFS, which places new files near their directory, may not).
 - `docs/references.md`, `CHANGELOG.md`, the history index.
 
 ## Evidence
@@ -137,6 +141,29 @@ reused directory, so that the check of `domain_ensure_dom()` reached from `domai
 is tested on its own; the step now does that and checks the index's entry count. The check in
 `query_repin()` is defence in depth and cannot be tested: the query's open descriptor holds the
 domain directory's inode, so its number cannot be reused while the query runs.
+
+Evidence of the second round (same host and harness):
+
+- `make layer W=1` against 6.12.111: no warning. `make checkpatch`: nothing reported.
+- An ext4 image made with `mke2fs -d`: a populated directory and the root inode both have
+  generation 0 (`debugfs stat`), the basis of the no-warning decision below.
+- `MOOB_ONLY=domainreuse sh vm/kasan-local.sh`: `DOMAINREUSE_ext4: QUERY2-first: inode 14 reused
+  by bob0; v1-first: inode 17 reused by dave0; file: inode 22 reused by frank/x1`;
+  `DOMAINREUSE_xfs`: both directory cases reused (262272 by bob3, 655489 by dave3), the file case
+  not reused in 64 files; btrfs reused nothing. `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Negative round 1, `layer/` of the first round (`587f842`, domain check only):
+  `MOOBFS_VM_FAIL: du-file-stale-ext4: frank/x1 (inode 22) answered 22 x1`, the file case.
+- Negative round 2, this branch with the two checks of `domain_ensure_dom()` back to
+  `domain_fresh()` and the step's first case skipped: `MOOBFS_VM_FAIL: du-v1-entries-ext4: 2
+  entries with carol's file, 2 after the v1 QUERY on dave0`. With the first case kept, the same
+  build fails earlier (`du-query-ext4`): `query2_pin()` sees the stale record, the build path
+  calls it fresh, and the query ends in `EAGAIN` after eight tries.
+- The steps the change touches, under KASAN/lockdep: `MOOB_ONLY="domainreuse domainrecs ext4 xfs
+  btrfs release buildrace xattrread faults ioerror" sh vm/kasan-local.sh`: 89 pass markers, among
+  them the layer, build-race, release, fault and I/O-error markers on each filesystem,
+  `DOMAINRECS_PASS`, `DOMAINREUSE_PASS` (ext4: all three cases reused; XFS: both directory
+  cases) and `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Not run, as in the first round: the full `make vm-test` and the full KASAN suite.
 
 Generation 0: no warning is logged. ext4 gives generation 0 to the root inode and to inodes that
 `mke2fs -d` writes, so a domain directory with generation 0 does not show that its filesystem
