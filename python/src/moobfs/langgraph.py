@@ -26,8 +26,8 @@ import struct
 from datetime import datetime, timezone
 from urllib.parse import quote, unquote
 
-from langgraph.store.base import (BaseStore, GetOp, Item, ListNamespacesOp, PutOp, SearchItem,
-                                  SearchOp)
+from langgraph.store.base import (BaseStore, GetOp, InvalidNamespaceError, Item,
+                                  ListNamespacesOp, PutOp, SearchItem, SearchOp)
 
 from . import _uapi as u
 from .attrs import Value, name_ok
@@ -52,6 +52,15 @@ class PublicationStopped(Exception):
 
 def _enc(label):
     return quote(label, safe="")
+
+
+def _check_labels(labels):
+    """LangGraph's rule for namespace labels: strings, not empty, without a period. BaseStore
+    applies it in get, put, search and delete, not to the operations given to batch(), and
+    here a label is a directory name, so "." or ".." would leave the root."""
+    for label in labels:
+        if not isinstance(label, str) or not label or "." in label:
+            raise InvalidNamespaceError(f"invalid namespace label {label!r} in {tuple(labels)}")
 
 
 def _attr_name(key):
@@ -297,6 +306,15 @@ class MoobStore(BaseStore):
 
     # ---- BaseStore -------------------------------------------------------------------------
     def batch(self, ops):
+        ops = list(ops)
+        for op in ops:      # every operation is checked before any runs
+            if isinstance(op, (GetOp, PutOp)):
+                _check_labels(op.namespace)
+            elif isinstance(op, SearchOp):
+                _check_labels(op.namespace_prefix)
+            elif isinstance(op, ListNamespacesOp):
+                for cond in op.match_conditions or ():
+                    _check_labels(cond.path)
         results = []
         for op in ops:
             if isinstance(op, GetOp):
