@@ -37,6 +37,8 @@
 #   xattrread           a listed typed value that fails getxattr must fail a build or invalidate
 #                       a built domain; an attribute removed between list/get is skipped
 #   domainrecs          removed domain directories leave no record and no fallback mark (#113)
+#   domainreuse         a domain directory removed on the lower and its inode number reused by a
+#                       new one: the new domain is not answered from the removed one's index
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
@@ -57,7 +59,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|pylib) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|pylib) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -2094,6 +2096,52 @@ for dr_fs in btrfs ext4; do
     echo "DOMAINRECS_$dr_fs: records $dr_base -> $dr_after after 200 domains; fallback marks $dr_fb0 -> $dr_fb1 after 50 and the removed directory"
 done
 echo "DOMAINRECS_PASS: removed domain directories leave no record and no fallback mark; a removed directory's descriptor gets ENOENT"
+fi
+if want domainreuse; then
+# GHSA-756j-cgwq-gvwm (journal 0216): domain records are keyed by the inode number of the domain
+# directory. A directory removed on the lower, behind the layer, after a QUERY2 built its domain,
+# and a new directory given the same number used to be answered from the removed one's entries,
+# to the new owner. The record now also keeps the directory's i_generation. ext4 and XFS reuse
+# numbers; btrfs does not, so there the step only checks that nothing else changes.
+for du_fs in ext4 xfs btrfs; do
+    case $du_fs in ext4) du_dev=$DEV_EXT4 ;; xfs) du_dev=$DEV_XFS ;; btrfs) du_dev=$DEV_BTRFS ;; esac
+    mount -t "$du_fs" "$du_dev" "$LOWER" || fail "du-lower-mount-$du_fs"
+    rm -rf "$LOWER/du" && mkdir -m 755 "$LOWER/du" || fail "du-mkdir-$du_fs"
+    mount -t moobfs_layer -o lower="$LOWER/du",domain_depth=1 none "$LAYER" || fail "du-mount-$du_fs"
+    mkdir -m 700 "$LOWER/du/alice" && chown 1001:1001 "$LOWER/du/alice" || fail "du-alice-$du_fs"
+    : > "$LAYER/alice/plan.md" && chown 1001:1001 "$LAYER/alice/plan.md" &&
+        chmod 600 "$LAYER/alice/plan.md" || fail "du-plan-$du_fs"
+    "$BIN/moobfs-attr" set "$LAYER/alice/plan.md" kind string decision || fail "du-attr-$du_fs"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/alice" q2 kind eq string decision | cut -f2)" = plan.md ] ||
+        fail "du-build-$du_fs"
+    du_ino=$(stat -c %i "$LOWER/du/alice")
+    rm -rf "$LOWER/du/alice" && sync && echo 2 > /proc/sys/vm/drop_caches || fail "du-remove-$du_fs"
+    # new directories on the lower until one gets the removed number (the others stay meanwhile)
+    du_new='' du_note="inode $du_ino reused by" i=0
+    while [ $i -lt 64 ]; do
+        mkdir -m 700 "$LOWER/du/bob$i" || fail "du-bob-$du_fs-$i"
+        if [ "$(stat -c %i "$LOWER/du/bob$i")" = "$du_ino" ]; then du_new=bob$i; break; fi
+        i=$((i + 1))
+    done
+    if [ -z "$du_new" ]; then
+        [ "$du_fs" = btrfs ] || fail "du-no-reuse-$du_fs (inode $du_ino not reused in 64 directories)"
+        du_new=bob0 du_note="no inode number reused (btrfs), so"
+    fi
+    chown 1002:1002 "$LOWER/du/$du_new" || fail "du-chown-$du_fs"
+    du_got=$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision) || fail "du-query-$du_fs"
+    [ -z "$du_got" ] || fail "du-stale-$du_fs: $du_new (inode $du_ino) answered $du_got"
+    : > "$LAYER/$du_new/own.md" && chown 1002:1002 "$LAYER/$du_new/own.md" &&
+        "$BIN/moobfs-attr" set "$LAYER/$du_new/own.md" kind string decision || fail "du-own-$du_fs"
+    [ "$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision | cut -f2)" = own.md ] ||
+        fail "du-own-answer-$du_fs"
+    # the mount-wide v1 QUERY builds every domain the same way (domain_ensure_all)
+    "$BIN/query" "$LAYER" kind eq string decision > /tmp/du-v1.txt || fail "du-v1-$du_fs"
+    grep -q 'plan\.md$' /tmp/du-v1.txt && fail "du-v1-stale-$du_fs: $(cat /tmp/du-v1.txt)"
+    grep -q "^[0-9]*	$du_new/own\.md\$" /tmp/du-v1.txt || fail "du-v1-own-$du_fs: $(cat /tmp/du-v1.txt)"
+    umount "$LAYER" && rm -rf "$LOWER/du" && umount "$LOWER" || fail "du-cleanup-$du_fs"
+    echo "DOMAINREUSE_$du_fs: $du_note $du_new; QUERY2 and QUERY answered only its own file"
+done
+echo "DOMAINREUSE_PASS: a reused domain directory inode is not answered from the removed directory's index"
 fi
 if want pylib && ! command -v python3 > /dev/null 2>&1; then
     echo "PYLIB_SKIPPED: no python3 in this guest (the KASAN harness boots the host's root)"

@@ -852,6 +852,23 @@ static bool domain_fresh(struct moobl_index *ix, const struct moobl_domain *dom)
 }
 
 /*
+ * domain_fresh(), and built from the directory lower is now. Records are keyed by the inode
+ * number of the domain directory, which ext4 and XFS reuse: a directory removed on the lower,
+ * behind the layer, and a new one given its number would otherwise be answered from the removed
+ * one's entries (GHSA-756j-cgwq-gvwm). The number and the inode's generation together name one
+ * inode, as in an NFS file handle (generic_encode_ino32_fh()): ext4 and XFS give a new inode a
+ * random generation, btrfs the transaction that created it. A filesystem that leaves it 0 is not
+ * protected by this check.
+ */
+static bool domain_fresh_for(struct moobl_index *ix, const struct moobl_domain *dom,
+			     const struct dentry *lower)
+{
+	return domain_fresh(ix, dom) &&
+	       (dom == &ix->outside ||
+		READ_ONCE(dom->lower_gen) == READ_ONCE(d_inode(lower)->i_generation));
+}
+
+/*
  * Domain records of every mount, for tests only: issue #113 is that removing a domain directory
  * left its record until unmount.
  */
@@ -1924,13 +1941,13 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 	u64 t0, used0, refused = 0;
 	int tries, err;
 
-	if (domain_fresh(ix, dom)) {
+	if (domain_fresh_for(ix, dom, lower)) {
 		WRITE_ONCE(dom->used_at, jiffies);
 		return 0;
 	}
 	if (mutex_lock_killable(&dom->build))
 		return -EINTR;
-	if (domain_fresh(ix, dom)) {
+	if (domain_fresh_for(ix, dom, lower)) {
 		WRITE_ONCE(dom->used_at, jiffies);
 		mutex_unlock(&dom->build);
 		return 0;
@@ -1970,6 +1987,7 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 		refused = ix->refusals;	/* a build of another domain cannot clear what follows */
 		dom->restart = false;
 		dom->top_gen = gen;
+		WRITE_ONCE(dom->lower_gen, READ_ONCE(d_inode(lower)->i_generation));
 		ix_write_unlock(ix, nofs);
 		err = scan_start(&job, lower, path, domain ? ix->domain_depth : 0, domain != 0);
 		if (!err)
@@ -3243,7 +3261,7 @@ static long query_repin(struct super_block *sb, struct file *file, const struct 
 	if (sc->all)
 		return READ_ONCE(ix->drop_gen) == gen ? 0 : -EAGAIN;
 	dom = xa_load(&ix->domains, (unsigned long)sc->domain);
-	if (dom && domain_fresh(ix, dom))
+	if (dom && domain_fresh_for(ix, dom, moobl_lower_dentry(file->f_path.dentry)))
 		return 0;
 	up_read(&ix->query_sem);
 	err = query2_pin(sb, file, sc->domain);
@@ -3686,7 +3704,7 @@ static long query2_pin(struct super_block *sb, struct file *file, u64 domain)
 		/* the record is read under query_sem: a removed one is dropped only without it */
 		down_read(&ix->query_sem);
 		dom = xa_load(&ix->domains, (unsigned long)domain);
-		if (dom && domain_fresh(ix, dom)) {
+		if (dom && domain_fresh_for(ix, dom, lower)) {
 			WRITE_ONCE(dom->used_at, jiffies);
 			return 0;
 		}
