@@ -55,7 +55,32 @@ its directory, which covers only mount-wide queries.
 
 ## Evidence
 
-See "Checks of this commit" below.
+All on the dedicated Debian host, with `vm/kasan-local.sh` and the cached upstream 6.12.112
+KASAN/UBSAN/lockdep kernel of `vm/kasan.config`.
+
+- `make layer W=1` against 6.12.111: no warning. `make checkpatch`: nothing reported.
+- `MOOB_ONLY=domainreuse sh vm/kasan-local.sh`: `DOMAINREUSE_ext4: inode 14 reused by bob0`,
+  `DOMAINREUSE_xfs: inode 262272 reused by bob3`, `DOMAINREUSE_btrfs: no inode number reused`,
+  each answering only its own file through `QUERY2` and the mount-wide `QUERY`;
+  `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Negative round, `layer/` of `f7c83cf` with the new step: `MOOBFS_VM_FAIL: du-stale-ext4: bob0
+  (inode 14) answered 16 plan.md`; with the step limited to XFS, `du-stale-xfs: bob3 (inode
+  262272) answered 262274 plan.md`. The advisory reproduces on both filesystems without the fix.
+- The steps the change touches, under KASAN/lockdep: see "Checks of this commit".
+
+## Errors found on the way
+
+The first versions of the step did not reuse the number, for two reasons that are not defects of
+the layer:
+
+- ext4 kept the removed directory's inode allocated after one `drop_caches=2` when the step ran
+  alone in a fresh guest (`debugfs testi`: in use), and freed it after `drop_caches=3`.
+  `drop_slab()` (`mm/vmscan.c`) stops once a pass frees almost nothing, and the layer dentry of
+  `plan.md` keeps its parent's busy during the first pass. The step now writes `2` four times. The
+  same run after the `domainrecs` step had reused the number at once.
+- XFS frees an inode chunk once all its inodes are free and gave the new directories new chunks;
+  the number was not reused even after the layer was unmounted. The step now makes a file next to
+  `alice` and moves it out, which keeps the chunk.
 
 ## Limitations
 

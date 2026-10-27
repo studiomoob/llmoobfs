@@ -2109,13 +2109,22 @@ for du_fs in ext4 xfs btrfs; do
     rm -rf "$LOWER/du" && mkdir -m 755 "$LOWER/du" || fail "du-mkdir-$du_fs"
     mount -t moobfs_layer -o lower="$LOWER/du",domain_depth=1 none "$LAYER" || fail "du-mount-$du_fs"
     mkdir -m 700 "$LOWER/du/alice" && chown 1001:1001 "$LOWER/du/alice" || fail "du-alice-$du_fs"
+    # XFS frees a whole inode chunk once all its inodes are free, and gives a new directory a new
+    # chunk: a file made in alice, next to it, and moved out keeps alice's chunk and number free
+    : > "$LOWER/du/alice/keep" && mv "$LOWER/du/alice/keep" "$LOWER/du/keep" || fail "du-keep-$du_fs"
     : > "$LAYER/alice/plan.md" && chown 1001:1001 "$LAYER/alice/plan.md" &&
         chmod 600 "$LAYER/alice/plan.md" || fail "du-plan-$du_fs"
     "$BIN/moobfs-attr" set "$LAYER/alice/plan.md" kind string decision || fail "du-attr-$du_fs"
     [ "$("$BIN/query" --uid 1001 "$LAYER/alice" q2 kind eq string decision | cut -f2)" = plan.md ] ||
         fail "du-build-$du_fs"
     du_ino=$(stat -c %i "$LOWER/du/alice")
-    rm -rf "$LOWER/du/alice" && sync && echo 2 > /proc/sys/vm/drop_caches || fail "du-remove-$du_fs"
+    # The layer's dentries hold the lower ones until reclaimed. drop_slab() stops once a pass frees
+    # almost nothing, and the dentry of plan.md keeps its parent's busy during the first pass, so
+    # one drop_caches=2 can leave alice's inode allocated; a few rounds free it. XFS then frees the
+    # unlinked inode in its background inactivation (inodegc), which statfs pushes.
+    rm -rf "$LOWER/du/alice" && sync || fail "du-remove-$du_fs"
+    for k in 1 2 3 4; do echo 2 > /proc/sys/vm/drop_caches; done
+    stat -f "$LOWER" > /dev/null && sleep 1
     # new directories on the lower until one gets the removed number (the others stay meanwhile)
     du_new='' du_note="inode $du_ino reused by" i=0
     while [ $i -lt 64 ]; do
