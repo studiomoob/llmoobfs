@@ -2156,7 +2156,7 @@ for du_fs in ext4 xfs btrfs; do
             "$BIN/moobfs-attr" set "$LAYER/$du_new/own.md" kind string decision || fail "du-own-$du_fs"
         [ "$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision | cut -f2)" = own.md ] ||
             fail "du-own-answer-$du_fs"
-        du_note="QUERY2-first: inode $du_ino reused by $du_new;"
+        du_note="QUERY2-first: inode $du_ino reused by $du_new; "
     elif [ "$du_fs" != btrfs ]; then
         fail "du-no-reuse-$du_fs (inode $du_ino not reused in 64 directories)"
     fi
@@ -2176,7 +2176,7 @@ for du_fs in ext4 xfs btrfs; do
             fail "du-v1-entries-$du_fs: $du_e0 entries with carol's file, $du_e1 after the v1 QUERY on $du_new"
         [ -z "$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 secret eq string s3cret)" ] ||
             fail "du-v1-q2-$du_fs"
-        du_note="$du_note v1-first: inode $du_ino reused by $du_new;"
+        du_note="${du_note}v1-first: inode $du_ino reused by $du_new; "
     elif [ "$du_fs" != btrfs ]; then
         fail "du-v1-no-reuse-$du_fs (inode $du_ino not reused in 64 directories)"
     fi
@@ -2201,13 +2201,13 @@ for du_fs in ext4 xfs btrfs; do
         [ -z "$du_got" ] || fail "du-file-stale-$du_fs: frank/$du_new (inode $du_fino) answered $du_got"
         [ "$("$BIN/query" --uid 1002 "$LAYER/frank" q2 kind eq string mine | cut -f2)" = "$du_new" ] ||
             fail "du-x-own-$du_fs"
-        du_note="$du_note file: inode $du_fino reused by frank/$du_new"
+        du_note="${du_note}file: inode $du_fino reused by frank/$du_new"
     else
-        du_note="$du_note file: inode $du_fino not reused in 64 files"
+        du_note="${du_note}file: inode $du_fino not reused in 64 files"
         [ "$du_fs" = ext4 ] && fail "du-file-no-reuse-ext4 (inode $du_fino not reused in 64 files)"
     fi
     umount "$LAYER" && rm -rf "$LOWER/du" && umount "$LOWER" || fail "du-cleanup-$du_fs"
-    echo "DOMAINREUSE_$du_fs: ${du_note:-no inode number reused}"
+    echo "DOMAINREUSE_$du_fs: $du_note"
 done
 echo "DOMAINREUSE_PASS: reused domain directory and file inode numbers are not answered from the removed ones' index"
 fi
