@@ -66,5 +66,6 @@ not on a local VM. The KASAN job runs only for kernel-side paths (journal 0209).
 
 ## Next step
 
-Update the discussion "Call for reviewers", which is not in the repository, with the same
-review state.
+None for these pull requests. The discussion "Call for reviewers" has a status note with the
+same review state:
+https://github.com/studiomoob/llmoobfs/discussions/69#discussioncomment-19228894.
