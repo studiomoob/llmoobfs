@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Branch practice (journal 0217): branches are rebased on `main` before they are pushed and
+  `main` is not merged into them; pull requests still enter with a merge commit. A forced push
+  with `--force-with-lease` is allowed only on our own open, unmerged pull request branch.
+
 - First outside contributor (journal 0214): pull requests 161 to 163 reviewed and merged, with
   small follow-ups at merge (a locale-independent `steps` filter, a bound at the copy of a term
   payload). The public surfaces now say there is no outside human review of the kernel code yet

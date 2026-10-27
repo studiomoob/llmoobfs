@@ -524,3 +524,12 @@ research documents. Two page ranges could not be confirmed and are omitted: Büt
   Context7 on 2026-10-27.
 - The MCP project's reference [filesystem server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem),
   which also confines its tools to allowed directories.
+
+## 15. Branch updates and merges (journal 0217)
+
+- Linux kernel documentation, [Rebasing and merging](https://docs.kernel.org/maintainer/rebasing-and-merging.html)
+  (`Documentation/maintainer/rebasing-and-merging.rst`): rebase a private series before it is
+  published, do not rewrite published history, and avoid merging the mainline into a topic
+  branch without a reason.
+- Git, [`git push --force-with-lease`](https://git-scm.com/docs/git-push#Documentation/git-push.txt---force-with-leaseltrefnamegt):
+  the push is refused when the remote branch is no longer at the expected commit.
