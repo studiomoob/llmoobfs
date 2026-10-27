@@ -97,7 +97,9 @@ AI-assisted:
   would notice.
 - Never rewrite shared history: no force-push to `main`, no deleting records to
   hide attempts or limitations. On a PR branch, rebase is fine before review;
-  after review has started, add commits instead. The maintainer merges.
+  after review has started, add commits instead. To catch up with `main`, rebase
+  your branch rather than merging `main` into it; the maintainer may ask for
+  that. The maintainer merges, with a merge commit.
 - Record facts, not private reasoning. Correct a factually wrong record with a
   dated note rather than silently editing it.
 
