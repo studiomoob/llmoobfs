@@ -127,6 +127,19 @@ class Plain(unittest.TestCase):
         finally:
             subprocess.Popen = saved
 
+    def test_search_only_directory(self):
+        # a 0755 domain: a 0711 directory in it hides its names from group and others, who
+        # can enter the domain, so a file under it is left out even when every class reads it
+        os.chmod(self.dom, 0o755)
+        for name, mode in (("open", 0o755), ("searchonly", 0o711), ("ownerread", 0o751)):
+            d = os.path.join(self.dom, name)
+            os.mkdir(d)
+            os.chmod(d, mode)
+            p = moobfs.publish(d, "f", b"", {"k": 1}, domain=self.dom)
+            os.chmod(p, 0o644)
+        got = sorted(m.path for m in Domain(self.dom, backend="scan").query(Term("k", "==", 1)))
+        self.assertEqual(got, ["open/f"])
+
     @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0, "needs root")
     def test_group_domain_and_other_caller(self):
         team = os.path.join(self.root, "team")

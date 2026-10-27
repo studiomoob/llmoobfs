@@ -38,11 +38,15 @@ static int has_acl(const char *path)
 	return getxattr(path, "system.posix_acl_access", NULL, 0) > 0;
 }
 
-/* Everyone who can traverse the domain can read (want_read) or traverse this inode. */
+/*
+ * Everyone who can traverse the domain can read (want_read) or list and traverse this inode:
+ * a search-only directory keeps its names from those who cannot read it (journal 0215).
+ */
 static int reach_ok(const char *path, const struct stat *st, int want_read)
 {
-	mode_t u = want_read ? S_IRUSR : S_IXUSR, g = want_read ? S_IRGRP : S_IXGRP;
-	mode_t o = want_read ? S_IROTH : S_IXOTH;
+	mode_t u = want_read ? S_IRUSR : S_IRUSR | S_IXUSR;
+	mode_t g = want_read ? S_IRGRP : S_IRGRP | S_IXGRP;
+	mode_t o = want_read ? S_IROTH : S_IROTH | S_IXOTH;
 	int acl = has_acl(path);
 
 	/* every class: the kernel never judges owner or group by the bits of others */
@@ -50,11 +54,11 @@ static int reach_ok(const char *path, const struct stat *st, int want_read)
 		return 1;
 	if (acl || dom_acl || st->st_uid != dom_st.st_uid || st->st_gid != dom_st.st_gid)
 		return 0;
-	if ((dom_st.st_mode & S_IXUSR) && !(st->st_mode & u))
+	if ((dom_st.st_mode & S_IXUSR) && (st->st_mode & u) != u)
 		return 0;
-	if ((dom_st.st_mode & S_IXGRP) && !(st->st_mode & g))
+	if ((dom_st.st_mode & S_IXGRP) && (st->st_mode & g) != g)
 		return 0;
-	if ((dom_st.st_mode & S_IXOTH) && !(st->st_mode & o))
+	if ((dom_st.st_mode & S_IXOTH) && (st->st_mode & o) != o)
 		return 0;
 	return 1;
 }

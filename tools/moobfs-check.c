@@ -47,8 +47,10 @@ static int has_acl(const char *path)
 static const char *reach_why(const char *path, const struct stat *st, const struct stat *dom,
 			     int dom_acl, int want_read)
 {
-	mode_t u = want_read ? S_IRUSR : S_IXUSR, g = want_read ? S_IRGRP : S_IXGRP;
-	mode_t o = want_read ? S_IROTH : S_IXOTH;
+	/* an intermediate directory needs read as well as search (journal 0215) */
+	mode_t u = want_read ? S_IRUSR : S_IRUSR | S_IXUSR;
+	mode_t g = want_read ? S_IRGRP : S_IRGRP | S_IXGRP;
+	mode_t o = want_read ? S_IROTH : S_IROTH | S_IXOTH;
 	int acl = has_acl(path);
 
 	/* every class: the kernel never judges owner or group by the bits of others */
@@ -60,9 +62,9 @@ static const char *reach_why(const char *path, const struct stat *st, const stru
 		return "the domain directory has an access ACL";
 	if (st->st_uid != dom->st_uid || st->st_gid != dom->st_gid)
 		return "owner or group differs from the domain directory";
-	if (((dom->st_mode & S_IXUSR) && !(st->st_mode & u)) ||
-	    ((dom->st_mode & S_IXGRP) && !(st->st_mode & g)) ||
-	    ((dom->st_mode & S_IXOTH) && !(st->st_mode & o)))
+	if (((dom->st_mode & S_IXUSR) && (st->st_mode & u) != u) ||
+	    ((dom->st_mode & S_IXGRP) && (st->st_mode & g) != g) ||
+	    ((dom->st_mode & S_IXOTH) && (st->st_mode & o) != o))
 		return "more private than the domain directory";
 	return NULL;
 }

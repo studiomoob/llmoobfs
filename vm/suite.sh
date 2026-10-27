@@ -323,7 +323,12 @@ run_lower() {
     chmod 0700 "$LAYER/ns/b" && chmod 0600 "$LAYER/ns/b/m1.md" || fail "acl-reset-$fs"
     "$TOOLS/setfacl" -m u:1001:x "$LAYER/ns/b" && "$TOOLS/setfacl" -m u:1001:r "$LAYER/ns/b/m2.md" || fail "acl-set-$fs"
     "$BIN/query" --uid 1001 "$LAYER" open ns/b/m2.md | grep -q ': ok' || fail "acl-open-grant-$fs"
+    # search alone on ns/b: 1001 opens m2.md by name but cannot list ns/b, so no answer names
+    # it (journal 0215); read and search on ns/b let it be answered
     "$BIN/query" --uid 1001 "$LAYER" kind eq string note > /tmp/k.txt || fail "acl-query-$fs"
+    grep -q 'ns/b/m2.md' /tmp/k.txt && fail "acl-search-only-leak-$fs"
+    "$TOOLS/setfacl" -m u:1001:rx "$LAYER/ns/b" || fail "acl-set-rx-$fs"
+    "$BIN/query" --uid 1001 "$LAYER" kind eq string note > /tmp/k.txt || fail "acl-query-rx-$fs"
     grep -q 'ns/b/m2.md' /tmp/k.txt || fail "acl-grant-not-seen-$fs"
     grep -q 'ns/b/m1.md' /tmp/k.txt && fail "acl-overreach-$fs"
     "$TOOLS/setfacl" -m u:1001:- "$LAYER/ns/shared/m1.md" || fail "acl-deny-$fs"
@@ -1484,9 +1489,13 @@ if want permmatrix; then
 # only to those who can read it on the lower, whatever the modes, owners and groups. The
 # oracle is the lower kernel (getxattr with the identity's credentials), not a copy of the
 # homogeneity rule; tests/permmatrix.c also counts the cases the rule before 0116 got wrong,
-# so the run proves the matrix reached them.
+# so the run proves the matrix reached them. Journal 0215: the oracle also lists each directory
+# on the way, since a search-only one (0711) lets getxattr through but hides its names, and the
+# matrix is checked again in fallback mode (per-result checks) after a chmod through the layer;
+# the cases the rule before 0215 (search alone for a directory) got wrong are counted too.
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail "pm-lower-mount"
 pm_wrong=0
+pm_prev=0
 for seed in 1 2 3 4 5 6 7 8 9 10 11 12; do
     rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-mkdir-$seed"
     "$BIN/permmatrix" plant "$LOWER/pmx" $seed || fail "pm-plant-$seed"
@@ -1496,11 +1505,32 @@ for seed in 1 2 3 4 5 6 7 8 9 10 11 12; do
     "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-fallback-$seed (the partition was not what answered)"; }
     [ $rc -eq 0 ] || fail "pm-mismatch-$seed"
     pm_wrong=$((pm_wrong + $(sed -n 's/.* old_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
+    pm_prev=$((pm_prev + $(sed -n 's/.* prev_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
+    chmod "$(stat -c %a "$LOWER/pmx/pm")" "$LAYER/pm" || fail "pm-chmod-$seed"
+    "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
+    cat /tmp/pm.txt
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-no-fallback-$seed (per-result checks were not what answered)"; }
+    [ $rc -eq 0 ] || fail "pm-mismatch-fallback-$seed"
     umount "$LAYER" || fail "pm-umount-$seed"
 done
 [ $pm_wrong -gt 0 ] || fail "pm-no-case-of-the-old-rule (the matrix proved nothing)"
+[ $pm_prev -gt 0 ] || fail "pm-no-case-of-the-rule-before-0215 (the matrix proved nothing)"
+# The matrix's fallback round meets only files the rule already left out. A directory made
+# search-only through the layer after the build leaves its files in the partition and puts the
+# domain in fallback mode: the per-result check must ask read of that directory too (0215).
+rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-so-mkdir"
+mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-so-mount"
+mkdir -m 755 "$LAYER/d" "$LAYER/d/s" && : > "$LAYER/d/s/f" && chmod 644 "$LAYER/d/s/f" || fail "pm-so-files"
+"$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-so-attr"
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-before"
+chmod 0711 "$LAYER/d/s" || fail "pm-so-chmod"
+"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-so-no-fallback"; }
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-so.txt || fail "pm-so-query"
+grep -q 's/f' /tmp/pm-so.txt && fail "pm-so-leak (a search-only directory's file named per result)"
+"$BIN/query" "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-owner-missing"
+umount "$LAYER" || fail "pm-so-umount"
 rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup"
-echo "PERMMATRIX_STEP_PASS: 12 seeds, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly"
+echo "PERMMATRIX_STEP_PASS: 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
 fi
 if want permgaps; then
 for fs in ext4 btrfs xfs; do

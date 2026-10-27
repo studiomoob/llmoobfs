@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Search-only directories (journal 0215, ADR-0025, finding F15 of ADR-0011): an intermediate
+  directory must grant read as well as search for the files under it to be answered. Before,
+  `QUERY2` named files under a `0711` directory of a domain to users who could not list it, and
+  confirmed their values. The homogeneity rule, the per-result check (`MAY_READ` on every
+  directory between the queried directory and the result), `moobfs-index`, `moobfs-check` and
+  the Python scan change together; files below such a directory become heterogeneous. No format
+  or UAPI change. `tests/permmatrix.c` now lists each directory in its oracle and runs in
+  fallback mode too; its new cases fail on the module before the fix.
+
 - Branch practice (journal 0217): branches are rebased on `main` before they are pushed and
   `main` is not merged into them; pull requests still enter with a merge commit. A forced push
   with `--force-with-lease` is allowed only on our own open, unmerged pull request branch.

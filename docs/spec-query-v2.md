@@ -72,6 +72,13 @@ proposal remains recorded as above; the implemented behavior is this:
 - Intermediate directories between `D` and the file enter the rule through the execute bit: each one
   must let through every process that traverses `D` (condition 1 with `o+x`, or condition 2
   with execute in place of read).
+  *Note, 2026-10-27 (journal 0215, ADR-0025):* execute alone was not enough. A search-only
+  directory (`0711`) keeps the names under it from those who cannot read it, and `QUERY2`
+  handed them out. Since this date each intermediate directory must grant read **and** execute
+  (condition 1 with `a+rx`, or condition 2 with read and execute in place of read), and the
+  per-result check also asks `MAY_READ` of every directory between the queried directory and
+  the result. Compatibility: no format change; files below such a directory become
+  heterogeneous.
 - A regular file with more than one name (`nlink > 1`) is heterogeneous, because another name may be
   in another domain. When it goes back to one name, it may stay heterogeneous until the next change of
   mode, owner, group, ACL or rename, or until the next mount (fail-safe: it stays out,

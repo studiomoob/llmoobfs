@@ -40,8 +40,9 @@ a project, a tenant) is one directory at depth `N`, and tells the administrator 
 ## 3. Permissions: one owner per domain
 
 A file is in its domain's partition only if every process that can enter the domain directory can
-also read the file (the homogeneity rule, spec-query-v2 §3). A file that fails it is silently
-absent from answers. *Kernel.*
+also read the file and list every directory on the way to it (the homogeneity rule,
+spec-query-v2 §3; directories since journal 0215). A file that fails it is silently absent from
+answers. *Kernel.*
 
 The arrangement that always satisfies the rule, and the one to deploy:
 

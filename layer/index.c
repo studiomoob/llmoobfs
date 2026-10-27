@@ -551,21 +551,26 @@ static bool ext_acl(struct inode *inode, int *err)
 
 /*
  * Sufficient condition for "everyone who can traverse the domain directory dom can also
- * reach in": read it (want_read, a file or a directory carrying attributes) or traverse it
- * (an intermediate directory). Either in grants the class bit to owner, group and others
- * and has no extended ACL, or in and dom share owner and group, neither has an extended
- * ACL, and in grants the bit to every class that dom lets traverse. The bit of others alone
- * is not enough: the kernel judges the owner by the owner bits and a member of the group by
- * the group bits, never by those of others (acl_permission_check), so a file 0604 is not
- * readable by its group (journal 0116). Lower inodes: permissions are the
- * lower filesystem's. An ACL that could not be read counts as restrictive; a caller that
- * must not take that for an answer (a build) passes err and gets the error there.
+ * reach in": read it (MOOBL_REACH_FILE, a file or a directory carrying attributes) or list
+ * and traverse it (MOOBL_REACH_DIR, an intermediate directory). Either in grants the class
+ * bits to owner, group and others and has no extended ACL, or in and dom share owner and
+ * group, neither has an extended ACL, and in grants the bits to every class that dom lets
+ * traverse. The bits of others alone are not enough: the kernel judges the owner by the
+ * owner bits and a member of the group by the group bits, never by those of others
+ * (acl_permission_check), so a file 0604 is not readable by its group (journal 0116). An
+ * intermediate directory needs read as well as search: a search-only directory (0711) keeps
+ * the names under it from those who cannot list it, and an answer must not hand them out
+ * (journal 0215, ADR-0025). Lower inodes: permissions are the lower filesystem's. An ACL that
+ * could not be read counts as restrictive; a caller that must not take that for an answer (a
+ * build) passes err and gets the error there.
  */
-static bool reach_ok(struct inode *in, struct inode *dom, bool want_read, int *err)
+#define MOOBL_REACH_FILE	04	/* class bits: read */
+#define MOOBL_REACH_DIR		05	/* class bits: read and search */
+
+static bool reach_ok(struct inode *in, struct inode *dom, umode_t need, int *err)
 {
-	/* octal class bits: read 0444 or search 0111, split per owner, group, other */
-	umode_t u = want_read ? 0400 : 0100, g = want_read ? 0040 : 0010;
-	umode_t o = want_read ? 0004 : 0001;
+	/* the class bits need, split per owner, group, other */
+	umode_t u = need << 6, g = need << 3, o = need;
 	bool acl = ext_acl(in, err);
 
 	if (!acl && (in->i_mode & (u | g | o)) == (u | g | o))
@@ -574,11 +579,11 @@ static bool reach_ok(struct inode *in, struct inode *dom, bool want_read, int *e
 		return false;
 	if (!uid_eq(in->i_uid, dom->i_uid) || !gid_eq(in->i_gid, dom->i_gid))
 		return false;
-	if ((dom->i_mode & 0100) && !(in->i_mode & u))
+	if ((dom->i_mode & 0100) && (in->i_mode & u) != u)
 		return false;
-	if ((dom->i_mode & 0010) && !(in->i_mode & g))
+	if ((dom->i_mode & 0010) && (in->i_mode & g) != g)
 		return false;
-	if ((dom->i_mode & 0001) && !(in->i_mode & o))
+	if ((dom->i_mode & 0001) && (in->i_mode & o) != o)
 		return false;
 	return true;
 }
@@ -587,7 +592,7 @@ static bool target_ok(struct inode *in, struct inode *dom, int *err)
 {
 	if (S_ISREG(in->i_mode) && in->i_nlink > 1)
 		return false;	/* another name may live in another domain */
-	return reach_ok(in, dom, true, err);
+	return reach_ok(in, dom, MOOBL_REACH_FILE, err);
 }
 
 /*
@@ -667,7 +672,8 @@ static void place_dentry_above(struct moobl_index *ix, struct dentry *dentry, st
 		d = dget_parent(dentry);
 		for (i = 0; d != domd && !IS_ROOT(d) && i < MOOBL_MAX_DEPTH; i++) {
 			if (ok)
-				ok = reach_ok(moobl_lower_inode(d_inode(d)), dom, false, NULL);
+				ok = reach_ok(moobl_lower_inode(d_inode(d)), dom, MOOBL_REACH_DIR,
+					     NULL);
 			p = dget_parent(d);
 			dput(d);
 			d = p;
@@ -1630,7 +1636,8 @@ static int scan_push_dir(struct scan_job *job, struct scan_dir *cur, struct dent
 		nd->inner = cur->inner;
 		nd->self.domain = cur->inner;
 		nd->self.hetero = !cur->inner_ok;	/* the directory itself: index_load() */
-		nd->inner_ok = cur->inner_ok && reach_ok(d_inode(child), dom, false, &err);
+		nd->inner_ok = cur->inner_ok &&
+			       reach_ok(d_inode(child), dom, MOOBL_REACH_DIR, &err);
 		if (err) {	/* an ACL that could not be read is not an answer */
 			scan_dir_free(nd);
 			return err;
@@ -2427,7 +2434,8 @@ static struct moved_dir *dir_moved_prepare(struct moobl_index *ix, struct dentry
 		place_dentry_above(ix, where, d_inode(moved), &md->self, &above);
 		if (md->self.domain)	/* its own homogeneity is decided when it is read */
 			md->self.hetero = !above;
-		md->inner_ok = above && reach_ok(moobl_lower_inode(d_inode(moved)), dom, false, NULL);
+		md->inner_ok = above && reach_ok(moobl_lower_inode(d_inode(moved)), dom,
+						 MOOBL_REACH_DIR, NULL);
 	}
 	md->lower = dget(moobl_lower_dentry(moved));
 	free_page((unsigned long)buf);
@@ -2809,6 +2817,36 @@ struct moobl_resume {
  * not leave this mount nor follow symbolic links: a result is on this mount under its
  * recorded name, and anything else would be refused below anyway.
  */
+/*
+ * Whether the caller may list every directory strictly between the queried directory top and
+ * the result d: the lookup below asks search of each, and a search-only directory (0711) keeps
+ * its names from those who cannot read it (journal 0215, ADR-0025). A result moved out from
+ * under top meanwhile is refused. 1 = yes, 0 = no, -ENOMEM as below.
+ */
+static int caller_may_list_above(struct dentry *top, struct dentry *d)
+{
+	struct dentry *p = dget_parent(d), *q;
+	unsigned int i;
+	int err, ok = 1;
+
+	for (i = 0; p != top; i++) {
+		if (IS_ROOT(p) || i >= MOOBL_MAX_DEPTH) {
+			ok = 0;
+			break;
+		}
+		err = inode_permission(&nop_mnt_idmap, d_inode(p), MAY_READ);
+		if (err) {
+			ok = err == -ENOMEM ? err : 0;
+			break;
+		}
+		q = dget_parent(p);
+		dput(p);
+		p = q;
+	}
+	dput(p);
+	return ok;
+}
+
 /* 1 = readable, 0 = inaccessible/stale, -ENOMEM = unable to decide under memory pressure. */
 static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino)
 {
@@ -2826,6 +2864,8 @@ static int caller_may_read(struct file *file, struct super_block *sb, const char
 	    d_inode(p.dentry)->i_ino == ino) {
 		err = inode_permission(&nop_mnt_idmap, d_inode(p.dentry), MAY_READ);
 		ok = err == -ENOMEM ? err : !err;
+		if (ok == 1)
+			ok = caller_may_list_above(file->f_path.dentry, p.dentry);
 	}
 	path_put(&p);
 	return ok;

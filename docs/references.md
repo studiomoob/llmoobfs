@@ -533,3 +533,15 @@ research documents. Two page ranges could not be confirmed and are omitted: Büt
   branch without a reason.
 - Git, [`git push --force-with-lease`](https://git-scm.com/docs/git-push#Documentation/git-push.txt---force-with-leaseltrefnamegt):
   the push is refused when the remote branch is no longer at the expected commit.
+
+## 16. Search-only directories (ADR-0025, journal 0215)
+
+- `may_lookup()` and `may_open()` in `fs/namei.c`, Linux 6.12.111
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/namei.c)): a path walk asks only
+  `MAY_EXEC` of each directory, while opening a directory to list it is checked through
+  `inode_permission()` with the access mode of the open, `MAY_READ` for a read. Knowing a name
+  and learning it are separate permissions; the homogeneity rule and the per-result check now ask
+  both of every directory on the way.
+- plocate's `access_rx_cache.cpp` ([source](https://git.sesse.net/?p=plocate;a=blob;f=access_rx_cache.cpp)),
+  read on 2026-10-27: a path from a database built as root is shown only when the caller passes
+  `access(dir, R_OK | X_OK)` on every directory above it. Prior art for ADR-0025.

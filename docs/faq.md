@@ -55,7 +55,8 @@ it (the homogeneity rule, judged from mode bits, owner, group and ACLs); such a 
 answered without a check per result. When a permission changes inside the domain, or when a
 security module labels the files (SELinux, Smack), every result is checked for the caller
 instead: the path is resolved with the caller's credentials and `inode_permission(MAY_READ)` is
-required. Results the caller cannot read are omitted silently, and `count`/`truncated` refer only
+required, of the file and of every directory between the queried directory and it (a
+search-only directory hides its names, journal 0215). Results the caller cannot read are omitted silently, and `count`/`truncated` refer only
 to visible results. A test compares answers with the lower kernel's own decision for random
 modes, owners and groups (journal 0116). Path-based LSMs (AppArmor, Landlock) do not filter
 results; no outside human review of the kernel code has taken place.
