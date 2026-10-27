@@ -1200,11 +1200,17 @@ static void moobl_file_end_write(struct file *file, loff_t pos, ssize_t ret)
  * default), so with the mounter's own a write by an ordinary user could spend the reserve. They
  * are built as overlayfs builds the credentials of a creation (ovl_create_or_link()) and kept
  * while the same identity writes.
+ *
+ * They also carry CAP_FSETID only when the writer has it. The lower clears set-user-ID and
+ * set-group-ID on a write unless the task has that capability (setattr_should_drop_suidgid()),
+ * and the layer's own file_remove_privs() judges a mode its inode may hold from before a chmod
+ * made on the lower (an RCU-walk revalidation copies nothing, and S_NOSEC stays set): with the
+ * mounter's capability the bit survived a write the lower would have cleared for this writer.
  */
-static bool moobl_same_id(const struct cred *a, const struct cred *b)
+static bool moobl_wcred_fits(const struct cred *c, const struct cred *cur, bool fsetid)
 {
-	return uid_eq(a->fsuid, b->fsuid) && gid_eq(a->fsgid, b->fsgid) &&
-	       a->group_info == b->group_info;
+	return uid_eq(c->fsuid, cur->fsuid) && gid_eq(c->fsgid, cur->fsgid) &&
+	       c->group_info == cur->group_info && !!cap_raised(c->cap_effective, CAP_FSETID) == fsetid;
 }
 
 /* The credentials a write of the current task runs with; put_cred() them after the call. */
@@ -1213,13 +1219,15 @@ static const struct cred *moobl_wcred_get(struct file *file)
 	const struct cred *mnt = MOOBL_SB(file_inode(file)->i_sb)->creds;
 	const struct cred *cur = current_cred(), *old, *c;
 	struct moobl_file *mf = file->private_data;
+	bool fsetid = cap_raised(mnt->cap_effective, CAP_FSETID) &&
+		      ns_capable_noaudit(&init_user_ns, CAP_FSETID);
 	struct cred *wc;
 
-	if (moobl_same_id(cur, mnt))
+	if (moobl_wcred_fits(mnt, cur, fsetid))
 		return get_cred(mnt);
 	spin_lock(&mf->lock);
 	c = mf->wcred;
-	if (c && moobl_same_id(c, cur)) {
+	if (c && moobl_wcred_fits(c, cur, fsetid)) {
 		get_cred(c);
 		spin_unlock(&mf->lock);
 		return c;
@@ -1233,6 +1241,8 @@ static const struct cred *moobl_wcred_get(struct file *file)
 	wc->fsuid = cur->fsuid;
 	wc->fsgid = cur->fsgid;
 	set_groups(wc, cur->group_info);
+	if (!fsetid)
+		cap_lower(wc->cap_effective, CAP_FSETID);
 	spin_lock(&mf->lock);
 	old = mf->wcred;
 	mf->wcred = get_cred(wc);

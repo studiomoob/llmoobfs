@@ -691,6 +691,32 @@ int main(int argc, char **argv)
 			CHECK(getxattr(lo("suid"), "security.capability", buf, sizeof buf) == -1 && errno == ENODATA);
 		}
 	}
+	/*
+	 * Set-user-ID given on the lower behind the layer: the layer's inode still holds the old
+	 * mode, and after one write through the layer it also carries S_NOSEC. The bit must go as
+	 * it goes for the same writer on the lower directly.
+	 */
+	{
+		int how[] = { 0, 3, 4, 5 };
+		unsigned k, again;
+		int lfd;
+
+		lfd = open(up("suidlow"), O_RDWR | O_CREAT | O_EXCL, 0666); CHECK(lfd >= 0);
+		CHECK(!fchown(lfd, 1001, 1001) && !fchmod(lfd, 0666));
+		for (k = 0; k < 4; k++) {
+			if (how[k] == 4 && !reflink)
+				continue;
+			for (again = 0; again < 2; again++) {
+				if (again)
+					CHECK(as_user(lfd, 0) == 0);	/* sets S_NOSEC on the layer's inode */
+				CHECK(!chmod(lo("suidlow"), 04666));
+				CHECK(as_user(lfd, how[k]) == 0);
+				CHECK(!stat(lo("suidlow"), &lst) && (lst.st_mode & 07777) == 0666);
+			}
+		}
+		close(lfd);
+		CHECK(!unlink(up("suidlow")));
+	}
 	close(src_fd);
 	close(fd);
 	CHECK(!unlink(up("suid")) && !unlink(up("suidsrc")));
