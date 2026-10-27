@@ -75,8 +75,9 @@ the layer:
 
 - ext4 kept the removed directory's inode allocated after one `drop_caches=2` when the step ran
   alone in a fresh guest (`debugfs testi`: in use), and freed it after `drop_caches=3`.
-  `drop_slab()` (`mm/vmscan.c`) stops once a pass frees almost nothing, and the layer dentry of
-  `plan.md` keeps its parent's busy during the first pass. The step now writes `2` four times. The
+  The likely cause, not traced: `drop_slab()` (`mm/vmscan.c`) stops once a pass frees almost
+  nothing, and the layer dentry of `alice` becomes unused only when its child `plan.md` is
+  pruned, so it waits for a later pass. The step now writes `2` four times. The
   same run after the `domainrecs` step had reused the number at once.
 - XFS frees an inode chunk once all its inodes are free and gave the new directories new chunks;
   the number was not reused even after the layer was unmounted. The step now makes a file next to

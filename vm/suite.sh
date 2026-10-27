@@ -2118,10 +2118,10 @@ for du_fs in ext4 xfs btrfs; do
     [ "$("$BIN/query" --uid 1001 "$LAYER/alice" q2 kind eq string decision | cut -f2)" = plan.md ] ||
         fail "du-build-$du_fs"
     du_ino=$(stat -c %i "$LOWER/du/alice")
-    # The layer's dentries hold the lower ones until reclaimed. drop_slab() stops once a pass frees
-    # almost nothing, and the dentry of plan.md keeps its parent's busy during the first pass, so
-    # one drop_caches=2 can leave alice's inode allocated; a few rounds free it. XFS then frees the
-    # unlinked inode in its background inactivation (inodegc), which statfs pushes.
+    # The layer's dentries hold the lower ones until reclaimed, and one drop_caches=2 left alice's
+    # inode allocated in a fresh guest (likely drop_slab() stopping before the parent of plan.md
+    # was unused); a few rounds free it. XFS then frees the unlinked inode in its background
+    # inactivation (inodegc), which statfs pushes.
     rm -rf "$LOWER/du/alice" && sync || fail "du-remove-$du_fs"
     for k in 1 2 3 4; do echo 2 > /proc/sys/vm/drop_caches; done
     stat -f "$LOWER" > /dev/null && sleep 1
