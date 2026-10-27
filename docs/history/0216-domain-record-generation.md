@@ -2,7 +2,7 @@
 
 Date: 2026-10-27. Status: on the private branch `sec/ghsa-756j` of the advisory's temporary
 fork; embargoed until the advisory is published. Work started: 2026-10-27 17:45
-America/Sao_Paulo; ended: see "Checks of this commit". Wall-clock time, not an
+America/Sao_Paulo; ended: 2026-10-27 18:45. Wall-clock time, not an
 engineering-effort measurement. Estimated effort: S.
 
 ## Goal and decision
@@ -46,7 +46,7 @@ its directory, which covers only mount-wide queries.
 - `layer/moobl.h`: `struct moobl_domain` gains `lower_gen`.
 - `layer/index.c`: `domain_fresh_for()`; `domain_ensure_dom()` samples the generation when a
   build begins and checks it before building; `query_repin()` and `query2_pin()` check it.
-- `vm/suite.sh`: step `domainreuse` on ext4, XFS and btrfs. A domain built as uid 1001 is
+- `vm/suite.sh` and `docs/testing.md`: step `domainreuse` on ext4, XFS and btrfs. A domain built as uid 1001 is
   removed on the lower; directories are made on the lower until one gets the removed number
   (ext4 and XFS must reuse it within 64; btrfs need not); `QUERY2` as uid 1002 on it must
   return nothing, then only its own file, and the mount-wide v1 `QUERY` must not list the
@@ -66,7 +66,13 @@ KASAN/UBSAN/lockdep kernel of `vm/kasan.config`.
 - Negative round, `layer/` of `f7c83cf` with the new step: `MOOBFS_VM_FAIL: du-stale-ext4: bob0
   (inode 14) answered 16 plan.md`; with the step limited to XFS, `du-stale-xfs: bob3 (inode
   262272) answered 262274 plan.md`. The advisory reproduces on both filesystems without the fix.
-- The steps the change touches, under KASAN/lockdep: see "Checks of this commit".
+- The steps the change touches, under KASAN/lockdep:
+  `MOOB_ONLY="domainreuse domainrecs ext4 xfs btrfs release buildrace xattrread" sh vm/kasan-local.sh`:
+  the layer, `QUERY2`, isolation, equivalence, hostile-lower, build-race, release and xattr-read
+  markers on ext4, XFS and btrfs, `DOMAINRECS_PASS`, `DOMAINREUSE_PASS` and
+  `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Not run: the full `make vm-test` (Debian 6.12.111/6.12.113, Docker; the dedicated host has none)
+  and the full KASAN suite; both belong to the batch before publication.
 
 ## Errors found on the way
 
