@@ -17,6 +17,19 @@
   `docs/when-not-to-use.md` states that nothing runs from the layer and device nodes in it
   cannot be opened (`SB_I_NOEXEC`, `SB_I_NODEV`).
 
+- Issue #119 M6, M7 and the definition of an extended ACL (journal 0222, ADR-0026). The one byte
+  of implicit tail padding of `struct moob_query_term` is now `pad[3]` and must be zero
+  (`EINVAL`); sizes, offsets and command numbers do not change, a caller that zeroes the request
+  is unaffected, one that left garbage there is refused. The ioctl magic stays `'M'`. The three
+  privilege tests of the index are one, `CAP_SYS_ADMIN` in the initial namespace without an audit
+  record on denial (who may query is unchanged). An access ACL is extended when it may decide
+  otherwise than the mode bits (`posix_acl_equiv_mode()` and the bits): the kernel counted
+  entries, so a minimal ACL refusing others on a `0644` file, written outside the VFS, let
+  `QUERY2` answer it to users who could not read it; `moobfs-index` and `moobfs-check` took any
+  stored ACL for an extended one and now follow the kernel, as does the Python scan.
+  `moobfs-check` says "has an extended access ACL". New suite step `minacl` (debugfs is staged
+  in both harnesses); `buildlimit` checks root's exemption from the admission.
+
 - Prior-art search repeated (journal 0220): `docs/research-originality.md` §10 adds KiwiFS,
   OpenViking, LSFS, macOS `searchfs()` and others, and records the YoloFS paper as read; nothing
   found combines what MoobFS does. New FAQ question 21, "Why a kernel module and not a

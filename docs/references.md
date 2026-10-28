@@ -663,3 +663,33 @@ Read on 2026-10-28 in the upstream 6.12.112 tree the KASAN kernel is built from,
 - `pr_info_once()` and `pr_warn_once()`, `include/linux/printk.h`: a message a caller can cause
   at will is logged once per module load; each occurrence stays visible through the errno and the
   index's tracepoints (`moobfs_index_incomplete`, `moobfs_domain_build`, journal 0102).
+
+## 21. Term padding, the index's privilege test and extended ACLs (ADR-0026, journal 0222)
+
+All in the Linux 6.12.112 tree used by the KASAN build
+([source](https://github.com/gregkh/linux/tree/v6.12.112)).
+
+- `Documentation/userspace-api/ioctl/ioctl-number.rst:173-177`: magic `'M'` registered by
+  `linux/soundcard.h` (all numbers), `mtd/mtd-abi.h` 01–16, `megaraid_sas.h` 01–03 and
+  `fsl-diu-fb.h` 00–0F; why the magic is shared, and kept (ADR-0026 decision 1).
+- `ns_capable_common()`, `ns_capable_noaudit()` and `capable()`, `kernel/capability.c:351`,
+  `:399` and `:434`: the same test on the initial user namespace, `PF_SUPERPRIV` set on a grant,
+  the first without an audit record on denial (`CAP_OPT_NOAUDIT`).
+- `kallsyms_show_value()`, `kernel/ksyms_common.c:28`, and `cap_vm_enough_memory()`,
+  `security/commoncap.c:1401`: the kernel's unaudited tests of a privilege that only widens what
+  an ordinary caller gets; the precedent of `moobl_index_admin()`.
+- `posix_acl_equiv_mode()`, `fs/posix_acl.c:313`: 0 when an ACL is only the three entries the
+  mode bits express, 1 with a named or mask entry, `-EINVAL` for an unknown tag; its bits are
+  compared with `i_mode` by the new `ext_acl()` and by `tools/ext-acl.h` and the Python scan.
+- `posix_acl_permission()`, `fs/posix_acl.c:382`, and `acl_permission_check()`,
+  `fs/namei.c:350`: for anyone but the owner, an inode with an ACL and group bits is judged by
+  the ACL's entries, not the bits; why a minimal ACL that differs from the bits is extended.
+- `posix_acl_update_mode()`, `fs/posix_acl.c:713`, called by `ext4_set_acl()`
+  (`fs/ext4/acl.c:252`): an ACL equivalent to the mode is dropped on a write through the VFS, so
+  a stored minimal ACL comes only from outside it.
+- `struct posix_acl_xattr_header` and `struct posix_acl_xattr_entry`,
+  `include/uapi/linux/posix_acl_xattr.h:29-37`, and the tags of `include/uapi/linux/posix_acl.h`:
+  the form `getxattr("system.posix_acl_access")` returns, parsed by the user-space mirrors.
+- e2fsprogs 1.47.2 `debugfs` (`ea_set -f`, `ea_list`; [debugfs(8)](https://man7.org/linux/man-pages/man8/debugfs.8.html)),
+  which converts `system.posix_acl_access` into ext4's on-disk form: plants the minimal ACLs of
+  the `minacl` suite step on an unmounted filesystem.

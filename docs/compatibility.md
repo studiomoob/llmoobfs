@@ -89,6 +89,11 @@ request. It is nevertheless a compatibility cost for callers that assumed
 every otherwise valid domain could be indexed; the changelog and query
 specification state it explicitly. No disk format changes.
 
+**Reserved byte of the query term, 2026-10-28 (ADR-0026).** The implicit tail padding byte of
+`struct moob_query_term` became `pad[3]`, checked for zero (`EINVAL`). Layouts, command numbers
+and request versions do not change; a request that left a nonzero byte there, valid before, is
+refused. No disk format changes.
+
 ## 4. Mount options and tools
 
 Mount options follow the UAPI rule: an option that shipped keeps its meaning; an unknown option

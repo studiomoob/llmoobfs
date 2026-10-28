@@ -322,6 +322,9 @@ defect): the ioctl magic is `'M'` (`include/moobfs_ioctl.h:19`), which
 `Documentation/userspace-api/ioctl/ioctl-number.rst:173-177` lists as already shared ("conflict!")
 by soundcard/mtd/megaraid; collisions are harmless because the handler validates the struct, but
 if MoobFS ever upstreams, `ioctl-number.rst` must be updated per `submit-checklist.rst:59-60`.
+*Note, 2026-10-28 (ADR-0026, journal 0222):* the magic is kept by decision; the one byte of
+implicit tail padding of `struct moob_query_term` (finding M6 of journal 0155) is now `pad[3]`,
+checked for zero.
 
 **R-UAPI-7 — cursor/token integrity against forgery (the QUERY2 resume token crosses the user
 boundary).**
