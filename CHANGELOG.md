@@ -5,7 +5,10 @@
 - OpenSSF Scorecard (journal 0225): `certifi` in `vm/kasan-requirements.txt` moves from
   2026.10.18 to 2026.10.19 (PYSEC-2026-4320); Dependabot also watches the hash-pinned Python
   requirements of `vm/` and `python/`; CodeQL runs on every pull request and push to `main`, not
-  only those touching user-space C, so that every commit has a SAST run.
+  only those touching user-space C, so that every commit has a SAST run. A repository ruleset repeats
+  the protection of `main` (readable by Scorecard without an admin token), and
+  `.github/workflows/release.yml` signs future tags' source archives with Sigstore and attaches
+  SLSA provenance.
 
 - GHSA-82w5-ph62-47wf (journal 0222, finding F17 of ADR-0011, found by the maintainer's team):
   `QUERY2` answered a file whose minimal access ACL, written outside the VFS, refuses the caller,
