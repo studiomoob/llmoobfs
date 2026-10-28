@@ -469,6 +469,11 @@ sets `SB_I_NOEXEC | SB_I_NODEV` (`:1230`) and copies `s_maxbytes`/`s_time_gran`/
 the lower (`:1223-1226`). It sets `SB_NOSEC` unconditionally (`:1227`) with the comment "lower
 enforces suid/sgid clearing" — defensible, but it is the suid-clearing path that R-CRED-3 crashes
 on, so the `SB_NOSEC` assumption and that bug should be reconsidered together.
+*Note, 2026-10-27 (journal 0218):* "Complies" was wrong for writes. They ran with the mounter's
+`CAP_FSETID`, so the lower kept set-user-ID and set-group-ID for every writer, and the layer's
+own check could judge a stale mode under `S_NOSEC` (finding F16 of ADR-0011). Since that
+journal the write credentials carry the capability only when the writer has it, the lower
+clears the bits as for that writer, and `SB_NOSEC` stays.
 
 **R-SUBMIT-1 — out-of-tree module build conventions (`M=`, `KDIR`, `MODULE_LICENSE` matching the
 `_GPL` exports it uses).**

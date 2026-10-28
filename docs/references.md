@@ -561,3 +561,32 @@ research documents. Two page ranges could not be confirmed and are omitted: Büt
   random); XFS `xfs_iget_cache_miss()` (`fs/xfs/xfs_icache.c`, random on v5 without `ikeep`) and
   `xfs_inode_uninit()` (`fs/xfs/libxfs/xfs_inode_util.c`, bumped on free); btrfs
   `btrfs_create_new_inode()` (`fs/btrfs/inode.c`, the creating transaction).
+
+## 18. Write credentials and CAP_FSETID (GHSA-6xf4-r246-92r6, journal 0218)
+
+- `setattr_should_drop_suidgid()` and `setattr_should_drop_sgid()`, `fs/attr.c:63` and `:33`,
+  Linux 6.12.111 ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/attr.c)): a regular
+  file loses set-user-ID on a write unless the task has `CAP_FSETID` in the initial user
+  namespace (`capable()`, `:75`); set-group-ID goes with group execute unconditionally, otherwise
+  unless the task is in the group or has the capability for the inode (`in_group_or_capable()`,
+  `:42`). The write credentials now carry the capability only when the writer has it, so this
+  test on the lower decides as for the writer.
+- `dentry_needs_remove_privs()`, `file_remove_privs_flags()` and `file_modified()`,
+  `fs/inode.c:2140`, `:2172` and `:2330`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/inode.c)): `IS_NOSEC()` returns
+  before any check (`:2147`, `:2179`), and `inode_has_no_xattr()` (`include/linux/fs.h:3742`)
+  sets `S_NOSEC` after a check that removed nothing on an `SB_NOSEC` superblock (`:2194`). ext4
+  reaches them from `ext4_write_checks()` through `file_modified()` (`fs/ext4/file.c:279`). Why
+  the layer's own call cannot be relied on for a mode changed behind it.
+- `backing_file_write_iter()`, `fs/backing-file.c:212`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/backing-file.c)): the lower write
+  runs under `override_creds(ctx->cred)` (`:239`) and `vfs_iter_write()` (`:243`), so the lower's
+  capability tests see the credentials the layer passes.
+- `ns_capable_noaudit()` and `capable()`, `kernel/capability.c:399` and `:434`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/kernel/capability.c)): the same test
+  on `init_user_ns`, the first without an audit record; used to decide whether the writer keeps
+  the capability.
+- `ovl_setup_cred_for_create()`, `fs/overlayfs/dir.c:556`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/overlayfs/dir.c)): overlayfs
+  prepares per-operation credentials from the mounter's (`prepare_creds()`, `:562`) and adjusts
+  them for what the lower will decide; the model of the layer's write credentials (F4).

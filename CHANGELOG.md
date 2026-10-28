@@ -6,6 +6,16 @@
   passed on the branch of journals 0215 and 0216. Two suite defects found on the way are fixed:
   `pm-mv` and `buildmoved` no longer need `mountpoint`, and `tr_on()` turns `tracing_on` on.
 
+- GHSA-6xf4-r246-92r6 (journal 0218, finding F16 of ADR-0011): a file given set-user-ID or
+  set-group-ID on the lower, behind the layer, kept the bit after an ordinary user wrote to it
+  through the layer (a write, `fallocate`, a clone or `copy_file_range`), where the same write on
+  the lower clears it. The write credentials carried the mounter's `CAP_FSETID`, and the layer's
+  own check judged a mode its inode may hold from before the change, then skipped it once
+  `S_NOSEC` was set. The credentials now carry `CAP_FSETID` only when the writer has it in the
+  initial user namespace, so the lower decides as for the writer directly. `tests/layer.c` covers
+  the four operations with and without an earlier write; the check fails on the module before the
+  fix.
+
 - GHSA-756j-cgwq-gvwm (journal 0216, reported privately by an external reviewer): a domain
   directory removed on the lower, behind the layer, and a new directory given its inode number
   (ext4, XFS) were answered from the removed directory's index, and a new file given a removed

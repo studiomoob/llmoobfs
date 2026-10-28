@@ -161,6 +161,9 @@ Added on 2026-10-12, from the review of journal 0066 (`docs/research-stacked-fs-
   run with the mounter's credentials but with the writer's fsuid, fsgid and groups, so ext4
   grants its reserve exactly as it would to that writer directly. Promise 2 now holds for
   the reserve as well.
+  *Note, 2026-10-27 (journal 0218):* those credentials also carry `CAP_FSETID` only when the
+  writer has it in the initial user namespace; with the mounter's, a set-user-ID bit given on the
+  lower behind the layer survived the write (F16).
 
 - **F5 — copy and clone kept set-user-ID, set-group-ID and file capabilities** (found on
   2026-10-13 with fstests, journal 0074). `copy_file_range` and a clone ran on the lower with the
@@ -296,6 +299,15 @@ later) and its verification against Linux 6.12.112 (journals 0116 and 0117):
   (2026-10-27). **Fixed** in journal 0215 (ADR-0025): every directory on the way must grant
   read and search, in the kernel, the tools and the library; `permmatrix` lists each directory in
   its oracle and runs in fallback mode too.
+- **F16 — a set-user-ID bit given on the lower behind the layer survived a write through it.**
+  The write credentials of F4 kept the mounter's `CAP_FSETID`, so `setattr_should_drop_suidgid()`
+  on the lower kept the bits for every writer, and the layer's own `file_remove_privs()` judged a
+  mode its inode may hold from before a chmod made on the lower, then skipped the check once
+  `S_NOSEC` was set. An ordinary user with write access to such a file could change its content
+  and keep the bit, against promise 2; it needs the bit set behind the layer (A2), itself a
+  fragile configuration. The lesson of F5 applied to the credentials themselves. Reported
+  privately (GHSA-6xf4-r246-92r6). **Fixed** in journal 0218: the credentials carry `CAP_FSETID`
+  only when the writer has it in the initial user namespace, the test the lower applies.
 *Compatibility decision, 2026-10-15 (journal 0117).* An idmapped mount as `lower=` is refused
 with `EINVAL`. Supporting it would mean passing `mnt_idmap(lower mount)` to every delegated call
 and to the index's permission rule; that is left for a later decision with its own tests. No
