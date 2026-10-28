@@ -81,6 +81,8 @@ credentials at mount (`layer/main.c`, `moobl_fill_super()`). References in `docs
   kernel. The change adds no lock and keeps the `get_cred()`/`put_cred()` pairs of
   `moobl_wcred_get()`, so it does not touch locking or object lifetime; the batch's full KASAN
   run covers it before publication.
+- *Note, 2026-10-28:* that run passed (`MOOBFS_KASAN_PASS`, no kernel diagnostic), with a
+  negative round of the new check on the module before the fix; see journal 0219, run 5.
 
 ## Limitations
 
