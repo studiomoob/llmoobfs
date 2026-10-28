@@ -1,7 +1,7 @@
 # 0226 — Sixth pre-release tag: v0.5.0-experimental
 
 Date: 2026-10-28. Status: in progress; branch `release/v0.5.0-experimental` on top of `main`
-(`e5b6591`). Work started: 2026-10-28 19:00 America/Sao_Paulo. Wall-clock time, not an
+(`4b72d4a`; first pushed on `e5b6591`). Work started: 2026-10-28 19:00 America/Sao_Paulo. Wall-clock time, not an
 engineering-effort measurement. Estimated effort: S.
 
 ## Decision
@@ -26,6 +26,10 @@ the tag, its SHA-256, a Sigstore bundle and SLSA provenance, attached to the pre
   0155, 0156, 0172 to 0180, issues 110 to 117 and 119), F15, F16 and F17 with advisories
   GHSA-95h9-j7c2-gcw6, GHSA-6xf4-r246-92r6 and GHSA-82w5-ph62-47wf, GHSA-756j-cgwq-gvwm, issue 113
   (journal 0210) and issue 118 (journals 0182 to 0193, 0210).
+- User space, after the first push of this branch: the MCP adapter's paths and identity
+  (GHSA-4gr9-rvgr-44qj) and the LangGraph store's batched labels (GHSA-3wx4-fh9w-2v66), two
+  private reports with the reviewer's fixes (journal 0227). The tag waited for them; the branch
+  was rebased on `4b72d4a` and takes the reviewer's references and testing notes.
 - The review batch of journal 0144 (R1, R2; journals 0149, 0150, 0153).
 - User space: the command-line tool, the Python library with its LangGraph store, the MCP
   adapter and the container recipe (roadmap C1 to C5 and C7, journals 0197 to 0208).
@@ -51,7 +55,7 @@ the tag, its SHA-256, a Sigstore bundle and SLSA provenance, attached to the pre
 ## Evidence
 
 The tag goes on the merge commit of this branch, whose code is that of `e5b6591` but for
-`MODULE_VERSION`; batch 3 ran the full `make vm-test` and the full KASAN/lockdep suite on it
+`MODULE_VERSION` and the user-space fixes of journal 0227; batch 3 ran the full `make vm-test` and the full KASAN/lockdep suite on it
 (journal 0225). The pull request's required checks, KASAN included (the branch touches
 `layer/main.c`).
 

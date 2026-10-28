@@ -78,3 +78,34 @@ earlier advisories. The tag `v0.5.0-experimental` is cut after this merge (journ
 ## Next step
 
 Merge, publish both advisories with the reviewer credited, rebase the release branch and tag.
+
+*Update, 2026-10-28, after the merge (pull request 175, `4b72d4a`).* The reviewer had also pushed
+the two fixes, each with its own journal, to the advisories' temporary private forks. Their code
+is the code merged here; their pull requests there were closed so that the advisories could be
+published (GitHub refuses while a fork has an open pull request), and both advisories were
+published at 22:32 UTC without a CVE. From the reviewer's documents, the release branch (journal
+0226) takes `docs/references.md` sections 24 and 25 (the kernel and Python sources the fixes rest
+on: `may_open()`, `fifo_open()`, `task_cap()`, `openat2()`'s `RESOLVE_*` flags, Python's `dir_fd`,
+LangGraph's label rule and why the store repeats it instead of calling
+`validate_op_namespace()`), the note on ADR-0023 and the `docs/testing.md` row; the journals
+themselves are not copied, their content is here.
+
+Also run before publication, as the reviewer's journal suggested: `python/tests/mcp_mounted.py`
+on the dedicated host, as root, module built from this branch, ext4 lower, `domain_depth=1`,
+`mcp==2.3.0`, the library installed under `/opt`:
+`MOOBFS_MCP_PASS: answers equal to the library on alice and team through stdio as uid 2001;
+alice and bob each refused 4 of 4 calls on the other's domain; same 197 team answers; bob's team
+write reached alice; the server refused root`. The host was cleaned afterwards.
+
+Limitations the reviewer recorded, kept:
+
+- Without `/proc` the capability test reads nothing and passes; the uid and gid tests still
+  apply.
+- `query` without the layer mounted falls back to the library's scan (`moobfs.scan`), which still
+  walks a domain by path (`os.scandir()` after `os.lstat()`). Read in the code, not tested: a swap
+  there can make an answer name, under the domain, files of the directory the link points to
+  that the agent can read and whose attributes match; reading them still goes through the walk
+  above. Not part of these reports; the next item for the library.
+- The store repeats LangGraph's rule rather than calling it, so a later change of that rule is
+  not followed until `validate_op_namespace()` can be required (it is missing from
+  `langgraph-checkpoint` 4.1.0 and 4.2.0, which the extra's minimum allows).
