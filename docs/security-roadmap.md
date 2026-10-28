@@ -38,6 +38,7 @@ Suggested order by cost-benefit. Each item has a verifiable done-when criterion.
 *Status, 2026-10-12 (journal 0060).* Done: [ADR-0011](decisions/0011-threat-and-credential-model.md),
 with findings F1 to F5 added since. Outside review was requested on 2026-10-13 (journal 0084).
 *Update, 2026-10-20 (journal 0156):* findings F13 (review round 1, journal 0151) and F14 (round 2, journal 0155) recorded and fixed; the other defects of round 2 are fixed or recorded as issues, and S14 to S21 below plan the tests that would have found them.
+*Update, 2026-10-28 (journals 0215, 0216, 0218 and 0219):* three private reports from an external reviewer recorded and fixed through private advisories: F15 (search-only directories, GHSA-95h9-j7c2-gcw6, ADR-0025), F16 (`CAP_FSETID` in the write credentials, GHSA-6xf4-r246-92r6) and records answered for a reused inode number (GHSA-756j-cgwq-gvwm, no finding number). Findings F1 to F16 recorded; all fixed but part of F2 (fair shares, S9).
 
 *Update, 2026-10-21 (journals 0174 and 0175):* the round-2 domain-rename
 (R2-5, issue 110) and concurrent index-budget refusal (R2-7, issue 111)

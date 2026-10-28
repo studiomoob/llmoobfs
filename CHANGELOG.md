@@ -23,7 +23,8 @@
   inode's `i_generation`; a domain record whose generation differs is built again, a file record
   is dropped. New suite step `domainreuse`; each of its three cases fails without its fix.
 
-- Search-only directories (journal 0215, ADR-0025, finding F15 of ADR-0011): an intermediate
+- GHSA-95h9-j7c2-gcw6, search-only directories (journal 0215, ADR-0025, finding F15 of ADR-0011,
+  reported privately by an external reviewer): an intermediate
   directory must grant read as well as search for the files under it to be answered. Before,
   `QUERY2` named files under a `0711` directory of a domain to users who could not list it, and
   confirmed their values. The homogeneity rule, the per-result check (`MAY_READ` on every
