@@ -12,7 +12,8 @@ meets what the project is before its status history. The facts are unchanged. Th
 human review of the whole kernel code yet (two independent source reviews by AI assistants, journals 0111 and 0114;
 an external reviewer privately reported three kernel defects and wrote the fix of one, F16, journals 0215, 0216 and 0218;
 an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163). The last
-tag, `v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch.
+tag, `v0.5.0-experimental` (2026-10-28), carries every correction below; the previous one,
+`v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch.
 The two findings of the [independent review](history/0144-independent-review.md)
 have corrections on `main`; the review batch passed the full integrated VM suite
 and local KASAN/UBSAN/lockdep. The required pull-request checks passed before merge.
@@ -73,4 +74,7 @@ of these defects.
 *Update, 2026-10-28 ([journal 0227](history/0227-mcp-and-store-confinement.md)):* two private
 reports from the same external reviewer, in user space, are fixed: the MCP adapter followed a
 directory swapped for a symbolic link by a member of a shared domain ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), and the LangGraph
-store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). No tag contains either defect.
+store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). `v0.5.0-experimental` has both fixes; no earlier tag has the defects.
+*Update, 2026-10-28 ([journal 0226](history/0226-sixth-prerelease-tag.md)):* `v0.5.0-experimental`
+is tagged on `main` after the third batch and these two fixes and carries every correction above; its source archive
+is signed with Sigstore and has SLSA provenance.

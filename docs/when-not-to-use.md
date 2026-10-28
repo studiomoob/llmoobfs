@@ -51,12 +51,12 @@ and query evidence (journals [0088](history/0088-m4-report.md) and
   store laid out deeper than that gets no queries for those files.
 - **Round 2 of the review** ([0155](history/0155-review-3627172-round-2.md)) found further defects
   in `v0.4.1-experimental`, F14 among them. They are fixed in journal 0156 or recorded as issues;
-  the tag still carries them. Of those issues, 115 and 119 are fixed in journals 0221, 0222 and
+  `v0.4.1-experimental` still carries them, `v0.5.0-experimental` does not. Of those issues, 115 and 119 are fixed in journals 0221, 0222 and
   0224, and 117 in part (journal 0223: inodes without an index record no longer take the index
   lock on instantiation or eviction; inodes with one still do).
 
 The two defects from [review 0144](history/0144-independent-review.md) remain in
-`v0.4.1-experimental`, and so does a third, from [review 0151](history/0151-review-d110d4e.md): a
+`v0.4.1-experimental` (not in `v0.5.0-experimental`), and so does a third, from [review 0151](history/0151-review-d110d4e.md): a
 chmod during the first build of a domain could leave the file in `QUERY2` answers to users who can
 no longer read it (fixed in [0152](history/0152-chmod-during-build-fixed.md)). The review batch synchronizes backing-file flags after `F_SETFL`
 ([0149](history/0149-sync-backing-file-flags.md)) and propagates operational lower `getxattr`

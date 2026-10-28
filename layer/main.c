@@ -2103,5 +2103,5 @@ module_init(moobl_init);
 module_exit(moobl_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Studio Moob");
-MODULE_VERSION("0.4.1");
+MODULE_VERSION("0.5.0");
 MODULE_DESCRIPTION("MoobFS memory layer: stacked filesystem with a typed attribute index");

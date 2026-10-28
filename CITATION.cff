@@ -8,8 +8,8 @@ authors:
 repository-code: "https://github.com/studiomoob/llmoobfs"
 url: "https://studiomoob.github.io/llmoobfs/"
 license: GPL-2.0-only
-version: "v0.4.1-experimental"
-date-released: "2026-10-20"
+version: "v0.5.0-experimental"
+date-released: "2026-10-28"
 abstract: >-
   Experimental Linux kernel module (no FUSE): a stacked filesystem layer over
   ext4, btrfs or XFS that adds typed extended attributes, an in-memory index and

@@ -245,4 +245,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0223 — Instantiation and eviction take the index lock only for inodes with a record (issue #117)](0223-index-lock-instantiation-eviction.md)
 - [0224 — Passthrough gaps: fadvise, statx fields, drop_inode, F_SETFL O_NOATIME (issue #115)](0224-passthrough-gaps-issue-115.md)
 - [0225 — Security batch 3: issues 115, 117 and 119, finding F17, the plan map and Scorecard](0225-security-batch-3.md)
+- [0226 — Sixth pre-release tag: v0.5.0-experimental](0226-sixth-prerelease-tag.md)
 - [0227 — MCP adapter and LangGraph store confinement (two private reports)](0227-mcp-and-store-confinement.md)

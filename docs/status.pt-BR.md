@@ -15,8 +15,9 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 revisão humana independente de todo o código do kernel (duas revisões independentes do código, feitas por
 assistentes de IA, diários 0111 e 0114; um revisor externo relatou em privado três defeitos do kernel e
 escreveu a correção de um deles, F16, diários 0215, 0216 e 0218; um colaborador de fora revisou scripts,
-ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163). A última tag, `v0.4.1-experimental` (2026-10-20), é um retrato do
-código anterior às correções que hoje estão na `main`. Os dois achados da
+ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163). A última tag, `v0.5.0-experimental` (2026-10-28), tem todas as correções abaixo; a anterior,
+`v0.4.1-experimental` (2026-10-20), é um retrato do
+código anterior a elas. Os dois achados da
 [revisão independente](history/0144-independent-review.md) têm correções na
 `main`. Esse lote passou na suíte completa integrada em VM e na
 KASAN/UBSAN/lockdep local; as verificações obrigatórias do PR passaram antes do merge.
@@ -77,4 +78,7 @@ contém todos esses defeitos.
 *Atualização, 28/10/2026 ([diário 0227](history/0227-mcp-and-store-confinement.md)):* dois relatos
 privados do mesmo revisor externo, em espaço de usuário, estão corrigidos: o adaptador MCP seguia
 um diretório trocado por um link simbólico por um membro de um domínio compartilhado ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), e o
-`batch()` do store do LangGraph deixava rótulos `..` saírem da raiz ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). Nenhuma tag contém esses defeitos.
+`batch()` do store do LangGraph deixava rótulos `..` saírem da raiz ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). A `v0.5.0-experimental` tem as duas correções; nenhuma tag anterior tem os defeitos.
+*Atualização, 28/10/2026 ([diário 0226](history/0226-sixth-prerelease-tag.md)):* a `v0.5.0-experimental`
+foi marcada na `main` depois do terceiro lote e dessas duas correções e tem todas as correções acima; o arquivo de
+código-fonte é assinado com Sigstore e tem proveniência SLSA.

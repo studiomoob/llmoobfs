@@ -737,3 +737,40 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
 - `OVL_SETFL_MASK` and `ovl_change_flags()`, `fs/overlayfs/file.c:62`; `ovl_open_realfile()`
   drops `O_NOATIME` when the mounter does not own the real inode (`:49`). `SETFL_MASK` and the
   `O_NOATIME` ownership check of `setfl()`, `fs/fcntl.c:37` and `:51`.
+
+## 24. Paths on directory descriptors in the MCP server (GHSA-4gr9-rvgr-44qj, journal 0227)
+
+- `may_open()` and `do_open()`, `fs/namei.c:3391` and `:3793`, Linux 6.12.111
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/namei.c)): without
+  `LOOKUP_FOLLOW` the last component is not followed; a link then fails with `ENOTDIR` when
+  `O_DIRECTORY` asks for a directory (`:3820`) and with `ELOOP` otherwise (`:3402`). The errors
+  the walk of `moobfs.mcp` turns into refusals.
+- `do_renameat2()`, `fs/namei.c:5119`, same tree: `RENAME_EXCHANGE` swaps two names atomically;
+  the test uses it to swap a directory of the path and a link while the agent works.
+- `fifo_open()`, `fs/pipe.c:1107`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/pipe.c)): a read-only open of a
+  FIFO without a writer waits for one (`wait_for_partner()`, `:1162`) unless `O_NONBLOCK` is set
+  (`:1157`). Why `read` opens with `O_NONBLOCK`.
+- `task_cap()`, `fs/proc/array.c:311`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/proc/array.c)): the `CapEff` line
+  (`:328`) that `check_identity()` reads.
+- `build_open_flags()`, `fs/open.c:1221`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/open.c)): `openat2()`'s
+  `RESOLVE_NO_SYMLINKS` and `RESOLVE_BENEATH` (`:1331`, `:1333`), the one-call form of the same
+  walk, not taken because Python's `os` module does not offer `openat2()`.
+- Python's `os` module, [paths relative to directory descriptors](https://docs.python.org/3/library/os.html#dir-fd):
+  `dir_fd` on `open`, `mkdir`, `stat`, `rename` and `unlink`, which the walk and `publish()` use.
+
+## 25. Namespace labels of batched LangGraph operations (GHSA-3wx4-fh9w-2v66, journal 0227)
+
+- `langgraph/store/base/__init__.py` of `langgraph-checkpoint` 4.3.0
+  ([PyPI](https://pypi.org/project/langgraph-checkpoint/4.3.0/)): `_validate_namespace_labels()`
+  (line 1325) is the rule (strings, not empty, no period); `BaseStore.put()` (`:866`) and the
+  other public methods apply it before batching, and `validate_op_namespace()` (`:1342`) asks
+  stores that serialize namespaces to apply it to every operation they execute. The store's
+  check repeats that rule.
+- The same file in `langgraph-checkpoint` 4.1.0 and 4.2.0 has no `validate_op_namespace()`, and
+  `langgraph` 1.2.0, the extra's minimum, requires `langgraph-checkpoint>=4.1.0,<5.0.0`
+  ([PyPI JSON](https://pypi.org/pypi/langgraph/1.2.0/json)); why the store does not call it.
+- Python's [`urllib.parse.quote()`](https://docs.python.org/3/library/urllib.parse.html#urllib.parse.quote)
+  never quotes `.` (an unreserved character), so `_enc()` leaves `.` and `..` as directory names.

@@ -54,6 +54,10 @@ into the client's process, so its licence decides who can use it.
    adapter's files; G1's mounted gate passed three times on it with `--store package`. Its
    fallback case follows a protocol amendment the maintainer accepted before the run: without
    the module `salary.json` is absent for uid 1002 too, as for `QUERY2`.
+   *Note, 2026-10-28 (journal 0227, GHSA-3wx4-fh9w-2v66):* the store's `batch()` did not apply
+   LangGraph's namespace label rule, which `BaseStore` applies only in its public methods, and a
+   label is a directory name here: a batched `PutOp` with `..` wrote outside the root. `batch()`
+   now checks every operation before any runs.
 
 ## Prior art this builds on
 
