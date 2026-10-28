@@ -27,7 +27,8 @@ static int moob_ext_acl(const char *path, mode_t mode)
 	if (n < 4 || (n - 4) % 8 || buf[0] != 2 || buf[1] || buf[2] || buf[3])
 		return 1;
 	for (i = 4; i < (unsigned int)n; i += 8) {
-		unsigned int tag = buf[i] | buf[i + 1] << 8, perm = (buf[i + 2] | buf[i + 3] << 8) & 07;
+		unsigned int tag = (unsigned int)buf[i] | (unsigned int)buf[i + 1] << 8;
+		unsigned int perm = ((unsigned int)buf[i + 2] | (unsigned int)buf[i + 3] << 8) & 07u;
 
 		switch (tag) {
 		case 0x01: bits |= perm << 6; break;			/* ACL_USER_OBJ */

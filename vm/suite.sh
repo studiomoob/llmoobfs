@@ -2237,6 +2237,8 @@ if want minacl; then
 # 1001 and nothing it cannot read; moobfs-index --domain, moobfs-check and the Python scan
 # must give the same partition.
 ma_acl() {   # perm of the owner, group and other entries: version 2, then {tag, perm, id}
+    # The arguments are single octal digits that complete the escapes \00N of the format.
+    # shellcheck disable=SC2059
     printf "\002\000\000\000\001\000\00$1\000\377\377\377\377\004\000\00$2\000\377\377\377\377\040\000\00$3\000\377\377\377\377"
 }
 "$TOOLS/mke2fs" -q -F -t ext4 -b 4096 "$DEV_SCRATCH" || fail ma-mkfs
