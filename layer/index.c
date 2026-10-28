@@ -843,7 +843,6 @@ static unsigned int scan_delay_us;
 module_param(scan_delay_us, uint, 0644);
 MODULE_PARM_DESC(scan_delay_us, "tests only: microseconds the index scan sleeps between reading a file and storing it");
 
-/* Tests only, kept for the reason above: fail one listed attribute's value read after listxattr. */
 /*
  * For tests only (vm/suite.sh step ixlock, issue #117): microseconds the index scan sleeps
  * with the index lock held for writing, once per file, so that a test can show which paths
@@ -853,7 +852,7 @@ static unsigned int scan_hold_us;
 module_param(scan_hold_us, uint, 0644);
 MODULE_PARM_DESC(scan_hold_us, "tests only: microseconds the index scan holds the index lock for each file");
 
-/* Tests only: fail one listed attribute's value read, after listxattr succeeds. */
+/* Tests only, kept for the reason above: fail one listed attribute's value read after listxattr. */
 static int scan_getxattr_errno_once;
 module_param(scan_getxattr_errno_once, int, 0644);
 MODULE_PARM_DESC(scan_getxattr_errno_once, "tests only: errno for one index-scan getxattr");
