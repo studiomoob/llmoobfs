@@ -1554,7 +1554,7 @@ umount "$LAYER" || fail "pm-cr-umount"
 rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" && mkdir -m 711 "$LOWER/pmx/d/s" || fail "pm-mv-mkdir"
 "$BIN/query-build-limit" plant6 "$LOWER/pmx/d/s" 600 || fail "pm-mv-plant"
 mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mv-mount"
-mountpoint -q /sys/kernel/tracing || mount -t tracefs tracefs /sys/kernel/tracing || fail "pm-mv-tracefs"
+[ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail "pm-mv-tracefs"
 echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-on"
 "$BIN/query-build-moved" "$LAYER/d" any; pm_rc=$?
 echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-off"
@@ -2000,7 +2000,7 @@ mkdir -p "$LOWER/bm/d/s" || fail bm-mkdir
 : > "$LOWER/bm/d/visible" || fail bm-visible
 "$BIN/moobfs-attr" set "$LOWER/bm/d/visible" kind string note || fail bm-attr
 mount -t moobfs_layer -o lower="$LOWER/bm",domain_depth=1 none "$LAYER" || fail bm-mount
-mountpoint -q /sys/kernel/tracing || mount -t tracefs tracefs /sys/kernel/tracing || fail bm-tracefs
+[ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail bm-tracefs
 echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bm-delay-on
 "$BIN/query-build-moved" "$LAYER/d"; bm_rc=$?
 echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bm-delay-off
