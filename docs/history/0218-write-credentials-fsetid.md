@@ -6,6 +6,8 @@ temporary private fork; embargoed until the advisory is published. Work started 
 20:56 for the rebase on `main`, these documents and the re-run; ended 21:27. Wall-clock time,
 not an effort measurement. Estimated effort: S.
 
+*Note, 2026-10-28:* published with the merge of security batch 2 (journal 0219); the embargo stated above ended then.
+
 ## Goal and decision
 
 Private report GHSA-6xf4-r246-92r6, severity low, written by the author of this branch: a file

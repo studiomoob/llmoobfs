@@ -5,6 +5,8 @@ the advisory); stays private until the coordinated disclosure. Work started: 202
 17:50 America/Sao_Paulo; ended: 2026-10-27 about 18:15; review round 19:20 to 19:35. Wall-clock time, not an
 engineering-effort measurement. Estimated effort: S.
 
+*Note, 2026-10-28:* published with the merge of security batch 2 (journal 0219); the embargo stated above ended then.
+
 ## Goal and decision
 
 A private report from an external reviewer showed that `QUERY2` returned the names, inode
@@ -113,6 +115,8 @@ host with `-accel kvm` (Debian 6.12.111+deb13-amd64), one VM at a time.
 - Public surfaces left stale on purpose until the coordinated disclosure: the security rows of
   `README.md`/`README.pt-BR.md` and `docs/status.md`/`docs/status.pt-BR.md`, `SECURITY.md` and
   `docs/security-roadmap.md`. They are updated when the advisory is published.
+  *Note, 2026-10-28:* they were updated in security batch 2, before its merge, with the other
+  surfaces that state findings, advisories and review status.
 
 ## Next step
 

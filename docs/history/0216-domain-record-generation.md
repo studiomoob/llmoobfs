@@ -6,6 +6,8 @@ America/Sao_Paulo; first round ended 18:45; the second round, after an independe
 started 18:50 and ended 20:22 (see "Second round"). Wall-clock time, not an engineering-effort measurement.
 Estimated effort: S.
 
+*Note, 2026-10-28:* published with the merge of security batch 2 (journal 0219); the embargo stated above ended then.
+
 ## Goal and decision
 
 A private report from an external reviewer (GHSA-756j-cgwq-gvwm, severity low): `ix->domains`
