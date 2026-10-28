@@ -121,3 +121,7 @@ advisory when it is a vulnerability under `SECURITY.md`; older versions are not 
   (journal 0135).
 - 2026-10-20: `v0.4.1-experimental` fixes the query slowdown of `v0.4.0-experimental` (journal 0139) and
   adds the tests of journals 0140 and 0141 (journal 0142).
+- 2026-10-28: `v0.5.0-experimental` carries the fixes of F13 to F17 and of review rounds 0144 and
+  0155. A minor version: the reserved byte of a query term must be zero (ADR-0026) and two lookup
+  errnos changed (`EREMOTE`, `ESTALE`); sizes, offsets, command numbers and the on-disk
+  conventions did not (journal 0226).

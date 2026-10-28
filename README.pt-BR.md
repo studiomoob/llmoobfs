@@ -141,10 +141,12 @@ na sua própria execução, veja [Experimente numa VM](#experimente-numa-vm).
 
 ## Estado
 
-**Experimental. Só tags de pré-lançamento do código-fonte; a última, `v0.4.1-experimental`
-(2026-10-20), contém as correções dos achados F1 a F12 do ADR-0011, exceto a parte
-de cotas justas do F2. Não é para produção.** Achados posteriores a afetam e estão corrigidos só
-na `main`: flags de estado do arquivo desatualizadas depois de `F_SETFL` e erros de leitura de
+**Experimental. Só tags de pré-lançamento do código-fonte; a última, `v0.5.0-experimental`
+(2026-10-28), contém as correções dos achados F1 a F17 do ADR-0011, exceto a parte
+de cotas justas do F2, e é a primeira com o arquivo de código-fonte assinado (Sigstore,
+proveniência SLSA). Não é para produção.** A tag anterior, `v0.4.1-experimental` (2026-10-20),
+tinha F1 a F12; achados posteriores a afetam e estão corrigidos a partir da
+`v0.5.0-experimental`: flags de estado do arquivo desatualizadas depois de `F_SETFL` e erros de leitura de
 atributo tomados como "sem atributo" ao indexar (revisão [0144](docs/history/0144-independent-review.md),
 R1 e R2), um chmod durante a primeira construção de um domínio, que podia deixar o arquivo nas
 respostas do `QUERY2` para usuários que já não conseguem lê-lo (diários
@@ -177,7 +179,7 @@ Fatos em 2026-10-25:
   (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), corrigidos na `main` nos diários
   [0215](docs/history/0215-search-only-directories.md),
   [0216](docs/history/0216-domain-record-generation.md) e
-  [0218](docs/history/0218-write-credentials-fsetid.md); a correção do F16 é do revisor. As tags até a `v0.4.0-experimental`
+  [0218](docs/history/0218-write-credentials-fsetid.md); a correção do F16 é do revisor. A `v0.5.0-experimental` tem essas correções; as tags até a `v0.4.1-experimental`
   carregam defeitos corrigidos depois ([changelog](CHANGELOG.md)).
 - **As medições são de nível piloto**, de uma máquina; o relatório que as reúne é o
   [diário 0088](docs/history/0088-m4-report.md). Não são uma afirmação geral de velocidade.
@@ -469,7 +471,7 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   `MOOBFS_ACCEPTANCE_PASS`,   `MOOBFS_LAYER_PASS` e `MOOBFS_KASAN_PASS` no Linux 6.12.112.
   Essas correções estão na `main`; as verificações obrigatórias do pull
   request passaram antes do merge desse lote. A `v0.4.1-experimental` ainda
-  contém os dois defeitos.
+  contém os dois defeitos; a `v0.5.0-experimental` tem as correções.
 
 - Uma série de kernel testada (Debian 6.12.111, 6.12.112 upstream sob KASAN), x86-64, em VM; as
   APIs do kernel dependem da versão, e o alvo de teste fixado não é promessa de compatibilidade. Em
@@ -539,8 +541,8 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) e
-  [0083](docs/history/0083-index-inspection-fixes.md). As tags até a `v0.4.0-experimental` carregam
-  defeitos corrigidos depois; as correções posteriores à `v0.4.1-experimental` entram na `main`. O fstests rodou só com o grupo `quick`
+  [0083](docs/history/0083-index-inspection-fixes.md). As tags até a `v0.4.1-experimental` carregam
+  defeitos corrigidos depois; a `v0.5.0-experimental` tem todas as correções até 2026-10-28, e as posteriores entram na `main`. O fstests rodou só com o grupo `quick`
   ([vm/fstests/](vm/fstests/README.md)); o syzkaller rodou cinco rodadas de seis horas; a última
   medição ficou acima do limiar agregado de PCs do item S3 do [roteiro de segurança](docs/security-roadmap.md),
   e o `moobl_xattr_get` ficou com 0 PCs no relatório dessa rodada, porque o corpus quase não guardou

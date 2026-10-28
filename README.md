@@ -133,9 +133,11 @@ from your own run, see [Try it in a VM](#try-it-in-a-vm).
 
 ## Status
 
-**Experimental. Source pre-release tags only; the last one, `v0.4.1-experimental` (2026-10-20), has
-the fixes of findings F1 to F12 of ADR-0011 except the fair-shares part of F2. Not for
-production.** Later findings affect it and are fixed on `main` only: stale file-status flags
+**Experimental. Source pre-release tags only; the last one, `v0.5.0-experimental` (2026-10-28), has
+the fixes of findings F1 to F17 of ADR-0011 except the fair-shares part of F2, and is the first
+whose source archive is signed (Sigstore, SLSA provenance). Not for production.** The previous
+tag, `v0.4.1-experimental` (2026-10-20), had F1 to F12; later findings affect it and are fixed
+from `v0.5.0-experimental` on: stale file-status flags
 after `F_SETFL` and attribute-read errors taken as "no attribute" while indexing (review
 [0144](docs/history/0144-independent-review.md), R1 and R2), a chmod during the first build of a
 domain that could leave the file in `QUERY2` answers to users who can no longer read it (journals
@@ -166,7 +168,7 @@ Facts as of 2026-10-25:
   on `main` in journals [0215](docs/history/0215-search-only-directories.md),
   [0216](docs/history/0216-domain-record-generation.md) and
   [0218](docs/history/0218-write-credentials-fsetid.md); the reviewer wrote the fix of F16.
-  Tags up to `v0.4.0-experimental` carry defects fixed since ([changelog](CHANGELOG.md)).
+  `v0.5.0-experimental` has these fixes; tags up to `v0.4.1-experimental` carry defects fixed since ([changelog](CHANGELOG.md)).
 - **The measurements are pilot-grade**, from one host; the report that gathers them is
   [journal 0088](docs/history/0088-m4-report.md). They are not a general speed claim.
 - The index lives **in RAM only** and cannot be paged out. It is built per domain by the first
@@ -446,7 +448,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
   reported `XATTRREAD_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS` and
   `MOOBFS_KASAN_PASS` on Linux 6.12.112. Those corrections are on `main`; the
   required pull-request checks passed before that batch merged.
-  `v0.4.1-experimental` still contains both defects.
+  `v0.4.1-experimental` still contains both defects; `v0.5.0-experimental` has the fixes.
 
 - One kernel series tested (Debian 6.12.111, upstream 6.12.112 under KASAN), x86-64, in a VM;
   kernel APIs are version-specific and the pinned test target is not a compatibility promise. On
@@ -511,8 +513,8 @@ KASAN harness runs the layer suite), and no benchmark exists.
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) and
-  [0083](docs/history/0083-index-inspection-fixes.md). Tags up to `v0.4.0-experimental` carry
-  defects fixed later; fixes after `v0.4.1-experimental` land on `main`. fstests ran as the `quick` group only ([vm/fstests/](vm/fstests/README.md));
+  [0083](docs/history/0083-index-inspection-fixes.md). Tags up to `v0.4.1-experimental` carry
+  defects fixed later; `v0.5.0-experimental` has every fix up to 2026-10-28, later ones land on `main`. fstests ran as the `quick` group only ([vm/fstests/](vm/fstests/README.md));
   syzkaller ran for five six-hour rounds, above the aggregate PC threshold of
   [security roadmap](docs/security-roadmap.md) S3; `moobl_xattr_get` was at 0 PCs in that run's report, because the corpus kept almost no
   attribute read inside a mounted layer; replayed with per-call coverage, its seeds reach it (journal 0154). SELinux enforcing was exercised once (journal

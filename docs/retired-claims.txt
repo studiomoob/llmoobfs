@@ -217,3 +217,15 @@ F1 a F16
 
 # Batch 3 (journals 0221 to 0224): F17 and issues 115, 117 (in part) and 119.
 It also contains F15, F16 and GHSA-756j-cgwq-gvwm, fixed
+the last one, `v0.4.1-experimental`
+a última, `v0.4.1-experimental`
+the last one is `v0.4.1-experimental`
+the last of which, <code>v0.4.1-experimental</code>
+the last one, <code>v0.4.1-experimental</code>
+The last tag, <strong>v0.4.1-experimental</strong>
+Source pre-release tags exist through v0.4.1-experimental
+tag, `v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch
+A última tag, `v0.4.1-experimental`
+fixes after `v0.4.1-experimental` land on `main`
+as correções posteriores à `v0.4.1-experimental` entram na `main`
+fixes after v0.4.1-experimental land on

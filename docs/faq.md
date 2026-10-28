@@ -8,8 +8,8 @@ Rendered copy: [studiomoob.github.io/llmoobfs/faq.html](https://studiomoob.githu
 MoobFS is an experimental GPL-2.0 Linux kernel module, stacked over ext4, btrfs or XFS, that
 passes POSIX operations to the lower filesystem and adds typed `user.moob.*` attributes, an
 in-memory attribute index and query ioctls. It is a research project: the tags are source
-pre-releases, and the last one, `v0.4.1-experimental` (2026-10-20), is a source
-snapshot before the corrections in review 0144.
+pre-releases, and the last one, `v0.5.0-experimental` (2026-10-28), is a source
+snapshot with every correction up to that date.
 [`README.md`; `docs/research-originality.md` §9]
 
 ## 2. What problem does it target?
@@ -150,14 +150,14 @@ APIs change between versions; compatibility with other kernels is not promised.
 
 ## 15. Is it production-ready? Is there a release?
 It is not production-ready. It is a research project with source pre-release tags only, the last of which,
-`v0.4.1-experimental` (2026-10-20), is a source snapshot before the corrections in review 0144. A module bug can cause a
+`v0.5.0-experimental` (2026-10-28), is a source snapshot with every correction up to that date. A module bug can cause a
 kernel panic or data loss; the project's tests, two source reviews by AI assistants and private
 reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011, all but the fairness
 part of F2 fixed). Run it only in a disposable VM with synthetic data.
 
 The [review of 2026-10-20](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0144-independent-review.md)
 found stale backing-file flags after `F_SETFL` and silently skipped lower `getxattr` errors.
-Both defects remain in `v0.4.1-experimental`. Corrections are on `main`.
+Both defects remain in `v0.4.1-experimental`. Corrections are on `main` and in `v0.5.0-experimental`.
 R1 synchronizes mutable flags before delegated I/O, and R2 propagates operational read errors.
 The full integrated VM suite at `49098aa` passed: clearing and setting append on ext4, btrfs
 and XFS, R2 injected-error regression, and acceptance/layer suites. Negative rounds detected

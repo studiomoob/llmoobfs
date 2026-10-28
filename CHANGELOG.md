@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## v0.5.0-experimental — 2026-10-28
+
+Sixth source pre-release, the one to use instead of `v0.4.1-experimental`, which carries every
+defect listed below. Findings F1 to F17 of ADR-0011 are fixed except the fair-shares part of F2
+(S9). A minor version because the UAPI contract changed: the reserved byte of a query term must
+be zero (ADR-0026) and two lookup errnos changed; sizes, offsets, command numbers and on-disk
+conventions did not. The first tag whose source archive is signed with Sigstore and carries SLSA
+provenance (`docs/security-operations.md`). No binaries, no packaging, no support; no
+independent human review of the whole kernel code. Journal 0226.
+
+- **Fixed (security):** F15, search-only directories (GHSA-95h9-j7c2-gcw6); records answered for
+  a reused inode number (GHSA-756j-cgwq-gvwm); F16, a set-user-ID bit kept through a write
+  (GHSA-6xf4-r246-92r6); F17, a minimal ACL that refuses the caller (GHSA-82w5-ph62-47wf); F13
+  and the review findings of journals 0144, 0151 and 0155 (R1, R2, issues 110 to 117 and 119);
+  domain records kept until unmount (issue 113); in user space, the MCP adapter's paths
+  (GHSA-4gr9-rvgr-44qj) and the LangGraph store's batched labels (GHSA-3wx4-fh9w-2v66).
+- **Behaviour changes:** a casefolded lower directory gives `EREMOTE`, and a name in a directory
+  casefolded behind the layer `ESTALE`; a query term with a nonzero reserved byte gives `EINVAL`.
+- **Passthrough:** `posix_fadvise`, `readahead`, the lower's `statx` fields and `O_NOATIME` by
+  `F_SETFL` reach the lower (issue 115).
+- **User space:** the `moobfs` command-line tool, the Python library `moobfs` with a LangGraph
+  store and an MCP adapter, a container recipe (roadmap C1 to C5 and C7).
+- **Testing:** Debian 6.12.113 in CI, a full VM run that can use KVM, the client packages G1, G3, G4
+  and G5 and their measurements.
+
+The entries below are the detail.
+
 - GHSA-4gr9-rvgr-44qj and GHSA-3wx4-fh9w-2v66 (journal 0227, reported privately by an
   external reviewer with the fixes, credited in the advisories; user space, no kernel change).
   The MCP adapter opens every component of a path relative to the one before with `O_NOFOLLOW`
