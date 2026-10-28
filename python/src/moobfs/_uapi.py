@@ -27,7 +27,7 @@ FLAG_DOMAINS, FLAG_COUNTERS, FLAG_ON_DEMAND = 0x10, 0x20, 0x40
 class Term(ctypes.Structure):
     _fields_ = [("name", ctypes.c_char * (NAME_MAX + 1)), ("op", ctypes.c_uint8),
                 ("type", ctypes.c_uint8), ("flags", ctypes.c_uint8), ("len", ctypes.c_uint16),
-                ("value", ctypes.c_uint8 * VALUE_MAX), ("pad", ctypes.c_uint8 * 3)]
+                ("value", ctypes.c_uint8 * VALUE_MAX), ("pad", ctypes.c_uint8 * 4)]
 
 
 class Result(ctypes.Structure):

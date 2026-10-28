@@ -325,6 +325,9 @@ int main(int argc, char **argv)
 		Q2BAD(strcpy(q2.terms[0].name, "a-b"));
 		Q2BAD(q2.terms[0].pad[1] = 1);
 		Q2BAD(q2.terms[0].pad[2] = 1);
+		Q2BAD(q2.terms[0].pad[3] = 1);			/* implicit tail padding until ADR-0026 */
+		Q2BAD(q2.nterms = 2; strcpy(q2.terms[1].name, "kind"); q2.terms[1].op = MOOB_OP_EXISTS;
+		      q2.terms[1].pad[3] = 1);
 		Q2BAD(q2.pad[0] = 1);
 		Q2BAD(q2.reserved[0] = 1);
 		Q2BAD(q2.nterms = 2; strcpy(q2.terms[1].name, "Kind"); q2.terms[1].op = MOOB_OP_EXISTS);	/* second term */
@@ -581,7 +584,8 @@ int main(int argc, char **argv)
 		q.terms[0].len = 8; q.terms[0].op = MOOB_OP_PREFIX; errno = 0; CHECK(ioctl(fd, MOOB_IOC_QUERY, &q) == -1 && errno == EINVAL);
 		q.terms[0].op = MOOB_OP_EQ; q.terms[0].type = MOOB_T_STRING; q.terms[0].len = 1; q.terms[0].value[0] = 0xff; errno = 0; CHECK(ioctl(fd, MOOB_IOC_QUERY, &q) == -1 && errno == EINVAL);
 		q.terms[0].value[0] = 'x'; q.terms[0].pad[0] = 1; errno = 0; CHECK(ioctl(fd, MOOB_IOC_QUERY, &q) == -1 && errno == EINVAL);
-		q.terms[0].pad[0] = 0; CHECK(!run_query(fd, &q, res, 10));
+		q.terms[0].pad[0] = 0; q.terms[0].pad[3] = 1; errno = 0; CHECK(ioctl(fd, MOOB_IOC_QUERY, &q) == -1 && errno == EINVAL);
+		q.terms[0].pad[3] = 0; CHECK(!run_query(fd, &q, res, 10));
 		/* more of do_query's header and term checks (journal 0141); each restores the baseline */
 		q.nterms = 0; errno = 0; CHECK(ioctl(fd, MOOB_IOC_QUERY, &q) == -1 && errno == EINVAL);
 		q.nterms = 1; q.limit = MOOB_QUERY_MAX_LIMIT + 1; errno = 0; CHECK(ioctl(fd, MOOB_IOC_QUERY, &q) == -1 && errno == EINVAL);

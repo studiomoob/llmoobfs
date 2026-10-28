@@ -2137,6 +2137,9 @@ void moobl_index_init(struct super_block *sb, u64 budget, bool enabled, unsigned
 
 	/* a cursor carries the value of the entry it stopped at */
 	BUILD_BUG_ON(MOOB_ATTR_STRING_MAX > MOOB_QUERY_VALUE_MAX);
+	/* every byte of a term is a named field that term_check() reads (ADR-0026) */
+	BUILD_BUG_ON(sizeof(struct moob_query_term) !=
+		     offsetof(struct moob_query_term, pad) + sizeof_field(struct moob_query_term, pad));
 	init_rwsem(&ix->lock);
 	/* teach lockdep that reclaim takes this lock, so it reports an allocation outside a NOFS scope */
 	fs_reclaim_acquire(GFP_KERNEL);
@@ -2676,7 +2679,7 @@ static int term_check(const struct moob_query_term *t, u8 allowed)
 	size_t nlen = strnlen(t->name, sizeof(t->name));
 
 	if (nlen == sizeof(t->name) || !moob_attr_name_ok(t->name, nlen) || (t->flags & ~allowed) ||
-	    t->pad[0] || t->pad[1] || t->pad[2])
+	    t->pad[0] || t->pad[1] || t->pad[2] || t->pad[3])
 		return -EINVAL;
 	if (t->op == MOOB_OP_EXISTS)	/* "exists or missing" would match everything */
 		return (t->type || t->len || t->flags) ? -EINVAL : 0;
