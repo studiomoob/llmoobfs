@@ -97,6 +97,14 @@ Against A2 and A3:
    behind the layer): until remount, other traversers of its domain can still see its name and
    attributes in `QUERY2` results, though not open it. Changing permissions through the layer
    takes effect on the next call. `moobfs-check` detects the divergence; nothing does in real time.
+   *Note, 2026-10-28 (journal 0216, GHSA-756j-cgwq-gvwm):* a directory or file removed behind the
+   layer whose inode number the lower then gave to a new one was answered from the removed one's
+   index (a domain) or record (a file): answers that belonged to another directory or file, not
+   merely stale ones. Domain and file records now keep the lower inode's `i_generation`;
+   a differing generation rebuilds the domain record and drops the file record. Reported privately
+   by an external reviewer, credited in the
+   [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm); no
+   finding number was given.
 3. **Path-based LSMs** (AppArmor, Landlock) do not filter query results. A confined process can see
    in the results a name it could not open; it already sees it by listing the directory and reading
    its attributes, which Landlock does not control (journal 0030). To hide a domain from a
@@ -295,8 +303,8 @@ later) and its verification against Linux 6.12.112 (journals 0116 and 0117):
   answered to every user who could enter the domain: its name, inode number and, through
   probes, its values, although none of them could list that directory. It broke promise 3; the
   user-space mirrors carried the same rule and `tests/permmatrix.c` judged by `getxattr`, which
-  such a directory lets through. Found by a private report from an external reviewer
-  (2026-10-27). **Fixed** in journal 0215 (ADR-0025): every directory on the way must grant
+  such a directory lets through. Reported privately by an external reviewer (2026-10-27),
+  credited in the [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6). **Fixed** in journal 0215 (ADR-0025): every directory on the way must grant
   read and search, in the kernel, the tools and the library; `permmatrix` lists each directory in
   its oracle and runs in fallback mode too.
 - **F16 — a set-user-ID bit given on the lower behind the layer survived a write through it.**
@@ -306,7 +314,8 @@ later) and its verification against Linux 6.12.112 (journals 0116 and 0117):
   `S_NOSEC` was set. An ordinary user with write access to such a file could change its content
   and keep the bit, against promise 2; it needs the bit set behind the layer (A2), itself a
   fragile configuration. The lesson of F5 applied to the credentials themselves. Reported
-  privately (GHSA-6xf4-r246-92r6). **Fixed** in journal 0218: the credentials carry `CAP_FSETID`
+  privately by an external reviewer, who also wrote the fix, credited in the
+  [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6). **Fixed** in journal 0218: the credentials carry `CAP_FSETID`
   only when the writer has it in the initial user namespace, the test the lower applies.
 *Compatibility decision, 2026-10-15 (journal 0117).* An idmapped mount as `lower=` is refused
 with `EINVAL`. Supporting it would mean passing `mnt_idmap(lower mount)` to every delegated call

@@ -14,7 +14,7 @@ of that organization; the project changes only what belongs to its own repositor
 
 | What | State on 2026-10-26 |
 | --- | --- |
-| Admin on the repository | The three owners of the hosting organization, by inheritance from the organization role; one of them is the maintainer. No direct collaborators. |
+| Admin on the repository | The three owners of the hosting organization, by inheritance from the organization role; one of them is the maintainer. No direct collaborators on the repository. The external reviewer who reported GHSA-95h9-j7c2-gcw6, GHSA-756j-cgwq-gvwm and GHSA-6xf4-r246-92r6 (2026-10-27) is a collaborator on those three advisories and on their temporary private forks until publication; the forks are to be deleted after publication. |
 | Review routing | `CODEOWNERS` routes every path to the maintainer; no approval count is required (`GOVERNANCE.md`). |
 | `main` branch | Pull requests and the checks `Tools and sanitizers`, `Native Linux VM` and `Layer suite under KASAN/lockdep` are required. Force pushes and deletion are disabled. Administrators can bypass; signed commits are not required. |
 | Actions secrets | None. Workflows use the job's `GITHUB_TOKEN` only. |

@@ -4,7 +4,7 @@ MoobFS is experimental kernel code developed by a single maintainer. There is no
 stable release, no production security guarantee and no stable UAPI. Run it
 only in a disposable VM with synthetic data. This policy describes how to report
 a problem and what to expect; the longer-term plan is in
-[docs/security-roadmap.md](docs/security-roadmap.md) (items S1 to S13, with implemented tests and remaining gaps recorded per item).
+[docs/security-roadmap.md](docs/security-roadmap.md) (items S1 to S22, with implemented tests and remaining gaps recorded per item).
 
 ## Supported versions
 
@@ -99,11 +99,14 @@ These are targets for a single volunteer maintainer, not guarantees:
   reporter agrees, or if the issue becomes public elsewhere.
 - Since there are no supported releases (the `-experimental` tags are source snapshots), "fixed" means a commit on `main` with a test in
   `vm/suite.sh` or `tests/` that reproduces the problem and passes afterwards.
-- When the defect affects anyone running the module, we request a CVE through
+- No CVE is requested while there is no supported release (the tags are
+  experimental source snapshots only). The decision is made case by case and
+  recorded in the journal entry; if one is requested later, it goes through
   GitHub's CNA from the advisory. No CVE is expected for test-only or
   documentation code.
-- Credit is given in the advisory, in the journal entry (`docs/history/`) and in
-  `CHANGELOG.md`, with the reporter's consent and in the form they choose.
+- Credit is given in the advisory, with the reporter's consent and in the form
+  they choose. The journal entry (`docs/history/`) and `CHANGELOG.md` describe the
+  reporter by role and link the advisory.
 - There is no bug bounty or other financial reward.
 
 ## Safe harbor
@@ -165,7 +168,7 @@ access is provided. `QUERY2` answers from the partition of a domain directory th
 caller can traverse and read, holding only files every traverser can read; with
 domains on, the v1 `QUERY` is limited to `CAP_SYS_ADMIN` (`docs/spec-query-v2.md`).
 The VM suite, the KASAN/lockdep workflow and the attribute fuzzer are not a
-security audit; no outside human audit has taken place. Two independent source reviews by AI
+security audit; no independent human audit of the whole code has taken place. Two independent source reviews by AI
 assistants (journals 0111 and 0114) found findings F9 to F12, fixed through private advisories. A third
 (journal 0151, at `v0.4.1-experimental`) found that a chmod landing during the first build of a domain
 left the file in the domain's `QUERY2` answers to callers who can no longer read it; reproduced in

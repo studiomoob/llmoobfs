@@ -67,7 +67,9 @@ pre-merge checkpoint. S9 fair sharing remains open.
 
 *Status, 2026-10-18:* findings F1 to F12 recorded; all fixed but part of F2 (fair shares, S9; its silent partial answers fixed in journal 0130); F4 completed in journal 0132. Two source
 reviews by AI assistants (journals 0111, 0114) found F9 to F12, fixed in pull request #80 with
-private advisories published afterwards; no outside human review yet.
+private advisories published afterwards; no outside human review yet. *Note, 2026-10-28:* an
+external reviewer has since reported three kernel defects privately (update of that date above);
+there is still no independent human review of the whole kernel code.
 
 *Separate stabilization note, 2026-10-20:* independent review 0144 identified
 two file/index correctness defects outside the F1–F12 list. Corrections
