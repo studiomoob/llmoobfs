@@ -95,8 +95,9 @@ first domain. Journal 0192 records these rounds.
 reformats the disposable ext4 test device with enough inodes, builds a
 17,000-file domain that must fail with `E2BIG` without publishing output,
 then exercises 16 admissions per unprivileged UID, 64 across the mount,
-another UID, a fresh-domain query and recovery after a real 60-second
-window. Its success marker is `BUILD_LIMIT_PASS`; it is not part of the
+another UID, a fresh-domain query, a build by root that the mount-wide limit
+does not refuse (`CAP_SYS_ADMIN` is outside the admission, ADR-0026) and
+recovery after a real 60-second window. Its success marker is `BUILD_LIMIT_PASS`; it is not part of the
 default full suite. It repeats the 17,000-file over-limit check on btrfs and
 XFS. A negative control on `neg/issue118-buildlimits-0182`
 uses the same guest step against the prior module and must fail.

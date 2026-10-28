@@ -1933,9 +1933,15 @@ done
 [ "$(bl_builds)" -eq 64 ] || fail bl-mount-build-count
 bl_rename || fail bl-mount-quota-rename
 "$BIN/query-build-limit" "$LAYER/d" 1005 quota || fail bl-mount-quota
+# CAP_SYS_ADMIN is outside the admission (moobl_index_admin(), ADR-0026): root builds the
+# domain the mount-wide limit refused, and a rename leaves it stale again for the recovery
+[ "$("$BIN/query" "$LAYER/d" q2errno kind exists - -)" = "q2 0" ] || fail bl-admin-not-exempt
+[ "$(bl_builds)" -eq 65 ] || fail bl-admin-build-count
+bl_i=$((bl_i + 1))
+bl_rename || fail bl-admin-rename
 sleep 61
 "$BIN/query-build-limit" "$LAYER/d" 1005 ok || fail bl-window-recovery
-[ "$(bl_builds)" -eq 65 ] || fail bl-recovery-build-count
+[ "$(bl_builds)" -eq 66 ] || fail bl-recovery-build-count
 umount "$LAYER" && rm -rf "$LOWER/blwork" "$LOWER/blrate" &&
     umount "$LOWER" || fail bl-cleanup
 for fs in btrfs xfs; do
@@ -1948,7 +1954,7 @@ for fs in btrfs xfs; do
     [ "$("$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')" -eq 0 ] || fail "bl-work-left-built-domain-$fs"
     umount "$LAYER" && rm -rf "$LOWER/blwork" && umount "$LOWER" || fail "bl-cleanup-$fs"
 done
-echo "BUILD_LIMIT_PASS: work denied on ext4, btrfs and XFS without published output; uid and mount admission recover"
+echo "BUILD_LIMIT_PASS: work denied on ext4, btrfs and XFS without published output; uid and mount admission recover; CAP_SYS_ADMIN outside the admission"
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildwork; then
 # ADR-0020: the default still denies the measured attributed domain; an

@@ -537,6 +537,19 @@ static int index_set_path(struct moobl_index *ix, struct moobl_ix_inode *rec, co
 	return 0;
 }
 
+/*
+ * The one privilege test of the index (ADR-0026): CAP_SYS_ADMIN in the initial user namespace
+ * may run the mount-wide QUERY with domains on, read the counters of GET_INFO and build
+ * domains without the per-uid admission. The privilege is a superset: denial is the expected
+ * outcome for every client, so it is tested without an audit record on denial, as
+ * kallsyms_show_value() does for CAP_SYSLOG and cap_vm_enough_memory() for CAP_SYS_ADMIN;
+ * a grant still marks the task PF_SUPERPRIV (ns_capable_common()).
+ */
+static bool moobl_index_admin(void)
+{
+	return ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
+}
+
 /* ---- domains and the homogeneity rule (docs/spec-query-v2.md §2, §3) ---- */
 
 #define MOOBL_MAX_DEPTH 64
@@ -1488,7 +1501,7 @@ static int build_admit(struct moobl_index *ix)
 	int err = 0;
 
 	/* Mount-wide QUERY is already restricted to an administrator. */
-	if (capable(CAP_SYS_ADMIN))
+	if (moobl_index_admin())
 		return 0;
 	spin_lock(&ix->build_rate_lock);
 	if (time_after_eq(now, ix->build_window + MOOBL_BUILD_WINDOW)) {
@@ -3486,7 +3499,7 @@ static long do_query(struct super_block *sb, struct file *file, void __user *arg
 
 	if (!ix->enabled)
 		return -EOPNOTSUPP;	/* noindex (ENOSYS until journal 0050) */
-	if (ix->domain_depth && !capable(CAP_SYS_ADMIN))
+	if (ix->domain_depth && !moobl_index_admin())
 		return -EPERM;
 	/* the request is read and checked before anything is built for it (journal 0105) */
 	q = memdup_user(arg, sizeof(*q));
@@ -3960,7 +3973,7 @@ static long do_get_info(struct super_block *sb, void __user *arg)
 	struct moobl_index *ix = &sbi->index;
 	struct moob_info info;
 	const char *fs = sbi->lower.dentry->d_sb->s_type->name;
-	bool admin = ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
+	bool admin = moobl_index_admin();
 
 	memset(&info, 0, sizeof(info));
 	info.uapi_version = MOOB_UAPI_VERSION;
