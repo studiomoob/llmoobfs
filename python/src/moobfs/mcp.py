@@ -16,6 +16,7 @@ optional dependency: pip install "./python[mcp]".
 """
 import argparse
 import base64
+import contextlib
 import errno
 import os
 import stat
@@ -39,12 +40,30 @@ class ToolError(Exception):
     """A refusal the agent sees as the tool's error, with no partial result."""
 
 
+def _effective_capabilities():
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("CapEff:"):
+                    return int(line.split()[1], 16)
+    except OSError:
+        pass
+    return 0
+
+
 def check_identity():
-    """Refuse to be a deputy: not root, not setuid or setgid (ADR-0024 decision 3)."""
-    if os.geteuid() == 0:
+    """Refuse to be a deputy: not root, not setuid or setgid, no capability (ADR-0024
+    decision 3). A capability such as CAP_DAC_READ_SEARCH would let the kernel's checks pass for
+    files the agent's uid cannot read, and a saved uid of 0 lets a process become root again."""
+    ruid, euid, suid = os.getresuid()
+    rgid, egid, sgid = os.getresgid()
+    if 0 in (ruid, euid, suid):
         raise SystemExit("moobfs.mcp: refusing to run as root; start it as the agent's user")
-    if os.getuid() != os.geteuid() or os.getgid() != os.getegid():
+    if len({ruid, euid, suid}) > 1 or len({rgid, egid, sgid}) > 1:
         raise SystemExit("moobfs.mcp: refusing to run setuid or setgid")
+    if _effective_capabilities():
+        raise SystemExit("moobfs.mcp: refusing to run with capabilities; start it as the agent's "
+                         "user without any")
 
 
 # ---- JSON values -------------------------------------------------------------------------
@@ -107,6 +126,18 @@ def from_value(v):
 
 
 # ---- paths -------------------------------------------------------------------------------
+_DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+_FILE_FLAGS = os.O_NOFOLLOW | os.O_CLOEXEC
+
+
+def _file_error(domain, path, err):
+    if err.errno == errno.ELOOP:
+        return ToolError(f"{domain}/{path}: symbolic links are refused")
+    if err.errno in (errno.EACCES, errno.EPERM):
+        return ToolError(f"{domain}/{path}: permission denied")
+    return ToolError(f"{domain}/{path}: {os.strerror(err.errno)}")
+
+
 class Memory:
     def __init__(self, root, read_only=False):
         self.root = os.path.realpath(root)
@@ -127,31 +158,57 @@ class Memory:
             raise ToolError(f"{domain!r} is not a directory")
         return path
 
-    def file_path(self, domain, path, must_exist=True):
-        """domain/path, refusing escapes and symbolic links on the way."""
-        base = self.domain_dir(domain)
+    def _parts(self, domain, path):
         if not isinstance(path, str) or not path or "\0" in path or path.startswith("/"):
             raise ToolError(f"invalid path {path!r}: relative to the domain")
         parts = [p for p in path.split("/") if p not in ("", ".")]
         if not parts or ".." in parts:
             raise ToolError(f"invalid path {path!r}: no '..'")
-        cur = base
-        for part in parts:
-            cur = os.path.join(cur, part)
-            try:
-                st = os.lstat(cur)
-            except FileNotFoundError:
-                if must_exist:
-                    raise ToolError(f"{domain}/{path}: no such file") from None
-                break               # write creates what is missing
-            except PermissionError:
-                raise ToolError(f"{domain}/{path}: permission denied") from None
-            if stat.S_ISLNK(st.st_mode):
-                raise ToolError(f"{domain}/{path}: symbolic links are refused")
-        real = os.path.realpath(os.path.join(base, *parts))
-        if real != self.root and not real.startswith(self.root + os.sep):
-            raise ToolError(f"{domain}/{path}: outside the root")
-        return os.path.join(base, *parts), parts
+        return parts
+
+    def _open_dir(self, name, dir_fd, what):
+        """A directory under dir_fd, never through a symbolic link."""
+        try:
+            return os.open(name, _DIR_FLAGS, dir_fd=dir_fd)
+        except FileNotFoundError:
+            raise ToolError(f"{what}: no such directory") from None
+        except PermissionError:
+            raise ToolError(f"{what}: permission denied") from None
+        except OSError as err:
+            if err.errno == errno.ELOOP:
+                raise ToolError(f"{what}: symbolic links are refused") from None
+            if err.errno == errno.ENOTDIR:
+                raise ToolError(f"{what}: not a directory") from None
+            raise ToolError(f"{what}: {os.strerror(err.errno)}") from None
+
+    def _walk(self, stack, domain, path, create=False):
+        """Descriptors of the domain and of the directory that holds path, and its last name.
+        Each component is opened relative to the one before with O_NOFOLLOW, so a component
+        that someone sharing the domain swaps for a symbolic link is refused, not followed.
+        With create, missing directories are made with the domain's mode, setgid included."""
+        self.domain_dir(domain)
+        parts = self._parts(domain, path)
+        root = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        stack.callback(os.close, root)
+        dom = self._open_dir(domain, root, repr(domain))
+        stack.callback(os.close, dom)
+        mode = stat.S_IMODE(os.fstat(dom).st_mode)
+        cur = dom
+        for part in parts[:-1]:
+            if create:
+                try:
+                    os.mkdir(part, 0o700, dir_fd=cur)
+                    made = True
+                except FileExistsError:
+                    made = False
+                except PermissionError:
+                    raise ToolError(f"{domain}/{path}: permission denied") from None
+            nxt = self._open_dir(part, cur, f"{domain}/{path}")
+            stack.callback(os.close, nxt)
+            if create and made:
+                os.fchmod(nxt, mode)
+            cur = nxt
+        return dom, cur, parts
 
     # ---- tools ---------------------------------------------------------------------------
     def info(self):
@@ -201,23 +258,23 @@ class Memory:
                 "matches": [{"path": m.path, "ino": m.ino} for m in found[:limit]]}
 
     def read(self, domain, path, max_bytes=65536):
-        full, _ = self.file_path(domain, path)
         if not isinstance(max_bytes, int) or not 0 < max_bytes <= READ_MAX:
             raise ToolError(f"max_bytes is 1 to {READ_MAX}")
-        try:
-            fd = os.open(full, os.O_RDONLY | os.O_NOFOLLOW)
-        except PermissionError:
-            raise ToolError(f"{domain}/{path}: permission denied") from None
-        except FileNotFoundError:
-            raise ToolError(f"{domain}/{path}: no such file") from None
-        try:
+        with contextlib.ExitStack() as stack:
+            _, parent, parts = self._walk(stack, domain, path)
+            try:
+                # O_NONBLOCK: a FIFO someone else put there must not hold the server forever
+                fd = os.open(parts[-1], _FILE_FLAGS | os.O_RDONLY | os.O_NONBLOCK, dir_fd=parent)
+            except FileNotFoundError:
+                raise ToolError(f"{domain}/{path}: no such file") from None
+            except OSError as err:
+                raise _file_error(domain, path, err) from None
+            stack.callback(os.close, fd)
             st = os.fstat(fd)
             if not stat.S_ISREG(st.st_mode):
                 raise ToolError(f"{domain}/{path}: not a regular file")
             data = os.read(fd, max_bytes + 1)
             attrs = get_attrs(fd, indexed_only=False)
-        finally:
-            os.close(fd)
         return {"path": path, "size": st.st_size, "truncated": len(data) > max_bytes,
                 "content": data[:max_bytes].decode("utf-8", "replace"),
                 "attributes": {k: from_value(v) for k, v in sorted(attrs.items())}}
@@ -225,7 +282,7 @@ class Memory:
     def write(self, domain, path, content, attributes=None, replace=False):
         if self.read_only:
             raise ToolError("read-only server")
-        full, parts = self.file_path(domain, path, must_exist=False)
+        self._parts(domain, path)
         if not isinstance(content, str):
             raise ToolError("content is a string")
         attrs = {}
@@ -234,39 +291,35 @@ class Memory:
                 attrs[name] = to_value(spec["value"], spec.get("type"))
             else:
                 attrs[name] = to_value(spec)
-        base = self.domain_dir(domain)
-        mode = stat.S_IMODE(os.stat(base).st_mode)     # setgid of a group domain included
-        cur = base
-        for part in parts[:-1]:
-            cur = os.path.join(cur, part)
-            if not os.path.isdir(cur):
-                try:
-                    os.mkdir(cur, 0o700)
-                    os.chmod(cur, mode)
-                except PermissionError:
-                    raise ToolError(f"{domain}/{path}: permission denied") from None
-        try:
-            publish(os.path.dirname(full), parts[-1], content.encode(), attrs, domain=base,
-                    replace=bool(replace))
-        except FileExistsError:
-            raise ToolError(f"{domain}/{path} exists; pass replace to replace it") from None
-        except PermissionError:
-            raise ToolError(f"{domain}/{path}: permission denied") from None
-        except ValueError as err:
-            raise ToolError(str(err)) from None
+        with contextlib.ExitStack() as stack:
+            dom, parent, parts = self._walk(stack, domain, path, create=True)
+            where = os.path.join(self.root, domain, *parts[:-1])
+            try:
+                publish(where, parts[-1], content.encode(), attrs, domain=dom,
+                        replace=bool(replace), dir_fd=parent)
+            except FileExistsError:
+                raise ToolError(f"{domain}/{path} exists; pass replace to replace it") from None
+            except ValueError as err:
+                raise ToolError(str(err)) from None
+            except OSError as err:
+                raise _file_error(domain, path, err) from None
         return {"path": path, "replaced": bool(replace)}
 
     def delete(self, domain, path):
         if self.read_only:
             raise ToolError("read-only server")
-        full, _ = self.file_path(domain, path)
-        st = os.lstat(full)
-        if not stat.S_ISREG(st.st_mode):
-            raise ToolError(f"{domain}/{path}: not a regular file")
-        try:
-            os.unlink(full)
-        except PermissionError:
-            raise ToolError(f"{domain}/{path}: permission denied") from None
+        with contextlib.ExitStack() as stack:
+            _, parent, parts = self._walk(stack, domain, path)
+            try:
+                st = os.stat(parts[-1], dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                raise ToolError(f"{domain}/{path}: no such file") from None
+            if not stat.S_ISREG(st.st_mode):
+                raise ToolError(f"{domain}/{path}: not a regular file")
+            try:
+                os.unlink(parts[-1], dir_fd=parent)
+            except OSError as err:
+                raise _file_error(domain, path, err) from None
         return {"path": path, "deleted": True}
 
 

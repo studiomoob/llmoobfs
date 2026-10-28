@@ -41,6 +41,13 @@ Python SDK (`mcp`, version 2) serves tools over stdio or over HTTP.
    `--read-only` leaves out `write` and `delete`. Typing over JSON: an explicit `type` wins;
    otherwise a JSON boolean is a bool, an integer an int64, a fraction a double, a string a
    string; `time` takes an ISO 8601 string or integer nanoseconds.
+   *Note, 2026-10-28 (journal 0227, [GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)):* decisions 3 and 4 did not hold
+   against a member of a shared domain, who could swap a directory of a path for a symbolic link
+   after the `lstat()` check, nor against a saved uid of 0 or an effective capability. The server
+   now compares the full real, effective and saved ids, refuses any effective capability, and
+   opens each component relative to the one before with `O_NOFOLLOW`, working on those
+   descriptors; `read` opens with `O_NONBLOCK`. A directory moved elsewhere after it was opened
+   is still used.
 6. **Errors are explicit**: a refused query (`QueryRefused`), a permission denial or an invalid
    path is a tool error with its reason and no partial result.
 

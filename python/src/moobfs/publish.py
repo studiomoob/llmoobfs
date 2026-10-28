@@ -30,20 +30,24 @@ def file_mode_for(directory_mode):
     return out
 
 
-def _rename_noreplace(src, dst):
+def _rename_noreplace(src, dst, dir_fd=None):
     fn = getattr(libc(), "renameat2", None)
     if fn is None:
         raise OSError(errno.ENOSYS, "renameat2 is not available in this C library")
-    if fn(_AT_FDCWD, os.fsencode(src), _AT_FDCWD, os.fsencode(dst), _RENAME_NOREPLACE) != 0:
+    at = _AT_FDCWD if dir_fd is None else dir_fd
+    if fn(at, os.fsencode(src), at, os.fsencode(dst), _RENAME_NOREPLACE) != 0:
         e = ctypes.get_errno()
         raise OSError(e, os.strerror(e), dst)
 
 
 def publish(directory, name, data, attrs=None, *, domain=None, mode=None, replace=False,
-            _step=None):
+            dir_fd=None, _step=None):
     """Write data (bytes) under directory/name with the typed attributes attrs ({name: value}).
 
-    domain is the domain directory whose rule the file must meet (default: directory). mode
+    With dir_fd, an open descriptor of that directory, every step runs relative to it and
+    directory only names the returned path, so a directory renamed or replaced by a symbolic
+    link meanwhile is not followed. domain is the domain directory, or a descriptor of it,
+    whose rule the file must meet (default: directory). mode
     overrides file_mode_for(domain's mode). An existing name is refused (FileExistsError) unless
     replace is true, in which case it is replaced in one rename. Every attribute is checked
     before anything is written. Returns the final path. _step, for tests only, is called with
@@ -61,13 +65,19 @@ def publish(directory, name, data, attrs=None, *, domain=None, mode=None, replac
         if reason:
             raise ValueError(f"{k}: {reason}")
         typed.append((k, raw))
+    def at(n):
+        return n if dir_fd is not None else os.path.join(directory, n)
+
     final = os.path.join(directory, name)
-    if not replace and os.path.lexists(final):
+    if not replace and _lexists(at(name), dir_fd):
         raise FileExistsError(errno.EEXIST, os.strerror(errno.EEXIST), final)
-    dom = os.stat(domain or directory)
+    if domain is not None:
+        dom = os.stat(domain)
+    else:
+        dom = os.stat(dir_fd) if dir_fd is not None else os.stat(directory)
     fmode = file_mode_for(dom.st_mode) if mode is None else mode
-    tmp = os.path.join(directory, f".tmp.{os.getpid()}.{os.urandom(8).hex()}")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    tmp = at(f".tmp.{os.getpid()}.{os.urandom(8).hex()}")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=dir_fd)
     try:
         view = memoryview(data)
         while view:
@@ -81,23 +91,26 @@ def publish(directory, name, data, attrs=None, *, domain=None, mode=None, replac
         step("file_fsync")
     except BaseException:
         os.close(fd)
-        _unlink_quiet(tmp)
+        _unlink_quiet(tmp, dir_fd)
         raise
     os.close(fd)
     try:
         if replace:
-            os.rename(tmp, final)
+            os.rename(tmp, at(name), src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
         else:
-            _rename_noreplace(tmp, final)
+            _rename_noreplace(tmp, at(name), dir_fd)
     except BaseException:
-        _unlink_quiet(tmp)
+        _unlink_quiet(tmp, dir_fd)
         raise
     step("rename")
-    dfd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
-    try:
-        os.fsync(dfd)
-    finally:
-        os.close(dfd)
+    if dir_fd is not None:
+        os.fsync(dir_fd)
+    else:
+        dfd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(dfd)
+        finally:
+            os.close(dfd)
     step("dir_fsync")
     return final
 
@@ -123,8 +136,16 @@ def _identity(fd, mode, dom):
             raise
 
 
-def _unlink_quiet(path):
+def _lexists(path, dir_fd):
     try:
-        os.unlink(path)
+        os.stat(path, dir_fd=dir_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def _unlink_quiet(path, dir_fd=None):
+    try:
+        os.unlink(path, dir_fd=dir_fd)
     except FileNotFoundError:
         pass

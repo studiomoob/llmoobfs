@@ -63,6 +63,25 @@ class Store(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root)
 
+    def test_batched_labels_stay_inside_the_root(self):
+        from langgraph.store.base import GetOp, InvalidNamespaceError, PutOp, SearchOp
+        store = pkg.MoobStore(os.path.join(self.root, "store"))
+        os.mkdir(store.root)
+        outside = os.path.join(self.root, "outside")
+        os.mkdir(outside)
+        with open(os.path.join(outside, "k.json"), "w") as f:
+            f.write('{"value": {}, "created_at": "2026-10-27T00:00:00+00:00", '
+                    '"updated_at": "2026-10-27T00:00:00+00:00"}')
+        for op in (PutOp(("..", "outside"), "w", {"v": 1}), PutOp(("..", "outside"), "k", None),
+                   GetOp(("..", "outside"), "k"), SearchOp(("..",)), PutOp(("a", ""), "k", {}),
+                   PutOp((".", "a"), "k", {})):
+            with self.assertRaises(InvalidNamespaceError, msg=op):
+                store.batch([op])
+        with self.assertRaises(InvalidNamespaceError):    # checked before any operation runs
+            store.batch([PutOp(("ok",), "k", {"v": 1}), PutOp(("..",), "k", {"v": 1})])
+        self.assertEqual(sorted(os.listdir(outside)), ["k.json"])
+        self.assertEqual(os.listdir(store.root), [])
+
     def test_equal_to_in_memory_store(self):
         rng = random.Random(1)
         store, oracle = pkg.MoobStore(self.root, domain_depth=1), InMemoryStore()

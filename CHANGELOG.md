@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- GHSA-4gr9-rvgr-44qj and GHSA-3wx4-fh9w-2v66 (journal 0227, reported privately by an
+  external reviewer with the fixes, credited in the advisories; user space, no kernel change).
+  The MCP adapter opens every component of a path relative to the one before with `O_NOFOLLOW`
+  and works on those descriptors (`moobfs.publish` takes a `dir_fd`), so a member of a shared
+  domain who swaps a directory for a symbolic link between the check and the use is refused
+  instead of followed outside `--root`; `read` opens with `O_NONBLOCK`, so a FIFO no longer holds
+  the server; the server refuses a saved uid or gid that differs, a saved uid of 0 and any
+  effective capability. `MoobStore.batch()` checks every operation's namespace labels with
+  LangGraph's rule before any runs, so `.` and `..` cannot leave the store root.
+
 - OpenSSF Scorecard (journal 0225): `certifi` in `vm/kasan-requirements.txt` moves from
   2026.10.18 to 2026.10.19 (PYSEC-2026-4320); Dependabot also watches the hash-pinned Python
   requirements of `vm/` and `python/`; CodeQL runs on every pull request and push to `main`, not
