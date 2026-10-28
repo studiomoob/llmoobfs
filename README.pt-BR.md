@@ -143,12 +143,13 @@ na sua própria execução, veja [Experimente numa VM](#experimente-numa-vm).
 
 **Experimental. Só tags de pré-lançamento do código-fonte; a última, `v0.4.1-experimental`
 (2026-10-20), contém as correções dos achados F1 a F12 do ADR-0011, exceto a parte
-de cotas justas do F2. Não é para produção.** Três achados posteriores a afetam e estão corrigidos só
+de cotas justas do F2. Não é para produção.** Achados posteriores a afetam e estão corrigidos só
 na `main`: flags de estado do arquivo desatualizadas depois de `F_SETFL` e erros de leitura de
 atributo tomados como "sem atributo" ao indexar (revisão [0144](docs/history/0144-independent-review.md),
 R1 e R2), e um chmod durante a primeira construção de um domínio, que podia deixar o arquivo nas
 respostas do `QUERY2` para usuários que já não conseguem lê-lo (diários
-[0151](docs/history/0151-review-d110d4e.md), [0152](docs/history/0152-chmod-during-build-fixed.md)).
+[0151](docs/history/0151-review-d110d4e.md), [0152](docs/history/0152-chmod-during-build-fixed.md)),
+e os três relatos privados de 2026-10-27 listados abaixo.
 Fatos em 2026-10-25:
 
 - **Uma série de kernel**, em VM: Debian 6.12.111 no QEMU e o 6.12.112 upstream sob
@@ -167,8 +168,15 @@ Fatos em 2026-10-25:
   [diário 0114](docs/history/0114-second-inspection-of-5582e06.md)) e conferidas contra o kernel,
   acharam quatro defeitos de segurança (achados F9 a F12 do ADR-0011), relatados como avisos de
   segurança privados e corrigidos nos diários 0116 e 0117; nossos próprios testes e revisões
-  acharam outros antes. As tags até a `v0.4.0-experimental` carregam defeitos corrigidos depois
-  ([changelog](CHANGELOG.md)).
+  acharam outros antes. Três relatos privados de um revisor externo (2026-10-27) acharam o `QUERY2`
+  nomeando arquivos sob um diretório só de busca (F15, [GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6)),
+  registros de domínio e de arquivo respondidos para um número de inode reutilizado
+  ([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm)) e um bit set-user-ID mantido depois de uma escrita
+  (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), corrigidos na `main` nos diários
+  [0215](docs/history/0215-search-only-directories.md),
+  [0216](docs/history/0216-domain-record-generation.md) e
+  [0218](docs/history/0218-write-credentials-fsetid.md). As tags até a `v0.4.0-experimental`
+  carregam defeitos corrigidos depois ([changelog](CHANGELOG.md)).
 - **As medições são de nível piloto**, de uma máquina; o relatório que as reúne é o
   [diário 0088](docs/history/0088-m4-report.md). Não são uma afirmação geral de velocidade.
 - O índice vive **só em RAM** e não pode ir para o swap. Ele é construído por domínio na primeira
@@ -522,9 +530,9 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   está pendente.
 - Sem revisão humana externa do código do kernel. Duas revisões independentes do código, feitas por assistentes de IA
   (diários [0111](docs/history/0111-review-5582e06.md) e [0114](docs/history/0114-second-inspection-of-5582e06.md)),
-  e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
+  relatos privados de um revisor externo (diários 0215, 0216, 0218) e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
   segurança; os achados estão no [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)
-  (F1 a F14), e os defeitos anteriores nos diários [0015](docs/history/0015-phase-2e-investigation.md),
+  (F1 a F16), e os defeitos anteriores nos diários [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) e
@@ -584,6 +592,7 @@ experimento M1 está congelado e roda como regressão na mesma VM.
 | SQL sobre um domínio por uma tabela virtual do SQLite (protótipo) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |
 | Descrições do syzkaller para a montagem, as ioctls e os atributos; cinco rodadas de seis horas | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md) | 6.12.112 upstream com KCOV |
 | Correções de segurança dos achados F9 a F12 (regra de homogeneidade, checagens sem o semáforo de consulta, acesso de escrita na montagem de baixo, lower idmapped recusado), cada uma com teste e rodada negativa | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
+| Correções de segurança de F15, GHSA-756j-cgwq-gvwm e F16 (diretórios só de busca, registros de um número de inode reutilizado, set-user-ID mantido numa escrita), cada uma com teste e rodada negativa | [0215](docs/history/0215-search-only-directories.md), [0216](docs/history/0216-domain-record-generation.md), [0218](docs/history/0218-write-credentials-fsetid.md) | Debian 6.12.111; KASAN 6.12.112 para 0215 e 0216; ext4, btrfs, XFS |
 
 Não implementado: índice persistente, montagens em namespace de usuário ou idmapped, leituras em
 lote, cursor de mudanças, revisões, empacotamento, UAPI estável, a suíte xfstests completa e

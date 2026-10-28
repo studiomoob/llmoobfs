@@ -177,3 +177,7 @@ ainda sem revisão humana externa.
 sem revisão humana externa. Duas
 ainda nenhuma revisão humana externa.
 revisão humana externa (duas
+
+# Security batch 2 published: F15, F16 and GHSA-756j-cgwq-gvwm fixed (journals 0215, 0216, 0218).
+Three later findings affect it
+Três achados posteriores a afetam

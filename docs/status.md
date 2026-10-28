@@ -46,3 +46,12 @@ domain took 0.3 s with no delay and 9.8 s at 200 ms per I/O; at 400 ms it stoppe
 with `ETIMEDOUT` and no partial answer, and the next query answered in full. G5's domains of about
 25,000 real memories built at `index_build_work=65536`. Issue 113 (domain records kept until
 unmount) is fixed in the same batch.
+*Update, 2026-10-28 ([journal 0219](history/0219-security-batch-checks.md)):* a second security
+batch fixes three private reports from an external reviewer, each with a test and a negative
+round: `QUERY2` naming files under a search-only directory (F15 of ADR-0011,
+[GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6), [journal 0215](history/0215-search-only-directories.md)),
+domain and file records answered for a reused inode number
+([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm), [journal 0216](history/0216-domain-record-generation.md))
+and a set-user-ID bit kept through a write (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6),
+[journal 0218](history/0218-write-credentials-fsetid.md)). `v0.4.1-experimental` contains all
+three.
