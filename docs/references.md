@@ -619,3 +619,47 @@ question 21 of `docs/faq.md`. Licenses as stated by each repository.
   control", which tracks the patch series for a metadata access right; `security/landlock/fs.c`
   of Linux 7.3 registers no `inode_permission` or xattr hook. Why a query under Landlock follows
   `getxattr`, and what the layer should honor when that right lands (journal 0220).
+
+## 20. Lookup errnos, getattr, flush and build checks (issue #119 M4 and M8, journal 0221)
+
+Read on 2026-10-28 in the upstream 6.12.112 tree the KASAN kernel is built from, unless stated.
+
+- `Documentation/filesystems/vfs.rst`, `lookup`: an error only on a real error, since a negative
+  dentry is what lets `create(2)` and `mkdir(2)` proceed; a name that exists but cannot be
+  represented is such an error.
+- `ovl_lookup_single()`, `fs/overlayfs/namei.c:249`, and `ovl_dentry_weird()`,
+  `fs/overlayfs/util.c:201`: a lower object overlayfs does not support (automount, hashed or
+  compared names) fails the lookup with `EREMOTE`, without a log line. The same function in
+  Linux 7.3 ([source](https://github.com/torvalds/linux/blob/master/fs/overlayfs/namei.c),
+  `:254` and `:269`): "parent wrong casefold" is `ESTALE`, "child wrong casefold" is `EREMOTE`,
+  both with `pr_warn_ratelimited()`. The errnos the layer now returns; the log line, once.
+- `ovl_mount_dir_check()`, `fs/overlayfs/params.c:307`: overlayfs 6.12 refuses any layer whose
+  superblock has an encoding (`sb_has_encoding()`); not followed, as Linux 7.3 relaxed it to one
+  casefold state per layer (§ "Casefolded lower directories" above) and the layer serves the
+  ordinary directories of such a filesystem.
+- `fs/namei.c:1586` (`handle_mounts()` with `LOOKUP_NO_XDEV`, `openat2(RESOLVE_NO_XDEV)`): a
+  lookup that may not cross into another filesystem fails with `EXDEV`; the errno the layer keeps
+  for a btrfs subvolume.
+- `vfs_getattr()` and `vfs_getattr_nosec()`, `fs/stat.c:196` and `:136`; `ovl_do_getattr()`,
+  `fs/overlayfs/overlayfs.h:421`; `ecryptfs_do_getattr()`, `fs/ecryptfs/inode.c:1011`: the lower
+  security hook unless the call carries `AT_GETATTR_NOSEC`, which `vfs_getattr_nosec()` adds to
+  every `->getattr` call (`:166`).
+- `ovl_flush()`, `fs/overlayfs/file.c:582`, with `ovl_override_creds()`; `ecryptfs_flush()`,
+  `fs/ecryptfs/file.c:309`, without.
+- `vfs_fileattr_set()`, `fs/ioctl.c:668`, which takes `inode_lock()` on the inode it is given
+  (`:681`); `ecryptfs_fileattr_set()`, `fs/ecryptfs/inode.c:1132`, and `ovl_real_fileattr_set()`,
+  `fs/overlayfs/inode.c:640`, which call it on the lower dentry as the layer does.
+- `include/linux/backing-file.h:22` (`const struct file *user_file` in 6.12.112) and the
+  stable series that changed it,
+  "[PATCH v3 stable/linux-6.12.y 2/3] lsm: add backing_file LSM hooks"
+  ([LKML](https://lkml.iu.edu/2606.3/07613.html)); the v6.12 tag takes `const struct path *`
+  ([source](https://github.com/torvalds/linux/blob/v6.12/include/linux/backing-file.h)).
+  `static_assert()` and `__same_type()`, `include/linux/build_bug.h` and
+  `include/linux/compiler.h`.
+- `path_noexec()`, `fs/exec.c:112`, used by `do_open_execat()` (`:912`), `do_mmap()`
+  (`mm/mmap.c:417`) and `do_faccessat()` (`fs/open.c:503`); `may_open_dev()`, `fs/namei.c:3385`;
+  `SB_I_NOEXEC | SB_I_NODEV` set by binfmt_misc (`fs/binfmt_misc.c:990`) and pidfs
+  (`fs/pidfs.c:404`).
+- `pr_info_once()` and `pr_warn_once()`, `include/linux/printk.h`: a message a caller can cause
+  at will is logged once per module load; each occurrence stays visible through the errno and the
+  index's tracepoints (`moobfs_index_incomplete`, `moobfs_domain_build`, journal 0102).

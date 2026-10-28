@@ -105,6 +105,11 @@ advisory when it is a vulnerability under `SECURITY.md`; older versions are not 
 
 - Rule 1.2 (refusing to build against an unlisted kernel) needs a build-time check, which is a
   code change not made yet.
+  *Note, 2026-10-28 (journal 0221):* one interface is now checked at build time:
+  `layer/main.c` asserts the signature of `backing_file_open()` that the supported kernels have
+  (the user file, from the 6.12 stable backport of the backing-file LSM hooks; the v6.12 tag
+  takes the user path) and fails with a message naming this page. It checks the type, not the
+  version, so it is not the general refusal rule 1.2 asks for.
 - Decided on 2026-10-13, later the same day: instead of a patch release of `v0.2.0-experimental`,
   a new pre-release `v0.3.0-experimental` carries every fix (journal 0087).
 - 2026-10-19: `v0.4.0-experimental` carries the fixes made since, F2 (ADR-0016) and F4 among them

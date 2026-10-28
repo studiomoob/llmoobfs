@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Issue 119, M4 and M8 (journal 0221). **Behaviour change:** a casefolded lower directory, which
+  `readdir` lists, is refused by lookup with `EREMOTE` instead of `EOPNOTSUPP`, and every name in
+  a directory casefolded on the lower after the layer entered it with `ESTALE`: overlayfs's
+  errnos for the same cases. A btrfs subvolume below the root stays `EXDEV`, now checked by the
+  suite. The log says a casefolded directory was refused once per module load instead of on
+  every lookup, and the two index warnings a user can cause at will (a failed update, a failed
+  build) are printed once; the errnos and tracepoints report each occurrence. `getattr` honours
+  `AT_GETATTR_NOSEC` as ecryptfs and overlayfs do (no change on Linux 6.12, where every VFS call
+  carries it); `flush` runs with the mounter's credentials, as `ovl_flush()`; a build-time
+  assertion names the `backing_file_open()` signature the module needs. `fileattr_set` already
+  had the lower `i_rwsem` (taken by `vfs_fileattr_set()`), and `scan_delay_us` stays in the
+  shipped module so the suite tests the installed binary; both recorded, not changed.
+  `docs/when-not-to-use.md` states that nothing runs from the layer and device nodes in it
+  cannot be opened (`SB_I_NOEXEC`, `SB_I_NODEV`).
+
 - Prior-art search repeated (journal 0220): `docs/research-originality.md` §10 adds KiwiFS,
   OpenViking, LSFS, macOS `searchfs()` and others, and records the YoloFS paper as read; nothing
   found combines what MoobFS does. New FAQ question 21, "Why a kernel module and not a

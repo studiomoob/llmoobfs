@@ -130,6 +130,13 @@ These limits update the cases discussed in the value assessment, §9.6.
   rounds. A module bug can mean a kernel panic or data loss.
 - **The team cannot maintain an out-of-tree kernel module** across kernel updates, signing
   and DKMS; none of that tooling exists in the project.
+- **Programs or device nodes live in the store.** The layer marks its superblock `SB_I_NOEXEC`
+  and `SB_I_NODEV` (overlayfs does not; binfmt_misc and pidfs do): nothing runs from it
+  (`execve` fails with `EACCES`, `mmap` with `PROT_EXEC` with `EPERM`, `access(X_OK)` with
+  `EACCES`) and opening a device node in it fails with `EACCES`, whatever the mount options
+  (`path_noexec()`, `fs/exec.c`; `may_open_dev()`, `fs/namei.c`).
+  It is meant for data files; keep executables, scripts run by path and devices elsewhere
+  (journal 0221).
 - **Deduplication, reflink or snapshots are the attraction.** Those come from btrfs or XFS
   and work without MoobFS; the layer only forwards the calls.
 

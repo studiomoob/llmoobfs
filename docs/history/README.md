@@ -240,3 +240,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0218 — Write credentials carry CAP_FSETID only when the writer has it (GHSA-6xf4-r246-92r6)](0218-write-credentials-fsetid.md)
 - [0219 — Security batch 2: full suite and KASAN before publication](0219-security-batch-checks.md)
 - [0220 — Second prior-art search, "why not a service?" and QUERY2 under Landlock](0220-prior-art-update-and-landlock.md)
+- [0221 — Lookup errnos, once-only logs, getattr, flush and build checks (issue 119, M4 and M8)](0221-lookup-errnos-and-m8.md)
