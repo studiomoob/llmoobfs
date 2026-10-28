@@ -9,8 +9,8 @@
  * --domain treats <dir> as a domain directory (docs/spec-query-v2.md §3): its own
  * attributes are left out, and an entry is listed only when it passes the homogeneity
  * rule, evaluated here independently of the kernel from mode bits, owner, group, link
- * count and the presence of an access ACL on <dir>, every directory below it on the way,
- * and the entry itself.
+ * count and an extended access ACL (tools/ext-acl.h) on <dir>, every directory below it on
+ * the way, and the entry itself.
  * --order lists only entries whose NAME attribute has TYPE, sorted by (value, ino) ascending
  * or descending (the QUERY2 order); terms may then be empty. --limit keeps the first N.
  * An operator ending in '?' (for example "gt?") also matches files without the attribute.
@@ -25,6 +25,7 @@
 #include <limits.h>
 #include <grp.h>
 #include "query-common.h"
+#include "ext-acl.h"
 
 static struct moob_query_term terms[MOOB_QUERY_MAX_TERMS];
 static int nterms;
@@ -32,11 +33,6 @@ static size_t root_len;
 static int domain_mode;
 static struct stat dom_st;
 static int dom_acl;
-
-static int has_acl(const char *path)
-{
-	return getxattr(path, "system.posix_acl_access", NULL, 0) > 0;
-}
 
 /*
  * Everyone who can traverse the domain can read (want_read) or list and traverse this inode:
@@ -47,7 +43,7 @@ static int reach_ok(const char *path, const struct stat *st, int want_read)
 	mode_t u = want_read ? S_IRUSR : S_IRUSR | S_IXUSR;
 	mode_t g = want_read ? S_IRGRP : S_IRGRP | S_IXGRP;
 	mode_t o = want_read ? S_IROTH : S_IROTH | S_IXOTH;
-	int acl = has_acl(path);
+	int acl = moob_ext_acl(path, st->st_mode);
 
 	/* every class: the kernel never judges owner or group by the bits of others */
 	if (!acl && (st->st_mode & (u | g | o)) == (u | g | o))
@@ -274,7 +270,7 @@ int main(int argc, char **argv)
 			perror(argv[1]);
 			return 1;
 		}
-		dom_acl = has_acl(argv[1]);
+		dom_acl = moob_ext_acl(argv[1], dom_st.st_mode);
 	}
 	if (nftw(argv[1], visit, 32, FTW_PHYS | FTW_MOUNT)) {
 		perror("nftw");

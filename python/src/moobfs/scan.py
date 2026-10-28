@@ -6,7 +6,8 @@ A file is a candidate only where the kernel would index it (docs/spec-query-v2.m
 layer/index.c reach_ok and target_ok): every directory between the domain and the file can be
 listed and traversed by everyone who can traverse the domain, the file is readable by all of
 them, it has one
-name, and neither carries an access ACL beyond the minimal one. So the scan returns what QUERY2
+name, and neither carries an extended access ACL (one that may decide otherwise than the mode
+bits). So the scan returns what QUERY2
 returns on a mounted layer, never a file the domain does not share with all who can enter it,
 even when the caller could open it. The caller must be able to read and search the domain
 directory, as QUERY2 requires.
@@ -26,9 +27,11 @@ from .query import Match, check_request, sort_key
 _ACL_ACCESS = "system.posix_acl_access"
 
 
-def _ext_acl(path):
-    """ext_acl: an access ACL with more than the three minimal entries. An ACL that cannot be
-    read counts as extended, as in the kernel."""
+def _ext_acl(path, mode):
+    """ext_acl of layer/index.c: an access ACL that may decide otherwise than the mode bits,
+    because it has a named or mask entry (posix_acl_equiv_mode() is not 0) or its three entries
+    differ from mode (journal 0222). An ACL that cannot be read or parsed counts as extended,
+    as in the kernel; no ACL, or no ACL support, does not."""
     try:
         raw = (os.getxattr(path, _ACL_ACCESS) if isinstance(path, int)
                else os.getxattr(path, _ACL_ACCESS, follow_symlinks=False))
@@ -36,9 +39,24 @@ def _ext_acl(path):
         if err.errno in (errno.ENODATA, errno.EOPNOTSUPP, errno.ENOTSUP):
             return False
         return True
-    if len(raw) < 4 or (len(raw) - 4) % 8:
+    if len(raw) < 4 or (len(raw) - 4) % 8 or raw[:4] != b"\x02\x00\x00\x00":
         return True
-    return (len(raw) - 4) // 8 > 3
+    bits, not_equiv = 0, False
+    for off in range(4, len(raw), 8):
+        tag, perm = raw[off] | raw[off + 1] << 8, (raw[off + 2] | raw[off + 3] << 8) & 0o7
+        if tag == 0x01:         # ACL_USER_OBJ
+            bits |= perm << 6
+        elif tag == 0x04:       # ACL_GROUP_OBJ
+            bits |= perm << 3
+        elif tag == 0x20:       # ACL_OTHER
+            bits |= perm
+        elif tag == 0x10:       # ACL_MASK
+            bits, not_equiv = (bits & ~0o70) | perm << 3, True
+        elif tag in (0x02, 0x08):   # ACL_USER, ACL_GROUP
+            not_equiv = True
+        else:
+            return True
+    return not_equiv or bits != mode & 0o777
 
 
 def _reach_ok(st, ext, dom, dom_ext, want_read):
@@ -66,7 +84,7 @@ def candidates(domain_dir):
     fd = os.open(domain_dir, os.O_RDONLY | os.O_DIRECTORY)
     try:
         dom = os.fstat(fd)          # the directory QUERY2 would be issued on, not a link to it
-        dom_ext = _ext_acl(fd)
+        dom_ext = _ext_acl(fd, dom.st_mode)
     finally:
         os.close(fd)
     effective = os.access in os.supports_effective_ids
@@ -91,7 +109,7 @@ def candidates(domain_dir):
             is_dir, is_reg = stat.S_ISDIR(st.st_mode), stat.S_ISREG(st.st_mode)
             if not (is_dir or is_reg):
                 continue
-            ext = _ext_acl(path)
+            ext = _ext_acl(path, st.st_mode)
             if is_dir and _reach_ok(st, ext, dom, dom_ext, False):
                 stack.append(sub)
             if is_reg and st.st_nlink > 1:

@@ -82,6 +82,7 @@ stage_bin /usr/bin/sqlite3
 stage_bin /usr/sbin/dmsetup
 stage_bin /usr/sbin/mke2fs
 stage_bin /usr/sbin/e2fsck
+stage_bin /usr/sbin/debugfs
 stage_bin /usr/bin/setfacl
 stage_bin /usr/bin/getfacl
 mkdir -p "$STAGE/usr/lib/git-core"

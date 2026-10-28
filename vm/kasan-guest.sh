@@ -9,7 +9,7 @@ REPO=$(cd "$(dirname "$0")/.." && pwd)
 cd "$REPO" || exit 1
 OUT=$REPO/build/vng
 mkdir -p "$OUT/tools"
-for t in git sqlite3 dmsetup mke2fs e2fsck setfacl getfacl; do
+for t in git sqlite3 dmsetup mke2fs e2fsck debugfs setfacl getfacl; do
     p=$(command -v "$t") || { echo "MOOBFS_VM_FAIL: missing $t on the host"; exit 1; }
     ln -sf "$p" "$OUT/tools/$t"
 done
