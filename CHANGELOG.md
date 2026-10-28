@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Security batch 2 checks (journal 0218): full `make vm-test` and KASAN/UBSAN/lockdep suite
+- Security batch 2 checks (journal 0219): full `make vm-test` and KASAN/UBSAN/lockdep suite
   passed on the branch of journals 0215 and 0216. Two suite defects found on the way are fixed:
   `pm-mv` and `buildmoved` no longer need `mountpoint`, and `tr_on()` turns `tracing_on` on.
 

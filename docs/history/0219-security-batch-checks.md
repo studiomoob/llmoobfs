@@ -1,4 +1,4 @@
-# 0218 — Security batch 2: full suite and KASAN before publication
+# 0219 — Security batch 2: full suite and KASAN before publication
 
 Date: 2026-10-27 to 2026-10-28. Status: on the private branch `sec/batch2` (`main` at `5fa567b`
 with the fixes of journals 0215 and 0216); embargoed until the advisories are published. Work
