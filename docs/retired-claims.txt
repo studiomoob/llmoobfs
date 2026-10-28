@@ -211,3 +211,4 @@ Issue 118 remains open for slow lower-device
 validated on write, rebuilt on mount
 built at mount from the xattrs
 QUERY ioctl on the mount root
+refused through the layer with `EOPNOTSUPP`

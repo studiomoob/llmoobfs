@@ -245,6 +245,10 @@ turning that rule on, and the build-time check of an unlisted kernel.
 - `WARN_ON_ONCE` instead of `WARN_ON` on user-triggerable paths (precedent: CVE-2026-74619,
   overlayfs, `WARN_ON` in a loop crashes the kernel with `panic_on_warn`).
 - Rate limiting on every user-triggerable `dmesg` message (`pr_warn_ratelimited`).
+  *Note, 2026-10-28 (journal 0221):* stricter for the three a caller can repeat at will (a
+  casefolded directory refused by lookup, a failed index update, a failed domain build): printed
+  once per module load (`pr_info_once`, `pr_warn_once`); the errno and the index tracepoints
+  report each occurrence.
 - Done when: the suite passes with the options enabled and the `WARN_ON`/`pr_*` review is
   complete.
 - *Progress, 2026-10-15 (journal 0115):* KCSAN over the stress steps `buildrace` and `release`,

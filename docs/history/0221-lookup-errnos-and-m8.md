@@ -102,7 +102,8 @@ creation proceed. Read in the 6.12.112 sources and in overlayfs of Linux 7.3:
   `open(O_CREAT)` fail with `EXDEV`. `vm/suite.sh` passes the lower to `cfcheck` and runs
   `svcheck` in the btrfs step.
 - `docs/testing.md` (the `CASEFOLD_REFUSED_PASS` row, new row `LAYER_SUBVOLUME_PASS`),
-  `docs/when-not-to-use.md`, a dated note in `docs/compatibility.md` (open points),
+  `docs/when-not-to-use.md`, dated notes in `docs/compatibility.md` (open points) and
+  `docs/security-roadmap.md` (S8), the old casefold errno wording in `docs/retired-claims.txt`,
   `docs/references.md` §20, `CHANGELOG.md`, the history index.
 
 ## Evidence
