@@ -19,7 +19,8 @@ repository is GPL-2.0-only.
   Optional: `pip install "./python[langgraph]"`. G1's mounted gate passed on it (journal 0207).
 - **MCP**: `python -m moobfs.mcp --root /srv/memory` serves the tools `info`, `query`, `read`,
   `write` and `delete` to an agent over stdio (ADR-0024). It runs as the agent's own user and
-  refuses root and setuid, offers no network transport, and keeps every path inside the root;
+  refuses root, setuid and capabilities, offers no network transport, and keeps every path inside the root,
+  opening it one component at a time without following links;
   `--read-only` leaves out `write` and `delete`. Optional: `pip install "./python[mcp]"`. An
   agent host starts it like any stdio MCP server, under the agent's uid.
 

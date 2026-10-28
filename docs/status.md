@@ -70,3 +70,7 @@ and eviction of an inode without an index record no longer take the mount-wide i
 inode with a record still does, and the issue stays open for it
 ([journal 0223](history/0223-index-lock-instantiation-eviction.md)). `v0.4.1-experimental` contains all
 of these defects.
+*Update, 2026-10-28 ([journal 0227](history/0227-mcp-and-store-confinement.md)):* two private
+reports from the same external reviewer, in user space, are fixed: the MCP adapter followed a
+directory swapped for a symbolic link by a member of a shared domain ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), and the LangGraph
+store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). No tag contains either defect.

@@ -74,3 +74,7 @@ issue 117 foi corrigida em parte: criar e despejar um inode sem registro no índ
 trava do índice da montagem inteira; um inode com registro ainda toma, e a issue continua aberta
 para ele ([diário 0223](history/0223-index-lock-instantiation-eviction.md)). A `v0.4.1-experimental`
 contém todos esses defeitos.
+*Atualização, 28/10/2026 ([diário 0227](history/0227-mcp-and-store-confinement.md)):* dois relatos
+privados do mesmo revisor externo, em espaço de usuário, estão corrigidos: o adaptador MCP seguia
+um diretório trocado por um link simbólico por um membro de um domínio compartilhado ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), e o
+`batch()` do store do LangGraph deixava rótulos `..` saírem da raiz ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). Nenhuma tag contém esses defeitos.
