@@ -30,6 +30,14 @@
   `moobfs-check` says "has an extended access ACL". New suite step `minacl` (debugfs is staged
   in both harnesses); `buildlimit` checks root's exemption from the admission.
 
+- Passthrough gaps of issue #115 (journal 0224, V1, V3, V5 and V7 of journal 0155):
+  `posix_fadvise` and `readahead(2)` on a layer file now act on the lower file's page cache;
+  `statx` reports the lower's `STATX_DIOALIGN`, `STATX_WRITE_ATOMIC`, `STATX_SUBVOL` and
+  encrypted, verity and DAX attributes; a file removed behind the layer frees its space once the
+  layer drops its name, instead of at memory reclaim; `O_NOATIME` set with `F_SETFL` after open
+  reaches the lower file. New `tests/passthrough.c` (`PASSTHROUGH_PASS`) in the ext4, btrfs and
+  XFS steps. `cachestat(2)` still reads the layer's empty mapping (no hook).
+
 - Prior-art search repeated (journal 0220): `docs/research-originality.md` §10 adds KiwiFS,
   OpenViking, LSFS, macOS `searchfs()` and others, and records the YoloFS paper as read; nothing
   found combines what MoobFS does. New FAQ question 21, "Why a kernel module and not a

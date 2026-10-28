@@ -693,3 +693,25 @@ All in the Linux 6.12.112 tree used by the KASAN build
 - e2fsprogs 1.47.2 `debugfs` (`ea_set -f`, `ea_list`; [debugfs(8)](https://man7.org/linux/man-pages/man8/debugfs.8.html)),
   which converts `system.posix_acl_access` into ext4's on-disk form: plants the minimal ACLs of
   the `minacl` suite step on an unmounted filesystem.
+
+## 23. Passthrough gaps of issue #115 (journal 0224)
+
+Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
+([source](https://github.com/gregkh/linux/tree/v6.12.112)).
+
+- `ovl_fadvise()`, `fs/overlayfs/file.c:462`: overlayfs forwards `vfs_fadvise()` to the real
+  file; the model of `moobl_fadvise()`. `vfs_fadvise()`, `mm/fadvise.c:180`, exported at `:187`.
+  `ksys_readahead()`, `mm/readahead.c:677`, ends in `vfs_fadvise(..., POSIX_FADV_WILLNEED)`
+  (`:694`), so `readahead(2)` follows the same hook; `cachestat(2)`, `mm/filemap.c:4462`, reads
+  the descriptor's own `f_mapping` (`:4501`) and has no hook.
+- `ovl_getattr()`, `fs/overlayfs/inode.c:156`: overlayfs starts from the real file's kstat
+  (`:173`) and overwrites what the overlay owns; `struct kstat`, `include/linux/stat.h`, for the
+  `dio_*`, `subvol` and `atomic_write_*` fields; `vfs_getattr_nosec()`, `fs/stat.c:136`, which
+  sets `STATX_ATTR_DAX` in `attributes_mask` itself (`:159`, `:162`).
+- `iput_final()`, `fs/inode.c:1837`, calls `->drop_inode` under `i_lock` (`:1846`);
+  `generic_drop_inode()`, `include/linux/fs.h:3188`. overlayfs (`fs/overlayfs/super.c:265`) and
+  FUSE (`fs/fuse/inode.c:1192`) use `generic_delete_inode`; ecryptfs (`ecryptfs_sops`,
+  `fs/ecryptfs/super.c:177`) keeps the default.
+- `OVL_SETFL_MASK` and `ovl_change_flags()`, `fs/overlayfs/file.c:62`; `ovl_open_realfile()`
+  drops `O_NOATIME` when the mounter does not own the real inode (`:49`). `SETFL_MASK` and the
+  `O_NOATIME` ownership check of `setfl()`, `fs/fcntl.c:37` and `:51`.
