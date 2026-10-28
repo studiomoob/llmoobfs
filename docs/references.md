@@ -715,3 +715,25 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
 - `OVL_SETFL_MASK` and `ovl_change_flags()`, `fs/overlayfs/file.c:62`; `ovl_open_realfile()`
   drops `O_NOATIME` when the mounter does not own the real inode (`:49`). `SETFL_MASK` and the
   `O_NOATIME` ownership check of `setfl()`, `fs/fcntl.c:37` and `:51`.
+
+## 22. Index lock on instantiation and eviction (issue #117, journal 0223)
+
+- `iget5_locked()`, `inode_insert5()`, `ilookup5_nowait()` and `iput()`, `fs/inode.c:1328`,
+  `:1255`, `:1553` and `:1889`, Linux 6.12.112
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/inode.c)): the insertion of a new
+  inode (`:1263`) and the lookup (`:1559`) both run under `inode_hash_lock`; the final reference
+  is dropped by `atomic_dec_and_lock()` (`:1895`). The ordering behind the lockless test on
+  instantiation, and why a link stored by a reference holder is visible at eviction.
+- `xa_load()`, `lib/xarray.c:1466`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/lib/xarray.c)), and
+  `Documentation/core-api/xarray.rst` ("The XArray uses RCU and an internal spinlock",
+  "Takes RCU read lock: xa_load()"), same tree: a lookup in any context without the user's lock;
+  the layer only tests its result for `NULL`.
+- `Documentation/atomic_t.txt:169` (value-returning RMW operations are fully ordered) and
+  `Documentation/memory-barriers.txt:474` and `:489` (ACQUIRE and RELEASE operations, among them
+  LOCK and UNLOCK), same tree: the two orderings the argument uses.
+- `ecryptfs_evict_inode()`, `fs/ecryptfs/super.c:119`; `ovl_destroy_inode()`,
+  `fs/overlayfs/super.c:177`; `ovl_lookup_inode()`, `fs/overlayfs/inode.c:1102`, same tree
+  ([source](https://github.com/gregkh/linux/tree/v6.12.112/fs)): two stacked filesystems that take
+  no filesystem-wide lock on eviction, and overlayfs finding its inodes by key with `ilookup5()`
+  instead of keeping pointers to them, the model of the proposal not taken in journal 0223.

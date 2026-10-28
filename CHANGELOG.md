@@ -44,6 +44,14 @@
   reaches the lower file. New `tests/passthrough.c` (`PASSTHROUGH_PASS`) in the ext4, btrfs and
   XFS steps. `cachestat(2)` still reads the layer's empty mapping (no hook).
 
+- Issue #117 (journal 0223, finding M2 of journal 0155): instantiating or evicting a layer inode
+  took the mount-wide index lock for writing even when the inode had no index record, so memory
+  reclaim could wait behind a domain build. Both paths now test for a record without the lock
+  and return when there is none; inodes with a record keep the old path. New suite step
+  `ixlock` (`IXLOCK_PASS`) with the test-only module parameter `scan_hold_us`: during builds that
+  hold the lock, 8 inodes without a record are instantiated and evicted in 0 ms, against about
+  6.7 s each on the old code.
+
 - Prior-art search repeated (journal 0220): `docs/research-originality.md` §10 adds KiwiFS,
   OpenViking, LSFS, macOS `searchfs()` and others, and records the YoloFS paper as read; nothing
   found combines what MoobFS does. New FAQ question 21, "Why a kernel module and not a
