@@ -13,18 +13,57 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
 
-#ifndef STATX_WRITE_ATOMIC
-#error "linux/stat.h older than 6.11"
+/*
+ * The statx fields compared below are newer than some C libraries' struct statx (glibc 2.39 of
+ * Ubuntu 24.04, used by CI, has no stx_subvol), so the test calls the system call with the
+ * structure of the Linux 6.12 UAPI (include/uapi/linux/stat.h), 256 bytes.
+ */
+#ifndef STATX_DIOALIGN
+#define STATX_DIOALIGN 0x00002000U
 #endif
+#ifndef STATX_SUBVOL
+#define STATX_SUBVOL 0x00008000U
+#endif
+#ifndef STATX_WRITE_ATOMIC
+#define STATX_WRITE_ATOMIC 0x00010000U
+#endif
+struct pt_statx_ts {
+	int64_t tv_sec;
+	uint32_t tv_nsec;
+	int32_t reserved;
+};
+struct pt_statx {
+	uint32_t stx_mask, stx_blksize;
+	uint64_t stx_attributes;
+	uint32_t stx_nlink, stx_uid, stx_gid;
+	uint16_t stx_mode, spare0;
+	uint64_t stx_ino, stx_size, stx_blocks, stx_attributes_mask;
+	struct pt_statx_ts stx_atime, stx_btime, stx_ctime, stx_mtime;
+	uint32_t stx_rdev_major, stx_rdev_minor, stx_dev_major, stx_dev_minor;
+	uint64_t stx_mnt_id;
+	uint32_t stx_dio_mem_align, stx_dio_offset_align;
+	uint64_t stx_subvol;
+	uint32_t stx_atomic_write_unit_min, stx_atomic_write_unit_max, stx_atomic_write_segments_max;
+	uint32_t spare1;
+	uint64_t spare3[9];
+};
+_Static_assert(sizeof(struct pt_statx) == 256, "struct statx of the Linux 6.12 UAPI");
+
+static int pt_statx(const char *path, unsigned int mask, struct pt_statx *st)
+{
+	return (int)syscall(SYS_statx, AT_FDCWD, path, 0, mask, st);
+}
 
 static const char *layer, *lower;
 static char lp[4096], up[4096];
@@ -150,13 +189,13 @@ static int t_statx(void)
 	const unsigned int mask = STATX_BASIC_STATS | STATX_BTIME | STATX_DIOALIGN | STATX_SUBVOL |
 				  STATX_WRITE_ATOMIC;
 	const unsigned int extra = STATX_DIOALIGN | STATX_SUBVOL | STATX_WRITE_ATOMIC;
-	struct statx a, b;
+	struct pt_statx a, b;
 	int ok;
 
 	paths("pt-statx");
 	if (fill(up, 1 << 16))
 		return perror("statx fill"), 0;
-	if (statx(AT_FDCWD, lp, 0, mask, &a) || statx(AT_FDCWD, up, 0, mask, &b)) {
+	if (pt_statx(lp, mask, &a) || pt_statx(up, mask, &b)) {
 		perror("statx");
 		unlink(up);
 		return 0;
