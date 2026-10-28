@@ -41,6 +41,8 @@
 #                       reused: the new ones are not answered from the removed ones' index
 #   minacl              minimal access ACLs planted with debugfs: the kernel, moobfs-index,
 #                       moobfs-check and the Python scan agree on which ones are extended (0222)
+#   ixlock              inodes without an index record are instantiated and evicted without
+#                       waiting for the index lock held by a build (issue #117)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
@@ -62,6 +64,7 @@ want() {
 }
 for step in ${MOOB_ONLY:-}; do
     case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|ixlock|pylib) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -2280,6 +2283,46 @@ print(" ".join(sorted(p for p, _, _ in scan.candidates(sys.argv[2]))))' "${REPO:
 fi
 umount "$LAYER" && umount "$LOWER" || fail ma-cleanup
 echo "MINACL_PASS: kernel answered plain and same, left out other0 (minimal ACL other than the mode) and named; moobfs-index and moobfs-check equal; python scan: $ma_py"
+if want ixlock; then
+# Issue #117 (journal 0223): instantiating or evicting a layer inode took the index lock for
+# writing even when the inode had no record. A build holds that lock for 2.5 s per file
+# (scan_hold_us, 3 files per domain), and the measurement starts 1 s into it, so a path that
+# takes the lock waits at least the 1.5 s left of the first hold (a few evictions in a row may
+# then get the lock between two holds). During the build of domain s1, tests/ixlock.c
+# instantiates the 8 files of domain plain, which have no record; during the build of s2 it
+# evicts them with drop_caches. Neither may wait for the build, and each build must still be
+# running when its measurement ends, or nothing was measured under the lock.
+il_hold=/sys/module/moobfs_layer/parameters/scan_hold_us
+[ -w "$il_hold" ] || fail "il-no-param (module without the scan_hold_us test parameter)"
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail il-lower-mount
+rm -rf "$LOWER/il" && mkdir -p "$LOWER/il/s1" "$LOWER/il/s2" "$LOWER/il/plain" || fail il-mkdir
+"$BIN/overbudget-race" plant "$LOWER/il/s1" 3 && "$BIN/overbudget-race" plant "$LOWER/il/s2" 3 || fail il-plant
+i=0
+while [ $i -lt 8 ]; do : > "$LOWER/il/plain/f0000$i" || fail "il-plain-$i"; i=$((i + 1)); done
+mount -t moobfs_layer -o lower="$LOWER/il",domain_depth=1 none "$LAYER" || fail il-mount
+echo 2500000 > "$il_hold" || fail il-hold-on
+# il_under <domain> <ixlock arguments>: runs ixlock while the build of <domain> holds the lock
+il_under() {
+    il_d=$1; shift
+    "$BIN/query" "$LAYER/$il_d" q2 kind eq string x > /tmp/il-q.txt 2>&1 &
+    il_q=$!
+    sleep 1
+    run_logged /tmp/il.txt "$BIN/ixlock" "$@" || { echo 0 > "$il_hold"; wait $il_q; fail "il-helper-$il_d"; }
+    kill -0 $il_q 2>/dev/null; il_alive=$?
+    wait $il_q || { cat /tmp/il-q.txt; echo 0 > "$il_hold"; fail "il-build-query-$il_d"; }
+}
+il_under s1 stat "$LAYER/plain" 8
+il_stat=$(sed -n 's/.*stat_ms=\([0-9]*\).*/\1/p' /tmp/il.txt); il_alive1=$il_alive
+il_under s2 drop
+il_drop=$(sed -n 's/.*drop_ms=\([0-9]*\).*/\1/p' /tmp/il.txt); il_alive2=$il_alive
+echo 0 > "$il_hold" || fail il-hold-off
+[ -n "$il_stat" ] && [ -n "$il_drop" ] || fail il-parse
+[ "$il_stat" -lt 1000 ] || fail "il-instantiate-waited ($il_stat ms for 8 files without a record)"
+[ "$il_drop" -lt 1000 ] || fail "il-evict-waited ($il_drop ms to evict them)"
+[ $il_alive1 -eq 0 ] && [ $il_alive2 -eq 0 ] || fail "il-window (a build ended before its measurement did)"
+"$BIN/query" "$LAYER" info | grep -q 'domain_builds=2' || fail il-build-count
+umount "$LAYER" && rm -rf "$LOWER/il" && umount "$LOWER" || fail il-cleanup
+echo "IXLOCK_PASS: 8 inodes without a record instantiated in $il_stat ms and evicted (drop_caches) in $il_drop ms while builds held the index lock"
 fi
 if want pylib && ! command -v python3 > /dev/null 2>&1; then
     echo "PYLIB_SKIPPED: no python3 in this guest (the KASAN harness boots the host's root)"

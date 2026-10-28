@@ -46,10 +46,10 @@
 #include "moobl_trace.h"
 
 /*
- * The index lock is taken when a layer inode is evicted (moobl_index_inode_evicted), and
- * memory reclaim evicts inodes. An allocation made with the lock held must therefore not
- * recurse into filesystem reclaim, or the task would wait for the lock it holds. Every
- * section runs in a NOFS scope, so the accounted allocations inside it can
+ * The index lock is taken when a layer inode that has a record is evicted
+ * (moobl_index_inode_evicted), and memory reclaim evicts inodes. An allocation made with the
+ * lock held must therefore not recurse into filesystem reclaim, or the task would wait for the
+ * lock it holds. Every section runs in a NOFS scope, so the accounted allocations inside it can
  * keep the reclaim behavior of GFP_KERNEL_ACCOUNT.
  */
 static inline unsigned int ix_write_lock(struct moobl_index *ix)
@@ -844,6 +844,16 @@ module_param(scan_delay_us, uint, 0644);
 MODULE_PARM_DESC(scan_delay_us, "tests only: microseconds the index scan sleeps between reading a file and storing it");
 
 /* Tests only, kept for the reason above: fail one listed attribute's value read after listxattr. */
+/*
+ * For tests only (vm/suite.sh step ixlock, issue #117): microseconds the index scan sleeps
+ * with the index lock held for writing, once per file, so that a test can show which paths
+ * wait for that lock and which do not.
+ */
+static unsigned int scan_hold_us;
+module_param(scan_hold_us, uint, 0644);
+MODULE_PARM_DESC(scan_hold_us, "tests only: microseconds the index scan holds the index lock for each file");
+
+/* Tests only: fail one listed attribute's value read, after listxattr succeeds. */
 static int scan_getxattr_errno_once;
 module_param(scan_getxattr_errno_once, int, 0644);
 MODULE_PARM_DESC(scan_getxattr_errno_once, "tests only: errno for one index-scan getxattr");
@@ -1458,6 +1468,8 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 		if (unlikely(READ_ONCE(scan_delay_us)) && path)
 			usleep_range(scan_delay_us, scan_delay_us + 50);
 		nofs = ix_write_lock(ix);
+		if (unlikely(READ_ONCE(scan_hold_us)) && path)
+			fsleep(READ_ONCE(scan_hold_us));
 		if (ld.dirty) {		/* this file was updated while it was being read */
 			ld.dirty = false;
 			trace_moobfs_scan_reread(ix->dev, li->i_ino);
@@ -2659,13 +2671,31 @@ bool moobl_rename_crosses_domain(struct super_block *sb, struct dentry *old_dent
 	return od != nd || odom != ndom;
 }
 
+/*
+ * Instantiation and eviction take the index lock only when the inode has a record (issue
+ * #117): most inodes of a mount have none, and eviction runs in memory reclaim. xa_load()
+ * reads ix->inodes under RCU without the lock; the result is only tested for NULL, never
+ * dereferenced, since records are freed without RCU.
+ *
+ * Instantiation: the record may be stored by a scan just after the lockless look found none.
+ * The scan looks the layer inode up with ilookup5() after storing the record, and both that
+ * lookup and the insertion of the new inode by iget5_locked() take inode_hash_lock, the
+ * insertion before this look: either the scan's lookup finds the inode and makes the link, or
+ * it ran before the insertion, and then the stored record is visible here. The other writers
+ * of rec->upper (moobl_index_set) set it themselves.
+ *
+ * Eviction: rec->upper = inode is only ever stored under the index lock by a task holding a
+ * reference to inode, into a record that is in ix->inodes at the time. Dropping that reference
+ * is a fully ordered atomic that comes before the final iput(), so the record, or its later
+ * removal from ix->inodes, is visible here. No record means no pointer to inode to clear.
+ */
 void moobl_index_inode_cached(struct super_block *sb, struct inode *inode)
 {
 	unsigned int nofs;
 	struct moobl_index *ix = IX(sb);
 	struct moobl_ix_inode *rec;
 
-	if (!ix->enabled)
+	if (!ix->enabled || !xa_load(&ix->inodes, inode->i_ino))
 		return;
 	nofs = ix_write_lock(ix);
 	rec = xa_load(&ix->inodes, inode->i_ino);
@@ -2682,7 +2712,7 @@ void moobl_index_inode_evicted(struct super_block *sb, struct inode *inode)
 	struct moobl_index *ix = IX(sb);
 	struct moobl_ix_inode *rec;
 
-	if (!ix->enabled)
+	if (!ix->enabled || !xa_load(&ix->inodes, inode->i_ino))
 		return;
 	nofs = ix_write_lock(ix);
 	rec = xa_load(&ix->inodes, inode->i_ino);

@@ -30,6 +30,7 @@ t query-build-moved -Iinclude tests/query-build-moved.c
 t hostile    tests/hostile.c
 t buildrace  -Iinclude tests/buildrace.c -lpthread
 t chmodrace  -Iinclude tests/chmodrace.c
+t ixlock     tests/ixlock.c
 t query      -Iinclude tests/query.c common/attr.c
 t asuid      tests/asuid.c
 t batch-errors -Iinclude tests/batch-errors.c
