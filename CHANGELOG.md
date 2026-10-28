@@ -3,8 +3,9 @@
 ## Unreleased
 
 - Security batch 2 checks (journal 0219): full `make vm-test` and KASAN/UBSAN/lockdep suite
-  passed on the branch of journals 0215 and 0216. Two suite defects found on the way are fixed:
-  `pm-mv` and `buildmoved` no longer need `mountpoint`, and `tr_on()` turns `tracing_on` on.
+  passed on the branch of journals 0215, 0216 and 0218. Two suite defects found on the way are
+  fixed: `pm-mv` and `buildmoved` no longer need `mountpoint`, and `tr_on()` turns `tracing_on`
+  on. `MOOB_VM_KVM=1 make vm-test` runs the guest under KVM; the hung-guest guard is 3600 s.
 
 - GHSA-6xf4-r246-92r6 (journal 0218, finding F16 of ADR-0011, reported privately by an external
   reviewer who also wrote the fix, credited in the [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)): a file given set-user-ID or
