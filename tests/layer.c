@@ -9,7 +9,9 @@
  *                                   reserves for its administrator must stay free
  *   layer cfsetup <lower>           on a lower made with -O casefold: a casefolded directory ci
  *                                   holding Note.md, and an ordinary directory plain
- *   layer cfcheck <mount>           the layer refuses the casefolded directory and every name in it
+ *   layer cfcheck <mount> <lower>   the layer refuses the casefolded directory and every name in it
+ *                                   (EREMOTE), and a directory casefolded behind it once entered (ESTALE)
+ *   layer svcheck <mount> <name>    the btrfs subvolume <name> below the root: listed, refused (EXDEV)
  *   layer typed <mount> <lower>     every refusal of a typed attribute write, with its errno, and
  *                                   the per-file limit of 64; a refused write leaves the lower as it was
  */
@@ -382,23 +384,66 @@ int main(int argc, char **argv)
 		/* the lower answers in any case: that is what the layer's dentry cache cannot follow */
 		CHECK(!stat(lo("ci/note.md"), &st));
 		fd = open(lo("plain/a.md"), O_WRONLY | O_CREAT | O_EXCL, 0644); CHECK(fd >= 0); close(fd);
+		CHECK(!mkdir(lo("later"), 0755));	/* casefolded by cfcheck once the layer entered it */
 		return 0;
 	}
-	if (argc == 3 && !strcmp(argv[1], "cfcheck")) {
+	if (argc == 4 && !strcmp(argv[1], "cfcheck")) {
+		int f;
+
 		/* issue #95: the layer's names are case-sensitive, so a casefolded lower directory is
 		 * refused, the directory itself and every name in it, as overlayfs refuses a layer
-		 * whose casefolding differs (vm/suite.sh, step casefold) */
+		 * whose casefolding differs (vm/suite.sh, step casefold). The errnos are overlayfs's
+		 * (M4, journal 0221): EREMOTE for the directory, which readdir lists; ESTALE for a
+		 * directory casefolded behind the layer after the layer entered it. */
 		snprintf(mnt, sizeof mnt, "%s", argv[2]);
+		snprintf(low, sizeof low, "%s", argv[3]);
 		CHECK(!stat(up("plain/a.md"), &st));
+		CHECK(count_entries(up(".")) >= 3);	/* ci is listed, plain and later too */
 		errno = 0;
-		CHECK(stat(up("ci"), &st) == -1 && errno == EOPNOTSUPP);
+		CHECK(stat(up("ci"), &st) == -1 && errno == EREMOTE);
 		errno = 0;
-		CHECK(stat(up("ci/note.md"), &st) == -1 && errno == EOPNOTSUPP);
+		CHECK(stat(up("ci/note.md"), &st) == -1 && errno == EREMOTE);
 		errno = 0;
-		CHECK(stat(up("ci/Note.md"), &st) == -1 && errno == EOPNOTSUPP);
+		CHECK(stat(up("ci/Note.md"), &st) == -1 && errno == EREMOTE);
 		errno = 0;
-		CHECK(open(up("ci/new.md"), O_WRONLY | O_CREAT, 0644) == -1 && errno == EOPNOTSUPP);
+		CHECK(open(up("ci/new.md"), O_WRONLY | O_CREAT, 0644) == -1 && errno == EREMOTE);
+		errno = 0;
+		CHECK(mkdir(up("ci"), 0755) == -1 && errno == EREMOTE);
+		CHECK(!stat(up("later"), &st) && S_ISDIR(st.st_mode));
+		fd = open(lo("later"), O_RDONLY | O_DIRECTORY); CHECK(fd >= 0);
+		CHECK(!ioctl(fd, FS_IOC_GETFLAGS, &f));
+		f |= FS_CASEFOLD_FL;
+		CHECK(!ioctl(fd, FS_IOC_SETFLAGS, &f));
+		close(fd);
+		errno = 0;
+		CHECK(stat(up("later/x.md"), &st) == -1 && errno == ESTALE);
+		errno = 0;
+		CHECK(open(up("later/new.md"), O_WRONLY | O_CREAT, 0644) == -1 && errno == ESTALE);
+		CHECK(stat(lo("later/new.md"), &st) == -1 && errno == ENOENT);
 		puts("LAYER_CASEFOLD_PASS");
+		return 0;
+	}
+	if (argc == 4 && !strcmp(argv[1], "svcheck")) {
+		DIR *d;
+		struct dirent *e;
+		int listed = 0;
+
+		/* a btrfs subvolume below the root (journal 0083): readdir lists it, lookup refuses it
+		 * with EXDEV and a creation of the name is refused too, not tried (M4, journal 0221) */
+		snprintf(mnt, sizeof mnt, "%s", argv[2]);
+		d = opendir(mnt); CHECK(d);
+		while ((e = readdir(d)))
+			if (!strcmp(e->d_name, argv[3]))
+				listed = 1;
+		closedir(d);
+		CHECK(listed);
+		errno = 0;
+		CHECK(stat(up(argv[3]), &st) == -1 && errno == EXDEV);
+		errno = 0;
+		CHECK(mkdir(up(argv[3]), 0755) == -1 && errno == EXDEV);
+		errno = 0;
+		CHECK(open(up(argv[3]), O_WRONLY | O_CREAT, 0644) == -1 && errno == EXDEV);
+		puts("LAYER_SUBVOLUME_PASS");
 		return 0;
 	}
 	CHECK(argc == 5);

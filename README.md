@@ -137,10 +137,11 @@ from your own run, see [Try it in a VM](#try-it-in-a-vm).
 the fixes of findings F1 to F12 of ADR-0011 except the fair-shares part of F2. Not for
 production.** Later findings affect it and are fixed on `main` only: stale file-status flags
 after `F_SETFL` and attribute-read errors taken as "no attribute" while indexing (review
-[0144](docs/history/0144-independent-review.md), R1 and R2), and a chmod during the first build of a
+[0144](docs/history/0144-independent-review.md), R1 and R2), a chmod during the first build of a
 domain that could leave the file in `QUERY2` answers to users who can no longer read it (journals
 [0151](docs/history/0151-review-d110d4e.md), [0152](docs/history/0152-chmod-during-build-fixed.md)),
-and the three private reports of 2026-10-27 listed below.
+the three private reports of 2026-10-27 listed below, and a minimal ACL written outside the VFS
+that the index judged by the mode bits (F17, journal [0222](docs/history/0222-term-padding-admin-test-extended-acl.md)).
 Facts as of 2026-10-25:
 
 - **One kernel series**, in a VM: Debian 6.12.111 in QEMU and upstream 6.12.112 under
@@ -505,7 +506,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
 - No independent human review of the whole kernel code. Two independent source reviews by AI assistants (journals
   [0111](docs/history/0111-review-5582e06.md) and [0114](docs/history/0114-second-inspection-of-5582e06.md)),
   private reports from an external reviewer (journals 0215, 0216, 0218; the reviewer wrote the fix of F16) and the project's own tests found and fixed kernel-side defects, security ones among them; the
-  findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F16),
+  findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F17),
   the earlier defects in journals [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),
@@ -524,7 +525,8 @@ KASAN harness runs the layer suite), and no benchmark exists.
 - Inode numbers are the lower's, and a file is identified by that number. A btrfs subvolume or
   snapshot **inside** the lower tree numbers its files from the start again, so the layer does
   not enter it (`EXDEV`) and leaves it out of the index. Keep snapshots outside the directory the
-  layer covers.
+  layer covers. A casefolded lower directory is listed but refused the same way, with `EREMOTE`
+  (`ESTALE` if it was casefolded behind the layer after the layer entered it; journal [0221](docs/history/0221-lookup-errnos-and-m8.md)).
 - Data is written with the mounter's credentials without `CAP_SYS_RESOURCE`, so quota limits hold,
   and with the writer's fsuid and groups, so ext4's reserved blocks go only to whom ext4 grants
   them directly (finding F4, journal 0132).
@@ -532,7 +534,9 @@ KASAN harness runs the layer suite), and no benchmark exists.
   follow the mount options of the lower filesystem.
 - `sync_file_range(2)` through the layer succeeds and writes nothing: the pages live in the
   lower file's cache, which it does not reach (V2 of journal 0155; overlayfs has the same gap).
-  Use `fsync` or `fdatasync`.
+  Use `fsync` or `fdatasync`. `cachestat(2)` on a layer descriptor reports the layer's empty
+  cache for the same reason; `posix_fadvise`, `readahead`, the lower's `statx` fields and
+  `O_NOATIME` set by `F_SETFL` reach the lower file (journal 0224).
 - With domains on, nothing more than 64 components below the mount root is indexed or answered by
   `QUERY2`: the write paths cannot place deeper names (finding F14, journal 0156). The files are
   still read and written normally.
@@ -564,6 +568,7 @@ as a regression in the same VM.
 | syzkaller descriptions of the mount, ioctls and attributes; five six-hour runs | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md) | upstream 6.12.112 with KCOV |
 | Security fixes of findings F9 to F12 (homogeneity rule, checks without the query semaphore, write access on the lower mount, idmapped lower refused), each with a test and a negative round | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | Security fixes of F15, GHSA-756j-cgwq-gvwm and F16 (search-only directories, records of a reused inode number, set-user-ID kept through a write), each with a test and a negative round | [0215](docs/history/0215-search-only-directories.md), [0216](docs/history/0216-domain-record-generation.md), [0218](docs/history/0218-write-credentials-fsetid.md) | Debian 6.12.111; KASAN 6.12.112 ([0219](docs/history/0219-security-batch-checks.md)); ext4, btrfs, XFS |
+| Batch 3: lookup errnos for a casefolded directory and a btrfs subvolume, the reserved byte of a query term (`EINVAL`), one privilege test, extended ACLs judged as the kernel does (F17), no index lock on instantiation or eviction of inodes without a record, and `fadvise`, `readahead`, `statx` fields, `drop_inode` and `O_NOATIME` passed to the lower; steps `casefold`, `minacl` and `ixlock`, markers `LAYER_SUBVOLUME_PASS` and `PASSTHROUGH_PASS`, each with a negative round | [0221](docs/history/0221-lookup-errnos-and-m8.md), [0222](docs/history/0222-term-padding-admin-test-extended-acl.md), [0223](docs/history/0223-index-lock-instantiation-eviction.md), [0224](docs/history/0224-passthrough-gaps-issue-115.md), [ADR-0026](docs/decisions/0026-ioctl-magic-term-padding-and-admin-test.md) | Debian 6.12.111; KASAN 6.12.112, full suite ([0225](docs/history/0225-security-batch-3.md)); ext4, btrfs, XFS (`minacl` and `ixlock` on ext4) |
 
 Not implemented: a persistent index, user-namespace or idmapped mounts, batch reads, a change
 cursor, revisions, packaging, a stable UAPI, the full xfstests suite, and the complete

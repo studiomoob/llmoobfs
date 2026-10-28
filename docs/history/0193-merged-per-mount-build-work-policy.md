@@ -103,6 +103,7 @@ tag. The F14 advisory GHSA-qgjj-2f2p-q82m is still a private draft; journal
 0156 says to publish it after the review batch merged. This pass did not
 publish it. LinkedIn, the fediverse, mailing lists and the maintainer's
 private working pages were not inspected.
+*Note, 2026-10-28:* GHSA-qgjj-2f2p-q82m was published on that date, without a CVE (journal 0225).
 
 ## Code comparison, 2026-10-25
 

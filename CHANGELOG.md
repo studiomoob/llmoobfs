@@ -2,6 +2,64 @@
 
 ## Unreleased
 
+- OpenSSF Scorecard (journal 0225): `certifi` in `vm/kasan-requirements.txt` moves from
+  2026.10.18 to 2026.10.19 (PYSEC-2026-4320); Dependabot also watches the hash-pinned Python
+  requirements of `vm/` and `python/`; CodeQL runs on every pull request and push to `main`, not
+  only those touching user-space C, so that every commit has a SAST run. A repository ruleset repeats
+  the protection of `main` (readable by Scorecard without an admin token), and
+  `.github/workflows/release.yml` signs future tags' source archives with Sigstore and attaches
+  SLSA provenance.
+
+- GHSA-82w5-ph62-47wf (journal 0222, finding F17 of ADR-0011, found by the maintainer's team):
+  `QUERY2` answered a file whose minimal access ACL, written outside the VFS, refuses the caller,
+  because the kernel judged an ACL extended by its entry count. It now asks
+  `posix_acl_equiv_mode()` and compares the bits with the mode; `moobfs-index`, `moobfs-check` and
+  the Python scan follow. New suite step `minacl`; it fails on the module before the fix.
+
+- Issue 119, M4 and M8 (journal 0221). **Behaviour change:** a casefolded lower directory, which
+  `readdir` lists, is refused by lookup with `EREMOTE` instead of `EOPNOTSUPP`, and every name in
+  a directory casefolded on the lower after the layer entered it with `ESTALE`: overlayfs's
+  errnos for the same cases. A btrfs subvolume below the root stays `EXDEV`, now checked by the
+  suite. The log says a casefolded directory was refused once per module load instead of on
+  every lookup, and the two index warnings a user can cause at will (a failed update, a failed
+  build) are printed once; the errnos and tracepoints report each occurrence. `getattr` honours
+  `AT_GETATTR_NOSEC` as ecryptfs and overlayfs do (no change on Linux 6.12, where every VFS call
+  carries it); `flush` runs with the mounter's credentials, as `ovl_flush()`; a build-time
+  assertion names the `backing_file_open()` signature the module needs. `fileattr_set` already
+  had the lower `i_rwsem` (taken by `vfs_fileattr_set()`), and `scan_delay_us` stays in the
+  shipped module so the suite tests the installed binary; both recorded, not changed.
+  `docs/when-not-to-use.md` states that nothing runs from the layer and device nodes in it
+  cannot be opened (`SB_I_NOEXEC`, `SB_I_NODEV`).
+
+- Issue #119 M6, M7 and the definition of an extended ACL (journal 0222, ADR-0026). The one byte
+  of implicit tail padding of `struct moob_query_term` is now `pad[3]` and must be zero
+  (`EINVAL`); sizes, offsets and command numbers do not change, a caller that zeroes the request
+  is unaffected, one that left garbage there is refused. The ioctl magic stays `'M'`. The three
+  privilege tests of the index are one, `CAP_SYS_ADMIN` in the initial namespace without an audit
+  record on denial (who may query is unchanged). An access ACL is extended when it may decide
+  otherwise than the mode bits (`posix_acl_equiv_mode()` and the bits): the kernel counted
+  entries, so a minimal ACL refusing others on a `0644` file, written outside the VFS, let
+  `QUERY2` answer it to users who could not read it; `moobfs-index` and `moobfs-check` took any
+  stored ACL for an extended one and now follow the kernel, as does the Python scan.
+  `moobfs-check` says "has an extended access ACL". New suite step `minacl` (debugfs is staged
+  in both harnesses); `buildlimit` checks root's exemption from the admission.
+
+- Passthrough gaps of issue #115 (journal 0224, V1, V3, V5 and V7 of journal 0155):
+  `posix_fadvise` and `readahead(2)` on a layer file now act on the lower file's page cache;
+  `statx` reports the lower's `STATX_DIOALIGN`, `STATX_WRITE_ATOMIC`, `STATX_SUBVOL` and
+  encrypted, verity and DAX attributes; a file removed behind the layer frees its space once the
+  layer drops its name, instead of at memory reclaim; `O_NOATIME` set with `F_SETFL` after open
+  reaches the lower file. New `tests/passthrough.c` (`PASSTHROUGH_PASS`) in the ext4, btrfs and
+  XFS steps. `cachestat(2)` still reads the layer's empty mapping (no hook).
+
+- Issue #117 (journal 0223, finding M2 of journal 0155): instantiating or evicting a layer inode
+  took the mount-wide index lock for writing even when the inode had no index record, so memory
+  reclaim could wait behind a domain build. Both paths now test for a record without the lock
+  and return when there is none; inodes with a record keep the old path. New suite step
+  `ixlock` (`IXLOCK_PASS`) with the test-only module parameter `scan_hold_us`: during builds that
+  hold the lock, 8 inodes without a record are instantiated and evicted in 0 ms, against about
+  6.7 s each on the old code.
+
 - Prior-art search repeated (journal 0220): `docs/research-originality.md` §10 adds KiwiFS,
   OpenViking, LSFS, macOS `searchfs()` and others, and records the YoloFS paper as read; nothing
   found combines what MoobFS does. New FAQ question 21, "Why a kernel module and not a

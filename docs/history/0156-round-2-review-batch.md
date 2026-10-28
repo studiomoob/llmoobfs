@@ -120,6 +120,9 @@ KASAN run for the whole batch.
 - R2-6 and R2-10 have no test of their own.
 - The F14 advisory exists as a private draft (GHSA-qgjj-2f2p-q82m), to be published after the
   merge.
+  *Note, 2026-10-28:* it was not published after that merge; it was published on 2026-10-28
+  (https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-qgjj-2f2p-q82m), without a CVE
+  (journal 0225).
 - Deferred to issues, opened with the pull request: R2-5 #110, R2-7 #111, R2-9 #112, R2-11
   #113, T5 to T11 #114, V1, V3, V5, V7 #115, M1 #116, M2 #117, M3 #118, M4, M6, M7, M8 #119.
 - ADR-0017 is a proposal.

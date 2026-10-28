@@ -16,7 +16,7 @@ of that organization; the project changes only what belongs to its own repositor
 | --- | --- |
 | Admin on the repository | The three owners of the hosting organization, by inheritance from the organization role; one of them is the maintainer. No direct collaborators on the repository. The external reviewer who reported GHSA-95h9-j7c2-gcw6, GHSA-756j-cgwq-gvwm and GHSA-6xf4-r246-92r6 (2026-10-27) is a collaborator on those three advisories and on their temporary private forks until publication; the forks are to be deleted after publication. |
 | Review routing | `CODEOWNERS` routes every path to the maintainer; no approval count is required (`GOVERNANCE.md`). |
-| `main` branch | Pull requests and the checks `Tools and sanitizers`, `Native Linux VM` and `Layer suite under KASAN/lockdep` are required. Force pushes and deletion are disabled. Administrators can bypass; signed commits are not required. |
+| `main` branch | Pull requests and the checks `Tools and sanitizers`, `Native Linux VM` and `Layer suite under KASAN/lockdep` are required. Force pushes and deletion are disabled. Administrators can bypass the classic protection; signed commits are not required. Since 2026-10-28 a repository ruleset `main` repeats these rules with no bypass and allows only merge commits (journal 0217), so that OpenSSF Scorecard can read the protection with the default token (journal 0225). |
 | Actions secrets | None. Workflows use the job's `GITHUB_TOKEN` only. |
 | Deploy keys | None. |
 | Site | The `github-pages` environment, deployed from `main` by `.github/workflows/pages.yml` with an OIDC token (`id-token: write`). |
@@ -80,7 +80,7 @@ tool, a test or an optional client.
 | fstests with the project's patch | `vm/fstests/` | Tag `v2026.09.22`, cloned by hand as `vm/fstests/README.md` says |
 | syzkaller | `vm/syzkaller-local.sh` | A local checkout given by `SYZ=`; the revision of each run is in its journal |
 | virtme-ng and its Python dependencies | `vm/kasan-requirements.txt` | Version and SHA-256 (`pip --require-hashes`) |
-| GitHub Actions | `.github/workflows/` | Full commit SHA; `scripts/check-pins.sh` in CI |
+| GitHub Actions | `.github/workflows/` | Full commit SHA; `scripts/check-pins.sh` in CI. The one exception is the SLSA generator of `release.yml`, a reusable workflow that must be referenced by its release tag (`v2.1.0`) |
 | `libsqlite3` ≥ 3.38 | optional `sqlite/` extension | The system's library |
 
 **SBOM.** GitHub exports an SPDX SBOM from the dependency graph
@@ -88,6 +88,20 @@ tool, a test or an optional client.
 Export SBOM). On 2026-10-26 it listed 19 packages: the pinned actions and the Python packages of
 `vm/kasan-requirements.txt`. It does not see the kernel headers, the Debian packages or the
 vendored code; the table above is the complete list.
+
+**Release assets.** From the first tag after 2026-10-28, `.github/workflows/release.yml` attaches
+to each `v*-experimental` pre-release a source archive of the tag, its SHA-256, a Sigstore bundle
+and SLSA provenance (journal 0225). To verify them:
+
+```sh
+python -m pip install sigstore
+python -m sigstore verify github llmoobfs-<tag>.tar.gz --bundle llmoobfs-<tag>.tar.gz.sigstore.json \
+    --repository studiomoob/llmoobfs --ref refs/tags/<tag>
+slsa-verifier verify-artifact llmoobfs-<tag>.tar.gz --provenance-path llmoobfs-<tag>.intoto.jsonl \
+    --source-uri github.com/studiomoob/llmoobfs --source-tag <tag>
+```
+
+The tags before that date have no such assets; their source is the tag itself.
 
 **Reproducible build** of the `.ko` is roadmap item S10 and has not been evaluated.
 

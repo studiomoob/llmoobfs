@@ -51,7 +51,9 @@ and query evidence (journals [0088](history/0088-m4-report.md) and
   store laid out deeper than that gets no queries for those files.
 - **Round 2 of the review** ([0155](history/0155-review-3627172-round-2.md)) found further defects
   in `v0.4.1-experimental`, F14 among them. They are fixed in journal 0156 or recorded as issues;
-  the tag still carries them.
+  the tag still carries them. Of those issues, 115 and 119 are fixed in journals 0221, 0222 and
+  0224, and 117 in part (journal 0223: inodes without an index record no longer take the index
+  lock on instantiation or eviction; inodes with one still do).
 
 The two defects from [review 0144](history/0144-independent-review.md) remain in
 `v0.4.1-experimental`, and so does a third, from [review 0151](history/0151-review-d110d4e.md): a
@@ -125,11 +127,18 @@ These limits update the cases discussed in the value assessment, §9.6.
   The complete native-KVM suite of this change was not run.
 - **You need it in production today, or in any critical setting.** Only source pre-release tags exist; the
   module is mostly one author's code; its own tests, two source reviews by AI assistants and private
-  reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F16 of ADR-0011); there is no
+  reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011); there is no
   independent human review of the whole kernel code (the external reviewer's reports and the fix of F16 aside); fstests ran as its `quick` group only and syzkaller for five six-hour
   rounds. A module bug can mean a kernel panic or data loss.
 - **The team cannot maintain an out-of-tree kernel module** across kernel updates, signing
   and DKMS; none of that tooling exists in the project.
+- **Programs or device nodes live in the store.** The layer marks its superblock `SB_I_NOEXEC`
+  and `SB_I_NODEV` (overlayfs does not; binfmt_misc and pidfs do): nothing runs from it
+  (`execve` fails with `EACCES`, `mmap` with `PROT_EXEC` with `EPERM`, `access(X_OK)` with
+  `EACCES`) and opening a device node in it fails with `EACCES`, whatever the mount options
+  (`path_noexec()`, `fs/exec.c`; `may_open_dev()`, `fs/namei.c`).
+  It is meant for data files; keep executables, scripts run by path and devices elsewhere
+  (journal 0221).
 - **Deduplication, reflink or snapshots are the attraction.** Those come from btrfs or XFS
   and work without MoobFS; the layer only forwards the calls.
 

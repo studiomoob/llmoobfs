@@ -53,6 +53,18 @@ Files with an extended access ACL stay outside the partition in this version, ex
 **[accepted decision]** Handling ACLs would require comparing named entries; it is left for a revision with its own
 test.
 
+*Note, 2026-10-28 (journal 0222; implemented and tested in the VM suite):* "an access ACL beyond
+the minimal one" (the extended ACL above) is an ACL that may decide otherwise than the mode bits:
+one with a named user, named group or mask entry (`posix_acl_equiv_mode()` is not 0), or a
+minimal one whose three entries differ from the mode bits, because `acl_permission_check()`
+judges everyone but the owner by the ACL's entries. Until this date the kernel counted entries
+(more than three), so a minimal ACL that refused others on a `0644` file, which a lower can hold
+when it was written outside the VFS, let `QUERY2` answer that file to users who could not read
+it; `moobfs-index` and `moobfs-check` took any stored ACL for an extended one. An ACL that cannot
+be read counts as extended in the kernel and in the three mirrors. The kernel and the tools never
+admit a file with an extended ACL by either condition; "except through condition 1" above is
+wrong and kept as written.
+
 A file that does not satisfy the rule is **heterogeneous**: it does not appear in v2 queries, is counted in
 `GET_INFO` (`heterogeneous`) and listed by `moobfs-check`. The rule is re-evaluated in the same call
 that changes what it uses: `setattr` (mode, owner, group), `set_acl` and creation, under the write lock
@@ -128,6 +140,13 @@ New fields relative to v1:
   between pages may appear twice or not appear; those that did not change appear
   exactly once.
 - Without `order_by`, the cursor also works, over the scan order of the first term.
+
+*Note, 2026-10-28 (ADR-0026, journal 0222; implemented and tested in the VM suite):* the term
+(`struct moob_query_term`) had one byte of implicit tail padding after `pad[3]`. It is now
+`pad[3]` of `pad[4]`, and every byte of `pad` must be zero in `QUERY`, `QUERY2` and each query of
+`QUERY2_BATCH` (`EINVAL` otherwise). Size (1098 bytes), offsets and command numbers are
+unchanged; a caller that zeroes the request is unaffected, one that left a nonzero byte there now
+gets `EINVAL`. The ioctl magic stays `'M'`, shared with other in-tree users (ADR-0026).
 
 ### 4.2 Authorization
 

@@ -3,7 +3,7 @@
 # MoobFS layer test suite, shared by the Debian initramfs harness (vm/init) and the
 # KASAN/lockdep harness (vm/kasan-guest.sh). The caller sets:
 #   BIN        directory with layer, fsx, query, ipc, moobfs-*, replay-log, moobfs_layer.ko
-#   TOOLS      directory with git, sqlite3, dmsetup, mke2fs, e2fsck
+#   TOOLS      directory with git, sqlite3, dmsetup, mke2fs, e2fsck, debugfs, setfacl, getfacl
 #   MODS       optional directory with lower-fs modules and an "order" file
 #   DEV_EXT4 DEV_BTRFS DEV_XFS   block devices carrying the prepared lower filesystems
 #   DEV_SCRATCH DEV_LOG          blank block devices for dm-log-writes and dm-flakey
@@ -39,6 +39,10 @@
 #   domainrecs          removed domain directories leave no record and no fallback mark (#113)
 #   domainreuse         domain directories and files removed on the lower and their inode numbers
 #                       reused: the new ones are not answered from the removed ones' index
+#   minacl              minimal access ACLs planted with debugfs: the kernel, moobfs-index,
+#                       moobfs-check and the Python scan agree on which ones are extended (0222)
+#   ixlock              inodes without an index record are instantiated and evicted without
+#                       waiting for the index lock held by a build (issue #117)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
@@ -59,7 +63,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|pylib) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -79,6 +83,9 @@ run_lower() {
     "$BIN/layer" "$LAYER" "$LOWER" "$reflink" links || fail "layer-tests-$fs"
     "$BIN/fcntl-flags" "$LAYER/fcntl-flags" || fail "fcntl-flags-$fs"
     rm "$LAYER/fcntl-flags" || fail "fcntl-flags-cleanup-$fs"
+    # fadvise, readahead, statx fields, drop_inode, F_SETFL O_NOATIME act as on the lower
+    # (issue #115, journal 0224); prints PASSTHROUGH_PASS and removes its files
+    "$BIN/passthrough" "$LAYER" "$LOWER" || fail "passthrough-$fs"
     # every refusal of a typed attribute write with its errno, and the limit of 64 per file,
     # paths a syzkaller seed reaches poorly (journal 0141); prints TYPED_LIMITS_PASS
     "$BIN/layer" typed "$LAYER" "$LOWER" || fail "typed-limits-$fs"
@@ -844,6 +851,7 @@ run_lower() {
         "$BIN/moobfs-attr" set "$LOWER/nested/f" sv string inside || fail "subvol-attr"
         mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail "subvol-mount"
         [ -e "$LAYER/nested" ] && fail "subvol-entered"
+        "$BIN/layer" svcheck "$LAYER" nested || fail "subvol-check"
         "$BIN/query" "$LAYER" sv eq string inside > /tmp/k.txt || fail "subvol-query"
         [ ! -s /tmp/k.txt ] || { cat /tmp/k.txt; fail "subvol-indexed"; }
         umount "$LAYER" || fail "subvol-umount"
@@ -1085,7 +1093,7 @@ if "$TOOLS/mke2fs" -q -F -t ext4 -b 4096 -O casefold "$SCRATCH" 2>/dev/null &&
    mount -t ext4 "$SCRATCH" "$LOWER" 2>/dev/null; then
     "$BIN/layer" cfsetup "$LOWER" || fail cf-setup
     mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail cf-layer-mount
-    "$BIN/layer" cfcheck "$LAYER" || fail cf-check
+    "$BIN/layer" cfcheck "$LAYER" "$LOWER" || fail cf-check
     "$BIN/query" "$LAYER" build > /dev/null || fail cf-build
     umount "$LAYER" || fail cf-layer-umount
     if mount -t moobfs_layer -o lower="$LOWER/ci" none "$LAYER" 2>/dev/null; then
@@ -1932,9 +1940,15 @@ done
 [ "$(bl_builds)" -eq 64 ] || fail bl-mount-build-count
 bl_rename || fail bl-mount-quota-rename
 "$BIN/query-build-limit" "$LAYER/d" 1005 quota || fail bl-mount-quota
+# CAP_SYS_ADMIN is outside the admission (moobl_index_admin(), ADR-0026): root builds the
+# domain the mount-wide limit refused, and a rename leaves it stale again for the recovery
+[ "$("$BIN/query" "$LAYER/d" q2errno kind exists - -)" = "q2 0" ] || fail bl-admin-not-exempt
+[ "$(bl_builds)" -eq 65 ] || fail bl-admin-build-count
+bl_i=$((bl_i + 1))
+bl_rename || fail bl-admin-rename
 sleep 61
 "$BIN/query-build-limit" "$LAYER/d" 1005 ok || fail bl-window-recovery
-[ "$(bl_builds)" -eq 65 ] || fail bl-recovery-build-count
+[ "$(bl_builds)" -eq 66 ] || fail bl-recovery-build-count
 umount "$LAYER" && rm -rf "$LOWER/blwork" "$LOWER/blrate" &&
     umount "$LOWER" || fail bl-cleanup
 for fs in btrfs xfs; do
@@ -1947,7 +1961,7 @@ for fs in btrfs xfs; do
     [ "$("$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')" -eq 0 ] || fail "bl-work-left-built-domain-$fs"
     umount "$LAYER" && rm -rf "$LOWER/blwork" && umount "$LOWER" || fail "bl-cleanup-$fs"
 done
-echo "BUILD_LIMIT_PASS: work denied on ext4, btrfs and XFS without published output; uid and mount admission recover"
+echo "BUILD_LIMIT_PASS: work denied on ext4, btrfs and XFS without published output; uid and mount admission recover; CAP_SYS_ADMIN outside the admission"
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildwork; then
 # ADR-0020: the default still denies the measured attributed domain; an
@@ -2212,6 +2226,105 @@ for du_fs in ext4 xfs btrfs; do
     echo "DOMAINREUSE_$du_fs: $du_note"
 done
 echo "DOMAINREUSE_PASS: reused domain directory and file inode numbers are not answered from the removed ones' index"
+fi
+if want minacl; then
+# Journal 0222: an access ACL is extended when it may decide otherwise than the mode bits: a
+# named or mask entry, or three entries that differ from the bits (posix_acl_equiv_mode() and
+# the bits). ext4 never keeps a minimal ACL written through the VFS (posix_acl_update_mode()
+# drops it), so debugfs plants two on the unmounted filesystem: "same" (u=rw,g=r,o=r on 0644)
+# and "other0" (u=rw,g=r,o=- on 0644: for uid 1001 the ACL refuses what the bits grant).
+# "named" has a named-user entry, "plain" no ACL. The kernel must answer plain and same to uid
+# 1001 and nothing it cannot read; moobfs-index --domain, moobfs-check and the Python scan
+# must give the same partition.
+ma_acl() {   # perm of the owner, group and other entries: version 2, then {tag, perm, id}
+    # The arguments are single octal digits that complete the escapes \00N of the format.
+    # shellcheck disable=SC2059
+    printf "\002\000\000\000\001\000\00$1\000\377\377\377\377\004\000\00$2\000\377\377\377\377\040\000\00$3\000\377\377\377\377"
+}
+"$TOOLS/mke2fs" -q -F -t ext4 -b 4096 "$DEV_SCRATCH" || fail ma-mkfs
+mount -t ext4 "$DEV_SCRATCH" "$LOWER" || fail ma-lower-mount
+mkdir "$LOWER/d" && chmod 755 "$LOWER/d" || fail ma-mkdir
+for f in plain same other0 named; do
+    echo "$f" > "$LOWER/d/$f" && chmod 644 "$LOWER/d/$f" || fail "ma-file-$f"
+    "$BIN/moobfs-attr" set "$LOWER/d/$f" kind string note > /dev/null || fail "ma-attr-$f"
+done
+"$TOOLS/setfacl" -m u:1002:r "$LOWER/d/named" || fail ma-setfacl
+umount "$LOWER" || fail ma-lower-umount
+ma_acl 6 4 4 > /tmp/ma-same.acl && ma_acl 6 4 0 > /tmp/ma-other0.acl || fail ma-acl-files
+for f in same other0; do
+    "$TOOLS/debugfs" -w -R "ea_set -f /tmp/ma-$f.acl /d/$f system.posix_acl_access" "$DEV_SCRATCH" 2> /dev/null || fail "ma-plant-$f"
+    "$TOOLS/debugfs" -R "ea_list /d/$f" "$DEV_SCRATCH" 2> /dev/null | grep -q 'system.posix_acl_access (16)' || fail "ma-planted-$f"
+done
+mount -t ext4 "$DEV_SCRATCH" "$LOWER" || fail ma-lower-remount
+[ "$(stat -c %a "$LOWER/d/same") $(stat -c %a "$LOWER/d/other0")" = "644 644" ] || fail ma-modes
+[ "$("$BIN/query" --uid 1001 "$LOWER/d" open same)" = "open same: ok" ] || fail ma-same-unreadable
+"$BIN/query" --uid 1001 "$LOWER/d" open other0 | grep -q 'Permission denied' || fail "ma-other0-readable (the planted ACL is not in force)"
+mount -t moobfs_layer -o lower="$LOWER",domain_depth=1 none "$LAYER" || fail ma-mount
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind eq string note > /tmp/ma-k.txt || fail ma-query
+cat /tmp/ma-k.txt
+"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || fail "ma-fallback (the partition was not what answered)"
+"$BIN/moobfs-index" --uid 1001 "$LOWER/d" kind eq string note > /tmp/ma-r.txt || fail ma-readable
+while read -r _ p; do
+    grep -q "	$p$" /tmp/ma-r.txt || fail "ma-leak: $p answered to uid 1001, which cannot read it"
+done < /tmp/ma-k.txt
+[ "$(cut -f2 /tmp/ma-k.txt | sort | tr '\n' ' ')" = "plain same " ] || fail "ma-kernel-partition"
+"$BIN/moobfs-index" --domain "$LOWER/d" kind eq string note > /tmp/ma-o.txt || fail ma-oracle
+cmp -s /tmp/ma-k.txt /tmp/ma-o.txt || { echo "kernel:"; cat /tmp/ma-k.txt; echo "moobfs-index:"; cat /tmp/ma-o.txt; fail ma-oracle-mismatch; }
+"$BIN/moobfs-check" --domain-depth 1 "$LOWER" > /tmp/ma.json || { cat /tmp/ma.json; fail ma-check-status; }
+for f in other0 named; do
+    grep -q "\"path\": \"d/$f\", \"reason\": \"has an extended access ACL\"" /tmp/ma.json || { cat /tmp/ma.json; fail "ma-check-$f"; }
+done
+grep -q '"path": "d/same"\|"path": "d/plain"' /tmp/ma.json && { cat /tmp/ma.json; fail ma-check-listed-a-queryable-file; }
+ma_py=not-run
+if command -v python3 > /dev/null 2>&1; then
+    python3 -B -c 'import sys; sys.path.insert(0, sys.argv[1]); from moobfs import scan
+print(" ".join(sorted(p for p, _, _ in scan.candidates(sys.argv[2]))))' "${REPO:-.}/python/src" "$LOWER/d" > /tmp/ma-py.txt || fail ma-python
+    [ "$(cat /tmp/ma-py.txt)" = "plain same" ] || { cat /tmp/ma-py.txt; fail ma-python-mismatch; }
+    ma_py=equal
+fi
+umount "$LAYER" && umount "$LOWER" || fail ma-cleanup
+echo "MINACL_PASS: kernel answered plain and same, left out other0 (minimal ACL other than the mode) and named; moobfs-index and moobfs-check equal; python scan: $ma_py"
+fi
+if want ixlock; then
+# Issue #117 (journal 0223): instantiating or evicting a layer inode took the index lock for
+# writing even when the inode had no record. A build holds that lock for 2.5 s per file
+# (scan_hold_us, 3 files per domain), and the measurement starts 1 s into it, so a path that
+# takes the lock waits at least the 1.5 s left of the first hold (a few evictions in a row may
+# then get the lock between two holds). During the build of domain s1, tests/ixlock.c
+# instantiates the 8 files of domain plain, which have no record; during the build of s2 it
+# evicts them with drop_caches. Neither may wait for the build, and each build must still be
+# running when its measurement ends, or nothing was measured under the lock.
+il_hold=/sys/module/moobfs_layer/parameters/scan_hold_us
+[ -w "$il_hold" ] || fail "il-no-param (module without the scan_hold_us test parameter)"
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail il-lower-mount
+rm -rf "$LOWER/il" && mkdir -p "$LOWER/il/s1" "$LOWER/il/s2" "$LOWER/il/plain" || fail il-mkdir
+"$BIN/overbudget-race" plant "$LOWER/il/s1" 3 && "$BIN/overbudget-race" plant "$LOWER/il/s2" 3 || fail il-plant
+i=0
+while [ $i -lt 8 ]; do : > "$LOWER/il/plain/f0000$i" || fail "il-plain-$i"; i=$((i + 1)); done
+mount -t moobfs_layer -o lower="$LOWER/il",domain_depth=1 none "$LAYER" || fail il-mount
+echo 2500000 > "$il_hold" || fail il-hold-on
+# il_under <domain> <ixlock arguments>: runs ixlock while the build of <domain> holds the lock
+il_under() {
+    il_d=$1; shift
+    "$BIN/query" "$LAYER/$il_d" q2 kind eq string x > /tmp/il-q.txt 2>&1 &
+    il_q=$!
+    sleep 1
+    run_logged /tmp/il.txt "$BIN/ixlock" "$@" || { echo 0 > "$il_hold"; wait $il_q; fail "il-helper-$il_d"; }
+    kill -0 $il_q 2>/dev/null; il_alive=$?
+    wait $il_q || { cat /tmp/il-q.txt; echo 0 > "$il_hold"; fail "il-build-query-$il_d"; }
+}
+il_under s1 stat "$LAYER/plain" 8
+il_stat=$(sed -n 's/.*stat_ms=\([0-9]*\).*/\1/p' /tmp/il.txt); il_alive1=$il_alive
+il_under s2 drop
+il_drop=$(sed -n 's/.*drop_ms=\([0-9]*\).*/\1/p' /tmp/il.txt); il_alive2=$il_alive
+echo 0 > "$il_hold" || fail il-hold-off
+[ -n "$il_stat" ] && [ -n "$il_drop" ] || fail il-parse
+[ "$il_stat" -lt 1000 ] || fail "il-instantiate-waited ($il_stat ms for 8 files without a record)"
+[ "$il_drop" -lt 1000 ] || fail "il-evict-waited ($il_drop ms to evict them)"
+[ $il_alive1 -eq 0 ] && [ $il_alive2 -eq 0 ] || fail "il-window (a build ended before its measurement did)"
+"$BIN/query" "$LAYER" info | grep -q 'domain_builds=2' || fail il-build-count
+umount "$LAYER" && rm -rf "$LOWER/il" && umount "$LOWER" || fail il-cleanup
+echo "IXLOCK_PASS: 8 inodes without a record instantiated in $il_stat ms and evicted (drop_caches) in $il_drop ms while builds held the index lock"
 fi
 if want pylib && ! command -v python3 > /dev/null 2>&1; then
     echo "PYLIB_SKIPPED: no python3 in this guest (the KASAN harness boots the host's root)"

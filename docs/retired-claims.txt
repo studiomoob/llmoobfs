@@ -208,3 +208,12 @@ we request a CVE through
 17 mil arquivos. A issue 118 continua aberta
 domain; issue 118 stays open
 Issue 118 remains open for slow lower-device
+validated on write, rebuilt on mount
+built at mount from the xattrs
+QUERY ioctl on the mount root
+refused through the layer with `EOPNOTSUPP`
+F1 to F16
+F1 a F16
+
+# Batch 3 (journals 0221 to 0224): F17 and issues 115, 117 (in part) and 119.
+It also contains F15, F16 and GHSA-756j-cgwq-gvwm, fixed

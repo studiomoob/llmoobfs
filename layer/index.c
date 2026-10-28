@@ -46,10 +46,10 @@
 #include "moobl_trace.h"
 
 /*
- * The index lock is taken when a layer inode is evicted (moobl_index_inode_evicted), and
- * memory reclaim evicts inodes. An allocation made with the lock held must therefore not
- * recurse into filesystem reclaim, or the task would wait for the lock it holds. Every
- * section runs in a NOFS scope, so the accounted allocations inside it can
+ * The index lock is taken when a layer inode that has a record is evicted
+ * (moobl_index_inode_evicted), and memory reclaim evicts inodes. An allocation made with the
+ * lock held must therefore not recurse into filesystem reclaim, or the task would wait for the
+ * lock it holds. Every section runs in a NOFS scope, so the accounted allocations inside it can
  * keep the reclaim behavior of GFP_KERNEL_ACCOUNT.
  */
 static inline unsigned int ix_write_lock(struct moobl_index *ix)
@@ -190,8 +190,9 @@ static void domain_lost(struct moobl_index *ix, u64 domain, int err)
 
 	lockdep_assert_held_write(&ix->lock);
 	trace_moobfs_index_incomplete(ix->dev, err);
-	pr_warn_ratelimited("moobfs_layer: index update failed (%d); its domain is built again by the next query\n",
-			    err);
+	/* a user can cause it at will (a budget full of values): the tracepoint counts (0221) */
+	pr_warn_once("moobfs_layer: index update failed (%d); its domain is built again by the next query\n",
+		     err);
 	if (!dom)
 		return;
 	if (dom->state == MOOBL_DOM_BUILDING)
@@ -536,14 +537,34 @@ static int index_set_path(struct moobl_index *ix, struct moobl_ix_inode *rec, co
 	return 0;
 }
 
+/*
+ * The one privilege test of the index (ADR-0026): CAP_SYS_ADMIN in the initial user namespace
+ * may run the mount-wide QUERY with domains on, read the counters of GET_INFO and build
+ * domains without the per-uid admission. The privilege is a superset: denial is the expected
+ * outcome for every client, so it is tested without an audit record on denial, as
+ * kallsyms_show_value() does for CAP_SYSLOG and cap_vm_enough_memory() for CAP_SYS_ADMIN;
+ * a grant still marks the task PF_SUPERPRIV (ns_capable_common()).
+ */
+static bool moobl_index_admin(void)
+{
+	return ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
+}
+
 /* ---- domains and the homogeneity rule (docs/spec-query-v2.md §2, §3) ---- */
 
 #define MOOBL_MAX_DEPTH 64
 
-/* True when the inode carries an access ACL beyond the minimal one (mode bits only). */
+/*
+ * True when the inode carries an access ACL that may decide otherwise than its mode bits: one
+ * with a named or mask entry (posix_acl_equiv_mode() not 0), or a minimal one whose three
+ * entries differ from the bits. acl_permission_check() asks the ACL, not the bits, for anyone
+ * but the owner, and a lower filesystem can hold a minimal ACL the VFS would have dropped
+ * (posix_acl_update_mode()), for example one written offline (journal 0222).
+ */
 static bool ext_acl(struct inode *inode, int *err)
 {
 	struct posix_acl *acl;
+	umode_t mode = 0;
 	bool ext;
 
 	if (!IS_POSIXACL(inode))
@@ -556,7 +577,7 @@ static bool ext_acl(struct inode *inode, int *err)
 	}
 	if (!acl)
 		return false;
-	ext = acl->a_count > 3;
+	ext = posix_acl_equiv_mode(acl, &mode) || ((mode ^ inode->i_mode) & 0777);
 	posix_acl_release(acl);
 	return ext;
 }
@@ -814,12 +835,24 @@ static void moved_list_free(struct list_head *head)
  * a test cannot tell a correct build from one without the conflict check. scan_delay_us makes
  * the scan sleep in that window. A reading repeated because an update arrived is reported by
  * the tracepoint moobfs_scan_reread (journal 0102), which replaced a counter parameter.
+ * It stays in the module that is shipped, rather than behind a test-only build, so that the suite
+ * exercises the binary users install (M8, journal 0221): only root can write it, it is 0 unless
+ * written, and while 0 it costs one predicted branch per scanned file.
  */
 static unsigned int scan_delay_us;
 module_param(scan_delay_us, uint, 0644);
 MODULE_PARM_DESC(scan_delay_us, "tests only: microseconds the index scan sleeps between reading a file and storing it");
 
-/* Tests only: fail one listed attribute's value read, after listxattr succeeds. */
+/*
+ * For tests only (vm/suite.sh step ixlock, issue #117): microseconds the index scan sleeps
+ * with the index lock held for writing, once per file, so that a test can show which paths
+ * wait for that lock and which do not.
+ */
+static unsigned int scan_hold_us;
+module_param(scan_hold_us, uint, 0644);
+MODULE_PARM_DESC(scan_hold_us, "tests only: microseconds the index scan holds the index lock for each file");
+
+/* Tests only, kept for the reason above: fail one listed attribute's value read after listxattr. */
 static int scan_getxattr_errno_once;
 module_param(scan_getxattr_errno_once, int, 0644);
 MODULE_PARM_DESC(scan_getxattr_errno_once, "tests only: errno for one index-scan getxattr");
@@ -1434,6 +1467,8 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 		if (unlikely(READ_ONCE(scan_delay_us)) && path)
 			usleep_range(scan_delay_us, scan_delay_us + 50);
 		nofs = ix_write_lock(ix);
+		if (unlikely(READ_ONCE(scan_hold_us)) && path)
+			fsleep(READ_ONCE(scan_hold_us));
 		if (ld.dirty) {		/* this file was updated while it was being read */
 			ld.dirty = false;
 			trace_moobfs_scan_reread(ix->dev, li->i_ino);
@@ -1484,7 +1519,7 @@ static int build_admit(struct moobl_index *ix)
 	int err = 0;
 
 	/* Mount-wide QUERY is already restricted to an administrator. */
-	if (capable(CAP_SYS_ADMIN))
+	if (moobl_index_admin())
 		return 0;
 	spin_lock(&ix->build_rate_lock);
 	if (time_after_eq(now, ix->build_window + MOOBL_BUILD_WINDOW)) {
@@ -2055,8 +2090,9 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 	trace_moobfs_domain_build(ix->dev, domain, err, min_t(int, tries + 1, MOOBL_BUILD_TRIES),
 				  released, (s64)(READ_ONCE(ix->used) - used0), ktime_get_ns() - t0);
 	mutex_unlock(&dom->build);
+	/* the caller gets the errno and the tracepoint above has each build; the log, once (0221) */
 	if (err && err != -EINTR)
-		pr_warn_ratelimited("moobfs_layer: building the index of a domain failed (%d)\n", err);
+		pr_warn_once("moobfs_layer: building the index of a domain failed (%d)\n", err);
 	return err;
 }
 
@@ -2132,6 +2168,9 @@ void moobl_index_init(struct super_block *sb, u64 budget, bool enabled, unsigned
 
 	/* a cursor carries the value of the entry it stopped at */
 	BUILD_BUG_ON(MOOB_ATTR_STRING_MAX > MOOB_QUERY_VALUE_MAX);
+	/* every byte of a term is a named field that term_check() reads (ADR-0026) */
+	BUILD_BUG_ON(sizeof(struct moob_query_term) !=
+		     offsetof(struct moob_query_term, pad) + sizeof_field(struct moob_query_term, pad));
 	init_rwsem(&ix->lock);
 	/* teach lockdep that reclaim takes this lock, so it reports an allocation outside a NOFS scope */
 	fs_reclaim_acquire(GFP_KERNEL);
@@ -2631,13 +2670,31 @@ bool moobl_rename_crosses_domain(struct super_block *sb, struct dentry *old_dent
 	return od != nd || odom != ndom;
 }
 
+/*
+ * Instantiation and eviction take the index lock only when the inode has a record (issue
+ * #117): most inodes of a mount have none, and eviction runs in memory reclaim. xa_load()
+ * reads ix->inodes under RCU without the lock; the result is only tested for NULL, never
+ * dereferenced, since records are freed without RCU.
+ *
+ * Instantiation: the record may be stored by a scan just after the lockless look found none.
+ * The scan looks the layer inode up with ilookup5() after storing the record, and both that
+ * lookup and the insertion of the new inode by iget5_locked() take inode_hash_lock, the
+ * insertion before this look: either the scan's lookup finds the inode and makes the link, or
+ * it ran before the insertion, and then the stored record is visible here. The other writers
+ * of rec->upper (moobl_index_set) set it themselves.
+ *
+ * Eviction: rec->upper = inode is only ever stored under the index lock by a task holding a
+ * reference to inode, into a record that is in ix->inodes at the time. Dropping that reference
+ * is a fully ordered atomic that comes before the final iput(), so the record, or its later
+ * removal from ix->inodes, is visible here. No record means no pointer to inode to clear.
+ */
 void moobl_index_inode_cached(struct super_block *sb, struct inode *inode)
 {
 	unsigned int nofs;
 	struct moobl_index *ix = IX(sb);
 	struct moobl_ix_inode *rec;
 
-	if (!ix->enabled)
+	if (!ix->enabled || !xa_load(&ix->inodes, inode->i_ino))
 		return;
 	nofs = ix_write_lock(ix);
 	rec = xa_load(&ix->inodes, inode->i_ino);
@@ -2654,7 +2711,7 @@ void moobl_index_inode_evicted(struct super_block *sb, struct inode *inode)
 	struct moobl_index *ix = IX(sb);
 	struct moobl_ix_inode *rec;
 
-	if (!ix->enabled)
+	if (!ix->enabled || !xa_load(&ix->inodes, inode->i_ino))
 		return;
 	nofs = ix_write_lock(ix);
 	rec = xa_load(&ix->inodes, inode->i_ino);
@@ -2671,7 +2728,7 @@ static int term_check(const struct moob_query_term *t, u8 allowed)
 	size_t nlen = strnlen(t->name, sizeof(t->name));
 
 	if (nlen == sizeof(t->name) || !moob_attr_name_ok(t->name, nlen) || (t->flags & ~allowed) ||
-	    t->pad[0] || t->pad[1] || t->pad[2])
+	    t->pad[0] || t->pad[1] || t->pad[2] || t->pad[3])
 		return -EINVAL;
 	if (t->op == MOOB_OP_EXISTS)	/* "exists or missing" would match everything */
 		return (t->type || t->len || t->flags) ? -EINVAL : 0;
@@ -3478,7 +3535,7 @@ static long do_query(struct super_block *sb, struct file *file, void __user *arg
 
 	if (!ix->enabled)
 		return -EOPNOTSUPP;	/* noindex (ENOSYS until journal 0050) */
-	if (ix->domain_depth && !capable(CAP_SYS_ADMIN))
+	if (ix->domain_depth && !moobl_index_admin())
 		return -EPERM;
 	/* the request is read and checked before anything is built for it (journal 0105) */
 	q = memdup_user(arg, sizeof(*q));
@@ -3952,7 +4009,7 @@ static long do_get_info(struct super_block *sb, void __user *arg)
 	struct moobl_index *ix = &sbi->index;
 	struct moob_info info;
 	const char *fs = sbi->lower.dentry->d_sb->s_type->name;
-	bool admin = ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
+	bool admin = moobl_index_admin();
 
 	memset(&info, 0, sizeof(info));
 	info.uapi_version = MOOB_UAPI_VERSION;

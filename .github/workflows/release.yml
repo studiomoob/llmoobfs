@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-2.0-only
+name: Release
+# On a pushed tag v*-experimental: a source archive of the tag, its SHA-256, a Sigstore
+# signature bundle (keyless, this workflow's identity) and SLSA build provenance, attached to
+# the tag's GitHub pre-release. Source snapshots only: no module binary or package is published
+# (ADR-0022, docs/distribution-strategy.md §8). How to verify: docs/security-operations.md §4.
+# The SLSA generator is a reusable workflow that must be referenced by its release tag, not a
+# commit (slsa-github-generator's own requirement; Scorecard accepts it).
+on:
+  push:
+    tags: ['v*-experimental']
+permissions:
+  contents: read
+jobs:
+  archive:
+    name: Source archive, signature and pre-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write          # create the pre-release and upload its assets
+      id-token: write          # Sigstore keyless signing
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Archive the tag
+        run: |
+          set -eu
+          n="llmoobfs-$GITHUB_REF_NAME"
+          git archive --format=tar.gz --prefix="$n/" -o "$n.tar.gz" "$GITHUB_REF_NAME"
+          sha256sum "$n.tar.gz" > "$n.tar.gz.sha256"
+      - id: hash
+        name: Provenance subject
+        run: echo "hashes=$(sha256sum llmoobfs-*.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
+      - uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
+        with:
+          inputs: llmoobfs-*.tar.gz
+      - name: Pre-release with the assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          n="llmoobfs-$GITHUB_REF_NAME"
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+              gh release upload "$GITHUB_REF_NAME" --clobber "$n.tar.gz" "$n.tar.gz.sha256" "$n.tar.gz.sigstore.json"
+          else
+              gh release create "$GITHUB_REF_NAME" --verify-tag --prerelease --title "$GITHUB_REF_NAME" \
+                  --notes "Source snapshot, not a supported release (SECURITY.md). Changes: CHANGELOG.md." \
+                  "$n.tar.gz" "$n.tar.gz.sha256" "$n.tar.gz.sigstore.json"
+          fi
+  provenance:
+    name: SLSA provenance
+    needs: [archive]
+    permissions:
+      actions: read            # read the workflow run
+      id-token: write          # sign the provenance
+      contents: write          # upload it to the pre-release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.archive.outputs.hashes }}
+      provenance-name: llmoobfs-${{ github.ref_name }}.intoto.jsonl
+      upload-assets: true

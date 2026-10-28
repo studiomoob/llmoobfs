@@ -39,7 +39,7 @@ set the order security, then consumable C6, then evolution G6.
 
 | Item | Current evidence | Remaining work |
 | --- | --- | --- |
-| 1. S1 — Threat and credential model | [ADR-0011](docs/decisions/0011-threat-and-credential-model.md), findings F1 to F16 fixed except fair sharing of the index budget | Independent human review of the whole kernel code; S9 fair shares |
+| 1. S1 — Threat and credential model | [ADR-0011](docs/decisions/0011-threat-and-credential-model.md), findings F1 to F17 fixed except fair sharing of the index budget | Independent human review of the whole kernel code; S9 fair shares |
 | 2. Real-client test, stage 2 | Structured query equivalence and latency from 150 to 60 000 memories, live mirror cost ([0068](docs/history/0068-client-stage2-scale.md), [0071](docs/history/0071-client-stage2-live-mirror.md)) | Current-module rerun with intervals; broader client workloads |
 | 3. Remaining M3 | Client contract ([0070](docs/history/0070-client-contract.md)); batch content read dropped, change cursor stays in the client ([0072](docs/history/0072-m3-phase-3c.md)) | Attribute-value projection accepted in ADR-0014 but not implemented |
 | 4. S4 and S2 | Hostile-lower tests ([0073](docs/history/0073-s4-hostile-lower.md)); fstests `quick` passes on ext4, btrfs and XFS with exclusions ([0091](docs/history/0091-s2-fstests-clean-with-exclusions.md)) | Full fstests `auto` group |
@@ -161,6 +161,11 @@ preceding 2026-10-23 paragraph is the earlier local checkpoint.
 issue 118 is closed. Over an ext4 lower slowed to 400 ms per I/O the first build of a domain
 stopped at its deadline with `ETIMEDOUT` and no partial answer. The statements above that issues
 116 and 118 remain next or open are earlier checkpoints; both are closed.
+
+*Update, 2026-10-28 ([0221](docs/history/0221-lookup-errnos-and-m8.md) to
+[0224](docs/history/0224-passthrough-gaps-issue-115.md)):* the third batch of the security order
+fixes F17 and closes issues 119 and 115; issue 117 is fixed for inodes without an index record and
+stays open for inodes with one. S9 fair sharing remains open.
 
 Planned from ADR-0017 (accepted 2026-10-20, journal 0156), the answers to the design objections of
 review round 2:

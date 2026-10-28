@@ -317,6 +317,16 @@ later) and its verification against Linux 6.12.112 (journals 0116 and 0117):
   privately by an external reviewer, who also wrote the fix, credited in the
   [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6). **Fixed** in journal 0218: the credentials carry `CAP_FSETID`
   only when the writer has it in the initial user namespace, the test the lower applies.
+- **F17 — `QUERY2` answered a file whose minimal access ACL refuses the caller.** The
+  homogeneity rule took an access ACL for extended only when it had more than three entries. A
+  minimal ACL can still disagree with the mode (`u=rw,g=r,o=-` on a `0644` file refuses others,
+  and `acl_permission_check()` follows the ACL), so such a file entered its domain's partition by
+  its bits and was answered to users who cannot read it, against promise 3. It needs an ACL
+  written outside the VFS (A2): ext4 replaces an ACL equivalent to the mode on every write
+  through it. Found by the maintainer's team while aligning the user-space mirrors with the
+  kernel ([advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-82w5-ph62-47wf)).
+  **Fixed** in journal 0222: an access ACL is extended when `posix_acl_equiv_mode()` finds it not
+  equivalent to a mode or its bits differ from the file's; the tools and the library follow.
 *Compatibility decision, 2026-10-15 (journal 0117).* An idmapped mount as `lower=` is refused
 with `EINVAL`. Supporting it would mean passing `mnt_idmap(lower mount)` to every delegated call
 and to the index's permission rule; that is left for a later decision with its own tests. No

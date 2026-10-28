@@ -619,3 +619,121 @@ question 21 of `docs/faq.md`. Licenses as stated by each repository.
   control", which tracks the patch series for a metadata access right; `security/landlock/fs.c`
   of Linux 7.3 registers no `inode_permission` or xattr hook. Why a query under Landlock follows
   `getxattr`, and what the layer should honor when that right lands (journal 0220).
+
+## 20. Lookup errnos, getattr, flush and build checks (issue #119 M4 and M8, journal 0221)
+
+Read on 2026-10-28 in the upstream 6.12.112 tree the KASAN kernel is built from, unless stated.
+
+- `Documentation/filesystems/vfs.rst`, `lookup`: an error only on a real error, since a negative
+  dentry is what lets `create(2)` and `mkdir(2)` proceed; a name that exists but cannot be
+  represented is such an error.
+- `ovl_lookup_single()`, `fs/overlayfs/namei.c:249`, and `ovl_dentry_weird()`,
+  `fs/overlayfs/util.c:201`: a lower object overlayfs does not support (automount, hashed or
+  compared names) fails the lookup with `EREMOTE`, without a log line. The same function in
+  Linux 7.3 ([source](https://github.com/torvalds/linux/blob/master/fs/overlayfs/namei.c),
+  `:254` and `:269`): "parent wrong casefold" is `ESTALE`, "child wrong casefold" is `EREMOTE`,
+  both with `pr_warn_ratelimited()`. The errnos the layer now returns; the log line, once.
+- `ovl_mount_dir_check()`, `fs/overlayfs/params.c:307`: overlayfs 6.12 refuses any layer whose
+  superblock has an encoding (`sb_has_encoding()`); not followed, as Linux 7.3 relaxed it to one
+  casefold state per layer (§ "Casefolded lower directories" above) and the layer serves the
+  ordinary directories of such a filesystem.
+- `fs/namei.c:1586` (`handle_mounts()` with `LOOKUP_NO_XDEV`, `openat2(RESOLVE_NO_XDEV)`): a
+  lookup that may not cross into another filesystem fails with `EXDEV`; the errno the layer keeps
+  for a btrfs subvolume.
+- `vfs_getattr()` and `vfs_getattr_nosec()`, `fs/stat.c:196` and `:136`; `ovl_do_getattr()`,
+  `fs/overlayfs/overlayfs.h:421`; `ecryptfs_do_getattr()`, `fs/ecryptfs/inode.c:1011`: the lower
+  security hook unless the call carries `AT_GETATTR_NOSEC`, which `vfs_getattr_nosec()` adds to
+  every `->getattr` call (`:166`).
+- `ovl_flush()`, `fs/overlayfs/file.c:582`, with `ovl_override_creds()`; `ecryptfs_flush()`,
+  `fs/ecryptfs/file.c:309`, without.
+- `vfs_fileattr_set()`, `fs/ioctl.c:668`, which takes `inode_lock()` on the inode it is given
+  (`:681`); `ecryptfs_fileattr_set()`, `fs/ecryptfs/inode.c:1132`, and `ovl_real_fileattr_set()`,
+  `fs/overlayfs/inode.c:640`, which call it on the lower dentry as the layer does.
+- `include/linux/backing-file.h:22` (`const struct file *user_file` in 6.12.112) and the
+  stable series that changed it,
+  "[PATCH v3 stable/linux-6.12.y 2/3] lsm: add backing_file LSM hooks"
+  ([LKML](https://lkml.iu.edu/2606.3/07613.html)); the v6.12 tag takes `const struct path *`
+  ([source](https://github.com/torvalds/linux/blob/v6.12/include/linux/backing-file.h)).
+  `static_assert()` and `__same_type()`, `include/linux/build_bug.h` and
+  `include/linux/compiler.h`.
+- `path_noexec()`, `fs/exec.c:112`, used by `do_open_execat()` (`:912`), `do_mmap()`
+  (`mm/mmap.c:417`) and `do_faccessat()` (`fs/open.c:503`); `may_open_dev()`, `fs/namei.c:3385`;
+  `SB_I_NOEXEC | SB_I_NODEV` set by binfmt_misc (`fs/binfmt_misc.c:990`) and pidfs
+  (`fs/pidfs.c:404`).
+- `pr_info_once()` and `pr_warn_once()`, `include/linux/printk.h`: a message a caller can cause
+  at will is logged once per module load; each occurrence stays visible through the errno and the
+  index's tracepoints (`moobfs_index_incomplete`, `moobfs_domain_build`, journal 0102).
+
+## 21. Term padding, the index's privilege test and extended ACLs (ADR-0026, journal 0222)
+
+All in the Linux 6.12.112 tree used by the KASAN build
+([source](https://github.com/gregkh/linux/tree/v6.12.112)).
+
+- `Documentation/userspace-api/ioctl/ioctl-number.rst:173-177`: magic `'M'` registered by
+  `linux/soundcard.h` (all numbers), `mtd/mtd-abi.h` 01–16, `megaraid_sas.h` 01–03 and
+  `fsl-diu-fb.h` 00–0F; why the magic is shared, and kept (ADR-0026 decision 1).
+- `ns_capable_common()`, `ns_capable_noaudit()` and `capable()`, `kernel/capability.c:351`,
+  `:399` and `:434`: the same test on the initial user namespace, `PF_SUPERPRIV` set on a grant,
+  the first without an audit record on denial (`CAP_OPT_NOAUDIT`).
+- `kallsyms_show_value()`, `kernel/ksyms_common.c:28`, and `cap_vm_enough_memory()`,
+  `security/commoncap.c:1401`: the kernel's unaudited tests of a privilege that only widens what
+  an ordinary caller gets; the precedent of `moobl_index_admin()`.
+- `posix_acl_equiv_mode()`, `fs/posix_acl.c:313`: 0 when an ACL is only the three entries the
+  mode bits express, 1 with a named or mask entry, `-EINVAL` for an unknown tag; its bits are
+  compared with `i_mode` by the new `ext_acl()` and by `tools/ext-acl.h` and the Python scan.
+- `posix_acl_permission()`, `fs/posix_acl.c:382`, and `acl_permission_check()`,
+  `fs/namei.c:350`: for anyone but the owner, an inode with an ACL and group bits is judged by
+  the ACL's entries, not the bits; why a minimal ACL that differs from the bits is extended.
+- `posix_acl_update_mode()`, `fs/posix_acl.c:713`, called by `ext4_set_acl()`
+  (`fs/ext4/acl.c:252`): an ACL equivalent to the mode is dropped on a write through the VFS, so
+  a stored minimal ACL comes only from outside it.
+- `struct posix_acl_xattr_header` and `struct posix_acl_xattr_entry`,
+  `include/uapi/linux/posix_acl_xattr.h:29-37`, and the tags of `include/uapi/linux/posix_acl.h`:
+  the form `getxattr("system.posix_acl_access")` returns, parsed by the user-space mirrors.
+- e2fsprogs 1.47.2 `debugfs` (`ea_set -f`, `ea_list`; [debugfs(8)](https://man7.org/linux/man-pages/man8/debugfs.8.html)),
+  which converts `system.posix_acl_access` into ext4's on-disk form: plants the minimal ACLs of
+  the `minacl` suite step on an unmounted filesystem.
+
+## 22. Index lock on instantiation and eviction (issue #117, journal 0223)
+
+- `iget5_locked()`, `inode_insert5()`, `ilookup5_nowait()` and `iput()`, `fs/inode.c:1328`,
+  `:1255`, `:1553` and `:1889`, Linux 6.12.112
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/inode.c)): the insertion of a new
+  inode (`:1263`) and the lookup (`:1559`) both run under `inode_hash_lock`; the final reference
+  is dropped by `atomic_dec_and_lock()` (`:1895`). The ordering behind the lockless test on
+  instantiation, and why a link stored by a reference holder is visible at eviction.
+- `xa_load()`, `lib/xarray.c:1466`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/lib/xarray.c)), and
+  `Documentation/core-api/xarray.rst` ("The XArray uses RCU and an internal spinlock",
+  "Takes RCU read lock: xa_load()"), same tree: a lookup in any context without the user's lock;
+  the layer only tests its result for `NULL`.
+- `Documentation/atomic_t.txt:169` (value-returning RMW operations are fully ordered) and
+  `Documentation/memory-barriers.txt:474` and `:489` (ACQUIRE and RELEASE operations, among them
+  LOCK and UNLOCK), same tree: the two orderings the argument uses.
+- `ecryptfs_evict_inode()`, `fs/ecryptfs/super.c:119`; `ovl_destroy_inode()`,
+  `fs/overlayfs/super.c:177`; `ovl_lookup_inode()`, `fs/overlayfs/inode.c:1102`, same tree
+  ([source](https://github.com/gregkh/linux/tree/v6.12.112/fs)): two stacked filesystems that take
+  no filesystem-wide lock on eviction, and overlayfs finding its inodes by key with `ilookup5()`
+  instead of keeping pointers to them, the model of the proposal not taken in journal 0223.
+
+## 23. Passthrough gaps of issue #115 (journal 0224)
+
+Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
+([source](https://github.com/gregkh/linux/tree/v6.12.112)).
+
+- `ovl_fadvise()`, `fs/overlayfs/file.c:462`: overlayfs forwards `vfs_fadvise()` to the real
+  file; the model of `moobl_fadvise()`. `vfs_fadvise()`, `mm/fadvise.c:180`, exported at `:187`.
+  `ksys_readahead()`, `mm/readahead.c:677`, ends in `vfs_fadvise(..., POSIX_FADV_WILLNEED)`
+  (`:694`), so `readahead(2)` follows the same hook; `cachestat(2)`, `mm/filemap.c:4462`, reads
+  the descriptor's own `f_mapping` (`:4501`) and has no hook.
+- `ovl_getattr()`, `fs/overlayfs/inode.c:156`: overlayfs starts from the real file's kstat
+  (`:173`) and overwrites what the overlay owns; `struct kstat`, `include/linux/stat.h`, for the
+  `dio_*`, `subvol` and `atomic_write_*` fields; `vfs_getattr_nosec()`, `fs/stat.c:136`, which
+  sets `STATX_ATTR_DAX` in `attributes_mask` itself (`:159`, `:162`).
+- `iput_final()`, `fs/inode.c:1837`, calls `->drop_inode` under `i_lock` (`:1846`);
+  `generic_drop_inode()`, `include/linux/fs.h:3188`. overlayfs (`fs/overlayfs/super.c:265`) and
+  FUSE (`fs/fuse/inode.c:1192`) use `generic_delete_inode`; ecryptfs (`ecryptfs_sops`,
+  `fs/ecryptfs/super.c:177`) keeps the default.
+- `OVL_SETFL_MASK` and `ovl_change_flags()`, `fs/overlayfs/file.c:62`; `ovl_open_realfile()`
+  drops `O_NOATIME` when the mounter does not own the real inode (`:49`). `SETFL_MASK` and the
+  `O_NOATIME` ownership check of `setfl()`, `fs/fcntl.c:37` and `:51`.

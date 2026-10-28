@@ -44,7 +44,7 @@ struct moob_query_term {
 	__u8 flags;				/* MOOB_TERM_*; QUERY2 only, 0 for QUERY */
 	__u16 len;				/* payload bytes in value[] */
 	__u8 value[MOOB_QUERY_VALUE_MAX];	/* payload without the type byte */
-	__u8 pad[3];
+	__u8 pad[4];				/* must be 0 (pad[3] was implicit tail padding until ADR-0026) */
 };
 
 /* One result per matching inode. path is relative to the mount root; empty when unknown. */

@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include "moobfs_attr.h"
+#include "ext-acl.h"
 
 static unsigned long files, attrs, problems;
 /* identity records for the (namespace, memory_id) uniqueness check */
@@ -38,11 +39,6 @@ static int domain_depth;	/* 0: do not look for files left out of QUERY2 */
 struct left { char *path; char *why; };
 static struct left *lefts; static size_t nlefts, clefts;
 
-static int has_acl(const char *path)
-{
-	return getxattr(path, "system.posix_acl_access", NULL, 0) > 0;
-}
-
 /* The rule of tools/moobfs-index.c (reach_ok), with the reason when it fails. */
 static const char *reach_why(const char *path, const struct stat *st, const struct stat *dom,
 			     int dom_acl, int want_read)
@@ -51,15 +47,15 @@ static const char *reach_why(const char *path, const struct stat *st, const stru
 	mode_t u = want_read ? S_IRUSR : S_IRUSR | S_IXUSR;
 	mode_t g = want_read ? S_IRGRP : S_IRGRP | S_IXGRP;
 	mode_t o = want_read ? S_IROTH : S_IROTH | S_IXOTH;
-	int acl = has_acl(path);
+	int acl = moob_ext_acl(path, st->st_mode);
 
 	/* every class: the kernel never judges owner or group by the bits of others */
 	if (!acl && (st->st_mode & (u | g | o)) == (u | g | o))
 		return NULL;
 	if (acl)
-		return "has an access ACL";
+		return "has an extended access ACL";
 	if (dom_acl)
-		return "the domain directory has an access ACL";
+		return "the domain directory has an extended access ACL";
 	if (st->st_uid != dom->st_uid || st->st_gid != dom->st_gid)
 		return "owner or group differs from the domain directory";
 	if (((dom->st_mode & S_IXUSR) && (st->st_mode & u) != u) ||
@@ -113,7 +109,7 @@ static int check_domain(const char *path, const struct stat *st, int level)
 	buf[dom_end] = 0;
 	if (lstat(buf, &dom))
 		return 0;
-	dom_acl = has_acl(buf);
+	dom_acl = moob_ext_acl(buf, dom.st_mode);
 	buf[dom_end] = '/';
 	if (S_ISREG(st->st_mode) && st->st_nlink > 1)
 		return left_out(path, NULL, "has more than one hard link");

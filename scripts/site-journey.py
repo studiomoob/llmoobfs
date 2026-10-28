@@ -63,6 +63,8 @@ MILESTONES = [
   'Issue 118 fechada: com um disco de baixo atrasado em 400 ms por E/S, o primeiro build de um domínio para no prazo, sem resposta parcial.', ['0210']),
  ('2026-10-28', 'Three kernel defects reported privately by an external reviewer are fixed through private advisories: search-only directories (F15), records of a reused inode number, set-user-ID kept through a write (F16, the reviewer\'s own fix).',
   'Três defeitos do kernel relatados em privado por um revisor externo são corrigidos por avisos privados: diretórios só de busca (F15), registros de um número de inode reutilizado, set-user-ID mantido numa escrita (F16, correção do próprio revisor).', ['0215', '0216', '0218', '0219']),
+ ('2026-10-28', 'A third batch: F17 (a minimal ACL written outside the VFS) fixed; issues 119 (lookup errnos, the reserved byte of a query term, one privilege test) and 115 (fadvise, readahead, statx fields, drop_inode, O_NOATIME) closed; issue 117 fixed for inodes without an index record.',
+  'Um terceiro lote: F17 (uma ACL mínima gravada por fora do VFS) corrigido; issues 119 (errnos do lookup, o byte reservado de um termo de consulta, um só teste de privilégio) e 115 (fadvise, readahead, campos de statx, drop_inode, O_NOATIME) fechadas; issue 117 corrigida para inodes sem registro no índice.', ['0221', '0222', '0223', '0224']),
 ]
 
 T = {

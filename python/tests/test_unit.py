@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 """Tests that need neither Linux nor the module: encoding, validation, terms and the matching
 and ordering rules of the scan. python3 -m unittest discover -s python/tests"""
+import errno
 import os
 import struct
 import sys
 import unittest
+from unittest import mock
 from datetime import datetime, timedelta, timezone
 
 if not os.environ.get("MOOBFS_TEST_INSTALLED"):   # else test the installed package
@@ -14,6 +16,7 @@ import moobfs  # noqa: E402
 from moobfs import Order, Term, Value  # noqa: E402
 from moobfs import _uapi as u  # noqa: E402
 from moobfs.query import sort_key  # noqa: E402
+from moobfs import scan  # noqa: E402
 from moobfs.scan import run  # noqa: E402
 
 
@@ -146,6 +149,49 @@ class ScanRun(unittest.TestCase):
     def test_missing_ok_with_order(self):
         got = run(self.cands, [Term("k", "==", "a", missing_ok=True)], Order("n", "double"))
         self.assertEqual([m.path for m in got], ["z"])
+
+
+def _acl(*entries):
+    """The VFS's xattr form of an access ACL: version 2, then (tag, perm, id) entries."""
+    return struct.pack("<I", 2) + b"".join(struct.pack("<HHI", t, p, i) for t, p, i in entries)
+
+
+class ExtendedAcl(unittest.TestCase):
+    """scan._ext_acl against the kernel's ext_acl (journal 0222): extended when it may decide
+    otherwise than the mode bits."""
+    U, G, O, M, NU = 0x01, 0x04, 0x20, 0x10, 0x02
+    ANY = 0xFFFFFFFF
+
+    def ext(self, raw, mode, err=None):
+        def fake(path, name, follow_symlinks=True):
+            if err is not None:
+                raise OSError(err, os.strerror(err))
+            return raw
+        with mock.patch("moobfs.scan.os.getxattr", fake, create=True):
+            return scan._ext_acl("f", mode)
+
+    def test_minimal(self):
+        same = _acl((self.U, 6, self.ANY), (self.G, 4, self.ANY), (self.O, 4, self.ANY))
+        self.assertFalse(self.ext(same, 0o100644))       # equal to the bits: not extended
+        self.assertTrue(self.ext(same, 0o100640))        # other entry grants what the bits do not
+        other0 = _acl((self.U, 6, self.ANY), (self.G, 4, self.ANY), (self.O, 0, self.ANY))
+        self.assertTrue(self.ext(other0, 0o100644))      # the ACL refuses others: extended
+
+    def test_named_and_mask(self):
+        named = _acl((self.U, 6, self.ANY), (self.NU, 4, 1002), (self.G, 4, self.ANY),
+                     (self.M, 4, self.ANY), (self.O, 4, self.ANY))
+        self.assertTrue(self.ext(named, 0o100644))
+        mask = _acl((self.U, 6, self.ANY), (self.G, 4, self.ANY), (self.M, 4, self.ANY),
+                    (self.O, 4, self.ANY))
+        self.assertTrue(self.ext(mask, 0o100644))        # a mask alone is not equivalent
+
+    def test_absent_unreadable_malformed(self):
+        self.assertFalse(self.ext(None, 0o100600, errno.ENODATA))
+        self.assertFalse(self.ext(None, 0o100600, errno.EOPNOTSUPP))
+        self.assertTrue(self.ext(None, 0o100600, errno.EACCES))
+        self.assertTrue(self.ext(b"\x02\x00\x00", 0o100600))
+        self.assertTrue(self.ext(b"\x01\x00\x00\x00" + _acl((self.U, 6, self.ANY))[4:], 0o100600))
+        self.assertTrue(self.ext(_acl((0x40, 6, self.ANY)), 0o100600))
 
 
 class Modes(unittest.TestCase):

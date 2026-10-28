@@ -240,3 +240,8 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0218 — Write credentials carry CAP_FSETID only when the writer has it (GHSA-6xf4-r246-92r6)](0218-write-credentials-fsetid.md)
 - [0219 — Security batch 2: full suite and KASAN before publication](0219-security-batch-checks.md)
 - [0220 — Second prior-art search, "why not a service?" and QUERY2 under Landlock](0220-prior-art-update-and-landlock.md)
+- [0221 — Lookup errnos, once-only logs, getattr, flush and build checks (issue 119, M4 and M8)](0221-lookup-errnos-and-m8.md)
+- [0222 — Term padding named, one privilege test, extended ACL as the kernel decides it (ADR-0026)](0222-term-padding-admin-test-extended-acl.md)
+- [0223 — Instantiation and eviction take the index lock only for inodes with a record (issue #117)](0223-index-lock-instantiation-eviction.md)
+- [0224 — Passthrough gaps: fadvise, statx fields, drop_inode, F_SETFL O_NOATIME (issue #115)](0224-passthrough-gaps-issue-115.md)
+- [0225 — Security batch 3: issues 115, 117 and 119, finding F17, the plan map and Scorecard](0225-security-batch-3.md)

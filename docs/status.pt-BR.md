@@ -60,3 +60,17 @@ registros de domínio e de arquivo respondidos para um número de inode reutiliz
 ([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm), [diário 0216](history/0216-domain-record-generation.md))
 e um bit set-user-ID mantido depois de uma escrita (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6),
 [diário 0218](history/0218-write-credentials-fsetid.md)). A `v0.4.1-experimental` contém os três.
+*Atualização, 28/10/2026 (diários 0221 a 0224):* um terceiro lote corrige o achado F17
+([GHSA-82w5-ph62-47wf](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-82w5-ph62-47wf), [diário 0222](history/0222-term-padding-admin-test-extended-acl.md)) e
+fecha as issues 119 e 115. Issue 119: um diretório de baixo com casefold é recusado com `EREMOTE`
+(`ESTALE` se ganhou casefold por trás da camada) e um subvolume btrfs com `EXDEV`, e as recusas
+são registradas no log uma vez só ([diário 0221](history/0221-lookup-errnos-and-m8.md)); o byte
+reservado de um termo de consulta tem de ser zero (`EINVAL`) e um só teste de privilégio guarda o
+índice ([ADR-0026](decisions/0026-ioctl-magic-term-padding-and-admin-test.md)). Issue 115:
+`posix_fadvise`, `readahead`, os campos de `statx` do sistema de baixo, o espaço de um arquivo
+apagado por trás da camada e o `O_NOATIME` ligado por `F_SETFL` agora chegam ao sistema de baixo;
+`cachestat(2)` continua uma limitação ([diário 0224](history/0224-passthrough-gaps-issue-115.md)). A
+issue 117 foi corrigida em parte: criar e despejar um inode sem registro no índice não toma mais a
+trava do índice da montagem inteira; um inode com registro ainda toma, e a issue continua aberta
+para ele ([diário 0223](history/0223-index-lock-instantiation-eviction.md)). A `v0.4.1-experimental`
+contém todos esses defeitos.
