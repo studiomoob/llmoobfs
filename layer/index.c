@@ -190,8 +190,9 @@ static void domain_lost(struct moobl_index *ix, u64 domain, int err)
 
 	lockdep_assert_held_write(&ix->lock);
 	trace_moobfs_index_incomplete(ix->dev, err);
-	pr_warn_ratelimited("moobfs_layer: index update failed (%d); its domain is built again by the next query\n",
-			    err);
+	/* a user can cause it at will (a budget full of values): the tracepoint counts (0221) */
+	pr_warn_once("moobfs_layer: index update failed (%d); its domain is built again by the next query\n",
+		     err);
 	if (!dom)
 		return;
 	if (dom->state == MOOBL_DOM_BUILDING)
@@ -814,12 +815,15 @@ static void moved_list_free(struct list_head *head)
  * a test cannot tell a correct build from one without the conflict check. scan_delay_us makes
  * the scan sleep in that window. A reading repeated because an update arrived is reported by
  * the tracepoint moobfs_scan_reread (journal 0102), which replaced a counter parameter.
+ * It stays in the module that is shipped, rather than behind a test-only build, so that the suite
+ * exercises the binary users install (M8, journal 0221): only root can write it, it is 0 unless
+ * written, and while 0 it costs one predicted branch per scanned file.
  */
 static unsigned int scan_delay_us;
 module_param(scan_delay_us, uint, 0644);
 MODULE_PARM_DESC(scan_delay_us, "tests only: microseconds the index scan sleeps between reading a file and storing it");
 
-/* Tests only: fail one listed attribute's value read, after listxattr succeeds. */
+/* Tests only, kept for the reason above: fail one listed attribute's value read after listxattr. */
 static int scan_getxattr_errno_once;
 module_param(scan_getxattr_errno_once, int, 0644);
 MODULE_PARM_DESC(scan_getxattr_errno_once, "tests only: errno for one index-scan getxattr");
@@ -2055,8 +2059,9 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 	trace_moobfs_domain_build(ix->dev, domain, err, min_t(int, tries + 1, MOOBL_BUILD_TRIES),
 				  released, (s64)(READ_ONCE(ix->used) - used0), ktime_get_ns() - t0);
 	mutex_unlock(&dom->build);
+	/* the caller gets the errno and the tracepoint above has each build; the log, once (0221) */
 	if (err && err != -EINTR)
-		pr_warn_ratelimited("moobfs_layer: building the index of a domain failed (%d)\n", err);
+		pr_warn_once("moobfs_layer: building the index of a domain failed (%d)\n", err);
 	return err;
 }
 

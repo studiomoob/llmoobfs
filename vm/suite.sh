@@ -844,6 +844,7 @@ run_lower() {
         "$BIN/moobfs-attr" set "$LOWER/nested/f" sv string inside || fail "subvol-attr"
         mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail "subvol-mount"
         [ -e "$LAYER/nested" ] && fail "subvol-entered"
+        "$BIN/layer" svcheck "$LAYER" nested || fail "subvol-check"
         "$BIN/query" "$LAYER" sv eq string inside > /tmp/k.txt || fail "subvol-query"
         [ ! -s /tmp/k.txt ] || { cat /tmp/k.txt; fail "subvol-indexed"; }
         umount "$LAYER" || fail "subvol-umount"
@@ -1085,7 +1086,7 @@ if "$TOOLS/mke2fs" -q -F -t ext4 -b 4096 -O casefold "$SCRATCH" 2>/dev/null &&
    mount -t ext4 "$SCRATCH" "$LOWER" 2>/dev/null; then
     "$BIN/layer" cfsetup "$LOWER" || fail cf-setup
     mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail cf-layer-mount
-    "$BIN/layer" cfcheck "$LAYER" || fail cf-check
+    "$BIN/layer" cfcheck "$LAYER" "$LOWER" || fail cf-check
     "$BIN/query" "$LAYER" build > /dev/null || fail cf-build
     umount "$LAYER" || fail cf-layer-umount
     if mount -t moobfs_layer -o lower="$LOWER/ci" none "$LAYER" 2>/dev/null; then

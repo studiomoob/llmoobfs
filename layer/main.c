@@ -429,11 +429,32 @@ bool moobl_casefolded(struct dentry *lower)
 {
 	struct inode *inode = d_inode(lower);
 
-	if (inode && S_ISDIR(inode->i_mode) && IS_CASEFOLDED(inode)) {
-		pr_warn_ratelimited("moobfs_layer: a casefolded lower directory is refused (%pd)\n", lower);
-		return true;
+	return inode && S_ISDIR(inode->i_mode) && IS_CASEFOLDED(inode);
+}
+
+/*
+ * A name the layer cannot represent exists on the lower, so lookup fails with an error rather
+ * than a negative dentry, which would let a creation try the name again (vfs.rst, lookup). The
+ * errnos are overlayfs's for the same cases (fs/overlayfs/namei.c, ovl_lookup_single()): a
+ * casefolded directory is EREMOTE, like any lower object overlayfs does not support; a directory
+ * that became casefolded behind the layer after it was entered is ESTALE. A btrfs subvolume
+ * stays EXDEV, what a lookup that may not cross into another filesystem returns
+ * (RESOLVE_NO_XDEV, fs/namei.c). A caller can reach these at will, so the log says it once per
+ * module load; the errno says it every time (M4, journal 0221). lower is the parent's lower
+ * dentry when parent is true, the looked-up one otherwise.
+ */
+static int moobl_lookup_refused(struct super_block *sb, struct dentry *lower, bool parent)
+{
+	int err;
+
+	if (moobl_casefolded(lower)) {
+		pr_info_once("moobfs_layer: a casefolded lower directory is refused\n");
+		return parent ? -ESTALE : -EREMOTE;
 	}
-	return false;
+	if (parent)
+		return 0;
+	err = moobl_other_device(sb, lower);
+	return err > 0 ? -EXDEV : err;
 }
 
 static struct dentry *moobl_lookup(struct inode *dir, struct dentry *dentry,
@@ -446,20 +467,17 @@ static struct dentry *moobl_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
-	if (moobl_casefolded(parent->dentry))
-		return ERR_PTR(-EOPNOTSUPP);
+	err = moobl_lookup_refused(dir->i_sb, parent->dentry, true);
+	if (err)
+		return ERR_PTR(err);
 	lower_dentry = lookup_one_len_unlocked(dentry->d_name.name, parent->dentry,
 					       dentry->d_name.len);
 	if (IS_ERR(lower_dentry))
 		return ERR_CAST(lower_dentry);
-	if (moobl_casefolded(lower_dentry)) {
-		dput(lower_dentry);
-		return ERR_PTR(-EOPNOTSUPP);
-	}
-	err = moobl_other_device(dir->i_sb, lower_dentry);
+	err = moobl_lookup_refused(dir->i_sb, lower_dentry, false);
 	if (err) {
 		dput(lower_dentry);
-		return ERR_PTR(err < 0 ? err : -EXDEV);
+		return ERR_PTR(err);
 	}
 	err = moobl_set_lower_path(dentry, parent->mnt, lower_dentry);
 	if (err) {
@@ -863,6 +881,11 @@ static int moobl_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 	err = moobl_want_write(dentry->d_sb);
 	if (err)
 		return err;
+	/*
+	 * vfs_fileattr_set() takes the lower i_rwsem and reads the lower flags again under it, as
+	 * ecryptfs_fileattr_set() and ovl_real_fileattr_set() rely on; the check above reads them
+	 * unlocked, so it judges this request, not a change made behind the layer (M8, 0221).
+	 */
 	err = vfs_fileattr_set(&nop_mnt_idmap, lower, fa);
 	moobl_drop_write(dentry->d_sb);
 	if (!err)
@@ -1061,6 +1084,21 @@ static const struct xattr_handler * const moobl_xattr_handlers[] = {
 #define MOOBL_STATX_ATTRS (STATX_ATTR_COMPRESSED | STATX_ATTR_IMMUTABLE | \
 			   STATX_ATTR_APPEND | STATX_ATTR_NODUMP)
 
+/*
+ * As ovl_do_getattr() and ecryptfs_do_getattr(): the lower's security hook runs unless the caller
+ * came through vfs_getattr_nosec(), which marks the call AT_GETATTR_NOSEC (and vfs_getattr() itself
+ * refuses the flag). In Linux 6.12 vfs_getattr() also ends in vfs_getattr_nosec(), so every call
+ * from the VFS carries the flag and this changes nothing yet (fs/stat.c); it keeps the decision
+ * the caller's, not the layer's (M8, journal 0221).
+ */
+static int moobl_lower_getattr(const struct path *path, struct kstat *stat, u32 request_mask,
+			       unsigned int flags)
+{
+	if (flags & AT_GETATTR_NOSEC)
+		return vfs_getattr_nosec(path, stat, request_mask, flags);
+	return vfs_getattr(path, stat, request_mask, flags);
+}
+
 static int moobl_getattr(struct mnt_idmap *idmap, const struct path *path,
 			 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
@@ -1069,7 +1107,7 @@ static int moobl_getattr(struct mnt_idmap *idmap, const struct path *path,
 	struct kstat lower_stat;
 	int err;
 
-	err = vfs_getattr_nosec(moobl_lower_path(dentry), &lower_stat, request_mask, flags);
+	err = moobl_lower_getattr(moobl_lower_path(dentry), &lower_stat, request_mask, flags);
 	if (err)
 		return err;
 	moobl_copy_attr(inode, moobl_lower_inode(inode));
@@ -1329,6 +1367,17 @@ void moobl_qbuf_put(struct file *file, struct moob_query_result *buf)
 	.end_write = moobl_file_end_write,				\
 }
 
+/*
+ * backing_file_open() takes the user file since the 6.12 stable backport of the backing-file LSM
+ * hooks; the v6.12 tag takes the user path. Every kernel the module is built for
+ * (scripts/supported-kernels) has the new form, and no other is supported (docs/compatibility.md):
+ * a kernel with the old one fails here with a message instead of a pointer-type error (M8, 0221).
+ */
+static_assert(__same_type(backing_file_open,
+			  struct file *(const struct file *, int, const struct path *,
+					const struct cred *)),
+	      "moobfs_layer needs backing_file_open(const struct file *, ...): see docs/compatibility.md");
+
 static int moobl_open(struct inode *inode, struct file *file)
 {
 	struct path *lower = moobl_lower_path(file->f_path.dentry);
@@ -1565,13 +1614,19 @@ unlock:
 	return ret;
 }
 
+/* With the mounter's credentials, as the other delegated I/O and as ovl_flush() (M8, 0221). */
 static int moobl_flush(struct file *file, fl_owner_t id)
 {
 	struct file *real = moobl_real(file);
+	const struct cred *old;
+	int err = 0;
 
-	if (real->f_op->flush)
-		return real->f_op->flush(real, id);
-	return 0;
+	if (real->f_op->flush) {
+		old = override_creds(MOOBL_SB(file_inode(file)->i_sb)->creds);
+		err = real->f_op->flush(real, id);
+		revert_creds(old);
+	}
+	return err;
 }
 
 static const struct file_operations moobl_file_fops = {
