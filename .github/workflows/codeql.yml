@@ -4,12 +4,12 @@ name: CodeQL
 # they compile with). C/C++ extraction follows the compiler, so what is analyzed is exactly
 # what the manual build below compiles. The kernel modules (layer/, kernel/) are not built
 # here: they need kernel headers and are covered by the VM, KASAN and checkpatch jobs.
+# It runs on every pull request and push, not only those touching these paths, so that every
+# commit on main has a SAST run (OpenSSF Scorecard, SAST check).
 on:
   push:
     branches: [main]
-    paths: ['tools/**', 'common/**', 'bench/**', 'include/**', 'tests/*.c', 'Makefile', '.github/workflows/codeql.yml', '.github/codeql/**']
   pull_request:
-    paths: ['tools/**', 'common/**', 'bench/**', 'include/**', 'tests/*.c', 'Makefile', '.github/workflows/codeql.yml', '.github/codeql/**']
   schedule:
     - cron: '41 5 * * 2'
   workflow_dispatch:
