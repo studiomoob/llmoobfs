@@ -10,7 +10,7 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15408/badge)](https://www.bestpractices.dev/projects/15408)
 [![Zenodo DOI: experimental snapshot](https://zenodo.org/badge/DOI/10.5281/zenodo.23514721.svg)](https://doi.org/10.5281/zenodo.23514721)
 
-> **Experimental. Not for production.** Kernel code with no outside human review yet, tested on
+> **Experimental. Not for production.** Kernel code not yet reviewed as a whole by an independent human, tested on
 > one kernel series (6.12) in VMs. Use it only in a disposable VM or on a dedicated test host. The
 > current state, what was merged since the last tag and the defects that tag still has are on the
 > [status page](docs/status.md); the limits are under [Limitations](#limitations).
@@ -151,9 +151,10 @@ Facts as of 2026-10-25:
 - **Tested with** fault injection inside the module, fstests' `quick` group on the three lower
   filesystems, syzkaller (five six-hour runs; one defect found and fixed), a first KCSAN run (no
   race in the module) and SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143).
-- **No outside human review of the kernel code yet.** It was requested on 2026-10-13. A first
-  outside contributor reviewed the scripts, tools and Python library with an AI assistant
-  (2026-10-27, pull requests 161 to 163). Two independent source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
+- **No independent human review of the whole kernel code yet.** It was requested on 2026-10-13.
+  An external reviewer privately reported three kernel defects and wrote the fix of one (F16,
+  below). An outside contributor reviewed the scripts, tools and Python library with an AI
+  assistant (2026-10-27, pull requests 161 to 163). Two independent source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
   [journal 0114](docs/history/0114-second-inspection-of-5582e06.md)) and verified against the
   kernel found four security defects (findings F9 to F12 of ADR-0011), reported as private
   advisories and fixed in journals 0116 and 0117; our own tests and reviews found others before.
@@ -163,7 +164,7 @@ Facts as of 2026-10-25:
   set-user-ID bit kept through a write (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), fixed
   on `main` in journals [0215](docs/history/0215-search-only-directories.md),
   [0216](docs/history/0216-domain-record-generation.md) and
-  [0218](docs/history/0218-write-credentials-fsetid.md).
+  [0218](docs/history/0218-write-credentials-fsetid.md); the reviewer wrote the fix of F16.
   Tags up to `v0.4.0-experimental` carry defects fixed since ([changelog](CHANGELOG.md)).
 - **The measurements are pilot-grade**, from one host; the report that gathers them is
   [journal 0088](docs/history/0088-m4-report.md). They are not a general speed claim.
@@ -188,7 +189,8 @@ For anything beyond a disposable VM, SQLite or plain files remain the recommenda
 
 ## How to help
 
-The project has one maintainer and no outside human review of the kernel code yet; a first
+The project has one maintainer and no independent human review of the whole kernel code yet; an
+external reviewer privately reported three kernel defects and wrote the fix of one (F16), and an
 outside contributor reviewed the scripts, tools and Python library (pull requests 161 to 163).
 What would help most, by how much kernel knowledge it takes, is in **[docs/help-wanted.md](docs/help-wanted.md)**: a review of the
 credential model or of the index locking, if you know the VFS; a check of whether your memory
@@ -500,9 +502,9 @@ KASAN harness runs the layer suite), and no benchmark exists.
   (journals 0139 and 0143). No speed or efficiency claim beyond the conditions stated in
   [What was measured](#what-was-measured) may be made from them; no comparison with FUSE
   exists, and the comparison with the bare lower filesystem on the current module is pending.
-- No outside human review of the kernel code. Two independent source reviews by AI assistants (journals
+- No independent human review of the whole kernel code. Two independent source reviews by AI assistants (journals
   [0111](docs/history/0111-review-5582e06.md) and [0114](docs/history/0114-second-inspection-of-5582e06.md)),
-  private reports from an external reviewer (journals 0215, 0216, 0218) and the project's own tests found and fixed kernel-side defects, security ones among them; the
+  private reports from an external reviewer (journals 0215, 0216, 0218; the reviewer wrote the fix of F16) and the project's own tests found and fixed kernel-side defects, security ones among them; the
   findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F16),
   the earlier defects in journals [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
@@ -584,7 +586,7 @@ a prompt; MoobFS stores files and answers attribute predicates. They are potenti
 top of the layer, not competitors; the M4 plan uses them as workloads.
 
 **MoobFS.** One store, per-result authorization by the OS, no daemon, data readable without
-the module; in exchange, a kernel module from one author, one tested kernel, a RAM-only index
+the module; in exchange, a kernel module written mostly by one author, one tested kernel, a RAM-only index
 and a measured
 advantage that is narrow and pilot-grade ([What was measured](#what-was-measured)). Full comparison table and the conditions under which it may be
 worth evaluating: [when-not-to-use.md](docs/when-not-to-use.md).

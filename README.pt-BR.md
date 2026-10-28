@@ -13,7 +13,7 @@
 > Este arquivo é um espelho de cortesia do [README em inglês](README.md), que prevalece em caso
 > de diferença ([ADR-0010](docs/decisions/0010-english-everywhere.md)).
 
-> **Experimental. Não é para produção.** Código de kernel ainda sem revisão humana externa,
+> **Experimental. Não é para produção.** Código de kernel ainda não revisado por inteiro por um humano independente,
 > testado em uma série de kernel (6.12), em VMs. Use só numa VM descartável ou num host de teste
 > dedicado. O estado atual, o que entrou desde a última tag e os defeitos que essa tag ainda tem
 > estão na [página de estado](docs/status.pt-BR.md); os limites, em [Limitações](#limitações).
@@ -161,9 +161,10 @@ Fatos em 2026-10-25:
   de arquivos de baixo, syzkaller (cinco rodadas de seis horas; um defeito achado e corrigido), uma
   primeira rodada do KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091,
   0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143).
-- **Ainda sem revisão humana externa do código do kernel.** Foi pedida em 2026-10-13. Um primeiro
-  colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um assistente de IA
-  (2026-10-27, pull requests 161 a 163). Duas revisões independentes do
+- **Ainda sem revisão humana independente de todo o código do kernel.** Foi pedida em 2026-10-13.
+  Um revisor externo relatou em privado três defeitos do kernel e escreveu a correção de um deles
+  (F16, abaixo). Um colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um
+  assistente de IA (2026-10-27, pull requests 161 a 163). Duas revisões independentes do
   código, feitas por assistentes de IA ([diário 0111](docs/history/0111-review-5582e06.md),
   [diário 0114](docs/history/0114-second-inspection-of-5582e06.md)) e conferidas contra o kernel,
   acharam quatro defeitos de segurança (achados F9 a F12 do ADR-0011), relatados como avisos de
@@ -175,7 +176,7 @@ Fatos em 2026-10-25:
   (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), corrigidos na `main` nos diários
   [0215](docs/history/0215-search-only-directories.md),
   [0216](docs/history/0216-domain-record-generation.md) e
-  [0218](docs/history/0218-write-credentials-fsetid.md). As tags até a `v0.4.0-experimental`
+  [0218](docs/history/0218-write-credentials-fsetid.md); a correção do F16 é do revisor. As tags até a `v0.4.0-experimental`
   carregam defeitos corrigidos depois ([changelog](CHANGELOG.md)).
 - **As medições são de nível piloto**, de uma máquina; o relatório que as reúne é o
   [diário 0088](docs/history/0088-m4-report.md). Não são uma afirmação geral de velocidade.
@@ -201,9 +202,10 @@ recomendação ([when-not-to-use.md](docs/when-not-to-use.md)). A lista completa
 
 ## Como ajudar
 
-O projeto tem um mantenedor e ainda nenhuma revisão humana externa do código do kernel; um
-primeiro colaborador de fora revisou scripts, ferramentas e a biblioteca Python (pull requests 161
-a 163). O que mais ajudaria, organizado por
+O projeto tem um mantenedor e ainda nenhuma revisão humana independente de todo o código do
+kernel; um revisor externo relatou em privado três defeitos do kernel e escreveu a correção de um
+deles (F16), e um colaborador de fora revisou scripts, ferramentas e a biblioteca Python (pull
+requests 161 a 163). O que mais ajudaria, organizado por
 quanto conhecimento de kernel exige, está em **[docs/help-wanted.md](docs/help-wanted.md)**: uma
 revisão do modelo de credenciais ou das travas do índice, se você conhece o VFS; uma verificação
 de se o seu sistema de memória se encaixa, se você constrói um; uma rodada dos testes na sua
@@ -528,9 +530,9 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   condições descritas em [O que foi medido](#o-que-foi-medido) pode ser feita a partir deles; não
   existe comparação com FUSE, e a comparação com o sistema de arquivos de baixo puro no módulo atual
   está pendente.
-- Sem revisão humana externa do código do kernel. Duas revisões independentes do código, feitas por assistentes de IA
+- Sem revisão humana independente de todo o código do kernel. Duas revisões independentes do código, feitas por assistentes de IA
   (diários [0111](docs/history/0111-review-5582e06.md) e [0114](docs/history/0114-second-inspection-of-5582e06.md)),
-  relatos privados de um revisor externo (diários 0215, 0216, 0218) e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
+  relatos privados de um revisor externo (diários 0215, 0216, 0218; a correção do F16 é dele) e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
   segurança; os achados estão no [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)
   (F1 a F16), e os defeitos anteriores nos diários [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
@@ -616,7 +618,7 @@ prompt; o MoobFS guarda arquivos e responde a predicados de atributo. São clien
 cima da camada, não concorrentes; o plano M4 os usa como cargas de trabalho.
 
 **MoobFS.** Um só armazenamento, autorização por resultado feita pelo SO, sem daemon, dados
-legíveis sem o módulo; em troca, um módulo de kernel de um autor, um kernel testado, um índice só
+legíveis sem o módulo; em troca, um módulo de kernel escrito quase todo por um autor, um kernel testado, um índice só
 em RAM e uma vantagem medida que é estreita e de nível piloto
 ([O que foi medido](#o-que-foi-medido)). Tabela de comparação completa e as condições em que pode
 valer a pena avaliar: [when-not-to-use.md](docs/when-not-to-use.md).

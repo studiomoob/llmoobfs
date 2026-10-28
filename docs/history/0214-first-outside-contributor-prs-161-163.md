@@ -4,6 +4,8 @@ Date: 2026-10-27. Status: done. Work started about 15:40 America/Sao_Paulo, when
 requests arrived, and ended about 20:00; calendar time, not effort. Estimated
 effort: S.
 
+*Note, 2026-10-28:* "first outside contributor" in the title and below is wrong: outside contributions came earlier (pull request 43 on 2026-10-12, translations in pull requests 46 and 47, journal 0086). What is new here is an outside review of the scripts, tools and Python library. The surfaces' "no outside human review of the kernel code" was qualified in security batch 2: an external reviewer privately reported three kernel defects and wrote the fix of one (journals 0215, 0216, 0218).
+
 ## Goal and decision
 
 A first outside contributor opened three pull requests from a fork, each with its own journal

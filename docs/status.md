@@ -8,9 +8,10 @@ meets what the project is before its status history. The facts are unchanged. Th
 
 ## Last tag and later corrections
 
-**Experimental. Not for production.** One kernel series (6.12), tested in a VM only; no outside
-human review of the kernel code yet (two independent source reviews by AI assistants, journals 0111 and 0114;
-a first outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163). The last
+**Experimental. Not for production.** One kernel series (6.12), tested in a VM only; no independent
+human review of the whole kernel code yet (two independent source reviews by AI assistants, journals 0111 and 0114;
+an external reviewer privately reported three kernel defects and wrote the fix of one, F16, journals 0215, 0216 and 0218;
+an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163). The last
 tag, `v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch.
 The two findings of the [independent review](history/0144-independent-review.md)
 have corrections on `main`; the review batch passed the full integrated VM suite

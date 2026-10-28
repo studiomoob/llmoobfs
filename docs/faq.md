@@ -59,7 +59,8 @@ required, of the file and of every directory between the queried directory and i
 search-only directory hides its names, journal 0215). Results the caller cannot read are omitted silently, and `count`/`truncated` refer only
 to visible results. A test compares answers with the lower kernel's own decision for random
 modes, owners and groups (journal 0116). Path-based LSMs (AppArmor, Landlock) do not filter
-results; no outside human review of the kernel code has taken place.
+results; no independent human has reviewed the whole kernel code, though an external reviewer
+privately reported three kernel defects, one of them F15 in this rule (journal 0215).
 [`docs/spec-query-v2.md` §3; `docs/decisions/0011-threat-and-credential-model.md`; journals 0104, 0116]
 
 ## 7. What is the TOCTOU contract?
@@ -167,7 +168,8 @@ Since that tag, `main` also bounds an unprivileged domain build.
 `index_build_work` defaults to 32,768 cumulative units, and a mounter may choose
 1,024–65,536 ([ADR-0020](https://github.com/studiomoob/llmoobfs/blob/main/docs/decisions/0020-configurable-query-build-work-per-mount.md),
 [PR 138](https://github.com/studiomoob/llmoobfs/pull/138)). The default denies the measured
-17,000-file domain. Issue 118 stays open; this is not a strict CPU or I/O cap.
+17,000-file domain. Issue 118 is closed: over a lower slowed to 400 ms per I/O the build stops at
+its deadline with no partial answer (journal 0210); this is not a strict CPU or I/O cap.
 See [R1 validation](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0149-sync-backing-file-flags.md)
 and [R2 validation](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0150-propagate-index-xattr-read-errors.md).
 [`SECURITY.md`; `docs/decisions/0011-threat-and-credential-model.md`; `CHANGELOG.md`; journal 0144]
