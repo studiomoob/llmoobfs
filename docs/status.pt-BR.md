@@ -12,9 +12,10 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 ## Última tag e correções posteriores
 
 **Experimental. Não é para produção.** Uma série de kernel (6.12), testada só em VM; ainda sem
-revisão humana externa do código do kernel (duas revisões independentes do código, feitas por
-assistentes de IA, diários 0111 e 0114; um primeiro colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um assistente de IA,
-pull requests 161 a 163). A última tag, `v0.4.1-experimental` (2026-10-20), é um retrato do
+revisão humana independente de todo o código do kernel (duas revisões independentes do código, feitas por
+assistentes de IA, diários 0111 e 0114; um revisor externo relatou em privado três defeitos do kernel e
+escreveu a correção de um deles, F16, diários 0215, 0216 e 0218; um colaborador de fora revisou scripts,
+ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163). A última tag, `v0.4.1-experimental` (2026-10-20), é um retrato do
 código anterior às correções que hoje estão na `main`. Os dois achados da
 [revisão independente](history/0144-independent-review.md) têm correções na
 `main`. Esse lote passou na suíte completa integrada em VM e na
@@ -51,3 +52,11 @@ domínio de 5.000 arquivos levou 0,3 s sem atraso e 9,8 s com 200 ms por E/S; co
 prazo com `ETIMEDOUT`, sem resposta parcial, e a consulta seguinte respondeu completa. Os domínios
 de cerca de 25 mil memórias reais do G5 se construíram com `index_build_work=65536`. A issue 113
 (registros de domínio mantidos até o umount) foi corrigida no mesmo lote.
+*Atualização, 28/10/2026 ([diário 0219](history/0219-security-batch-checks.md)):* um segundo lote
+de segurança corrige três relatos privados de um revisor externo, cada um com teste e rodada
+negativa: o `QUERY2` nomeando arquivos sob um diretório só de busca (F15 do ADR-0011,
+[GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6), [diário 0215](history/0215-search-only-directories.md)),
+registros de domínio e de arquivo respondidos para um número de inode reutilizado
+([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm), [diário 0216](history/0216-domain-record-generation.md))
+e um bit set-user-ID mantido depois de uma escrita (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6),
+[diário 0218](history/0218-write-credentials-fsetid.md)). A `v0.4.1-experimental` contém os três.

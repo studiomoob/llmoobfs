@@ -177,3 +177,34 @@ ainda sem revisão humana externa.
 sem revisão humana externa. Duas
 ainda nenhuma revisão humana externa.
 revisão humana externa (duas
+
+# Security batch 2 published: F15, F16 and GHSA-756j-cgwq-gvwm fixed (journals 0215, 0216, 0218).
+F1 to F14
+F1 a F14
+findings F1 to F12 fixed except
+Three later findings affect it
+Três achados posteriores a afetam
+
+# Review status qualified in security batch 2: an external reviewer privately reported three
+# kernel defects and wrote the fix of one; earlier outside contributions existed (journal 0214 note).
+Kernel code with no outside human review yet,
+Código de kernel ainda sem revisão humana externa,
+outside human review of the kernel code
+revisão humana externa do código do kernel
+no outside human has reviewed
+outside human reviews of the kernel code</span>
+no outside human audit has taken place
+One maintainer, no outside review
+module is one author's code
+a kernel module from one author
+um módulo de kernel de um autor
+first outside contributor
+primeiro colaborador de fora
+(two source reviews by AI assistants).
+items S1 to S13
+usually by squash
+we request a CVE through
+17,000-file domain. Issue 118 stays open
+17 mil arquivos. A issue 118 continua aberta
+domain; issue 118 stays open
+Issue 118 remains open for slow lower-device

@@ -4,14 +4,14 @@ MoobFS is experimental kernel code developed by a single maintainer. There is no
 stable release, no production security guarantee and no stable UAPI. Run it
 only in a disposable VM with synthetic data. This policy describes how to report
 a problem and what to expect; the longer-term plan is in
-[docs/security-roadmap.md](docs/security-roadmap.md) (items S1 to S13, with implemented tests and remaining gaps recorded per item).
+[docs/security-roadmap.md](docs/security-roadmap.md) (items S1 to S22, with implemented tests and remaining gaps recorded per item).
 
 ## Supported versions
 
 | Version | Supported |
 | --- | --- |
 | `main` | Use this. Fixes land here only; there are no backports and no maintenance branches. |
-| `v0.4.1-experimental` | Source snapshot of 2026-10-20, not supported: fixes F1 to F12 except fair shares of F2, but contains review 0144 R1/R2, F13 (review 0151) and F14 with the other defects of review round 2 (journal 0155); their corrections (journals 0149, 0150, 0152, 0156) are newer than this tag and land on `main` only. |
+| `v0.4.1-experimental` | Source snapshot of 2026-10-20, not supported: fixes F1 to F12 except fair shares of F2, but contains review 0144 R1/R2, F13 (review 0151) and F14 with the other defects of review round 2 (journal 0155); their corrections (journals 0149, 0150, 0152, 0156) are newer than this tag and land on `main` only. It also contains F15, F16 and GHSA-756j-cgwq-gvwm, fixed on `main` in journals 0215, 0216 and 0218. |
 | `v0.4.0-experimental` | Source snapshot, not supported. Its queries are about twice as slow as they should be (a buffer allocated per query, journal 0139). |
 | `v0.3.0-experimental` | Source snapshot, not supported. It carries defects fixed since, security ones included (findings F6 to F12 of ADR-0011; see `CHANGELOG.md`). |
 | `v0.1.0-experimental`, `v0.2.0-experimental` | Source snapshots, not supported; they carry more of the same defects. |
@@ -99,11 +99,14 @@ These are targets for a single volunteer maintainer, not guarantees:
   reporter agrees, or if the issue becomes public elsewhere.
 - Since there are no supported releases (the `-experimental` tags are source snapshots), "fixed" means a commit on `main` with a test in
   `vm/suite.sh` or `tests/` that reproduces the problem and passes afterwards.
-- When the defect affects anyone running the module, we request a CVE through
+- No CVE is requested while there is no supported release (the tags are
+  experimental source snapshots only). The decision is made case by case and
+  recorded in the journal entry; if one is requested later, it goes through
   GitHub's CNA from the advisory. No CVE is expected for test-only or
   documentation code.
-- Credit is given in the advisory, in the journal entry (`docs/history/`) and in
-  `CHANGELOG.md`, with the reporter's consent and in the form they choose.
+- Credit is given in the advisory, with the reporter's consent and in the form
+  they choose. The journal entry (`docs/history/`) and `CHANGELOG.md` describe the
+  reporter by role and link the advisory.
 - There is no bug bounty or other financial reward.
 
 ## Safe harbor
@@ -165,14 +168,20 @@ access is provided. `QUERY2` answers from the partition of a domain directory th
 caller can traverse and read, holding only files every traverser can read; with
 domains on, the v1 `QUERY` is limited to `CAP_SYS_ADMIN` (`docs/spec-query-v2.md`).
 The VM suite, the KASAN/lockdep workflow and the attribute fuzzer are not a
-security audit; no outside human audit has taken place. Two independent source reviews by AI
+security audit; no independent human audit of the whole code has taken place. Two independent source reviews by AI
 assistants (journals 0111 and 0114) found findings F9 to F12, fixed through private advisories. A third
 (journal 0151, at `v0.4.1-experimental`) found that a chmod landing during the first build of a domain
 left the file in the domain's `QUERY2` answers to callers who can no longer read it; reproduced in
-the VM and fixed in journal 0152, with a suite test and a negative round. The threat and credential
+the VM and fixed in journal 0152, with a suite test and a negative round. Three private reports
+from an external reviewer (2026-10-27), credited in the advisories, found F15 (`QUERY2` named
+files under a search-only directory, [GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6), journal 0215),
+domain and file records answered for a reused inode number
+([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm), journal 0216) and F16 (a set-user-ID bit kept
+through a write, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6), journal 0218); each is fixed on
+`main` with a test and a negative round. The threat and credential
 model is [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)
 (accepted 2026-10-12): adversaries, promises, non-promises, unprivileged surfaces and the
-findings F1 to F14, of which part of F2 (fair shares of the index budget) is open. [docs/security-roadmap.md](docs/security-roadmap.md) lists
+findings F1 to F16, of which part of F2 (fair shares of the index budget) is open. [docs/security-roadmap.md](docs/security-roadmap.md) lists
 fstests, syzkaller, hostile-lower handling and the other open items.
 
 Known availability limit (issue 118): an authorized, unprivileged `QUERY2`

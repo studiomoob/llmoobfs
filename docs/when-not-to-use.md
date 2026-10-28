@@ -20,7 +20,7 @@ recorded configurations, not arbitrary workloads or production use.
 | Writing a memory | Reference | File plus row (two writes) | Through the daemon | File plus xattr plus RAM update; durable-write latency measured, no demonstrated write-cost advantage (journal 0088); physical write amplification still unmeasured |
 | Recovery between sessions | Nothing to rebuild | Opens the file | Depends | Linear scan of each domain at its first query |
 | Memory | None | Page cache, pageable | Process memory | Non-pageable index; about 0.5 to 0.6 KiB per file in the M4 accounting, which undercounts; query buffers are additional |
-| Maturity | Maximal | Decades | Varies | Experimental, one maintainer, no outside human review of the kernel code |
+| Maturity | Maximal | Decades | Varies | Experimental, one maintainer, no independent human review of the whole kernel code |
 | Failure domain | Minimal | Process | Process (the kernel survives) | Host (ring 0) |
 | Installation | None | Library | FUSE library and a process; often no root | Kernel module, root, module signing |
 | Portability | Total | Total | Linux, macOS and others | Linux 6.12 in a test VM |
@@ -124,9 +124,9 @@ These limits update the cases discussed in the value assessment, §9.6.
   UBSAN and lockdep suite of this change then exited 0 (`MOOBFS_KASAN_PASS`).
   The complete native-KVM suite of this change was not run.
 - **You need it in production today, or in any critical setting.** Only source pre-release tags exist; the
-  module is one author's code; its own tests and two source reviews by AI assistants found
-  kernel-side defects, security ones among them (findings F1 to F14 of ADR-0011); there is no
-  outside human review of the kernel code; fstests ran as its `quick` group only and syzkaller for five six-hour
+  module is mostly one author's code; its own tests, two source reviews by AI assistants and private
+  reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F16 of ADR-0011); there is no
+  independent human review of the whole kernel code (the external reviewer's reports and the fix of F16 aside); fstests ran as its `quick` group only and syzkaller for five six-hour
   rounds. A module bug can mean a kernel panic or data loss.
 - **The team cannot maintain an out-of-tree kernel module** across kernel updates, signing
   and DKMS; none of that tooling exists in the project.
@@ -166,7 +166,7 @@ SQLite comparison. See the [measurement plan](benchmark-plan.md) for the remaini
 | Index budget | Small-budget release/rebuild and failed-update recovery tested (journals 0101, 0130); default-budget saturation series and actual RAM versus `index_used` still missing |
 | Concurrency | Correctness races tested (journals 0052, 0098); throughput scaling across clients still missing |
 | Real clients | ai-memory acceptance and structured queries, plus LangGraph adapter equivalence (journals 0057, 0068, 0089); no general client-performance claim |
-| Authorization | Race and timing tests recorded (journals 0020, 0043, 0052, 0116); outside human review of the kernel code still missing |
+| Authorization | Race and timing tests recorded (journals 0020, 0043, 0052, 0116); independent human review of the whole kernel code still missing (an external reviewer privately reported F15, F16 and GHSA-756j-cgwq-gvwm) |
 
 A run in which the layer wins none of these is a valid result and, as
 [ADR-0007](decisions/0007-stacked-memory-layer.md) states, should change the project's

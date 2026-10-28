@@ -12,8 +12,9 @@ attribute index lives only in RAM, built per domain by the first query on it and
 memory pressure (ADR-0012). The UAPI (v1 and v2) may
 change. Only pilot-grade measurements exist. Our own tests and reviews keep
 finding kernel-side defects (the README banner and `CHANGELOG.md` list them);
-there has been no outside human review of the kernel code (two source reviews by AI assistants, journals 0111 and 0114;
-a first outside contributor reviewed the scripts, tools and Python library, pull requests 161 to 163). Do not expect production readiness, compatibility promises or quick
+there has been no independent human review of the whole kernel code (two source reviews by AI assistants, journals 0111 and 0114;
+an external reviewer privately reported three kernel defects and wrote the fix of one, F16, journals 0215, 0216 and 0218;
+an outside contributor reviewed the scripts, tools and Python library, pull requests 161 to 163). Do not expect production readiness, compatibility promises or quick
 turnaround on every issue. See the status banner in [README.md](README.md).
 
 ## Where to start
@@ -171,8 +172,8 @@ A pull request is merged when all of the following hold:
    the author and the maintainer, with their name). This rule stands until the
    project has a second maintainer, when it becomes two approvals. A review
    comment is a record, not a proof of safety.
-7. The maintainer merges, usually by squash with a final message written by the
-   maintainer; a bisectable series may be merged with history preserved.
+7. The maintainer merges with a merge commit, after the branch is rebased on `main`
+   (journal 0217).
 
 Reverting is preferred over rewriting. Passing CI is necessary but does not
 prove safety or production readiness.

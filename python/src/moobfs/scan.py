@@ -3,8 +3,9 @@
 kernel's rules (client contract section 7, ADR-0013's fallback).
 
 A file is a candidate only where the kernel would index it (docs/spec-query-v2.md section 3,
-layer/index.c reach_ok and target_ok): every directory between the domain and the file lets
-through everyone who can traverse the domain, the file is readable by all of them, it has one
+layer/index.c reach_ok and target_ok): every directory between the domain and the file can be
+listed and traversed by everyone who can traverse the domain, the file is readable by all of
+them, it has one
 name, and neither carries an access ACL beyond the minimal one. So the scan returns what QUERY2
 returns on a mounted layer, never a file the domain does not share with all who can enter it,
 even when the caller could open it. The caller must be able to read and search the domain
@@ -41,17 +42,19 @@ def _ext_acl(path):
 
 
 def _reach_ok(st, ext, dom, dom_ext, want_read):
-    """reach_ok for an lstat result st (with its ACL flag) against the domain's."""
-    cls = (0o400, 0o040, 0o004) if want_read else (0o100, 0o010, 0o001)
+    """reach_ok for an lstat result st (with its ACL flag) against the domain's: read for a
+    file, read and search for an intermediate directory (a search-only one keeps its names
+    from those who cannot list it, journal 0215)."""
+    cls = (0o400, 0o040, 0o004) if want_read else (0o500, 0o050, 0o005)
     mode = st.st_mode
-    if not ext and all(mode & b for b in cls):
+    if not ext and all(mode & b == b for b in cls):
         return True
     if ext or dom_ext:
         return False
     if st.st_uid != dom.st_uid or st.st_gid != dom.st_gid:
         return False
-    for search, bit in zip((0o100, 0o010, 0o001), cls):
-        if dom.st_mode & search and not mode & bit:
+    for search, bits in zip((0o100, 0o010, 0o001), cls):
+        if dom.st_mode & search and mode & bits != bits:
             return False
     return True
 

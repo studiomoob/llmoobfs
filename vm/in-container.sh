@@ -115,9 +115,12 @@ cp "/boot/config-$KERNEL" build/vm/kernel.config
 (cd "$STAGE" && find . -print0 | sort -z | cpio --null -o --format=newc 2>/dev/null | gzip -n) > build/vm/initramfs.cpio.gz
 set +e
 # A guard against a hung guest, not a time budget. The complete suite reached the previous
-# 1200 s guard during the btrfs release step under TCG after adding rootpath and overbudget.
-timeout 2400 qemu-system-x86_64 \
-    -machine q35 -accel tcg -cpu max -m 512M -smp 2 \
+# 1200 s guard during the btrfs release step under TCG after adding rootpath and overbudget,
+# and the 2400 s one on the dedicated host's TCG after the permission matrix grew (journal 0219).
+ACCEL=tcg
+[ "${MOOB_VM_KVM:-}" = 1 ] && ACCEL=kvm
+timeout 3600 qemu-system-x86_64 \
+    -machine q35 -accel $ACCEL -cpu max -m 512M -smp 2 \
     -drive file=build/vm/lower-ext4.img,format=raw,if=virtio \
     -drive file=build/vm/lower-btrfs.img,format=raw,if=virtio \
     -drive file=build/vm/lower-xfs.img,format=raw,if=virtio \

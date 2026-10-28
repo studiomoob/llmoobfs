@@ -48,6 +48,7 @@ struct moobl_domain {
 	refcount_t ref;
 	struct rcu_head rcu;
 	u64 key;			/* its index in ix->domains: the domain directory's inode */
+	u32 lower_gen;			/* that inode's i_generation when its build began */
 	bool gone;			/* its directory was removed: drop it once nobody holds it */
 	u8 state;
 	struct list_head moved;		/* directories renamed in it during its build (index lock) */

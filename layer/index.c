@@ -88,6 +88,7 @@ struct moobl_ix_name {
 
 struct moobl_ix_inode {
 	u64 ino;
+	u32 gen;			/* the lower inode's i_generation: with ino, one inode */
 	struct list_head entries;	/* this inode's typed attributes */
 	struct inode *upper;		/* cached layer inode, or NULL */
 	char *path;			/* mount-relative path recorded at scan or write time */
@@ -294,13 +295,23 @@ static void name_put_if_empty(struct moobl_index *ix, struct moobl_ix_name *nm)
 	uncharge(ix, sizeof(*nm));
 }
 
-static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino)
+static void rec_drop(struct moobl_index *ix, struct moobl_ix_inode *rec);
+
+/*
+ * The record of inode (ino, gen), created if there is none. A record with the same number and
+ * another generation belongs to a file removed on the lower, behind the layer, whose number the
+ * lower filesystem gave to a new file (GHSA-756j-cgwq-gvwm): its entries are the removed file's
+ * values and go with it, or the next index_put() would move them into the new file's partition.
+ */
+static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino, u32 gen)
 {
 	struct moobl_ix_inode *rec = xa_load(&ix->inodes, ino);
 
 	lockdep_assert_held_write(&ix->lock);
-	if (rec)
+	if (rec && rec->gen == gen)
 		return rec;
+	if (rec)
+		rec_drop(ix, rec);
 	if (charge(ix, sizeof(*rec)))
 		return ERR_PTR(-ENOMEM);
 	rec = kzalloc(sizeof(*rec), GFP_KERNEL_ACCOUNT);
@@ -309,6 +320,7 @@ static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino)
 		return ERR_PTR(-ENOMEM);
 	}
 	rec->ino = ino;
+	rec->gen = gen;
 	INIT_LIST_HEAD(&rec->entries);
 	if (xa_err(xa_store(&ix->inodes, ino, rec, GFP_KERNEL_ACCOUNT))) {
 		kfree(rec);
@@ -451,7 +463,7 @@ static int rec_set_partition(struct moobl_index *ix, struct moobl_ix_inode *rec,
 }
 
 /* Replaces or inserts one typed attribute. Caller holds the write lock. */
-static int index_put(struct moobl_index *ix, u64 ino, const struct moobl_place *pl,
+static int index_put(struct moobl_index *ix, u64 ino, u32 gen, const struct moobl_place *pl,
 		     const char *name, const u8 *value, size_t size)
 {
 	struct moobl_ix_inode *rec;
@@ -463,7 +475,7 @@ static int index_put(struct moobl_index *ix, u64 ino, const struct moobl_place *
 	lockdep_assert_held_write(&ix->lock);
 	if (value[0] == MOOB_T_RAW)
 		return 0;	/* raw payloads are stored but never indexed */
-	rec = inode_rec_get(ix, ino);
+	rec = inode_rec_get(ix, ino, gen);
 	if (IS_ERR(rec))
 		return PTR_ERR(rec);
 	err = rec_set_partition(ix, rec, pl);
@@ -551,21 +563,26 @@ static bool ext_acl(struct inode *inode, int *err)
 
 /*
  * Sufficient condition for "everyone who can traverse the domain directory dom can also
- * reach in": read it (want_read, a file or a directory carrying attributes) or traverse it
- * (an intermediate directory). Either in grants the class bit to owner, group and others
- * and has no extended ACL, or in and dom share owner and group, neither has an extended
- * ACL, and in grants the bit to every class that dom lets traverse. The bit of others alone
- * is not enough: the kernel judges the owner by the owner bits and a member of the group by
- * the group bits, never by those of others (acl_permission_check), so a file 0604 is not
- * readable by its group (journal 0116). Lower inodes: permissions are the
- * lower filesystem's. An ACL that could not be read counts as restrictive; a caller that
- * must not take that for an answer (a build) passes err and gets the error there.
+ * reach in": read it (MOOBL_REACH_FILE, a file or a directory carrying attributes) or list
+ * and traverse it (MOOBL_REACH_DIR, an intermediate directory). Either in grants the class
+ * bits to owner, group and others and has no extended ACL, or in and dom share owner and
+ * group, neither has an extended ACL, and in grants the bits to every class that dom lets
+ * traverse. The bits of others alone are not enough: the kernel judges the owner by the
+ * owner bits and a member of the group by the group bits, never by those of others
+ * (acl_permission_check), so a file 0604 is not readable by its group (journal 0116). An
+ * intermediate directory needs read as well as search: a search-only directory (0711) keeps
+ * the names under it from those who cannot list it, and an answer must not hand them out
+ * (journal 0215, ADR-0025). Lower inodes: permissions are the lower filesystem's. An ACL that
+ * could not be read counts as restrictive; a caller that must not take that for an answer (a
+ * build) passes err and gets the error there.
  */
-static bool reach_ok(struct inode *in, struct inode *dom, bool want_read, int *err)
+#define MOOBL_REACH_FILE	04	/* class bits: read */
+#define MOOBL_REACH_DIR		05	/* class bits: read and search */
+
+static bool reach_ok(struct inode *in, struct inode *dom, umode_t need, int *err)
 {
-	/* octal class bits: read 0444 or search 0111, split per owner, group, other */
-	umode_t u = want_read ? 0400 : 0100, g = want_read ? 0040 : 0010;
-	umode_t o = want_read ? 0004 : 0001;
+	/* the class bits need, split per owner, group, other */
+	umode_t u = need << 6, g = need << 3, o = need;
 	bool acl = ext_acl(in, err);
 
 	if (!acl && (in->i_mode & (u | g | o)) == (u | g | o))
@@ -574,11 +591,11 @@ static bool reach_ok(struct inode *in, struct inode *dom, bool want_read, int *e
 		return false;
 	if (!uid_eq(in->i_uid, dom->i_uid) || !gid_eq(in->i_gid, dom->i_gid))
 		return false;
-	if ((dom->i_mode & 0100) && !(in->i_mode & u))
+	if ((dom->i_mode & 0100) && (in->i_mode & u) != u)
 		return false;
-	if ((dom->i_mode & 0010) && !(in->i_mode & g))
+	if ((dom->i_mode & 0010) && (in->i_mode & g) != g)
 		return false;
-	if ((dom->i_mode & 0001) && !(in->i_mode & o))
+	if ((dom->i_mode & 0001) && (in->i_mode & o) != o)
 		return false;
 	return true;
 }
@@ -587,7 +604,7 @@ static bool target_ok(struct inode *in, struct inode *dom, int *err)
 {
 	if (S_ISREG(in->i_mode) && in->i_nlink > 1)
 		return false;	/* another name may live in another domain */
-	return reach_ok(in, dom, true, err);
+	return reach_ok(in, dom, MOOBL_REACH_FILE, err);
 }
 
 /*
@@ -667,7 +684,8 @@ static void place_dentry_above(struct moobl_index *ix, struct dentry *dentry, st
 		d = dget_parent(dentry);
 		for (i = 0; d != domd && !IS_ROOT(d) && i < MOOBL_MAX_DEPTH; i++) {
 			if (ok)
-				ok = reach_ok(moobl_lower_inode(d_inode(d)), dom, false, NULL);
+				ok = reach_ok(moobl_lower_inode(d_inode(d)), dom, MOOBL_REACH_DIR,
+					     NULL);
 			p = dget_parent(d);
 			dput(d);
 			d = p;
@@ -843,6 +861,23 @@ static bool domain_fresh(struct moobl_index *ix, const struct moobl_domain *dom)
 {
 	return READ_ONCE(dom->state) == MOOBL_DOM_BUILT && !READ_ONCE(dom->paths_stale) &&
 	       !READ_ONCE(dom->lost) && READ_ONCE(dom->top_gen) == READ_ONCE(ix->top_gen);
+}
+
+/*
+ * domain_fresh(), and built from the directory lower is now. Records are keyed by the inode
+ * number of the domain directory, which ext4 and XFS reuse: a directory removed on the lower,
+ * behind the layer, and a new one given its number would otherwise be answered from the removed
+ * one's entries (GHSA-756j-cgwq-gvwm). The number and the inode's generation together name one
+ * inode, as in an NFS file handle (generic_encode_ino32_fh()): ext4 and XFS give a new inode a
+ * random generation, btrfs the transaction that created it. A filesystem that leaves it 0 is not
+ * protected by this check.
+ */
+static bool domain_fresh_for(struct moobl_index *ix, const struct moobl_domain *dom,
+			     const struct dentry *lower)
+{
+	return domain_fresh(ix, dom) &&
+	       (dom == &ix->outside ||
+		READ_ONCE(dom->lower_gen) == READ_ONCE(d_inode(lower)->i_generation));
 }
 
 /*
@@ -1308,7 +1343,7 @@ static int attrs_read(struct dentry *lower, struct attr_buf *b)
 }
 
 /* Puts what b holds in place of whatever the index has for ino. Caller holds the write lock. */
-static int index_replace(struct moobl_index *ix, u64 ino, const struct moobl_place *pl,
+static int index_replace(struct moobl_index *ix, u64 ino, u32 gen, const struct moobl_place *pl,
 			 const struct attr_buf *b)
 {
 	struct moobl_ix_inode *rec = xa_load(&ix->inodes, ino);
@@ -1327,7 +1362,7 @@ static int index_replace(struct moobl_index *ix, u64 ino, const struct moobl_pla
 		u16 size;
 
 		memcpy(&size, b->data + off, sizeof(size));
-		err = index_put(ix, ino, pl, name, b->data + off + sizeof(size) + nl, size);
+		err = index_put(ix, ino, gen, pl, name, b->data + off + sizeof(size) + nl, size);
 		off += sizeof(size) + nl + size;
 	}
 	return err;
@@ -1408,7 +1443,7 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 			continue;
 		}
 		list_del(&ld.list);
-		err = index_replace(ix, li->i_ino, &cur, b);
+		err = index_replace(ix, li->i_ino, READ_ONCE(li->i_generation), &cur, b);
 		rec = err ? NULL : xa_load(&ix->inodes, li->i_ino);
 		if (rec && path)
 			err = index_set_path(ix, rec, path);	/* a scan has no other source of the name */
@@ -1630,7 +1665,8 @@ static int scan_push_dir(struct scan_job *job, struct scan_dir *cur, struct dent
 		nd->inner = cur->inner;
 		nd->self.domain = cur->inner;
 		nd->self.hetero = !cur->inner_ok;	/* the directory itself: index_load() */
-		nd->inner_ok = cur->inner_ok && reach_ok(d_inode(child), dom, false, &err);
+		nd->inner_ok = cur->inner_ok &&
+			       reach_ok(d_inode(child), dom, MOOBL_REACH_DIR, &err);
 		if (err) {	/* an ACL that could not be read is not an answer */
 			scan_dir_free(nd);
 			return err;
@@ -1917,13 +1953,13 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 	u64 t0, used0, refused = 0;
 	int tries, err;
 
-	if (domain_fresh(ix, dom)) {
+	if (domain_fresh_for(ix, dom, lower)) {
 		WRITE_ONCE(dom->used_at, jiffies);
 		return 0;
 	}
 	if (mutex_lock_killable(&dom->build))
 		return -EINTR;
-	if (domain_fresh(ix, dom)) {
+	if (domain_fresh_for(ix, dom, lower)) {
 		WRITE_ONCE(dom->used_at, jiffies);
 		mutex_unlock(&dom->build);
 		return 0;
@@ -1963,6 +1999,7 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 		refused = ix->refusals;	/* a build of another domain cannot clear what follows */
 		dom->restart = false;
 		dom->top_gen = gen;
+		WRITE_ONCE(dom->lower_gen, READ_ONCE(d_inode(lower)->i_generation));
 		ix_write_unlock(ix, nofs);
 		err = scan_start(&job, lower, path, domain ? ix->domain_depth : 0, domain != 0);
 		if (!err)
@@ -2268,7 +2305,8 @@ int moobl_index_set(struct super_block *sb, struct dentry *dentry, const char *n
 		ix_write_unlock(ix, nofs);
 		return 0;
 	}
-	err = index_put(ix, inode->i_ino, &pl, name, value, size);
+	err = index_put(ix, inode->i_ino, READ_ONCE(moobl_lower_inode(inode)->i_generation), &pl,
+			name, value, size);
 	if (err) {
 		/* the lower write already succeeded: the domain is built again by the next query */
 		domain_lost(ix, pl.domain, err);
@@ -2427,7 +2465,8 @@ static struct moved_dir *dir_moved_prepare(struct moobl_index *ix, struct dentry
 		place_dentry_above(ix, where, d_inode(moved), &md->self, &above);
 		if (md->self.domain)	/* its own homogeneity is decided when it is read */
 			md->self.hetero = !above;
-		md->inner_ok = above && reach_ok(moobl_lower_inode(d_inode(moved)), dom, false, NULL);
+		md->inner_ok = above && reach_ok(moobl_lower_inode(d_inode(moved)), dom,
+						 MOOBL_REACH_DIR, NULL);
 	}
 	md->lower = dget(moobl_lower_dentry(moved));
 	free_page((unsigned long)buf);
@@ -2602,7 +2641,9 @@ void moobl_index_inode_cached(struct super_block *sb, struct inode *inode)
 		return;
 	nofs = ix_write_lock(ix);
 	rec = xa_load(&ix->inodes, inode->i_ino);
-	if (rec)
+	if (rec && rec->gen != READ_ONCE(moobl_lower_inode(inode)->i_generation))
+		rec_drop(ix, rec);	/* a removed file's record: see inode_rec_get() */
+	else if (rec)
 		rec->upper = inode;
 	ix_write_unlock(ix, nofs);
 }
@@ -2809,26 +2850,72 @@ struct moobl_resume {
  * not leave this mount nor follow symbolic links: a result is on this mount under its
  * recorded name, and anything else would be refused below anyway.
  */
-/* 1 = readable, 0 = inaccessible/stale, -ENOMEM = unable to decide under memory pressure. */
+/*
+ * Whether the caller may list every directory strictly between the queried directory top and
+ * the result d: the lookup below asks search of each, and a search-only directory (0711) keeps
+ * its names from those who cannot read it (journal 0215, ADR-0025). A result moved out from
+ * under top meanwhile is refused. 1 = yes, 0 = no, -ENOMEM as below.
+ */
+static int caller_may_list_above(struct dentry *top, struct dentry *d)
+{
+	struct dentry *p = dget_parent(d), *q;
+	unsigned int i;
+	int err, ok = 1;
+
+	for (i = 0; p != top; i++) {
+		if (IS_ROOT(p) || i >= MOOBL_MAX_DEPTH) {
+			ok = 0;
+			break;
+		}
+		err = inode_permission(&nop_mnt_idmap, d_inode(p), MAY_READ);
+		if (err) {
+			ok = err == -ENOMEM ? err : 0;
+			break;
+		}
+		q = dget_parent(p);
+		dput(p);
+		p = q;
+	}
+	dput(p);
+	return ok;
+}
+
+/*
+ * 1 = readable, 0 = inaccessible/stale, -ENOMEM = unable to decide under memory pressure.
+ * The directories checked must be the ones the recorded path went through: a rename between
+ * the lookup and the walk above would check another chain. A positive answer therefore holds
+ * only if no rename happened meanwhile (rename_lock, as where_is() and path lookup use it);
+ * otherwise it is decided again, and left out after a few tries, as a stale result is.
+ */
 static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino)
 {
 	struct path p;
+	unsigned int seq, tries;
 	int err, ok = 0;
 
 	lockdep_assert_not_held(&IX(sb)->query_sem);
 	if (!path || !*path)
 		return false;
-	err = vfs_path_lookup(file->f_path.dentry, file->f_path.mnt, path,
-			      LOOKUP_NO_XDEV | LOOKUP_NO_SYMLINKS, &p);
-	if (err)
-		return err == -ENOMEM ? err : 0;
-	if (p.mnt == file->f_path.mnt && p.dentry->d_sb == sb && d_inode(p.dentry) &&
-	    d_inode(p.dentry)->i_ino == ino) {
-		err = inode_permission(&nop_mnt_idmap, d_inode(p.dentry), MAY_READ);
-		ok = err == -ENOMEM ? err : !err;
+	for (tries = 0; tries < 4; tries++) {
+		seq = read_seqbegin(&rename_lock);
+		err = vfs_path_lookup(file->f_path.dentry, file->f_path.mnt, path,
+				      LOOKUP_NO_XDEV | LOOKUP_NO_SYMLINKS, &p);
+		if (err)
+			return err == -ENOMEM ? err : 0;
+		ok = 0;
+		if (p.mnt == file->f_path.mnt && p.dentry->d_sb == sb && d_inode(p.dentry) &&
+		    d_inode(p.dentry)->i_ino == ino) {
+			err = inode_permission(&nop_mnt_idmap, d_inode(p.dentry), MAY_READ);
+			ok = err == -ENOMEM ? err : !err;
+			if (ok == 1)
+				ok = caller_may_list_above(file->f_path.dentry, p.dentry);
+		}
+		path_put(&p);
+		if (ok != 1 || !read_seqretry(&rename_lock, seq))
+			return ok;
+		cond_resched();
 	}
-	path_put(&p);
-	return ok;
+	return 0;
 }
 
 /* First entry strictly after the resume key, or the first entry when no key. */
@@ -3189,7 +3276,7 @@ static long query_repin(struct super_block *sb, struct file *file, const struct 
 	if (sc->all)
 		return READ_ONCE(ix->drop_gen) == gen ? 0 : -EAGAIN;
 	dom = xa_load(&ix->domains, (unsigned long)sc->domain);
-	if (dom && domain_fresh(ix, dom))
+	if (dom && domain_fresh_for(ix, dom, moobl_lower_dentry(file->f_path.dentry)))
 		return 0;
 	up_read(&ix->query_sem);
 	err = query2_pin(sb, file, sc->domain);
@@ -3632,7 +3719,7 @@ static long query2_pin(struct super_block *sb, struct file *file, u64 domain)
 		/* the record is read under query_sem: a removed one is dropped only without it */
 		down_read(&ix->query_sem);
 		dom = xa_load(&ix->domains, (unsigned long)domain);
-		if (dom && domain_fresh(ix, dom)) {
+		if (dom && domain_fresh_for(ix, dom, lower)) {
 			WRITE_ONCE(dom->used_at, jiffies);
 			return 0;
 		}

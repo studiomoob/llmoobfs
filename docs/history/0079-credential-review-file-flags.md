@@ -34,6 +34,13 @@ with the caller's credentials before the layer switches?
 | removal of `security.capability` | `vfs_removexattr` | `CAP_SETFCAP` | `cap_inode_removexattr` on the layer's inode before the handler; the kernel's own removal on write is meant to succeed for any writer (journal 0074) |
 | index build at mount | directory reads, `getxattr` | none | mounting needs `CAP_SYS_ADMIN` |
 
+*Note, 2026-10-28 (journal 0218, F16 of ADR-0011):* the row "read, write, splice, mmap" was
+wrong about set-user-ID and set-group-ID. The write credentials kept the mounter's `CAP_FSETID`,
+so the lower's own drop on write kept the bits for every writer, and the layer's
+`file_remove_privs` judged a mode its inode may hold from before a chmod made on the lower.
+Found by an external reviewer; since journal 0218 the credentials carry `CAP_FSETID` only when
+the writer has it.
+
 Everything else (lookup, create, mkdir, unlink, rmdir, rename, link, symlink, `setattr`,
 `setxattr`, ACLs, and now the file flags) calls the lower with the caller's credentials, so the
 lower's own checks apply unchanged.

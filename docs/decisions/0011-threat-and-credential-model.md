@@ -97,10 +97,22 @@ Against A2 and A3:
    behind the layer): until remount, other traversers of its domain can still see its name and
    attributes in `QUERY2` results, though not open it. Changing permissions through the layer
    takes effect on the next call. `moobfs-check` detects the divergence; nothing does in real time.
+   *Note, 2026-10-28 (journal 0216, GHSA-756j-cgwq-gvwm):* a directory or file removed behind the
+   layer whose inode number the lower then gave to a new one was answered from the removed one's
+   index (a domain) or record (a file): answers that belonged to another directory or file, not
+   merely stale ones. Domain and file records now keep the lower inode's `i_generation`;
+   a differing generation rebuilds the domain record and drops the file record. Reported privately
+   by an external reviewer, credited in the
+   [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm); no
+   finding number was given.
 3. **Path-based LSMs** (AppArmor, Landlock) do not filter query results. A confined process can see
    in the results a name it could not open; it already sees it by listing the directory and reading
    its attributes, which Landlock does not control (journal 0030). To hide a domain from a
    confined process, deny it the domain directory itself.
+   *Note, 2026-10-27 (journal 0215, ADR-0025):* "it already sees it by listing the directory"
+   held only for directories the process may read. For a search-only directory it did not, and
+   that was finding F15 below; since this date an answer requires read and search of every
+   directory on the way, so the argument holds again for mode bits and ACLs.
 4. **`domain_depth=0`** keeps v1 open to everyone with per-result checks and its timing channel
    (about 1 µs per hidden match, journal 0030). It is an administrator's choice for single-user
    mounts and is documented as such.
@@ -157,6 +169,9 @@ Added on 2026-10-12, from the review of journal 0066 (`docs/research-stacked-fs-
   run with the mounter's credentials but with the writer's fsuid, fsgid and groups, so ext4
   grants its reserve exactly as it would to that writer directly. Promise 2 now holds for
   the reserve as well.
+  *Note, 2026-10-27 (journal 0218):* those credentials also carry `CAP_FSETID` only when the
+  writer has it in the initial user namespace; with the mounter's, a set-user-ID bit given on the
+  lower behind the layer survived the write (F16).
 
 - **F5 — copy and clone kept set-user-ID, set-group-ID and file capabilities** (found on
   2026-10-13 with fstests, journal 0074). `copy_file_range` and a clone ran on the lower with the
@@ -282,6 +297,26 @@ later) and its verification against Linux 6.12.112 (journals 0116 and 0117):
   round-2 review (journal 0155, R2-1) and reproduced in the VM. **Fixed** in journal 0156: with
   domains on, nothing more than 64 components below the mount root is indexed, a limit now
   stated in `README.md` and `docs/when-not-to-use.md`.
+- **F15 — `QUERY2` named files under a search-only directory.** The homogeneity rule asked
+  only the execute bit of an intermediate directory, and the per-result check resolved the path
+  and asked `MAY_READ` of the file alone. A file under a `0711` directory of a `0755` domain was
+  answered to every user who could enter the domain: its name, inode number and, through
+  probes, its values, although none of them could list that directory. It broke promise 3; the
+  user-space mirrors carried the same rule and `tests/permmatrix.c` judged by `getxattr`, which
+  such a directory lets through. Reported privately by an external reviewer (2026-10-27),
+  credited in the [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6). **Fixed** in journal 0215 (ADR-0025): every directory on the way must grant
+  read and search, in the kernel, the tools and the library; `permmatrix` lists each directory in
+  its oracle and runs in fallback mode too.
+- **F16 — a set-user-ID bit given on the lower behind the layer survived a write through it.**
+  The write credentials of F4 kept the mounter's `CAP_FSETID`, so `setattr_should_drop_suidgid()`
+  on the lower kept the bits for every writer, and the layer's own `file_remove_privs()` judged a
+  mode its inode may hold from before a chmod made on the lower, then skipped the check once
+  `S_NOSEC` was set. An ordinary user with write access to such a file could change its content
+  and keep the bit, against promise 2; it needs the bit set behind the layer (A2), itself a
+  fragile configuration. The lesson of F5 applied to the credentials themselves. Reported
+  privately by an external reviewer, who also wrote the fix, credited in the
+  [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6). **Fixed** in journal 0218: the credentials carry `CAP_FSETID`
+  only when the writer has it in the initial user namespace, the test the lower applies.
 *Compatibility decision, 2026-10-15 (journal 0117).* An idmapped mount as `lower=` is refused
 with `EINVAL`. Supporting it would mean passing `mnt_idmap(lower mount)` to every delegated call
 and to the index's permission rule; that is left for a later decision with its own tests. No

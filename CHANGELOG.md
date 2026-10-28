@@ -2,14 +2,51 @@
 
 ## Unreleased
 
+- Security batch 2 checks (journal 0219): full `make vm-test` and KASAN/UBSAN/lockdep suite
+  passed on the branch of journals 0215, 0216 and 0218. Two suite defects found on the way are
+  fixed: `pm-mv` and `buildmoved` no longer need `mountpoint`, and `tr_on()` turns `tracing_on`
+  on. `MOOB_VM_KVM=1 make vm-test` runs the guest under KVM; the hung-guest guard is 3600 s.
+
+- GHSA-6xf4-r246-92r6 (journal 0218, finding F16 of ADR-0011, reported privately by an external
+  reviewer who also wrote the fix, credited in the [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)): a file given set-user-ID or
+  set-group-ID on the lower, behind the layer, kept the bit after an ordinary user wrote to it
+  through the layer (a write, `fallocate`, a clone or `copy_file_range`), where the same write on
+  the lower clears it. The write credentials carried the mounter's `CAP_FSETID`, and the layer's
+  own check judged a mode its inode may hold from before the change, then skipped it once
+  `S_NOSEC` was set. The credentials now carry `CAP_FSETID` only when the writer has it in the
+  initial user namespace, so the lower decides as for the writer directly. `tests/layer.c` covers
+  the four operations with and without an earlier write; the check fails on the module before the
+  fix.
+
+- GHSA-756j-cgwq-gvwm (journal 0216, reported privately by an external reviewer, credited in the
+  [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm)): a domain
+  directory removed on the lower, behind the layer, and a new directory given its inode number
+  (ext4, XFS) were answered from the removed directory's index, and a new file given a removed
+  file's number took over its record and values. Domain and file records now also keep the lower
+  inode's `i_generation`; a domain record whose generation differs is built again, a file record
+  is dropped. New suite step `domainreuse`; each of its three cases fails without its fix.
+
+- GHSA-95h9-j7c2-gcw6, search-only directories (journal 0215, ADR-0025, finding F15 of ADR-0011,
+  reported privately by an external reviewer, credited in the [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6)):
+  an intermediate
+  directory must grant read as well as search for the files under it to be answered. Before,
+  `QUERY2` named files under a `0711` directory of a domain to users who could not list it, and
+  confirmed their values. The homogeneity rule, the per-result check (`MAY_READ` on every
+  directory between the queried directory and the result), `moobfs-index`, `moobfs-check` and
+  the Python scan change together; files below such a directory become heterogeneous. No format
+  or UAPI change. `tests/permmatrix.c` now lists each directory in its oracle and runs in
+  fallback mode too; its new cases fail on the module before the fix.
+
 - Branch practice (journal 0217): branches are rebased on `main` before they are pushed and
   `main` is not merged into them; pull requests still enter with a merge commit. A forced push
   with `--force-with-lease` is allowed only on our own open, unmerged pull request branch.
 
-- First outside contributor (journal 0214): pull requests 161 to 163 reviewed and merged, with
-  small follow-ups at merge (a locale-independent `steps` filter, a bound at the copy of a term
-  payload). The public surfaces now say there is no outside human review of the kernel code yet
-  and name the contributor's review of the scripts, tools and Python library.
+- Outside review of the scripts, tools and Python library (journal 0214): pull requests 161 to
+  163 reviewed and merged, with small follow-ups at merge (a locale-independent `steps` filter, a
+  bound at the copy of a term payload). The public surfaces then said there was no outside human
+  review of the kernel code yet and named the contributor's review; since security batch 2 they
+  say there is no independent human review of the whole kernel code and name the external
+  reviewer's three reports.
 
 - Tool output (journal 0213): `moobfs-check` escapes every string of its JSON document, not only
   paths; an invalid attribute name or a directory name inside a `left_out` reason could forge

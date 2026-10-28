@@ -14,13 +14,14 @@ runs in a disposable QEMU guest. Installing the layer on a dedicated test host i
 | --- | --- |
 | `make test` | C11 compiler, GNU Make, Python 3 (Linux or macOS) |
 | `make fuzz` | LLVM clang with libFuzzer (CI uses it; Apple clang does not ship it) |
-| `make vm-test` | Docker. No KVM, no privileged container, no network inside the guest. The first run downloads the Debian base and kernel packages |
+| `make vm-test` | Docker. No KVM by default (`MOOB_VM_KVM=1` passes a writable `/dev/kvm` to the container), no privileged container, no network inside the guest. The first run downloads the Debian base and kernel packages |
 | KASAN/lockdep | Linux x86-64 with QEMU and `virtme-ng 1.41`, or trigger `.github/workflows/kasan.yml` |
 
 Disk and time: `build/` grows to several GiB with the kernel tree for KASAN.
 Measured wall-clock times per machine are not recorded yet; the CI timeouts are
 35 minutes for the VM job and 150 minutes for KASAN, and the QEMU phase of
-`make vm-test` is bounded by `timeout 2400`.
+`make vm-test` is bounded by `timeout 3600`. On the dedicated i5 host the complete suite took
+2575 s under TCG (journal 0219); `MOOB_VM_KVM=1` runs the same guest under KVM there.
 
 ## 2. Targets
 
@@ -207,7 +208,7 @@ Markers come from three places: `vm/init` and `tests/mounted.c` (M1),
 
 | Marker | Printed by | Proves | Does not prove |
 | --- | --- | --- | --- |
-| `LAYER_PASSTHROUGH_TESTS_PASS` | `tests/layer.c`, once per lower filesystem and once more with `nolinks` | Create, write, pread, append, truncate, shared and private mmap, mkdir/rmdir, readdir, chmod, unlink, rename, xattr, hard links and symlinks behave as on the lower tree, with the same inode numbers and bytes visible below; `FICLONE`/`FIDEDUPERANGE` share extents on btrfs and XFS and fail cleanly on ext4 | Full POSIX conformance (fstests ran as its `quick` group only, `vm/fstests/`); other lower filesystems |
+| `LAYER_PASSTHROUGH_TESTS_PASS` | `tests/layer.c`, once per lower filesystem and once more with `nolinks` | Create, write, pread, append, truncate, shared and private mmap, mkdir/rmdir, readdir, chmod, unlink, rename, xattr, hard links and symlinks behave as on the lower tree, with the same inode numbers and bytes visible below; `FICLONE`/`FIDEDUPERANGE` share extents on btrfs and XFS and fail cleanly on ext4; a set-user-ID bit given on the lower behind the layer goes with the next write, `copy_file_range`, clone or `fallocate` through it as uid 1001, also after an earlier write cached `S_NOSEC` (GHSA-6xf4-r246-92r6) | Full POSIX conformance (fstests ran as its `quick` group only, `vm/fstests/`); other lower filesystems |
 | `TYPED_LIMITS_PASS` | `tests/layer.c typed`, once per lower filesystem | Every refusal of a typed attribute write through the layer, with its errno, and the lower file unchanged after each (names and values): `user.moob.format` gives `EPERM`; empty, uppercase, non-ASCII, 65-byte, edge-dot, doubled-dot and out-of-alphabet names give `EINVAL` (also on removal); an empty value, unknown types, wrong lengths of int64, time, double and bool, NaN doubles, bools outside 0/1, strings with NUL, overlong, surrogate, above U+10FFFF or cut sequences, a 1 025-byte string and a 4 097-byte raw give `EINVAL`, also as a replacement; `XATTR_CREATE` on an existing and `XATTR_REPLACE` or removal on an absent typed name give `EEXIST` and `ENODATA`. The 65th distinct typed attribute gives `ENOSPC` while an opaque attribute of the same size still fits; replacing at the limit succeeds, `XATTR_CREATE` of an existing one gives `EEXIST`, a removal frees one slot; `user.moob.format` and opaque names (`user.moob`, `user.moobx.*`, `user.other.*`) do not count. The bounds themselves (1 024-byte string, 64-byte name, +infinity, four-byte UTF-8) are accepted | Which errno `XATTR_REPLACE` on an absent name gives at the limit (the code gives `ENOSPC`, not tested); ENOMEM paths; a lower whose own xattr space holds fewer than 64 entries |
 | `CLI_PASS` | `vm/suite.sh` with `tools/moobfs.c` and `tests/asuid.c`, once per lower filesystem (journal 0198) | `moobfs query` as uid 1001 and 1002 equals `moobfs-index --domain` on four domain answers, with one result per call (`--page 1`), ordered descending, limited to two, and in JSON; on a mount without domains the mount-wide `QUERY` equals the oracle; exit 77 and "permission denied" for another user's domain, 69 for the mount root, a non-domain directory, `noindex` and a path off the layer, 65 for invalid terms; `info` hides the counters from a user and shows them to root; `check` runs `moobfs-check` | Large answers across many pages under concurrent writes (the kernel's own `race2` covers the cursor), `ENOMEM`, `EDQUOT` and `ETIMEDOUT` messages (not provoked) |
 | `CLI_E2BIG_PASS` | `vm/suite.sh`, ext4 only | A domain of 1100 names under `index_build_work=1024`: `moobfs query` as uid 1001 exits 75 and names `index_build_work` | The other temporary refusals |
@@ -373,6 +374,7 @@ Read these coverage exclusions even when the aggregate marker passes:
 | `CASEFOLD_SKIPPED` | No casefold-refusal test: kernel or `mke2fs` cannot prepare the fixture |
 | `STALL_SKIPPED` | No stalled-FUSE test: `/dev/fuse` is unavailable; KASAN has FUSE built in |
 | `DOMAINRECS_PASS` | `MOOB_ONLY=domainrecs`: 200 domain directories created, queried and removed on btrfs and on ext4 leave no domain record (`domain_records` test counter) and each new one answers with its own files; 50 chmod-then-rmdir leave no fallback mark; `QUERY2` through a removed directory's descriptor returns `ENOENT` and records nothing (issue #113, journal 0210) |
+| `DOMAINREUSE_PASS` | `MOOB_ONLY=domainreuse`: on ext4, XFS and btrfs, domains of uid 1001 removed on the lower; a new directory with a removed domain's inode number answers `QUERY2` of uid 1002 with nothing, whether `QUERY2` or the mount-wide `QUERY` comes first (the latter drops the removed file's entries), and a new file with a removed file's number in another built domain does not match the removed file's values (GHSA-756j-cgwq-gvwm, journal 0216) |
 | `PYLIB_SKIPPED` | No Python library test: the guest has no `python3` (the `vm-test` initramfs); the KASAN guest boots the host's root and runs it, ending in `MOOBFS_PYLIB_PASS`; since journal 0209 the KASAN job runs only for kernel-side changes, so a change to `python/` alone is checked by `make pylib-test` and not by this step |
 | `LOWERRO_PASS: ... idmapped lower: not tested ...` | Read-only/freeze checks ran, but an idmapped bind lower could not be created; only `idmapped lower: refused` proves that case |
 | `ipc` binary present | Built/staged only, not invoked by the suite; no `IPC_PRIMITIVES_PASS` evidence |

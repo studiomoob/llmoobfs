@@ -1,0 +1,177 @@
+# 0216 — Domain and file records keep the lower inode's generation (GHSA-756j-cgwq-gvwm)
+
+Date: 2026-10-27. Status: on the private branch `sec/ghsa-756j` of the advisory's temporary
+fork; embargoed until the advisory is published. Work started: 2026-10-27 17:45
+America/Sao_Paulo; first round ended 18:45; the second round, after an independent review,
+started 18:50 and ended 20:22 (see "Second round"). Wall-clock time, not an engineering-effort measurement.
+Estimated effort: S.
+
+*Note, 2026-10-28:* published with the merge of security batch 2 (journal 0219); the embargo stated above ended then.
+
+## Goal and decision
+
+A private report from an external reviewer (GHSA-756j-cgwq-gvwm, severity low): `ix->domains`
+is keyed by the lower inode number of the domain directory. When that directory is removed on
+the lower, behind the layer (ADR-0011's A2, for example an administrator removing a departed
+user's tree), its record stays built and fresh with its entries. ext4 and XFS give the freed
+number to the next directory, and `query2_pin()` then answers the new directory, and its new
+owner, from the removed directory's entries. Journal 0210 (issue #113) drops the record on a
+removal through the layer and takes it back on reuse; a removal behind the layer never reaches
+`moobl_rmdir()`.
+
+Decision: the record also keeps the directory's `i_generation`, sampled from the lower inode
+when its build begins, and a record whose generation differs from the directory's is not fresh.
+It is then taken down and built again, the same path as a domain made stale by a rename
+(`domain_ensure_dom()`). The check (`domain_fresh_for()`) runs where a query decides whether to
+build: the fast path of `query2_pin()`, `query_repin()`, and both checks of `domain_ensure_dom()`,
+which the mount-wide v1 `QUERY` reaches through `domain_ensure_all()`.
+
+Prior art: an inode number alone does not name one inode for long; NFS file handles pair it with
+the generation (`generic_encode_ino32_fh()`, `fs/libfs.c`), as do overlayfs origin and index
+records (`ovl_encode_real_fh()` via `exportfs_encode_inode_fh()`, `fs/overlayfs/copy_up.c`) and
+fanotify FIDs (`exportfs_encode_fid()`, `fs/notify/fanotify/fanotify.c`). In the build's kernel (6.12.112 sources): ext4 gives a new inode a random
+generation (`fs/ext4/ialloc.c:1290`); XFS a random one on v5 filesystems without `ikeep`
+(`fs/xfs/xfs_icache.c:675`) and otherwise bumps it when the inode is freed
+(`fs/xfs/libxfs/xfs_inode_util.c:746`); btrfs the transaction that created it
+(`fs/btrfs/inode.c:6297`), and it does not reuse numbers within a mount.
+
+No ADR: no promise, format or interface changes. ADR-0011's non-promise 2 says results from
+changes behind the layer may be stale but never come from a domain the caller cannot traverse.
+The domain check alone does not restore it: file records are keyed by inode number too (second
+round below). With both checks, an answer comes only from records of the inode the query or the
+write names, on a filesystem that sets `i_generation` (limitations).
+
+Alternatives not taken: the change time of the directory, which changes with every entry added
+or removed and would rebuild domains for nothing; an identity read from an extended attribute,
+which would write to the lower (ADR-0007); and dropping the record when the scan does not find
+its directory, which covers only mount-wide queries.
+
+## Changes
+
+- `layer/moobl.h`: `struct moobl_domain` gains `lower_gen`; `layer/index.c`'s
+  `struct moobl_ix_inode` gains `gen` (second round).
+- `layer/index.c`: `domain_fresh_for()`; `domain_ensure_dom()` samples the generation when a
+  build begins and checks it before building; `query_repin()` and `query2_pin()` check it.
+- `vm/suite.sh` and `docs/testing.md`: step `domainreuse` on ext4, XFS and btrfs. A domain built
+  as uid 1001 is removed on the lower; directories are made on the lower until one gets the
+  removed number (ext4 and XFS must reuse it within 64; btrfs need not); `QUERY2` as uid 1002 on
+  it must return nothing, then only its own file. After the second round, three cases: that one;
+  the same with the mount-wide v1 `QUERY` first, which must drop the removed file's two entries;
+  and a reused file number in another built domain, given one attribute through the layer, whose
+  owner's `QUERY2` must not match the removed file's other value (ext4 must reuse the number
+  within 64 files; XFS, which places new files near their directory, may not).
+- `docs/references.md`, `CHANGELOG.md`, the history index.
+
+## Evidence
+
+All on the dedicated Debian host, with `vm/kasan-local.sh` and the cached upstream 6.12.112
+KASAN/UBSAN/lockdep kernel of `vm/kasan.config`.
+
+- `make layer W=1` against 6.12.111: no warning. `make checkpatch`: nothing reported.
+- `MOOB_ONLY=domainreuse sh vm/kasan-local.sh`: `DOMAINREUSE_ext4: inode 14 reused by bob0`,
+  `DOMAINREUSE_xfs: inode 262272 reused by bob3`, `DOMAINREUSE_btrfs: no inode number reused`,
+  each answering only its own file through `QUERY2` and the mount-wide `QUERY`;
+  `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Negative round, `layer/` of `f7c83cf` with the new step: `MOOBFS_VM_FAIL: du-stale-ext4: bob0
+  (inode 14) answered 16 plan.md`; with the step limited to XFS, `du-stale-xfs: bob3 (inode
+  262272) answered 262274 plan.md`. The advisory reproduces on both filesystems without the fix.
+- The steps the change touches, under KASAN/lockdep:
+  `MOOB_ONLY="domainreuse domainrecs ext4 xfs btrfs release buildrace xattrread" sh vm/kasan-local.sh`:
+  the layer, `QUERY2`, isolation, equivalence, hostile-lower, build-race, release and xattr-read
+  markers on ext4, XFS and btrfs, `DOMAINRECS_PASS`, `DOMAINREUSE_PASS` and
+  `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Not run: the full `make vm-test` (Debian 6.12.111/6.12.113, Docker; the dedicated host has none)
+  and the full KASAN suite; both belong to the batch before publication.
+
+## Errors found on the way
+
+The first versions of the step did not reuse the number, for two reasons that are not defects of
+the layer:
+
+- ext4 kept the removed directory's inode allocated after one `drop_caches=2` when the step ran
+  alone in a fresh guest (`debugfs testi`: in use), and freed it after `drop_caches=3`.
+  The likely cause, not traced: `drop_slab()` (`mm/vmscan.c`) stops once a pass frees almost
+  nothing, and the layer dentry of `alice` becomes unused only when its child `plan.md` is
+  pruned, so it waits for a later pass. The step now writes `2` four times. The
+  same run after the `domainrecs` step had reused the number at once.
+- XFS frees an inode chunk once all its inodes are free and gave the new directories new chunks;
+  the number was not reused even after the layer was unmounted. The step now makes a file next to
+  `alice` and moves it out, which keeps the chunk.
+
+## Limitations
+
+- A filesystem that leaves `i_generation` at 0 and reuses inode numbers is not protected by these
+  checks. The suite's lowers (ext4, XFS, btrfs) all set it. An NFS client never sets it (0 for
+  every inode), and FUSE takes it from the server (`fuse_iget()`, `fs/fuse/inode.c`), where
+  libfuse leaves it 0 unless the filesystem fills it; neither is a supported lower.
+- ext4's generation is 32 random bits: one reuse in 2^32 keeps the same generation, as for NFS.
+- On ext4 the owner of an inode can set its generation with `EXT4_IOC_SETVERSION`
+  (`fs/ext4/ioctl.c`). After a reuse, the new owner could set it to the removed inode's value,
+  learned before the removal (for example with `name_to_handle_at()` on the lower), and make the
+  stale record fresh again. That needs direct access to the lower (the layer passes only
+  `moobl_root_ioctl()`, not this ioctl), and in the build's kernel the ioctl returns `ENOTTY` on a
+  filesystem with `metadata_csum`, the `mke2fs` default.
+- The records of a tree removed behind the layer and their entries stay until the numbers are
+  reused and queried or set, or until unmount, as before (journal 0210, limitations).
+- btrfs subvolumes repeat inode numbers, but the layer never enters one: lookup and the scan
+  refuse a directory on another device (`moobl_other_device()`, `layer/main.c`), so a subvolume is
+  never a domain nor a file of one.
+
+## Second round: file records (independent review)
+
+An independent read-only review of the branch found the same root cause one level down, and the
+coordinator confirmed it in the code: `ix->inodes` is keyed by inode number as well. When a tree
+is removed on the lower, its files' records stay; when the lower gives one of their numbers to a
+new file in another, built domain and an attribute is set on it through the layer,
+`moobl_index_set()` → `index_put()` → `inode_rec_get()` returned the removed file's record and
+`rec_set_partition()` moved all its entries into the new file's partition, where the new owner's
+`QUERY2` matched and returned the removed file's values. A scan or adoption is not affected:
+`index_replace()` frees the old entries first.
+
+Decision: `struct moobl_ix_inode` keeps the lower inode's `i_generation`. `inode_rec_get()` takes
+it; a record with the same number and another generation is dropped whole (`rec_drop()`) and a new
+one made. `index_replace()` and `moobl_index_set()` pass the lower inode's generation, and
+`moobl_index_inode_cached()` drops such a record instead of attaching the new layer inode to it.
+This is correct for hard links and renames: they are the same inode with the same generation, and
+they move records through `moobl_index_renamed()` and `moobl_index_linked()`, which read the file
+again. The alternative, dropping a record in `moobl_index_set()` whenever its domain differs from
+the file's place, was not taken: a hard link in another domain would lose the file's other
+attributes, and a number reused within the same shared domain would not be caught.
+
+The review also asked for a step where the mount-wide v1 `QUERY` runs before any `QUERY2` on the
+reused directory, so that the check of `domain_ensure_dom()` reached from `domain_ensure_all()`
+is tested on its own; the step now does that and checks the index's entry count. The check in
+`query_repin()` is defence in depth and cannot be tested: the query's open descriptor holds the
+domain directory's inode, so its number cannot be reused while the query runs.
+
+Evidence of the second round (same host and harness):
+
+- `make layer W=1` against 6.12.111: no warning. `make checkpatch`: nothing reported.
+- An ext4 image made with `mke2fs -d`: a populated directory and the root inode both have
+  generation 0 (`debugfs stat`), the basis of the no-warning decision below.
+- `MOOB_ONLY=domainreuse sh vm/kasan-local.sh`: `DOMAINREUSE_ext4: QUERY2-first: inode 14 reused
+  by bob0; v1-first: inode 17 reused by dave0; file: inode 22 reused by frank/x1`;
+  `DOMAINREUSE_xfs`: both directory cases reused (262272 by bob3, 655489 by dave3), the file case
+  not reused in 64 files; btrfs reused nothing. `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Negative round 1, `layer/` of the first round (`587f842`, domain check only):
+  `MOOBFS_VM_FAIL: du-file-stale-ext4: frank/x1 (inode 22) answered 22 x1`, the file case.
+- Negative round 2, this branch with the two checks of `domain_ensure_dom()` back to
+  `domain_fresh()` and the step's first case skipped: `MOOBFS_VM_FAIL: du-v1-entries-ext4: 2
+  entries with carol's file, 2 after the v1 QUERY on dave0`. With the first case kept, the same
+  build fails earlier (`du-query-ext4`): `query2_pin()` sees the stale record, the build path
+  calls it fresh, and the query ends in `EAGAIN` after eight tries.
+- The steps the change touches, under KASAN/lockdep: `MOOB_ONLY="domainreuse domainrecs ext4 xfs
+  btrfs release buildrace xattrread faults ioerror" sh vm/kasan-local.sh`: 89 pass markers, among
+  them the layer, build-race, release, fault and I/O-error markers on each filesystem,
+  `DOMAINRECS_PASS`, `DOMAINREUSE_PASS` (ext4: all three cases reused; XFS: both directory
+  cases) and `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Not run, as in the first round: the full `make vm-test` and the full KASAN suite.
+
+Generation 0: no warning is logged. ext4 gives generation 0 to the root inode and to inodes that
+`mke2fs -d` writes, so a domain directory with generation 0 does not show that its filesystem
+lacks generations, and a warning would fire on ordinary trees. The limitation is recorded instead.
+
+## Next step
+
+Review on the advisory's private fork, then merge with the security batch and publish the
+advisory with the reporter.

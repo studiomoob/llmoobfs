@@ -35,7 +35,7 @@ list to shrink.
 | 11 | The homogeneity rule excludes mixed-mode files | contain + build | A deployment recipe and a check tool that names the files | spec-query-v2 |
 | 12 | Content and attributes are separate writes | contain | The temporary-file, attributes, rename convention | proposed here |
 | 13 | Slower than SQLite on some operations | build + accept | Profile the per-call floor; publish where it loses | M4 |
-| 14 | One maintainer, no outside review | build | Review requests, the KASAN check enforced, a second reviewer | actions 15 and 18 |
+| 14 | One maintainer, no independent review of the whole kernel code | build | Review requests, the KASAN check enforced, a second reviewer | actions 15 and 18 |
 | 15 | The design is fitted to one client | build + contain | A client contract, a second and a third client, client quirks kept out of the layer | proposed here |
 
 ## 1. A module defect takes the host down
@@ -300,10 +300,11 @@ the results is proposed there.
 
 **Residual.** Per-file overhead on open and on attribute writes is inherent to stacking.
 
-## 14. One maintainer, no outside review
+## 14. One maintainer, no independent review of the whole kernel code
 
 **Risk.** Every item above depends on one person, and no one outside the project has reviewed the
-kernel code. A client cannot rely on fixes arriving.
+whole kernel code. *Note, 2026-10-28:* an external reviewer privately reported three kernel
+defects and wrote the fix of one (F15, F16 and GHSA-756j-cgwq-gvwm; journals 0215, 0216, 0218). A client cannot rely on fixes arriving.
 
 **Answer.** *Build* community action 15 (review requests, possible now that ADR-0011 exists) and
 action 18 (the KASAN check enforced by branch protection). Proposed here, not yet in any plan: a

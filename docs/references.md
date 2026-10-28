@@ -533,3 +533,60 @@ research documents. Two page ranges could not be confirmed and are omitted: Büt
   branch without a reason.
 - Git, [`git push --force-with-lease`](https://git-scm.com/docs/git-push#Documentation/git-push.txt---force-with-leaseltrefnamegt):
   the push is refused when the remote branch is no longer at the expected commit.
+
+## 16. Search-only directories (ADR-0025, journal 0215)
+
+- `may_lookup()` and `may_open()` in `fs/namei.c`, Linux 6.12.111
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/namei.c)): a path walk asks only
+  `MAY_EXEC` of each directory, while opening a directory to list it is checked through
+  `inode_permission()` with the access mode of the open, `MAY_READ` for a read. Knowing a name
+  and learning it are separate permissions; the homogeneity rule and the per-result check now ask
+  both of every directory on the way.
+- plocate's `access_rx_cache.cpp` ([source](https://git.sesse.net/?p=plocate;a=blob;f=access_rx_cache.cpp)),
+  read on 2026-10-27: a path from a database built as root is shown only when the caller passes
+  `access(dir, R_OK | X_OK)` on every directory above it. Prior art for ADR-0025.
+- `rename_lock` and `read_seqbegin()`/`read_seqretry()` (`include/linux/seqlock.h`, `fs/dcache.c`),
+  already used by `where_is()`: the per-result check takes a positive answer only when no rename
+  happened between its lookup and its walk of the parent directories.
+
+## 17. Inode reuse and domain records (GHSA-756j-cgwq-gvwm, journal 0216)
+
+- `generic_encode_ino32_fh()`, `fs/libfs.c`, Linux 6.12.112: an NFS file handle pairs the inode
+  number with `i_generation` (`FILEID_INO32_GEN`), the model for `domain_fresh_for()`.
+- `ovl_encode_real_fh()` (`fs/overlayfs/copy_up.c`) and `ovl_verify_fh()`
+  (`fs/overlayfs/namei.c`), Linux 6.12.112: overlayfs origin and index records name a lower inode
+  by its file handle, not its number.
+- `exportfs_encode_fid()` in `fs/notify/fanotify/fanotify.c`, Linux 6.12.112: fanotify FIDs.
+- Generation of a new inode, Linux 6.12.112: ext4 `__ext4_new_inode()` (`fs/ext4/ialloc.c`,
+  random); XFS `xfs_iget_cache_miss()` (`fs/xfs/xfs_icache.c`, random on v5 without `ikeep`) and
+  `xfs_inode_uninit()` (`fs/xfs/libxfs/xfs_inode_util.c`, bumped on free); btrfs
+  `btrfs_create_new_inode()` (`fs/btrfs/inode.c`, the creating transaction).
+
+## 18. Write credentials and CAP_FSETID (GHSA-6xf4-r246-92r6, journal 0218)
+
+- `setattr_should_drop_suidgid()` and `setattr_should_drop_sgid()`, `fs/attr.c:63` and `:33`,
+  Linux 6.12.111 ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/attr.c)): a regular
+  file loses set-user-ID on a write unless the task has `CAP_FSETID` in the initial user
+  namespace (`capable()`, `:75`); set-group-ID goes with group execute unconditionally, otherwise
+  unless the task is in the group or has the capability for the inode (`in_group_or_capable()`,
+  `:42`). The write credentials now carry the capability only when the writer has it, so this
+  test on the lower decides as for the writer.
+- `dentry_needs_remove_privs()`, `file_remove_privs_flags()` and `file_modified()`,
+  `fs/inode.c:2140`, `:2172` and `:2330`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/inode.c)): `IS_NOSEC()` returns
+  before any check (`:2147`, `:2179`), and `inode_has_no_xattr()` (`include/linux/fs.h:3742`)
+  sets `S_NOSEC` after a check that removed nothing on an `SB_NOSEC` superblock (`:2194`). ext4
+  reaches them from `ext4_write_checks()` through `file_modified()` (`fs/ext4/file.c:279`). Why
+  the layer's own call cannot be relied on for a mode changed behind it.
+- `backing_file_write_iter()`, `fs/backing-file.c:212`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/backing-file.c)): the lower write
+  runs under `override_creds(ctx->cred)` (`:239`) and `vfs_iter_write()` (`:243`), so the lower's
+  capability tests see the credentials the layer passes.
+- `ns_capable_noaudit()` and `capable()`, `kernel/capability.c:399` and `:434`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/kernel/capability.c)): the same test
+  on `init_user_ns`, the first without an audit record; used to decide whether the writer keeps
+  the capability.
+- `ovl_setup_cred_for_create()`, `fs/overlayfs/dir.c:556`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/overlayfs/dir.c)): overlayfs
+  prepares per-operation credentials from the mounter's (`prepare_creds()`, `:562`) and adjusts
+  them for what the lower will decide; the model of the layer's write credentials (F4).

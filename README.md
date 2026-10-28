@@ -10,7 +10,7 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15408/badge)](https://www.bestpractices.dev/projects/15408)
 [![Zenodo DOI: experimental snapshot](https://zenodo.org/badge/DOI/10.5281/zenodo.23514721.svg)](https://doi.org/10.5281/zenodo.23514721)
 
-> **Experimental. Not for production.** Kernel code with no outside human review yet, tested on
+> **Experimental. Not for production.** Kernel code not yet reviewed as a whole by an independent human, tested on
 > one kernel series (6.12) in VMs. Use it only in a disposable VM or on a dedicated test host. The
 > current state, what was merged since the last tag and the defects that tag still has are on the
 > [status page](docs/status.md); the limits are under [Limitations](#limitations).
@@ -135,11 +135,12 @@ from your own run, see [Try it in a VM](#try-it-in-a-vm).
 
 **Experimental. Source pre-release tags only; the last one, `v0.4.1-experimental` (2026-10-20), has
 the fixes of findings F1 to F12 of ADR-0011 except the fair-shares part of F2. Not for
-production.** Three later findings affect it and are fixed on `main` only: stale file-status flags
+production.** Later findings affect it and are fixed on `main` only: stale file-status flags
 after `F_SETFL` and attribute-read errors taken as "no attribute" while indexing (review
 [0144](docs/history/0144-independent-review.md), R1 and R2), and a chmod during the first build of a
 domain that could leave the file in `QUERY2` answers to users who can no longer read it (journals
-[0151](docs/history/0151-review-d110d4e.md), [0152](docs/history/0152-chmod-during-build-fixed.md)).
+[0151](docs/history/0151-review-d110d4e.md), [0152](docs/history/0152-chmod-during-build-fixed.md)),
+and the three private reports of 2026-10-27 listed below.
 Facts as of 2026-10-25:
 
 - **One kernel series**, in a VM: Debian 6.12.111 in QEMU and upstream 6.12.112 under
@@ -150,12 +151,20 @@ Facts as of 2026-10-25:
 - **Tested with** fault injection inside the module, fstests' `quick` group on the three lower
   filesystems, syzkaller (five six-hour runs; one defect found and fixed), a first KCSAN run (no
   race in the module) and SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143).
-- **No outside human review of the kernel code yet.** It was requested on 2026-10-13. A first
-  outside contributor reviewed the scripts, tools and Python library with an AI assistant
-  (2026-10-27, pull requests 161 to 163). Two independent source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
+- **No independent human review of the whole kernel code yet.** It was requested on 2026-10-13.
+  An external reviewer privately reported three kernel defects and wrote the fix of one (F16,
+  below). An outside contributor reviewed the scripts, tools and Python library with an AI
+  assistant (2026-10-27, pull requests 161 to 163). Two independent source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
   [journal 0114](docs/history/0114-second-inspection-of-5582e06.md)) and verified against the
   kernel found four security defects (findings F9 to F12 of ADR-0011), reported as private
   advisories and fixed in journals 0116 and 0117; our own tests and reviews found others before.
+  Three private reports from an external reviewer (2026-10-27) found `QUERY2` naming files under
+  a search-only directory (F15, [GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6)), domain and file
+  records answered for a reused inode number ([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm)) and a
+  set-user-ID bit kept through a write (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), fixed
+  on `main` in journals [0215](docs/history/0215-search-only-directories.md),
+  [0216](docs/history/0216-domain-record-generation.md) and
+  [0218](docs/history/0218-write-credentials-fsetid.md); the reviewer wrote the fix of F16.
   Tags up to `v0.4.0-experimental` carry defects fixed since ([changelog](CHANGELOG.md)).
 - **The measurements are pilot-grade**, from one host; the report that gathers them is
   [journal 0088](docs/history/0088-m4-report.md). They are not a general speed claim.
@@ -180,7 +189,8 @@ For anything beyond a disposable VM, SQLite or plain files remain the recommenda
 
 ## How to help
 
-The project has one maintainer and no outside human review of the kernel code yet; a first
+The project has one maintainer and no independent human review of the whole kernel code yet; an
+external reviewer privately reported three kernel defects and wrote the fix of one (F16), and an
 outside contributor reviewed the scripts, tools and Python library (pull requests 161 to 163).
 What would help most, by how much kernel knowledge it takes, is in **[docs/help-wanted.md](docs/help-wanted.md)**: a review of the
 credential model or of the index locking, if you know the VFS; a check of whether your memory
@@ -492,10 +502,10 @@ KASAN harness runs the layer suite), and no benchmark exists.
   (journals 0139 and 0143). No speed or efficiency claim beyond the conditions stated in
   [What was measured](#what-was-measured) may be made from them; no comparison with FUSE
   exists, and the comparison with the bare lower filesystem on the current module is pending.
-- No outside human review of the kernel code. Two independent source reviews by AI assistants (journals
-  [0111](docs/history/0111-review-5582e06.md) and [0114](docs/history/0114-second-inspection-of-5582e06.md))
-  and the project's own tests found and fixed kernel-side defects, security ones among them; the
-  findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F14),
+- No independent human review of the whole kernel code. Two independent source reviews by AI assistants (journals
+  [0111](docs/history/0111-review-5582e06.md) and [0114](docs/history/0114-second-inspection-of-5582e06.md)),
+  private reports from an external reviewer (journals 0215, 0216, 0218; the reviewer wrote the fix of F16) and the project's own tests found and fixed kernel-side defects, security ones among them; the
+  findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F16),
   the earlier defects in journals [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),
@@ -553,6 +563,7 @@ as a regression in the same VM.
 | SQL over a domain through a SQLite virtual table (prototype) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |
 | syzkaller descriptions of the mount, ioctls and attributes; five six-hour runs | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md) | upstream 6.12.112 with KCOV |
 | Security fixes of findings F9 to F12 (homogeneity rule, checks without the query semaphore, write access on the lower mount, idmapped lower refused), each with a test and a negative round | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
+| Security fixes of F15, GHSA-756j-cgwq-gvwm and F16 (search-only directories, records of a reused inode number, set-user-ID kept through a write), each with a test and a negative round | [0215](docs/history/0215-search-only-directories.md), [0216](docs/history/0216-domain-record-generation.md), [0218](docs/history/0218-write-credentials-fsetid.md) | Debian 6.12.111; KASAN 6.12.112 ([0219](docs/history/0219-security-batch-checks.md)); ext4, btrfs, XFS |
 
 Not implemented: a persistent index, user-namespace or idmapped mounts, batch reads, a change
 cursor, revisions, packaging, a stable UAPI, the full xfstests suite, and the complete
@@ -575,7 +586,7 @@ a prompt; MoobFS stores files and answers attribute predicates. They are potenti
 top of the layer, not competitors; the M4 plan uses them as workloads.
 
 **MoobFS.** One store, per-result authorization by the OS, no daemon, data readable without
-the module; in exchange, a kernel module from one author, one tested kernel, a RAM-only index
+the module; in exchange, a kernel module written mostly by one author, one tested kernel, a RAM-only index
 and a measured
 advantage that is narrow and pilot-grade ([What was measured](#what-was-measured)). Full comparison table and the conditions under which it may be
 worth evaluating: [when-not-to-use.md](docs/when-not-to-use.md).

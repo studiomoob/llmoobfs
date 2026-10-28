@@ -37,6 +37,8 @@
 #   xattrread           a listed typed value that fails getxattr must fail a build or invalidate
 #                       a built domain; an attribute removed between list/get is skipped
 #   domainrecs          removed domain directories leave no record and no fallback mark (#113)
+#   domainreuse         domain directories and files removed on the lower and their inode numbers
+#                       reused: the new ones are not answered from the removed ones' index
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
@@ -57,7 +59,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|pylib) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|pylib) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -323,7 +325,12 @@ run_lower() {
     chmod 0700 "$LAYER/ns/b" && chmod 0600 "$LAYER/ns/b/m1.md" || fail "acl-reset-$fs"
     "$TOOLS/setfacl" -m u:1001:x "$LAYER/ns/b" && "$TOOLS/setfacl" -m u:1001:r "$LAYER/ns/b/m2.md" || fail "acl-set-$fs"
     "$BIN/query" --uid 1001 "$LAYER" open ns/b/m2.md | grep -q ': ok' || fail "acl-open-grant-$fs"
+    # search alone on ns/b: 1001 opens m2.md by name but cannot list ns/b, so no answer names
+    # it (journal 0215); read and search on ns/b let it be answered
     "$BIN/query" --uid 1001 "$LAYER" kind eq string note > /tmp/k.txt || fail "acl-query-$fs"
+    grep -q 'ns/b/m2.md' /tmp/k.txt && fail "acl-search-only-leak-$fs"
+    "$TOOLS/setfacl" -m u:1001:rx "$LAYER/ns/b" || fail "acl-set-rx-$fs"
+    "$BIN/query" --uid 1001 "$LAYER" kind eq string note > /tmp/k.txt || fail "acl-query-rx-$fs"
     grep -q 'ns/b/m2.md' /tmp/k.txt || fail "acl-grant-not-seen-$fs"
     grep -q 'ns/b/m1.md' /tmp/k.txt && fail "acl-overreach-$fs"
     "$TOOLS/setfacl" -m u:1001:- "$LAYER/ns/shared/m1.md" || fail "acl-deny-$fs"
@@ -1091,10 +1098,12 @@ else
 fi
 fi
 # Tracepoints of the index (journal 0102): tr_on clears the buffer and enables the named events
-# of the moobfs system, tr_count counts one event in the buffer.
+# of the moobfs system, tr_count counts one event in the buffer. It also turns the ring buffer
+# on: tests/query-build-moved.c and tests/deadscan.c leave tracing_on at 0.
 TR=/sys/kernel/tracing
 tr_on() {
     [ -e $TR/trace ] || mount -t tracefs nodev $TR || return 1
+    echo 1 > $TR/tracing_on || return 1
     echo > $TR/trace || return 1
     for e in "$@"; do echo 1 > $TR/events/moobfs/"$e/enable" || return 1; done
 }
@@ -1484,9 +1493,13 @@ if want permmatrix; then
 # only to those who can read it on the lower, whatever the modes, owners and groups. The
 # oracle is the lower kernel (getxattr with the identity's credentials), not a copy of the
 # homogeneity rule; tests/permmatrix.c also counts the cases the rule before 0116 got wrong,
-# so the run proves the matrix reached them.
+# so the run proves the matrix reached them. Journal 0215: the oracle also lists each directory
+# on the way, since a search-only one (0711) lets getxattr through but hides its names, and the
+# matrix is checked again in fallback mode (per-result checks) after a chmod through the layer;
+# the cases the rule before 0215 (search alone for a directory) got wrong are counted too.
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail "pm-lower-mount"
 pm_wrong=0
+pm_prev=0
 for seed in 1 2 3 4 5 6 7 8 9 10 11 12; do
     rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-mkdir-$seed"
     "$BIN/permmatrix" plant "$LOWER/pmx" $seed || fail "pm-plant-$seed"
@@ -1496,11 +1509,65 @@ for seed in 1 2 3 4 5 6 7 8 9 10 11 12; do
     "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-fallback-$seed (the partition was not what answered)"; }
     [ $rc -eq 0 ] || fail "pm-mismatch-$seed"
     pm_wrong=$((pm_wrong + $(sed -n 's/.* old_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
+    pm_prev=$((pm_prev + $(sed -n 's/.* prev_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
+    chmod "$(stat -c %a "$LOWER/pmx/pm")" "$LAYER/pm" || fail "pm-chmod-$seed"
+    "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
+    cat /tmp/pm.txt
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-no-fallback-$seed (per-result checks were not what answered)"; }
+    [ $rc -eq 0 ] || fail "pm-mismatch-fallback-$seed"
     umount "$LAYER" || fail "pm-umount-$seed"
 done
 [ $pm_wrong -gt 0 ] || fail "pm-no-case-of-the-old-rule (the matrix proved nothing)"
+[ $pm_prev -gt 0 ] || fail "pm-no-case-of-the-rule-before-0215 (the matrix proved nothing)"
+# The matrix's fallback round meets only files the rule already left out. A directory made
+# search-only through the layer after the build leaves its files in the partition and puts the
+# domain in fallback mode: the per-result check must ask read of that directory too (0215).
+rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-so-mkdir"
+mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-so-mount"
+mkdir -m 755 "$LAYER/d" "$LAYER/d/s" && : > "$LAYER/d/s/f" && chmod 644 "$LAYER/d/s/f" || fail "pm-so-files"
+"$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-so-attr"
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-before"
+chmod 0711 "$LAYER/d/s" || fail "pm-so-chmod"
+"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-so-no-fallback"; }
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-so.txt || fail "pm-so-query"
+grep -q 's/f' /tmp/pm-so.txt && fail "pm-so-leak (a search-only directory's file named per result)"
+"$BIN/query" "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-owner-missing"
+umount "$LAYER" || fail "pm-so-umount"
+# The two other places the rule is applied, with no permission change and so no fallback: a
+# search-only directory created through the layer in a built domain (place_dentry_above), and
+# one renamed during the domain's first build (dir_moved_prepare). Its file stays out of the
+# partition: uid 1001 does not get it and it is counted heterogeneous.
+pm_hetero() { "$BIN/query" "$LAYER" info | sed -n 's/.*heterogeneous=\([0-9]*\).*/\1/p'; }
+rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-cr-mkdir"
+mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-cr-mount"
+# no mkdir -m nor chmod through the layer: busybox mkdir -m chmods, and a chmod of a directory
+# puts the domain in fallback mode
+(umask 022; mkdir "$LAYER/d" && : > "$LAYER/d/top") && "$BIN/moobfs-attr" set "$LAYER/d/top" kind string so > /dev/null || fail "pm-cr-domain"
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q top || fail "pm-cr-build"
+h0=$(pm_hetero)
+(umask 066; mkdir "$LAYER/d/s") && [ "$(stat -c %a "$LAYER/d/s")" = 711 ] || fail "pm-cr-mkdir-0711"
+(umask 022; : > "$LAYER/d/s/f") && "$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-cr-file"
+[ "$(stat -c %a "$LAYER/d/s/f")" = 644 ] || fail "pm-cr-file-mode"
+"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-cr-fallback (the partition was not what answered)"; }
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-cr.txt || fail "pm-cr-query"
+grep -q 's/f' /tmp/pm-cr.txt && fail "pm-cr-leak (a file created under a search-only directory answered)"
+[ "$(pm_hetero)" -gt "$h0" ] || fail "pm-cr-not-heterogeneous"
+umount "$LAYER" || fail "pm-cr-umount"
+rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" && mkdir -m 711 "$LOWER/pmx/d/s" || fail "pm-mv-mkdir"
+"$BIN/query-build-limit" plant6 "$LOWER/pmx/d/s" 600 || fail "pm-mv-plant"
+mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mv-mount"
+[ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail "pm-mv-tracefs"
+echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-on"
+"$BIN/query-build-moved" "$LAYER/d" any; pm_rc=$?
+echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-off"
+[ "$pm_rc" -eq 0 ] || fail "pm-mv-no-move-during-build"
+"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-mv-fallback (the partition was not what answered)"; }
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-mv.txt || fail "pm-mv-query"
+grep -q 't/' /tmp/pm-mv.txt && fail "pm-mv-leak (a directory moved during the build answered)"
+[ "$(pm_hetero)" -ge 600 ] || fail "pm-mv-not-heterogeneous"
+umount "$LAYER" || fail "pm-mv-umount"
 rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup"
-echo "PERMMATRIX_STEP_PASS: 12 seeds, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly"
+echo "PERMMATRIX_STEP_PASS: 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
 fi
 if want permgaps; then
 for fs in ext4 btrfs xfs; do
@@ -1935,7 +2002,7 @@ mkdir -p "$LOWER/bm/d/s" || fail bm-mkdir
 : > "$LOWER/bm/d/visible" || fail bm-visible
 "$BIN/moobfs-attr" set "$LOWER/bm/d/visible" kind string note || fail bm-attr
 mount -t moobfs_layer -o lower="$LOWER/bm",domain_depth=1 none "$LAYER" || fail bm-mount
-mountpoint -q /sys/kernel/tracing || mount -t tracefs tracefs /sys/kernel/tracing || fail bm-tracefs
+[ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail bm-tracefs
 echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bm-delay-on
 "$BIN/query-build-moved" "$LAYER/d"; bm_rc=$?
 echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bm-delay-off
@@ -2031,6 +2098,120 @@ for dr_fs in btrfs ext4; do
     echo "DOMAINRECS_$dr_fs: records $dr_base -> $dr_after after 200 domains; fallback marks $dr_fb0 -> $dr_fb1 after 50 and the removed directory"
 done
 echo "DOMAINRECS_PASS: removed domain directories leave no record and no fallback mark; a removed directory's descriptor gets ENOENT"
+fi
+if want domainreuse; then
+# GHSA-756j-cgwq-gvwm (journal 0216): domain records and file records are keyed by inode number.
+# A tree removed on the lower, behind the layer, and new inodes given the same numbers used to be
+# answered from the removed ones' entries, to their new owner. The records now also keep the
+# lower inode's i_generation. ext4 and XFS reuse numbers; btrfs does not, so there the step only
+# checks that nothing else changes. Three cases: a reused domain directory queried first with
+# QUERY2, a reused domain directory queried first with the mount-wide v1 QUERY (the rebuild of
+# domain_ensure_all), and a reused file number given a new file in another, built domain.
+du_entries() { "$BIN/query" "$LAYER" info | sed -n 's/.* entries=\([0-9]*\).*/\1/p'; }
+# du_free <path>: removes a tree on the lower and waits until its inodes are free. The layer's
+# dentries hold the lower ones until reclaimed, and one drop_caches=2 left them allocated in a
+# fresh guest (likely drop_slab() stopping before the parent of a file was unused); a few rounds
+# free them. XFS then frees unlinked inodes in its background inactivation, which statfs pushes.
+du_free() {
+    rm -rf "$1" && sync || fail "du-remove-$du_fs"
+    for k in 1 2 3 4; do echo 2 > /proc/sys/vm/drop_caches; done
+    stat -f "$LOWER" > /dev/null && sleep 1
+}
+# du_dir <prefix> <ino>: new 0700 directories on the lower until one gets ino (the others stay);
+# sets du_new, or du_new='' when the filesystem gave it to none of 64
+du_dir() {
+    du_new='' i=0
+    while [ $i -lt 64 ]; do
+        mkdir -m 700 "$LOWER/du/$1$i" || fail "du-dir-$du_fs-$1$i"
+        if [ "$(stat -c %i "$LOWER/du/$1$i")" = "$2" ]; then du_new=$1$i; return; fi
+        i=$((i + 1))
+    done
+}
+# du_alice <dir> <file>: a 0700 domain of uid 1001 with one file, built by a QUERY2 of uid 1001.
+# XFS frees a whole inode chunk once all its inodes are free, and gives new inodes a new chunk: a
+# file made in the directory, next to it, and moved out keeps the chunk and the numbers free.
+du_alice() {
+    mkdir -m 700 "$LOWER/du/$1" && chown 1001:1001 "$LOWER/du/$1" || fail "du-alice-$du_fs-$1"
+    : > "$LOWER/du/$1/keep" && mv "$LOWER/du/$1/keep" "$LOWER/du/keep-$1" || fail "du-keep-$du_fs-$1"
+    : > "$LAYER/$1/$2" && chown 1001:1001 "$LAYER/$1/$2" && chmod 600 "$LAYER/$1/$2" &&
+        "$BIN/moobfs-attr" set "$LAYER/$1/$2" kind string decision &&
+        "$BIN/moobfs-attr" set "$LAYER/$1/$2" secret string s3cret || fail "du-file-$du_fs-$1"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/$1" q2 kind eq string decision | cut -f2)" = "$2" ] ||
+        fail "du-build-$du_fs-$1"
+}
+for du_fs in ext4 xfs btrfs; do
+    case $du_fs in ext4) du_dev=$DEV_EXT4 ;; xfs) du_dev=$DEV_XFS ;; btrfs) du_dev=$DEV_BTRFS ;; esac
+    mount -t "$du_fs" "$du_dev" "$LOWER" || fail "du-lower-mount-$du_fs"
+    rm -rf "$LOWER/du" && mkdir -m 755 "$LOWER/du" || fail "du-mkdir-$du_fs"
+    mount -t moobfs_layer -o lower="$LOWER/du",domain_depth=1 none "$LAYER" || fail "du-mount-$du_fs"
+    du_note=''
+    # 1. a reused domain directory, QUERY2 first
+    du_alice alice plan.md
+    du_ino=$(stat -c %i "$LOWER/du/alice")
+    du_free "$LOWER/du/alice"
+    du_dir bob "$du_ino"
+    if [ -n "$du_new" ]; then
+        chown 1002:1002 "$LOWER/du/$du_new" || fail "du-chown-$du_fs"
+        du_got=$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision) || fail "du-query-$du_fs"
+        [ -z "$du_got" ] || fail "du-stale-$du_fs: $du_new (inode $du_ino) answered $du_got"
+        : > "$LAYER/$du_new/own.md" && chown 1002:1002 "$LAYER/$du_new/own.md" &&
+            "$BIN/moobfs-attr" set "$LAYER/$du_new/own.md" kind string decision || fail "du-own-$du_fs"
+        [ "$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 kind eq string decision | cut -f2)" = own.md ] ||
+            fail "du-own-answer-$du_fs"
+        du_note="QUERY2-first: inode $du_ino reused by $du_new; "
+    elif [ "$du_fs" != btrfs ]; then
+        fail "du-no-reuse-$du_fs (inode $du_ino not reused in 64 directories)"
+    fi
+    # 2. a reused domain directory, the mount-wide v1 QUERY first: it must build the new domain
+    # again by itself, so the removed file's two entries leave the index
+    du_alice carol notes.md
+    du_ino=$(stat -c %i "$LOWER/du/carol")
+    du_e0=$(du_entries)
+    du_free "$LOWER/du/carol"
+    du_dir dave "$du_ino"
+    if [ -n "$du_new" ]; then
+        chown 1002:1002 "$LOWER/du/$du_new" || fail "du-v1-chown-$du_fs"
+        "$BIN/query" "$LAYER" secret eq string s3cret > /tmp/du-v1.txt || fail "du-v1-$du_fs"
+        [ -s /tmp/du-v1.txt ] && fail "du-v1-stale-$du_fs: $(cat /tmp/du-v1.txt)"
+        du_e1=$(du_entries)
+        [ "$du_e1" -eq $((du_e0 - 2)) ] ||
+            fail "du-v1-entries-$du_fs: $du_e0 entries with carol's file, $du_e1 after the v1 QUERY on $du_new"
+        [ -z "$("$BIN/query" --uid 1002 "$LAYER/$du_new" q2 secret eq string s3cret)" ] ||
+            fail "du-v1-q2-$du_fs"
+        du_note="${du_note}v1-first: inode $du_ino reused by $du_new; "
+    elif [ "$du_fs" != btrfs ]; then
+        fail "du-v1-no-reuse-$du_fs (inode $du_ino not reused in 64 directories)"
+    fi
+    # 3. a reused file number: erin's file removed on the lower, a new file of uid 1002 in frank's
+    # built domain given its number and one attribute through the layer; erin's other value must
+    # not move into frank's partition
+    mkdir -m 700 "$LOWER/du/frank" && chown 1002:1002 "$LOWER/du/frank" || fail "du-frank-$du_fs"
+    [ -z "$("$BIN/query" --uid 1002 "$LAYER/frank" q2 kind eq string mine)" ] || fail "du-frank-build-$du_fs"
+    du_alice erin secret.md
+    du_fino=$(stat -c %i "$LOWER/du/erin/secret.md")
+    du_free "$LOWER/du/erin"
+    du_new='' i=0
+    while [ $i -lt 64 ]; do
+        : > "$LAYER/frank/x$i" || fail "du-x-$du_fs-$i"
+        if [ "$(stat -c %i "$LAYER/frank/x$i")" = "$du_fino" ]; then du_new=x$i; break; fi
+        i=$((i + 1))
+    done
+    if [ -n "$du_new" ]; then
+        chown 1002:1002 "$LAYER/frank/$du_new" &&
+            "$BIN/moobfs-attr" set "$LAYER/frank/$du_new" kind string mine || fail "du-x-attr-$du_fs"
+        du_got=$("$BIN/query" --uid 1002 "$LAYER/frank" q2 secret eq string s3cret) || fail "du-x-query-$du_fs"
+        [ -z "$du_got" ] || fail "du-file-stale-$du_fs: frank/$du_new (inode $du_fino) answered $du_got"
+        [ "$("$BIN/query" --uid 1002 "$LAYER/frank" q2 kind eq string mine | cut -f2)" = "$du_new" ] ||
+            fail "du-x-own-$du_fs"
+        du_note="${du_note}file: inode $du_fino reused by frank/$du_new"
+    else
+        du_note="${du_note}file: inode $du_fino not reused in 64 files"
+        [ "$du_fs" = ext4 ] && fail "du-file-no-reuse-ext4 (inode $du_fino not reused in 64 files)"
+    fi
+    umount "$LAYER" && rm -rf "$LOWER/du" && umount "$LOWER" || fail "du-cleanup-$du_fs"
+    echo "DOMAINREUSE_$du_fs: $du_note"
+done
+echo "DOMAINREUSE_PASS: reused domain directory and file inode numbers are not answered from the removed ones' index"
 fi
 if want pylib && ! command -v python3 > /dev/null 2>&1; then
     echo "PYLIB_SKIPPED: no python3 in this guest (the KASAN harness boots the host's root)"

@@ -8,9 +8,10 @@ meets what the project is before its status history. The facts are unchanged. Th
 
 ## Last tag and later corrections
 
-**Experimental. Not for production.** One kernel series (6.12), tested in a VM only; no outside
-human review of the kernel code yet (two independent source reviews by AI assistants, journals 0111 and 0114;
-a first outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163). The last
+**Experimental. Not for production.** One kernel series (6.12), tested in a VM only; no independent
+human review of the whole kernel code yet (two independent source reviews by AI assistants, journals 0111 and 0114;
+an external reviewer privately reported three kernel defects and wrote the fix of one, F16, journals 0215, 0216 and 0218;
+an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163). The last
 tag, `v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch.
 The two findings of the [independent review](history/0144-independent-review.md)
 have corrections on `main`; the review batch passed the full integrated VM suite
@@ -46,3 +47,12 @@ domain took 0.3 s with no delay and 9.8 s at 200 ms per I/O; at 400 ms it stoppe
 with `ETIMEDOUT` and no partial answer, and the next query answered in full. G5's domains of about
 25,000 real memories built at `index_build_work=65536`. Issue 113 (domain records kept until
 unmount) is fixed in the same batch.
+*Update, 2026-10-28 ([journal 0219](history/0219-security-batch-checks.md)):* a second security
+batch fixes three private reports from an external reviewer, each with a test and a negative
+round: `QUERY2` naming files under a search-only directory (F15 of ADR-0011,
+[GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6), [journal 0215](history/0215-search-only-directories.md)),
+domain and file records answered for a reused inode number
+([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm), [journal 0216](history/0216-domain-record-generation.md))
+and a set-user-ID bit kept through a write (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6),
+[journal 0218](history/0218-write-credentials-fsetid.md)). `v0.4.1-experimental` contains all
+three.

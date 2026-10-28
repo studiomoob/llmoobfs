@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Force a directory move during QUERY2's first scan and require the moved
- * rescan to share the original work allowance. Dedicated VM and ftrace only. */
+ * rescan to share the original work allowance. Dedicated VM and ftrace only.
+ * With "any" after the domain, the query's own answer is not judged: the suite
+ * then checks what the build stored for the moved directory (journal 0215). */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -48,7 +50,7 @@ static int load_calls(void)
 	return n;
 }
 
-static int query_child(const char *domain)
+static int query_child(const char *domain, int any)
 {
 	struct moob_query_result result, before;
 	struct moob_query2 q = {0};
@@ -73,6 +75,10 @@ static int query_child(const char *domain)
 	rc = ioctl(fd, MOOB_IOC_QUERY2, &q);
 	saved = errno;
 	close(fd);
+	if (any) {
+		printf("QUERY_BUILD_MOVED_CHILD_DONE: rc=%d errno=%d\n", rc, rc ? saved : 0);
+		return 0;
+	}
 	if (rc != -1 || saved != E2BIG || q.count != 777 || q.truncated != 777 ||
 	    memcmp(&result, &before, sizeof(result)) ||
 	    memcmp(q.cursor, (unsigned char[MOOB_QUERY2_CURSOR]){0}, sizeof(q.cursor))) {
@@ -88,9 +94,10 @@ int main(int argc, char **argv)
 	char oldpath[4096], newpath[4096], pidstr[32], go;
 	int pipefd[2], status, seen = 0, i;
 	pid_t pid;
+	int any = argc == 3 && !strcmp(argv[2], "any");
 
-	if (argc != 2) {
-		fprintf(stderr, "usage: query-build-moved DOMAIN\n");
+	if (argc != 2 && !any) {
+		fprintf(stderr, "usage: query-build-moved DOMAIN [any]\n");
 		return 64;
 	}
 	setbuf(stdout, NULL);
@@ -106,7 +113,7 @@ int main(int argc, char **argv)
 		close(pipefd[1]);
 		if (read(pipefd[0], &go, 1) != 1)
 			die("start query");
-		_exit(query_child(argv[1]));
+		_exit(query_child(argv[1], any));
 	}
 	close(pipefd[0]);
 	trace_write("tracing_on", "0");
