@@ -198,7 +198,7 @@ urllib3==2.8.0 \
     --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3 \
     --hash=sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63
     # via requests
-virtme-ng==1.41 \
-    --hash=sha256:0480a197130963062af11d57a3d602fa0c1bbe6645c5b590f783e3ae639dfefa \
-    --hash=sha256:2031f0f2c67947829e030d66b28950adcef351a17a8455483b57d27b6246f2d2
+virtme-ng==1.42 \
+    --hash=sha256:40c4cb9ae341bddf5aec8fbf3bf2eaf68f69a7c5d228c094be13dec3c3413365 \
+    --hash=sha256:99589f1f5d74249038fe3c52aad9d3c33cb82a2d9617997511d4489fc709a707
     # via -r /tmp/kasan-requirements.in
