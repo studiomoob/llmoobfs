@@ -554,10 +554,17 @@ static bool moobl_index_admin(void)
 
 #define MOOBL_MAX_DEPTH 64
 
-/* True when the inode carries an access ACL beyond the minimal one (mode bits only). */
+/*
+ * True when the inode carries an access ACL that may decide otherwise than its mode bits: one
+ * with a named or mask entry (posix_acl_equiv_mode() not 0), or a minimal one whose three
+ * entries differ from the bits. acl_permission_check() asks the ACL, not the bits, for anyone
+ * but the owner, and a lower filesystem can hold a minimal ACL the VFS would have dropped
+ * (posix_acl_update_mode()), for example one written offline (journal 0222).
+ */
 static bool ext_acl(struct inode *inode, int *err)
 {
 	struct posix_acl *acl;
+	umode_t mode = 0;
 	bool ext;
 
 	if (!IS_POSIXACL(inode))
@@ -570,7 +577,7 @@ static bool ext_acl(struct inode *inode, int *err)
 	}
 	if (!acl)
 		return false;
-	ext = acl->a_count > 3;
+	ext = posix_acl_equiv_mode(acl, &mode) || ((mode ^ inode->i_mode) & 0777);
 	posix_acl_release(acl);
 	return ext;
 }
