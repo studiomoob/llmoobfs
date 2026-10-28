@@ -56,3 +56,17 @@ domain and file records answered for a reused inode number
 and a set-user-ID bit kept through a write (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6),
 [journal 0218](history/0218-write-credentials-fsetid.md)). `v0.4.1-experimental` contains all
 three.
+*Update, 2026-10-28 (journals 0221 to 0224):* a third batch fixes finding F17
+([GHSA-82w5-ph62-47wf](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-82w5-ph62-47wf), [journal 0222](history/0222-term-padding-admin-test-extended-acl.md)) and
+closes issues 119 and 115. Issue 119: a casefolded lower directory is refused with `EREMOTE`
+(`ESTALE` if casefolded behind the layer) and a btrfs subvolume with `EXDEV`, the refusals are
+logged once ([journal 0221](history/0221-lookup-errnos-and-m8.md)); the reserved byte of a query term
+must be zero (`EINVAL`) and one privilege test gates the index
+([ADR-0026](decisions/0026-ioctl-magic-term-padding-and-admin-test.md)). Issue 115:
+`posix_fadvise`, `readahead`, the lower's `statx` fields, the space of a file removed behind the
+layer and `O_NOATIME` set by `F_SETFL` now reach the lower; `cachestat(2)` stays a limitation
+([journal 0224](history/0224-passthrough-gaps-issue-115.md)). Issue 117 is fixed in part: instantiation
+and eviction of an inode without an index record no longer take the mount-wide index lock; an
+inode with a record still does, and the issue stays open for it
+([journal 0223](history/0223-index-lock-instantiation-eviction.md)). `v0.4.1-experimental` contains all
+of these defects.

@@ -11,7 +11,7 @@ a problem and what to expect; the longer-term plan is in
 | Version | Supported |
 | --- | --- |
 | `main` | Use this. Fixes land here only; there are no backports and no maintenance branches. |
-| `v0.4.1-experimental` | Source snapshot of 2026-10-20, not supported: fixes F1 to F12 except fair shares of F2, but contains review 0144 R1/R2, F13 (review 0151) and F14 with the other defects of review round 2 (journal 0155); their corrections (journals 0149, 0150, 0152, 0156) are newer than this tag and land on `main` only. It also contains F15, F16 and GHSA-756j-cgwq-gvwm, fixed on `main` in journals 0215, 0216 and 0218. |
+| `v0.4.1-experimental` | Source snapshot of 2026-10-20, not supported: fixes F1 to F12 except fair shares of F2, but contains review 0144 R1/R2, F13 (review 0151) and F14 with the other defects of review round 2 (journal 0155); their corrections (journals 0149, 0150, 0152, 0156) are newer than this tag and land on `main` only. It also contains F15, F16, F17 and GHSA-756j-cgwq-gvwm, fixed on `main` in journals 0215, 0216, 0218 and 0222, and the defects of issues 115, 117 (in part) and 119, fixed in journals 0221 to 0224. |
 | `v0.4.0-experimental` | Source snapshot, not supported. Its queries are about twice as slow as they should be (a buffer allocated per query, journal 0139). |
 | `v0.3.0-experimental` | Source snapshot, not supported. It carries defects fixed since, security ones included (findings F6 to F12 of ADR-0011; see `CHANGELOG.md`). |
 | `v0.1.0-experimental`, `v0.2.0-experimental` | Source snapshots, not supported; they carry more of the same defects. |

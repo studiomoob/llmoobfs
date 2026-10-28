@@ -146,10 +146,11 @@ na sua própria execução, veja [Experimente numa VM](#experimente-numa-vm).
 de cotas justas do F2. Não é para produção.** Achados posteriores a afetam e estão corrigidos só
 na `main`: flags de estado do arquivo desatualizadas depois de `F_SETFL` e erros de leitura de
 atributo tomados como "sem atributo" ao indexar (revisão [0144](docs/history/0144-independent-review.md),
-R1 e R2), e um chmod durante a primeira construção de um domínio, que podia deixar o arquivo nas
+R1 e R2), um chmod durante a primeira construção de um domínio, que podia deixar o arquivo nas
 respostas do `QUERY2` para usuários que já não conseguem lê-lo (diários
 [0151](docs/history/0151-review-d110d4e.md), [0152](docs/history/0152-chmod-during-build-fixed.md)),
-e os três relatos privados de 2026-10-27 listados abaixo.
+os três relatos privados de 2026-10-27 listados abaixo e uma ACL mínima gravada por fora do VFS
+que o índice julgava pelos bits de modo (F17, diário [0222](docs/history/0222-term-padding-admin-test-extended-acl.md)).
 Fatos em 2026-10-25:
 
 - **Uma série de kernel**, em VM: Debian 6.12.111 no QEMU e o 6.12.112 upstream sob
@@ -555,7 +556,9 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
 - Os números de inode são os do sistema de baixo, e um arquivo é identificado por esse número. Um
   subvolume ou snapshot btrfs **dentro** da árvore de baixo numera os arquivos do zero de novo,
   então a camada não entra nele (`EXDEV`) e o deixa fora do índice. Mantenha os snapshots fora do
-  diretório que a camada cobre.
+  diretório que a camada cobre. Um diretório de baixo com casefold aparece na listagem mas é
+  recusado do mesmo jeito, com `EREMOTE` (`ESTALE` se ganhou casefold por trás da camada depois
+  que ela entrou nele; diário [0221](docs/history/0221-lookup-errnos-and-m8.md)).
 - Os dados são escritos com as credenciais de quem montou, sem `CAP_SYS_RESOURCE`, então os
   limites de cota valem, e com o fsuid e os grupos de quem escreve, então os blocos reservados do
   ext4 só vão para quem o ext4 os daria num acesso direto (achado F4, diário 0132).
@@ -563,7 +566,9 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   seguem as opções de montagem do sistema de arquivos de baixo.
 - `sync_file_range(2)` pela camada dá sucesso e não grava nada: as páginas ficam no cache do arquivo
   de baixo, que ele não alcança (V2 do diário 0155; o overlayfs tem a mesma lacuna). Use `fsync` ou
-  `fdatasync`.
+  `fdatasync`. Pelo mesmo motivo, `cachestat(2)` num descritor da camada mostra o cache vazio da
+  camada; `posix_fadvise`, `readahead`, os campos de `statx` do sistema de baixo e o `O_NOATIME`
+  ligado por `F_SETFL` chegam ao arquivo de baixo (diário 0224).
 - Com domínios ligados, nada a mais de 64 componentes abaixo da raiz da montagem é indexado nem
   respondido pelo `QUERY2`: os caminhos de escrita não conseguem localizar nomes mais fundos
   (achado F14, diário 0156). Os arquivos continuam sendo lidos e gravados normalmente.
@@ -595,6 +600,7 @@ experimento M1 está congelado e roda como regressão na mesma VM.
 | Descrições do syzkaller para a montagem, as ioctls e os atributos; cinco rodadas de seis horas | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md) | 6.12.112 upstream com KCOV |
 | Correções de segurança dos achados F9 a F12 (regra de homogeneidade, checagens sem o semáforo de consulta, acesso de escrita na montagem de baixo, lower idmapped recusado), cada uma com teste e rodada negativa | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | Correções de segurança de F15, GHSA-756j-cgwq-gvwm e F16 (diretórios só de busca, registros de um número de inode reutilizado, set-user-ID mantido numa escrita), cada uma com teste e rodada negativa | [0215](docs/history/0215-search-only-directories.md), [0216](docs/history/0216-domain-record-generation.md), [0218](docs/history/0218-write-credentials-fsetid.md) | Debian 6.12.111; KASAN 6.12.112 ([0219](docs/history/0219-security-batch-checks.md)); ext4, btrfs, XFS |
+| Lote 3: errnos do lookup para um diretório com casefold e um subvolume btrfs, o byte reservado de um termo de consulta (`EINVAL`), um só teste de privilégio, ACLs estendidas julgadas como o kernel julga (F17), sem trava do índice na criação ou despejo de inodes sem registro, e `fadvise`, `readahead`, campos de `statx`, `drop_inode` e `O_NOATIME` repassados ao sistema de baixo; passos `casefold`, `minacl` e `ixlock`, marcadores `LAYER_SUBVOLUME_PASS` e `PASSTHROUGH_PASS`, cada um com rodada negativa | [0221](docs/history/0221-lookup-errnos-and-m8.md), [0222](docs/history/0222-term-padding-admin-test-extended-acl.md), [0223](docs/history/0223-index-lock-instantiation-eviction.md), [0224](docs/history/0224-passthrough-gaps-issue-115.md), [ADR-0026](docs/decisions/0026-ioctl-magic-term-padding-and-admin-test.md) | Debian 6.12.111; KASAN 6.12.112 para os passos que cada diário cita; ext4, btrfs, XFS (`minacl` e `ixlock` em ext4) |
 
 Não implementado: índice persistente, montagens em namespace de usuário ou idmapped, leituras em
 lote, cursor de mudanças, revisões, empacotamento, UAPI estável, a suíte xfstests completa e

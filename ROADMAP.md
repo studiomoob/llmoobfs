@@ -162,6 +162,11 @@ issue 118 is closed. Over an ext4 lower slowed to 400 ms per I/O the first build
 stopped at its deadline with `ETIMEDOUT` and no partial answer. The statements above that issues
 116 and 118 remain next or open are earlier checkpoints; both are closed.
 
+*Update, 2026-10-28 ([0221](docs/history/0221-lookup-errnos-and-m8.md) to
+[0224](docs/history/0224-passthrough-gaps-issue-115.md)):* the third batch of the security order
+fixes F17 and closes issues 119 and 115; issue 117 is fixed for inodes without an index record and
+stays open for inodes with one. S9 fair sharing remains open.
+
 Planned from ADR-0017 (accepted 2026-10-20, journal 0156), the answers to the design objections of
 review round 2:
 - **Per-result checks as the default?** Measure every query answered with per-result permission

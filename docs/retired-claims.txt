@@ -214,3 +214,6 @@ QUERY ioctl on the mount root
 refused through the layer with `EOPNOTSUPP`
 F1 to F16
 F1 a F16
+
+# Batch 3 (journals 0221 to 0224): F17 and issues 115, 117 (in part) and 119.
+It also contains F15, F16 and GHSA-756j-cgwq-gvwm, fixed
