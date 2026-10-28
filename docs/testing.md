@@ -14,13 +14,14 @@ runs in a disposable QEMU guest. Installing the layer on a dedicated test host i
 | --- | --- |
 | `make test` | C11 compiler, GNU Make, Python 3 (Linux or macOS) |
 | `make fuzz` | LLVM clang with libFuzzer (CI uses it; Apple clang does not ship it) |
-| `make vm-test` | Docker. No KVM, no privileged container, no network inside the guest. The first run downloads the Debian base and kernel packages |
+| `make vm-test` | Docker. No KVM by default (`MOOB_VM_KVM=1` passes a writable `/dev/kvm` to the container), no privileged container, no network inside the guest. The first run downloads the Debian base and kernel packages |
 | KASAN/lockdep | Linux x86-64 with QEMU and `virtme-ng 1.41`, or trigger `.github/workflows/kasan.yml` |
 
 Disk and time: `build/` grows to several GiB with the kernel tree for KASAN.
 Measured wall-clock times per machine are not recorded yet; the CI timeouts are
 35 minutes for the VM job and 150 minutes for KASAN, and the QEMU phase of
-`make vm-test` is bounded by `timeout 2400`.
+`make vm-test` is bounded by `timeout 3600`. On the dedicated i5 host the complete suite took
+2575 s under TCG (journal 0219); `MOOB_VM_KVM=1` runs the same guest under KVM there.
 
 ## 2. Targets
 
