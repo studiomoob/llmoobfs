@@ -1098,10 +1098,12 @@ else
 fi
 fi
 # Tracepoints of the index (journal 0102): tr_on clears the buffer and enables the named events
-# of the moobfs system, tr_count counts one event in the buffer.
+# of the moobfs system, tr_count counts one event in the buffer. It also turns the ring buffer
+# on: tests/query-build-moved.c and tests/deadscan.c leave tracing_on at 0.
 TR=/sys/kernel/tracing
 tr_on() {
     [ -e $TR/trace ] || mount -t tracefs nodev $TR || return 1
+    echo 1 > $TR/tracing_on || return 1
     echo > $TR/trace || return 1
     for e in "$@"; do echo 1 > $TR/events/moobfs/"$e/enable" || return 1; done
 }
