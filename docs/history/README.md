@@ -239,3 +239,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0217 — Rebase before pushing; pull requests enter with a merge commit](0217-rebase-before-push-merge-commits.md)
 - [0218 — Write credentials carry CAP_FSETID only when the writer has it (GHSA-6xf4-r246-92r6)](0218-write-credentials-fsetid.md)
 - [0219 — Security batch 2: full suite and KASAN before publication](0219-security-batch-checks.md)
+- [0220 — Second prior-art search, "why not a service?" and QUERY2 under Landlock](0220-prior-art-update-and-landlock.md)

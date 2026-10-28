@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Prior-art search repeated (journal 0220): `docs/research-originality.md` §10 adds KiwiFS,
+  OpenViking, LSFS, macOS `searchfs()` and others, and records the YoloFS paper as read; nothing
+  found combines what MoobFS does. New FAQ question 21, "Why a kernel module and not a
+  service?". `QUERY2` under Landlock measured: it returns files the process cannot open, as
+  `getxattr` already reveals their attributes there; documented in FAQ question 6 and the
+  security roadmap. The CLI's failure under Landlock is issue 167.
+
 - Security batch 2 checks (journal 0219): full `make vm-test` and KASAN/UBSAN/lockdep suite
   passed on the branch of journals 0215, 0216 and 0218. Two suite defects found on the way are
   fixed: `pm-mv` and `buildmoved` no longer need `mountpoint`, and `tr_on()` turns `tracing_on`

@@ -590,3 +590,32 @@ research documents. Two page ranges could not be confirmed and are omitted: Büt
   ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/overlayfs/dir.c)): overlayfs
   prepares per-operation credentials from the mounter's (`prepare_creds()`, `:562`) and adjusts
   them for what the lower will decide; the model of the layer's write credentials (F4).
+
+## 19. Prior art and Landlock, second search (journal 0220)
+
+Read on 2026-10-27 and 2026-10-28 for the update of `docs/research-originality.md` (§10) and
+question 21 of `docs/faq.md`. Licenses as stated by each repository.
+
+- Shawn Wanxiang Zhong et al., YoloFS, ACM SOSP 2026
+  ([arXiv 2604.13536v5](https://arxiv.org/abs/2604.13536)), already listed in §2: now read; no
+  attributes, index or query, per-path access rules.
+- [KiwiFS](https://github.com/kiwifs/kiwifs) (BSL-1.1): a user-space knowledge filesystem with a
+  rebuildable metadata index and queries; the closest service in function.
+- [OpenViking](https://github.com/volcengine/OpenViking) (AGPL-3.0), `docs/en/concepts/15-acl.md`:
+  retrieval filtered by the caller's application identity; the closest service in authorization.
+- Shi, Mei et al., "From Commands to Prompts: LLM-based Semantic File System for AIOS"
+  (LSFS), ICLR 2025 ([arXiv 2410.11843](https://arxiv.org/abs/2410.11843)): agent file operations
+  with keyword retrieval in user space.
+- [RAGFS ADR-012](https://github.com/gianlucamazza/ragfs/blob/main/docs/adr/012-native-filesystem-vs-semantic-volume.md):
+  a FUSE project's recorded rejection of a kernel driver.
+- `searchfs()` in Apple's [HFS sources](https://github.com/apple-oss-distributions/hfs)
+  (`core/hfs_search.c`, APSL): a kernel metadata query that checks the caller per result.
+- `BTRFS_IOC_TREE_SEARCH_V2`, `fs/btrfs/ioctl.c`
+  ([v6.12.112](https://github.com/gregkh/linux/blob/v6.12.112/fs/btrfs/ioctl.c)): a privileged
+  search of filesystem trees by key.
+- [Landlock documentation](https://docs.kernel.org/userspace-api/landlock.html) (warning on
+  actions it cannot restrict yet, among them `stat` and xattr calls) and
+  [landlock-lsm/linux issue 11](https://github.com/landlock-lsm/linux/issues/11), "File metadata
+  control", which tracks the patch series for a metadata access right; `security/landlock/fs.c`
+  of Linux 7.3 registers no `inode_permission` or xattr hook. Why a query under Landlock follows
+  `getxattr`, and what the layer should honor when that right lands (journal 0220).
