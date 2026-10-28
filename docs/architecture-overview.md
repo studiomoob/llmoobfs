@@ -235,7 +235,8 @@ mount or a release (ADR-0012).
 
 Only pilot-grade figures exist, from one host ([report](history/0088-m4-report.md)); no kernel
 beyond the two above has been tried; fstests ran as its `quick` group only; the code is one
-author's, with the defects found by its own tests and by two source reviews by AI assistants
-listed in [ADR-0011](decisions/0011-threat-and-credential-model.md) (F1 to F14), and no outside
+author's, with the defects found by its own tests, by two source reviews by AI assistants and by
+private reports from an external reviewer listed in
+[ADR-0011](decisions/0011-threat-and-credential-model.md) (F1 to F16), and no outside
 human review. See
 [when-not-to-use.md](when-not-to-use.md) and [faq.md](faq.md).

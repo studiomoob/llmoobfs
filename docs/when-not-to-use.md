@@ -124,8 +124,8 @@ These limits update the cases discussed in the value assessment, §9.6.
   UBSAN and lockdep suite of this change then exited 0 (`MOOBFS_KASAN_PASS`).
   The complete native-KVM suite of this change was not run.
 - **You need it in production today, or in any critical setting.** Only source pre-release tags exist; the
-  module is one author's code; its own tests and two source reviews by AI assistants found
-  kernel-side defects, security ones among them (findings F1 to F14 of ADR-0011); there is no
+  module is one author's code; its own tests, two source reviews by AI assistants and private
+  reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F16 of ADR-0011); there is no
   outside human review of the kernel code; fstests ran as its `quick` group only and syzkaller for five six-hour
   rounds. A module bug can mean a kernel panic or data loss.
 - **The team cannot maintain an out-of-tree kernel module** across kernel updates, signing
