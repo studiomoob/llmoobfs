@@ -108,8 +108,13 @@ static struct file *moobl_real(const struct file *file)
 	return ((struct moobl_file *)file->private_data)->real;
 }
 
-/* F_SETFL changes the layer file after open; the backing file must follow it. */
-#define MOOBL_SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | O_DIRECT)
+/*
+ * F_SETFL changes the layer file after open; the backing file must follow it. O_NOATIME too,
+ * beyond overlayfs's mask: the lower's mount decides access times (journal 0079), open passes the
+ * flag to the backing file once the VFS checked ownership on the layer inode, and setfl() makes
+ * the same check before a later change (V7, journal 0155; journal 0224).
+ */
+#define MOOBL_SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | O_DIRECT | O_NOATIME)
 
 static int moobl_sync_flags(struct file *file)
 {
@@ -225,6 +230,20 @@ static void moobl_free_inode(struct inode *inode)
 	kmem_cache_free(moobl_inode_cache, MOOBL_I(inode));
 }
 
+/*
+ * Called under inode->i_lock on the last reference. A layer inode whose lower inode has no link
+ * left (removed behind the layer) is evicted at once, which drops the reference that otherwise
+ * keeps the lower inode, and its blocks, until memory reclaim (V5, journal 0155). Linked inodes
+ * keep the default caching: overlayfs and FUSE evict every inode (generic_delete_inode), which
+ * would also cost the index the upper link of every inode that loses its dentries (journal 0224).
+ */
+static int moobl_drop_inode(struct inode *inode)
+{
+	struct inode *lower = moobl_lower_inode(inode);
+
+	return generic_drop_inode(inode) || (lower && !READ_ONCE(lower->i_nlink));
+}
+
 static void moobl_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages_final(&inode->i_data);
@@ -288,6 +307,7 @@ static int moobl_sync_fs(struct super_block *sb, int wait)
 static const struct super_operations moobl_sops = {
 	.alloc_inode = moobl_alloc_inode,
 	.free_inode = moobl_free_inode,
+	.drop_inode = moobl_drop_inode,
 	.evict_inode = moobl_evict_inode,
 	.statfs = moobl_statfs,
 	.sync_fs = moobl_sync_fs,
@@ -1082,7 +1102,32 @@ static const struct xattr_handler * const moobl_xattr_handlers[] = {
 /* ---- attribute operations shared by files and directories -------------- */
 
 #define MOOBL_STATX_ATTRS (STATX_ATTR_COMPRESSED | STATX_ATTR_IMMUTABLE | \
-			   STATX_ATTR_APPEND | STATX_ATTR_NODUMP)
+			   STATX_ATTR_APPEND | STATX_ATTR_NODUMP | \
+			   STATX_ATTR_ENCRYPTED | STATX_ATTR_VERITY | STATX_ATTR_DAX)
+
+/*
+ * statx fields of the lower that hold through the layer, whose data is the lower's (V3, journal
+ * 0155): O_DIRECT alignment, atomic write units and the subvolume. overlayfs starts from the
+ * lower's kstat; this copies them where the layer builds its own (journal 0224).
+ */
+static void moobl_statx_lower(struct kstat *stat, const struct kstat *lower)
+{
+	if (lower->result_mask & STATX_DIOALIGN) {
+		stat->dio_mem_align = lower->dio_mem_align;
+		stat->dio_offset_align = lower->dio_offset_align;
+		stat->result_mask |= STATX_DIOALIGN;
+	}
+	if (lower->result_mask & STATX_WRITE_ATOMIC) {
+		stat->atomic_write_unit_min = lower->atomic_write_unit_min;
+		stat->atomic_write_unit_max = lower->atomic_write_unit_max;
+		stat->atomic_write_segments_max = lower->atomic_write_segments_max;
+		stat->result_mask |= STATX_WRITE_ATOMIC;
+	}
+	if (lower->result_mask & STATX_SUBVOL) {
+		stat->subvol = lower->subvol;
+		stat->result_mask |= STATX_SUBVOL;
+	}
+}
 
 /*
  * As ovl_do_getattr() and ecryptfs_do_getattr(): the lower's security hook runs unless the caller
@@ -1121,6 +1166,7 @@ static int moobl_getattr(struct mnt_idmap *idmap, const struct path *path,
 		stat->btime = lower_stat.btime;
 		stat->result_mask |= STATX_BTIME;
 	}
+	moobl_statx_lower(stat, &lower_stat);
 	return 0;
 }
 
@@ -1504,6 +1550,16 @@ static int moobl_fsync(struct file *file, loff_t start, loff_t end, int datasync
 	return err;
 }
 
+/* Advice and readahead(2) act on the page cache, which only the lower file has (V1, journal 0155). */
+static int moobl_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
+{
+	const struct cred *old = override_creds(MOOBL_SB(file_inode(file)->i_sb)->creds);
+	int err = vfs_fadvise(moobl_real(file), offset, len, advice);
+
+	revert_creds(old);
+	return err;
+}
+
 static loff_t moobl_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct file *real = moobl_real(file);
@@ -1639,6 +1695,7 @@ static const struct file_operations moobl_file_fops = {
 	.splice_write = moobl_splice_write,
 	.mmap = moobl_mmap,
 	.fsync = moobl_fsync,
+	.fadvise = moobl_fadvise,
 	.fallocate = moobl_fallocate,
 	.flush = moobl_flush,
 	.remap_file_range = moobl_remap_file_range,
