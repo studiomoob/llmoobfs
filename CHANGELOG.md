@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- GHSA-82w5-ph62-47wf (journal 0222, finding F17 of ADR-0011, found by the maintainer's team):
+  `QUERY2` answered a file whose minimal access ACL, written outside the VFS, refuses the caller,
+  because the kernel judged an ACL extended by its entry count. It now asks
+  `posix_acl_equiv_mode()` and compares the bits with the mode; `moobfs-index`, `moobfs-check` and
+  the Python scan follow. New suite step `minacl`; it fails on the module before the fix.
+
 - Issue 119, M4 and M8 (journal 0221). **Behaviour change:** a casefolded lower directory, which
   `readdir` lists, is refused by lookup with `EREMOTE` instead of `EOPNOTSUPP`, and every name in
   a directory casefolded on the lower after the layer entered it with `ESTALE`: overlayfs's

@@ -534,7 +534,7 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   (diários [0111](docs/history/0111-review-5582e06.md) e [0114](docs/history/0114-second-inspection-of-5582e06.md)),
   relatos privados de um revisor externo (diários 0215, 0216, 0218; a correção do F16 é dele) e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
   segurança; os achados estão no [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)
-  (F1 a F16), e os defeitos anteriores nos diários [0015](docs/history/0015-phase-2e-investigation.md),
+  (F1 a F17), e os defeitos anteriores nos diários [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) e

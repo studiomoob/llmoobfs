@@ -125,7 +125,7 @@ These limits update the cases discussed in the value assessment, §9.6.
   The complete native-KVM suite of this change was not run.
 - **You need it in production today, or in any critical setting.** Only source pre-release tags exist; the
   module is mostly one author's code; its own tests, two source reviews by AI assistants and private
-  reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F16 of ADR-0011); there is no
+  reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011); there is no
   independent human review of the whole kernel code (the external reviewer's reports and the fix of F16 aside); fstests ran as its `quick` group only and syzkaller for five six-hour
   rounds. A module bug can mean a kernel panic or data loss.
 - **The team cannot maintain an out-of-tree kernel module** across kernel updates, signing

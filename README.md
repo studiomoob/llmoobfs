@@ -505,7 +505,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
 - No independent human review of the whole kernel code. Two independent source reviews by AI assistants (journals
   [0111](docs/history/0111-review-5582e06.md) and [0114](docs/history/0114-second-inspection-of-5582e06.md)),
   private reports from an external reviewer (journals 0215, 0216, 0218; the reviewer wrote the fix of F16) and the project's own tests found and fixed kernel-side defects, security ones among them; the
-  findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F16),
+  findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F17),
   the earlier defects in journals [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),

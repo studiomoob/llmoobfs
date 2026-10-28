@@ -212,3 +212,5 @@ validated on write, rebuilt on mount
 built at mount from the xattrs
 QUERY ioctl on the mount root
 refused through the layer with `EOPNOTSUPP`
+F1 to F16
+F1 a F16
