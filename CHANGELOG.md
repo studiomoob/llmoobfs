@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Security batch 2 checks (journal 0218): full `make vm-test` and KASAN/UBSAN/lockdep suite
+  passed on the branch of journals 0215 and 0216. Two suite defects found on the way are fixed:
+  `pm-mv` and `buildmoved` no longer need `mountpoint`, and `tr_on()` turns `tracing_on` on.
+
 - GHSA-756j-cgwq-gvwm (journal 0216, reported privately by an external reviewer): a domain
   directory removed on the lower, behind the layer, and a new directory given its inode number
   (ext4, XFS) were answered from the removed directory's index, and a new file given a removed

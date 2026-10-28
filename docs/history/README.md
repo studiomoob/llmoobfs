@@ -237,3 +237,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0215 — Search-only directories: read and search on every directory on the way (ADR-0025)](0215-search-only-directories.md)
 - [0216 — A domain record keeps its directory's generation (GHSA-756j-cgwq-gvwm)](0216-domain-record-generation.md)
 - [0217 — Rebase before pushing; pull requests enter with a merge commit](0217-rebase-before-push-merge-commits.md)
+- [0218 — Security batch 2: full suite and KASAN before publication](0218-security-batch-2-checks.md)
