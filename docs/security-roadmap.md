@@ -93,6 +93,13 @@ through a private advisory.
 > and inode-based security modules, but does not consult those that decide by path at open
 > time (AppArmor, Landlock). A process confined by them may see, in the results, a file it
 > would not be able to open. The S1 ADR must decide whether this enters the contract.
+>
+> Note from 2026-10-28 (journal 0220): measured again with `QUERY2` on `main` (Debian 6.12.111,
+> Landlock ABI 6): the query returns the file, `getxattr` of it works, opening it fails with
+> `EACCES`. Landlock documents that it does not restrict xattr reads yet, and a metadata access
+> right is in progress upstream (landlock-lsm/linux issue 11), so the query reveals what
+> `getxattr` already does. When that right lands, the layer should honor it. AppArmor remains
+> untested.
 
 Precedent: the `override_creds=off` discussion in overlayfs showed that, without a written
 model, reviewers cannot tell whether the credentials scheme is exploitable.

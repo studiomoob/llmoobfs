@@ -77,7 +77,7 @@ in the code/text (class in parentheses when uncertain).
 | Index rebuild | **proven**: at every mount; PATHS_STALE/INDEX_INCOMPLETE in `GET_INFO` (`layer/index.c`, `moobfs_ioctl.h`) | SFS: periodic and full reindexing (paper §5, 1 million attributes in 1h36 in 1991). ai-memory: rebuildable derived SQLite (`docs/research-ai-memory.md`). BFS: persistent index, manual `reindex` for existing files (Haiku docs) |
 | Storage/semantics separation | **proven**: kernel only structured attributes; embeddings in the client (ADR-0005 item 5) | SFS: transducers (semantics per file type) outside the FS. SMFS, RAGFS, Agent FS, VexFS: semantics/embeddings built into the product |
 | Reliability evidence | **proven** (author, VM, kernel 6.12.111): fsx 9000 ops per lower, dm-log-writes, dm-flakey, 2+1 defects found, KASAN/lockdep harness (`docs/history/0012`, `0015`, `0016`). No full xfstests | YoloFS: CI and `tests/` suite (existence proven; coverage not verified). VexFS: README admits risk of panics (proven). Others: application tests |
-| Reproducible benchmarks | **not verified / nonexistent**: no number measured; plan in `docs/benchmark-plan.md` and `docs/benchmark-harness.md` | SMFS publishes xAFS (110 questions, 13 corpora) and reports fewer tokens; evaluation done by the authors themselves, without independent reproduction (report page). YoloFS: SOSP 2026 paper with evaluation (I did not read it). ai-memory: LongMemEval (`docs/research-ai-memory.md`) |
+| Reproducible benchmarks | **not verified / nonexistent**: no number measured; plan in `docs/benchmark-plan.md` and `docs/benchmark-harness.md` | SMFS publishes xAFS (110 questions, 13 corpora) and reports fewer tokens; evaluation done by the authors themselves, without independent reproduction (report page). YoloFS: SOSP 2026 paper with evaluation (I did not read it; note of 2026-10-28: read, see §10). ai-memory: LongMemEval (`docs/research-ai-memory.md`) |
 
 ## 3. Analysis of the three architecturally closest competitors
 
@@ -275,6 +275,45 @@ and dedup belong to btrfs/XFS. Acceptance in a local VM covers git, WAL-mode SQL
 replay and error injection, which exposed and fixed real defects; there are no measured
 benchmarks, no full xfstests run and no independent audit yet.
 
+## 10. Update of 2026-10-27 and 2026-10-28 (journal 0220)
+
+A second search, in three parts: agent filesystems (kernel, FUSE, services), kernel-side
+indexing or query of xattrs and metadata, and academic work of 2023 to 2026. Repositories were
+cloned with `--depth 1` and read, never built or run. Classes as in the rest of this document.
+lore.kernel.org refused automated reads, Semantic Scholar answered HTTP 429 and DBLP gave no
+usable answer, so mailing lists and some venues were covered only through search engines.
+
+**The works of §1 and §3, again.** None added typed attributes, an index, structured queries or
+filtering by the caller's credentials. YoloFS, SMFS, Factory VFS and VexFS had no new commits
+after 2026-10-10 (proven, GitHub API). RAGFS moved to `gianlucamazza/ragfs`, and its
+`docs/adr/012-native-filesystem-vs-semantic-volume.md`, accepted on 2026-10-20, rejects a kernel
+driver (proven). The YoloFS paper (arXiv 2604.13536v5) was read: no xattr feature, no search
+index, no query; its access policy is a per-path rule (`ask`, `allow`, `deny` and two more)
+that never grants more than DAC, and its related work cites neither SFS, BFS nor metadata
+search (proven, except the part of its reference list that could not be fetched).
+
+**New entries.**
+
+| Work | Layer | Closest to MoobFS in | What it does not do | Class |
+| --- | --- | --- | --- | --- |
+| KiwiFS (github.com/kiwifs/kiwifs, BSL-1.1, 2026) | Go server; REST, MCP, NFS, WebDAV, FUSE | Schema-checked metadata, an index rebuilt from the files, `WHERE`/`SORT`/`GROUP BY` queries | Metadata is markdown front matter, not xattrs; access by tokens and spaces, not POSIX; not in the kernel | proven (README, `internal/dataview/autoindex.go`, `internal/fuse/fuse.go`) |
+| OpenViking (github.com/volcengine/OpenViking, AGPL-3.0, 2026) | Python/Rust service with a vector index | Retrieval filtered by the caller's identity, with ACL fields matched inside the query | Principals of the application, not POSIX; ACL off by default and only eventually consistent with the index | proven for its documentation (`docs/en/concepts/15-acl.md`); code not read |
+| LSFS, "From Commands to Prompts" (ICLR 2025), with AIOS | Python in user space | A "semantic file system" layer for agents with keyword retrieval under AND/OR conditions | Untyped metadata in a vector store; no multi-user or credential filtering | proven (paper) |
+| Turso AgentFS, LayerFS, ContextFS (Tsinghua), Redis Agent Filesystem | FUSE or NFS over SQLite, Redis or a content store | Filesystems for agents: snapshots, branches, audit | No attribute index or query; in the three whose code was read, xattr calls are not implemented | proven for the code read |
+| macOS `searchfs()` (HFS+, also offered on APFS) | Kernel, own filesystem | The only user-callable kernel metadata query found that checks the caller on every result (`vnode_authorize` on parent directories, for non-root callers) | Scans fixed catalog fields, no index, no xattrs | proven for `hfs_search.c`; APFS behavior probable |
+| btrfs `TREE_SEARCH_V2` | Kernel ioctl, btrfs only | Returns tree items, xattr items among them, by key range | Requires `CAP_SYS_ADMIN`; no typed values, no value predicates, no per-file check | proven (`fs/btrfs/ioctl.c`) |
+| CMU 15-712 tagfs (2011) | Patched 2.6 kernel, filesystem derived from ext2 | Tag queries in the kernel through new system calls | Not stacked, untyped tags, course project | proven for its API; query semantics not verified |
+| US20090240737A1 (abandoned application, priority 2004) | Patent | Stacked VFS layers, an attribute index and queries in the path | Kernel placement and result filtering not stated | probable (description read, claims not read; no legal opinion, as in §8) |
+| Permission-filtered agent memory: Collaborative Memory (arXiv 2505.18279), MAP-Graph (2608.10509), Governed Shared Memory (2606.24535) | Frameworks in user space | Filtering what an agent retrieves by permission | Their own principals (graphs, tenants, roles); no filesystem | probable (abstracts) |
+
+**Conclusion.** Nothing found anticipates the combination of §5: an index of typed xattrs with
+structured queries, in a kernel module stacked over unmodified ext4, btrfs or XFS, with results
+filtered by the caller's POSIX credentials (probable, given the coverage limits above). Each part
+exists elsewhere on its own. Structured metadata queries (KiwiFS, LSFS) and permission-filtered
+retrieval (OpenViking, the papers above) are not novel as features; what remains is where they
+run and whose credentials decide. KiwiFS and OpenViking are the natural comparison for "why
+not a service?" (`docs/faq.md` §21).
+
 ## Sources consulted
 
 Accessed on 2026-10-10:
@@ -289,7 +328,7 @@ Accessed on 2026-10-10:
 - https://github.com/Venere-Labs/ragfs (clone; `README.md`, `crates/`)
 - https://pages.cs.wisc.edu/~remzi/Classes/838/Fall2001/Papers/sfs-sosp91.pdf (scanned PDF, pages 1-3 and 5-6 read)
 - https://arxiv.org/abs/2607.26637
-- https://arxiv.org/abs/2604.13536 (referenced by the YoloFS page; not read)
+- https://arxiv.org/abs/2604.13536 (referenced by the YoloFS page; not read; note of 2026-10-28: read, see §10)
 - https://arxiv.org/abs/2609.10144 (consulted; not a filesystem; not used in the matrix)
 - https://patents.google.com/patent/US7617250B2/en
 - https://patents.google.com/patent/US20230401171A1/en
@@ -304,3 +343,18 @@ Accessed on 2026-10-10:
 - https://en.wikipedia.org/wiki/Semantic_file_system
 - https://www.crss.ucsc.edu/pub/ames-msst06.html (LiFS)
 - MoobFS repository: `README.md`, `ROADMAP.md`, `docs/decisions/0001-0007`, `docs/spec-m2.md`, `docs/spec-m3.md`, `docs/ecosystem.md`, `docs/research-ai-memory.md`, `docs/benchmark-plan.md`, `docs/history/0011-0020`, `layer/main.c`, `layer/index.c`, `include/moobfs_ioctl.h`
+
+Accessed on 2026-10-27 and 2026-10-28 (§10):
+
+- https://arxiv.org/abs/2604.13536 (YoloFS, HTML version v5)
+- https://github.com/gianlucamazza/ragfs (`docs/adr/012-native-filesystem-vs-semantic-volume.md`)
+- https://github.com/kiwifs/kiwifs (clone)
+- https://github.com/volcengine/OpenViking (`docs/en/concepts/15-acl.md`, `07-retrieval.md`)
+- https://arxiv.org/abs/2410.11843 (LSFS) and https://github.com/agiresearch/AIOS-LSFS
+- https://github.com/tursodatabase/agentfs, https://github.com/Ephemeral-AI-Lab/layerfs,
+  https://github.com/thustorage/ContextFS, https://github.com/redis/agent-filesystem (clones)
+- https://github.com/apple-oss-distributions/hfs (`core/hfs_search.c`)
+- Linux v6.12.112 `fs/btrfs/ioctl.c`
+- https://github.com/15-712/tag_utils
+- https://patents.google.com/patent/US20090240737A1/en
+- https://arxiv.org/abs/2505.18279, https://arxiv.org/abs/2608.10509, https://arxiv.org/abs/2606.24535 (abstracts)

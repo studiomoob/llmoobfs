@@ -59,7 +59,12 @@ required, of the file and of every directory between the queried directory and i
 search-only directory hides its names, journal 0215). Results the caller cannot read are omitted silently, and `count`/`truncated` refer only
 to visible results. A test compares answers with the lower kernel's own decision for random
 modes, owners and groups (journal 0116). Path-based LSMs (AppArmor, Landlock) do not filter
-results; no independent human has reviewed the whole kernel code, though an external reviewer
+results. Under Landlock a query returns files the process cannot open, but Landlock does not
+restrict reading xattrs either (its documentation lists `stat` and xattr calls among what it
+cannot restrict yet; a metadata access right is in progress upstream, landlock-lsm/linux issue
+11), so a query reveals the names and values that `getxattr` already returns there, and the
+content stays protected (journals 0030 and 0220). Once Landlock restricts metadata, the layer
+should follow it. AppArmor was not tested. No independent human has reviewed the whole kernel code, though an external reviewer
 privately reported three kernel defects, one of them F15 in this rule (journal 0215).
 [`docs/spec-query-v2.md` §3; `docs/decisions/0011-threat-and-credential-model.md`; journals 0104, 0116]
 
@@ -209,3 +214,19 @@ Do not open a public issue. Use the private GitHub Security Advisory channel or 
 in `SECURITY.md`; the stated response targets are acknowledgement in 7 days and an assessment
 in 30.
 [`SECURITY.md`; `docs/community-plan.md` §13]
+
+## 21. Why a kernel module and not a service?
+
+A service (KiwiFS, OpenViking and others, `docs/research-originality.md` §10) filters queries by
+its own users and tokens, while the files stay readable from a shell beside it, so its policy and
+the operating system's are two rules to keep in step. In MoobFS a query answers under the rule
+that guards `cat` and `grep`: the caller's modes, groups and ACLs. There is no second permission
+list and no privileged process in between, and the index changes in the same call that writes
+the attribute, so it cannot lag behind the files. When unmounted, the data is ordinary files and
+xattrs. The limits are the same as everywhere else in this FAQ: POSIX only separates agents that
+run as different uids; writes made on the lower directory while mounted bypass the index;
+path-based LSMs do not filter results (question 6); no performance advantage is shown; and a
+kernel module needs root, a fixed kernel and module signing, and a defect can crash the host. A
+service runs anywhere, without root, and brings SQL or vector search. For most uses today,
+SQLite or a service remains the better choice.
+[`docs/decisions/0009-query-role-and-user-space-index.md`; `docs/when-not-to-use.md` §4; `docs/research-originality.md` §10]
