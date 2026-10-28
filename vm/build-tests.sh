@@ -15,6 +15,7 @@ t() { name=$1; shift; $cc $strict "$@" -o "$out/$name"; }
 
 t layer      tests/layer.c
 t fcntl-flags tests/fcntl-flags.c
+t passthrough tests/passthrough.c
 t mounted    tests/mounted.c
 t failnth    -Iinclude tests/failnth.c
 t renamepath-fault -Iinclude tests/renamepath-fault.c

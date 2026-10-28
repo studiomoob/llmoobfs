@@ -81,6 +81,9 @@ run_lower() {
     "$BIN/layer" "$LAYER" "$LOWER" "$reflink" links || fail "layer-tests-$fs"
     "$BIN/fcntl-flags" "$LAYER/fcntl-flags" || fail "fcntl-flags-$fs"
     rm "$LAYER/fcntl-flags" || fail "fcntl-flags-cleanup-$fs"
+    # fadvise, readahead, statx fields, drop_inode, F_SETFL O_NOATIME act as on the lower
+    # (issue #115, journal 0224); prints PASSTHROUGH_PASS and removes its files
+    "$BIN/passthrough" "$LAYER" "$LOWER" || fail "passthrough-$fs"
     # every refusal of a typed attribute write with its errno, and the limit of 64 per file,
     # paths a syzkaller seed reaches poorly (journal 0141); prints TYPED_LIMITS_PASS
     "$BIN/layer" typed "$LAYER" "$LOWER" || fail "typed-limits-$fs"
