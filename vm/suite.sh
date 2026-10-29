@@ -1510,77 +1510,81 @@ if want permmatrix; then
 # on the way, since a search-only one (0711) lets getxattr through but hides its names, and the
 # matrix is checked again in fallback mode (per-result checks) after a chmod through the layer;
 # the cases the rule before 0215 (search alone for a directory) got wrong are counted too.
-mount -t ext4 "$DEV_EXT4" "$LOWER" || fail "pm-lower-mount"
-pm_wrong=0
-pm_prev=0
-for seed in 1 2 3 4 5 6 7 8 9 10 11 12; do
-    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-mkdir-$seed"
-    "$BIN/permmatrix" plant "$LOWER/pmx" $seed || fail "pm-plant-$seed"
-    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mount-$seed"
-    "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
-    cat /tmp/pm.txt
-    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-fallback-$seed (the partition was not what answered)"; }
-    [ $rc -eq 0 ] || fail "pm-mismatch-$seed"
-    pm_wrong=$((pm_wrong + $(sed -n 's/.* old_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
-    pm_prev=$((pm_prev + $(sed -n 's/.* prev_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
-    chmod "$(stat -c %a "$LOWER/pmx/pm")" "$LAYER/pm" || fail "pm-chmod-$seed"
-    "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
-    cat /tmp/pm.txt
-    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-no-fallback-$seed (per-result checks were not what answered)"; }
-    [ $rc -eq 0 ] || fail "pm-mismatch-fallback-$seed"
-    umount "$LAYER" || fail "pm-umount-$seed"
-done
-[ $pm_wrong -gt 0 ] || fail "pm-no-case-of-the-old-rule (the matrix proved nothing)"
-[ $pm_prev -gt 0 ] || fail "pm-no-case-of-the-rule-before-0215 (the matrix proved nothing)"
-# The matrix's fallback round meets only files the rule already left out. A directory made
-# search-only through the layer after the build leaves its files in the partition and puts the
-# domain in fallback mode: the per-result check must ask read of that directory too (0215).
-rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-so-mkdir"
-mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-so-mount"
-mkdir -m 755 "$LAYER/d" "$LAYER/d/s" && : > "$LAYER/d/s/f" && chmod 644 "$LAYER/d/s/f" || fail "pm-so-files"
-"$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-so-attr"
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-before"
-chmod 0711 "$LAYER/d/s" || fail "pm-so-chmod"
-"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-so-no-fallback"; }
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-so.txt || fail "pm-so-query"
-grep -q 's/f' /tmp/pm-so.txt && fail "pm-so-leak (a search-only directory's file named per result)"
-"$BIN/query" "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-owner-missing"
-umount "$LAYER" || fail "pm-so-umount"
-# The two other places the rule is applied, with no permission change and so no fallback: a
-# search-only directory created through the layer in a built domain (place_dentry_above), and
-# one renamed during the domain's first build (dir_moved_prepare). Its file stays out of the
-# partition: uid 1001 does not get it and it is counted heterogeneous.
+# Journal 0233 (issue #168): the matrix and the three fixtures after it run on ext4, btrfs and XFS.
 pm_hetero() { "$BIN/query" "$LAYER" info | sed -n 's/.*heterogeneous=\([0-9]*\).*/\1/p'; }
-rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-cr-mkdir"
-mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-cr-mount"
-# no mkdir -m nor chmod through the layer: busybox mkdir -m chmods, and a chmod of a directory
-# puts the domain in fallback mode
-(umask 022; mkdir "$LAYER/d" && : > "$LAYER/d/top") && "$BIN/moobfs-attr" set "$LAYER/d/top" kind string so > /dev/null || fail "pm-cr-domain"
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q top || fail "pm-cr-build"
-h0=$(pm_hetero)
-(umask 066; mkdir "$LAYER/d/s") && [ "$(stat -c %a "$LAYER/d/s")" = 711 ] || fail "pm-cr-mkdir-0711"
-(umask 022; : > "$LAYER/d/s/f") && "$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-cr-file"
-[ "$(stat -c %a "$LAYER/d/s/f")" = 644 ] || fail "pm-cr-file-mode"
-"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-cr-fallback (the partition was not what answered)"; }
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-cr.txt || fail "pm-cr-query"
-grep -q 's/f' /tmp/pm-cr.txt && fail "pm-cr-leak (a file created under a search-only directory answered)"
-[ "$(pm_hetero)" -gt "$h0" ] || fail "pm-cr-not-heterogeneous"
-umount "$LAYER" || fail "pm-cr-umount"
-rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" && mkdir -m 711 "$LOWER/pmx/d/s" || fail "pm-mv-mkdir"
-"$BIN/query-build-limit" plant6 "$LOWER/pmx/d/s" 600 || fail "pm-mv-plant"
-mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mv-mount"
-[ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail "pm-mv-tracefs"
-echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-on"
-"$BIN/query-build-moved" "$LAYER/d" any; pm_rc=$?
-echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-off"
-[ "$pm_rc" -eq 0 ] || fail "pm-mv-no-move-during-build"
-"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-mv-fallback (the partition was not what answered)"; }
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-mv.txt || fail "pm-mv-query"
-grep -q 't/' /tmp/pm-mv.txt && fail "pm-mv-leak (a directory moved during the build answered)"
-[ "$(pm_hetero)" -ge 600 ] || fail "pm-mv-not-heterogeneous"
-umount "$LAYER" || fail "pm-mv-umount"
-rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup"
-echo "PERMMATRIX_STEP_PASS: 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
+for fs in ext4 btrfs xfs; do
+    case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t "$fs" "$dev" "$LOWER" || fail "pm-lower-mount-$fs"
+    pm_wrong=0
+    pm_prev=0
+    for seed in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-mkdir-$fs-$seed"
+        "$BIN/permmatrix" plant "$LOWER/pmx" $seed || fail "pm-plant-$fs-$seed"
+        mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mount-$fs-$seed"
+        "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
+        cat /tmp/pm.txt
+        "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-fallback-$fs-$seed (the partition was not what answered)"; }
+        [ $rc -eq 0 ] || fail "pm-mismatch-$fs-$seed"
+        pm_wrong=$((pm_wrong + $(sed -n 's/.* old_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
+        pm_prev=$((pm_prev + $(sed -n 's/.* prev_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
+        chmod "$(stat -c %a "$LOWER/pmx/pm")" "$LAYER/pm" || fail "pm-chmod-$fs-$seed"
+        "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
+        cat /tmp/pm.txt
+        "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-no-fallback-$fs-$seed (per-result checks were not what answered)"; }
+        [ $rc -eq 0 ] || fail "pm-mismatch-fallback-$fs-$seed"
+        umount "$LAYER" || fail "pm-umount-$fs-$seed"
+    done
+    [ $pm_wrong -gt 0 ] || fail "pm-no-case-of-the-old-rule-$fs (the matrix proved nothing)"
+    [ $pm_prev -gt 0 ] || fail "pm-no-case-of-the-rule-before-0215-$fs (the matrix proved nothing)"
+    # The matrix's fallback round meets only files the rule already left out. A directory made
+    # search-only through the layer after the build leaves its files in the partition and puts the
+    # domain in fallback mode: the per-result check must ask read of that directory too (0215).
+    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-so-mkdir-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-so-mount-$fs"
+    mkdir -m 755 "$LAYER/d" "$LAYER/d/s" && : > "$LAYER/d/s/f" && chmod 644 "$LAYER/d/s/f" || fail "pm-so-files-$fs"
+    "$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-so-attr-$fs"
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-before-$fs"
+    chmod 0711 "$LAYER/d/s" || fail "pm-so-chmod-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-so-no-fallback-$fs"; }
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-so.txt || fail "pm-so-query-$fs"
+    grep -q 's/f' /tmp/pm-so.txt && fail "pm-so-leak-$fs (a search-only directory's file named per result)"
+    "$BIN/query" "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-owner-missing-$fs"
+    umount "$LAYER" || fail "pm-so-umount-$fs"
+    # The two other places the rule is applied, with no permission change and so no fallback: a
+    # search-only directory created through the layer in a built domain (place_dentry_above), and
+    # one renamed during the domain's first build (dir_moved_prepare). Its file stays out of the
+    # partition: uid 1001 does not get it and it is counted heterogeneous.
+    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-cr-mkdir-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-cr-mount-$fs"
+    # no mkdir -m nor chmod through the layer: busybox mkdir -m chmods, and a chmod of a directory
+    # puts the domain in fallback mode
+    (umask 022; mkdir "$LAYER/d" && : > "$LAYER/d/top") && "$BIN/moobfs-attr" set "$LAYER/d/top" kind string so > /dev/null || fail "pm-cr-domain-$fs"
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q top || fail "pm-cr-build-$fs"
+    h0=$(pm_hetero)
+    (umask 066; mkdir "$LAYER/d/s") && [ "$(stat -c %a "$LAYER/d/s")" = 711 ] || fail "pm-cr-mkdir-0711-$fs"
+    (umask 022; : > "$LAYER/d/s/f") && "$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-cr-file-$fs"
+    [ "$(stat -c %a "$LAYER/d/s/f")" = 644 ] || fail "pm-cr-file-mode-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-cr-fallback-$fs (the partition was not what answered)"; }
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-cr.txt || fail "pm-cr-query-$fs"
+    grep -q 's/f' /tmp/pm-cr.txt && fail "pm-cr-leak-$fs (a file created under a search-only directory answered)"
+    [ "$(pm_hetero)" -gt "$h0" ] || fail "pm-cr-not-heterogeneous-$fs"
+    umount "$LAYER" || fail "pm-cr-umount-$fs"
+    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" && mkdir -m 711 "$LOWER/pmx/d/s" || fail "pm-mv-mkdir-$fs"
+    "$BIN/query-build-limit" plant6 "$LOWER/pmx/d/s" 600 || fail "pm-mv-plant-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mv-mount-$fs"
+    [ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail "pm-mv-tracefs-$fs"
+    echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-on-$fs"
+    "$BIN/query-build-moved" "$LAYER/d" any; pm_rc=$?
+    echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-off-$fs"
+    [ "$pm_rc" -eq 0 ] || fail "pm-mv-no-move-during-build-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-mv-fallback-$fs (the partition was not what answered)"; }
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-mv.txt || fail "pm-mv-query-$fs"
+    grep -q 't/' /tmp/pm-mv.txt && fail "pm-mv-leak-$fs (a directory moved during the build answered)"
+    [ "$(pm_hetero)" -ge 600 ] || fail "pm-mv-not-heterogeneous-$fs"
+    umount "$LAYER" || fail "pm-mv-umount-$fs"
+    rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup-$fs"
+    echo "PERMMATRIX_STEP_PASS: $fs, 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
+done
 fi
 if want permgaps; then
 for fs in ext4 btrfs xfs; do
