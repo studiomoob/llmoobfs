@@ -100,3 +100,7 @@ uid is answered (suite step `limits`), and the mount reads nothing of the lower,
 cold from 100 to 200,100 files (`mountscale`). With
 [ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md), accepted on 2026-10-29, S9 is
 done; a shared mount needs `memory.max` on its users' cgroups (`docs/operations.md` §5).
+*Update, 2026-10-29 ([journal 0236](history/0236-reproducible-module-build.md)):* the unsigned
+module is reproducible: `make repro-test` builds it twice per listed kernel in clean containers
+and gets byte-identical files, whose hashes the journal records; the two packages are
+reproducible too.

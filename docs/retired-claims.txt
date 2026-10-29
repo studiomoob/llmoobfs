@@ -252,3 +252,7 @@ não garante divisão justa por usuário (S9)
 nor provide fair index
 or fair memory shares
 the rest of S9 and the open issues remain
+
+# Journal 0236: the reproducible build of the module (S10) is done.
+of the `.ko` is roadmap item S10 and has not been evaluated
+Open: the reproducible build of the `.ko`

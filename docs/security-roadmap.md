@@ -392,9 +392,17 @@ of this change was not run. G2 remains open.
 The done criterion is met in a VM: under UEFI Secure Boot with lockdown `integrity`, the module
 built and signed by DKMS from `moobfs-dkms` was refused before its key was enrolled and loaded
 after; an unsigned build of the same sources was refused (`make package-test`). Signing uses the
-host's own DKMS key, not a project key. Open: the reproducible build of the `.ko` with its hash
-recorded, real firmware and hardware, and MokManager's enrolment screen itself (the test writes
-the key into the firmware's `MokList`).
+host's own DKMS key, not a project key.
+
+*Update, 2026-10-29 ([journal 0236](history/0236-reproducible-module-build.md)).* The second item
+is done: `make repro-test` builds the unsigned `.ko` twice for each listed kernel, in two clean
+containers that differ in build path, user, host name, time zone, umask and time, and the
+results are byte-identical; the hashes for the commit are recorded in journal 0236. The build
+path reached the module through `__FILE__` and the debug information, and is now mapped away by
+`-ffile-prefix-map` in `make layer` and in the DKMS `MAKE` line, so a DKMS build gives the same
+unsigned module. The two `.deb` packages are reproducible too. Open: real firmware and
+hardware, MokManager's enrolment screen itself (the test writes the key into the firmware's
+`MokList`), and a rebuild by someone outside the project.
 
 ### S11. M3 and M4 surfaces
 

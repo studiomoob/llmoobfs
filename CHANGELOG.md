@@ -52,6 +52,18 @@
   80 µs warm from 100 to 200,100 files, with and without `noindex`; the first query of a domain
   over `index_build_work` is refused with `E2BIG` in about 0.5 s at 50,100 and 200,100 files.
   `tests/memcg-query.c` gains the `hold` and `build` modes.
+- Reproducible build of the module and the packages (journal 0236; security roadmap S10, its
+  second item). `make repro-test` (`scripts/repro-ko.sh`) builds the unsigned
+  `layer/moobfs_layer.ko` for each listed kernel in two fresh `debian:trixie-slim` containers,
+  pinned by digest, that differ in build path, uid, host name, time zone, umask and time, and
+  requires byte-identical modules (marker `MOOBFS_REPRO_PASS: <sha256>`); each container also
+  builds with the DKMS package's `MAKE` line, which must give the same module, and the two `.deb`
+  packages must be byte-identical too. The build path reached the module through `__FILE__`
+  (`WARN_ON`) and the debug information: `make layer` and the DKMS `MAKE` line now pass
+  `KCFLAGS=-ffile-prefix-map=<source root>/=`, as `Documentation/kbuild/reproducible-builds.rst`
+  asks for out-of-tree builds. `scripts/build-debs.sh` dates the changelog from
+  `SOURCE_DATE_EPOCH` when it is set. A signed module is the reproducible one plus a signature
+  that depends on the host's key. No change to the module's C code.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and

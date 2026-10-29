@@ -105,3 +105,7 @@ uid é respondido (passo `limits` da suíte), e a montagem não lê nada do disc
 [ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md), aceita em 29/10/2026, o S9 está
 concluído; uma montagem compartilhada precisa de `memory.max` nos cgroups dos seus usuários
 (`docs/operations.md` §5).
+*Atualização, 29/10/2026 ([diário 0236](history/0236-reproducible-module-build.md)):* o módulo
+sem assinatura é reprodutível: `make repro-test` o compila duas vezes para cada kernel da lista em
+contêineres limpos e obtém arquivos idênticos byte a byte, cujos hashes o diário registra; os dois
+pacotes também são reprodutíveis.

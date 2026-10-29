@@ -934,3 +934,30 @@ runs 6.12.111.
   ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/pipe.c)): the per-user soft limit
   past which an unprivileged user's new pipe gets one page; the alternative ADR-0029 keeps for a
   per-user count of retained query buffers.
+## 34. Reproducible build of the module and the packages (S10, journal 0236)
+
+- `Documentation/kbuild/reproducible-builds.rst`, Linux 6.12.112 (the tree the KASAN harness
+  builds; [source](https://github.com/gregkh/linux/blob/v6.12.112/Documentation/kbuild/reproducible-builds.rst)):
+  `KBUILD_BUILD_TIMESTAMP`, `KBUILD_BUILD_USER` and `KBUILD_BUILD_HOST` (they reach `uname`, the
+  initramfs and kheaders, none of which a module has); absolute file names of an out-of-tree build
+  in the debug information, to be overridden with a prefix map in `KCFLAGS`; `__DATE__` and
+  `__TIME__` refused by the kernel's own flags; module signing as the part that cannot be
+  reproduced without the key.
+- `Makefile:1031` of the same tree: Kbuild passes `-fmacro-prefix-map=$(srctree)/=` for the kernel
+  tree only, so `__FILE__` in an external module keeps its absolute path; `scripts/Makefile.extrawarn:94`
+  adds `-Werror=date-time`. `scripts/Makefile.modfinal:28` compiles `<module>.mod.c` with
+  `c_flags` without reading the module's own Kbuild file, which is why the prefix map goes in
+  `KCFLAGS` and not in `layer/Makefile` (journal 0236).
+- `include/linux/module_signature.h` of the same tree: the appended signature is the signature
+  data, a 12-byte `struct module_signature` whose last field is the big-endian `sig_len`, and the
+  marker `~Module signature appended~\n`; how `scripts/repro-ko.sh` removes it.
+- GCC 14 manual, [`-ffile-prefix-map`](https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Overall-Options.html#index-ffile-prefix-map)
+  (both `-fdebug-prefix-map` and `-fmacro-prefix-map`).
+- Reproducible Builds project: [build path](https://reproducible-builds.org/docs/build-path/),
+  [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/) and
+  [diffoscope](https://diffoscope.org/) (Debian `diffoscope-minimal` 297), used to find what
+  differed.
+- `dpkg-buildflags(1)`, dpkg 1.22.22: the `reproducible` feature area, whose `fixfilepath`
+  (on by default) adds `-ffile-prefix-map=<build dir>=.` to `CFLAGS`, and `dpkg-buildpackage(1)`,
+  which sets `SOURCE_DATE_EPOCH` from the changelog date when it is not set; `dh_builddeb` and
+  `dpkg-deb` clamp file times to it.

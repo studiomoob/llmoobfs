@@ -25,6 +25,11 @@ host's own DKMS key signs the module, and there is no project key (ADR-0028, dec
 below marked FUTURE for DKMS, packages and signing are now EXISTS in a VM; the `moobfs` CLI is
 item C4 (journal 0198).
 
+*Note, 2026-10-29 ([journal 0236](history/0236-reproducible-module-build.md)).* The unsigned
+module is built reproducibly: `make repro-test` builds it twice per listed kernel in clean
+containers and gets byte-identical files, and DKMS's `MAKE` line gives the same file; the two
+`.deb` packages are reproducible too. A row in section 6 records it.
+
 Legend:
 
 - **EXISTS**: it is in the repository and was exercised by the suite described in `docs/testing.md`.
@@ -348,6 +353,7 @@ with `EPERM`. Pending: KASAN on the branch and `chmod`/`rename`/`unlink` concurr
 | Packages | `moobfs-dkms` (sources + `dkms.conf`), `moobfs-tools` (`moobfs-attr`, `moobfs-check`, `moobfs-index`, future `moobfs`). Do not package `mkfs.moobfs`/`fsck.moobfs` (M1 frozen) by default | EXISTS in a VM, not published (ADR-0028) |
 | Kernel matrix | see table below | EXISTS (two rows) |
 | Signing | generate a project key for release builds; users with Secure Boot sign the DKMS `.ko` with their own MOK; `CONFIG_MODULE_SIG_FORCE` rejects unsigned modules | EXISTS in a VM with the host's own DKMS key, no project key (ADR-0028, decision 3; S10) |
+| Reproducible build | the same commit and kernel headers give the same unsigned `.ko`, whose hash is recorded; signing is applied afterwards | EXISTS in containers: `make repro-test`, two builds per listed kernel byte-identical, DKMS's `MAKE` line gives the same module, and the two `.deb` packages reproducible (journal 0236, S10) |
 
 Kernel matrix (what was actually run):
 
