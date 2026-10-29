@@ -158,7 +158,7 @@ static inline int moob_walk_rel(struct moob_walk *w, size_t at, const char *name
 	return 0;
 }
 
-/* Read every name of the directory n into f->names; returns 0, 1 (cannot be listed) or -1. */
+/* Read every name of the directory f into f->names; returns 0, or -1 with errno set. */
 static inline int moob_walk_list(struct moob_walk_frame *f)
 {
 	struct dirent *e;
@@ -223,11 +223,12 @@ static inline int moob_walk_reopen(struct moob_walk *w, int k)
 		struct stat st;
 		int fd = openat(p->node.fd, w->frames[i - 1].names + f->name_off,
 				O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+		int err = errno;
 
 		if (i - 1 > j)		/* opened only to reach this one */
 			moob_node_close(&p->node);
 		if (fd < 0)
-			return errno == ENOMEM || errno == EMFILE || errno == ENFILE ? -1 : 1;
+			return err == ENOMEM || err == EMFILE || err == ENFILE ? -1 : 1;
 		if (fstat(fd, &st) || st.st_dev != f->node.st.st_dev || st.st_ino != f->node.st.st_ino) {
 			close(fd);
 			return 1;
@@ -342,7 +343,7 @@ static inline int moob_walk_entries(struct moob_walk *w)
 		if (S_ISDIR(n.st.st_mode)) {
 			r = moob_walk_push(w, &n, strlen(w->rel), off);
 			if (r < 0)
-				return -1;	/* r > 0: cannot be listed, FTW_DNR after the fact */
+				return -1;
 		}
 		moob_node_close(&n);	/* f may have moved: frames can be reallocated by the push */
 	}
