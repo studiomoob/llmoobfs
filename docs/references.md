@@ -1062,3 +1062,23 @@ hand and carries the same code paths:
 - `kernel/delayacct.c` (`delayacct_on` is 0 unless the `delayacct` boot option or the
   `kernel.task_delayacct` sysctl turns it on): why I/O wait is not excluded through delay
   accounting (option G of ADR-0031).
+
+## 40. Static analysis and mutation testing (journal 0242)
+
+- sparse 0.6.4 (Debian package `sparse` 0.6.4-5; [kernel documentation](https://docs.kernel.org/dev-tools/sparse.html),
+  MIT), run by Kbuild with `C=2 CHECK=sparse`: address spaces (`__user`), endianness types,
+  locking annotations.
+- smatch ([error27/smatch](https://github.com/error27/smatch), GPL-2.0), commit
+  `5189e3fb018b783a26dcb45c02c114c1d1aad290` (2026-05-05), built without LLVM, run as
+  `CHECK="smatch -p=kernel"`; it has no Debian package.
+- Coccinelle 1.3.0 (Debian package `coccinelle` 1.3.0.deb-1+b2; [coccinelle.gitlabpages.inria.fr](https://coccinelle.gitlabpages.inria.fr/website/),
+  GPL-2.0) with the kernel's own semantic patches, `scripts/coccinelle/` and `scripts/coccicheck`
+  of Linux 6.12.112 ([kernel documentation](https://docs.kernel.org/dev-tools/coccinelle.html)),
+  `MODE=report`; the OCaml scripts among them need `ocaml-nox`.
+- The clang static analyzer through clang-tidy 19.1.7 (Debian `clang-tidy` 1:19.0-63; Apache-2.0
+  with LLVM exception), run by the kernel's `clang-analyzer` target (`Makefile` of 6.12.112,
+  `scripts/clang-tools/run-clang-tools.py` and `gen_compile_commands.py`), which needs a tree
+  configured with `LLVM=1`; Debian's headers are configured for gcc and refuse clang
+  (`-fmin-function-alignment`, `-fconserve-stack`).
+- `scripts/kernel-doc` of Linux 6.12.112, `-Wall -none`; `W=1` of 6.12 also runs it on each
+  compiled file (`scripts/Makefile.build`).

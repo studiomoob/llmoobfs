@@ -7,7 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test static
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
@@ -15,6 +15,7 @@ help:
 	@echo '  make test          attr_test unit tests and malformed-image tests'
 	@echo '  make lint          shellcheck on vm/ and scripts/ shell scripts, SPDX headers on C, shell and Python sources (same as CI)'
 	@echo '  make checkpatch    kernel checkpatch.pl --no-tree on layer/ and kernel/ (required in CI; needs curl, perl)'
+	@echo '  make static        W=1, sparse, smatch, Coccinelle, clang analyzer, kernel-doc on the modules (S19); needs only Docker'
 	@echo '  make man-lint      lint the manual pages in man/ with mandoc'
 	@echo '  make fuzz          libFuzzer over the attributes, the image parser and the tool parsers'
 	@echo 'Linux-only targets:'
@@ -129,6 +130,10 @@ man-lint:
 # Style check, required in CI since journal 0050; the script pins and verifies checkpatch.pl from a stable kernel tag.
 checkpatch:
 	sh scripts/checkpatch.sh
+# Security roadmap S5 and S19 (journal 0242): the kernel's static checkers in a pinned image,
+# findings compared with tests/static/baseline.txt (.github/workflows/static.yml runs the same).
+static:
+	sh scripts/static-analysis.sh
 module:
 	$(MAKE) -C $(KDIR) M=$(CURDIR)/kernel modules
 # The source root maps to the empty prefix, so neither __FILE__ nor the debug information

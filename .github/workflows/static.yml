@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-2.0-only
+name: Static analysis
+# The kernel's static checkers over layer/, kernel/ and the UAPI header (security roadmap S5 and
+# S19, journal 0242): the W=1 build, sparse, smatch, Coccinelle (coccicheck), the clang static
+# analyzer (clang-analyzer) and kernel-doc. `make static` builds the image of
+# tests/static/Dockerfile, where every tool and both kernel trees are pinned, and runs
+# scripts/static-analysis.sh in it; the same command runs locally. A finding not justified in
+# tests/static/baseline.txt fails the job, as does a justified one no longer reported, or a
+# checker that misses the known defect of its canary (tests/static/canary). Not a required
+# check until it has run green on main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: static-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  static:
+    name: sparse, smatch, Coccinelle, clang analyzer, W=1, kernel-doc
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the pinned image and run every checker (same command as locally)
+        shell: bash
+        run: |
+          set -o pipefail
+          make static 2>&1 | tee build-static.log
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo '### Static analysis'
+            echo '```'
+            cat build/static/versions.txt 2>/dev/null || true
+            grep -E '^(STATIC_|NEW|STALE|CANARY_MISSED|PROBLEM)' build-static.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve the logs and the findings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: static-analysis
+          path: |
+            build/static/
+            build-static.log
+          if-no-files-found: warn
+          retention-days: 30

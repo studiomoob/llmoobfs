@@ -1,0 +1,32 @@
+# Accepted findings of scripts/static-analysis.sh (security roadmap S5 and S19, journal 0242).
+# One finding per line, as scripts/static-triage.py prints it: tool|path|message|source line.
+# Every block of entries follows a comment that says why the finding is not a defect; a finding
+# that is a defect is fixed instead (kernel changes follow ADR-0022). Regenerate the keys from
+# build/static/findings.txt after a run.
+
+# The analyzer does not keep the invariant of a circular list (head->next->prev == head): after
+# list_del(&cur->list) of the first entry it still takes head->next for the freed entry, on the
+# next turn of scan_run()'s loop and in scan_list_free(). list_del() of a well-formed list sets
+# head->next to the next entry before scan_dir_free(); with CONFIG_LIST_HARDENED a corrupted
+# list stops at the check instead. The same pattern in rec_set_partition(): the entry freed when
+# name_get() fails was list_del()ed from rec->entries first, so the while loop that empties
+# rec->entries never meets it. Not defects (journal 0242).
+clang|layer/index.c|Use of memory after it is freed [clang-analyzer-unix.Malloc]|struct path dpath = { .mnt = sbi->lower.mnt, .dentry = cur->dentry };
+clang|linux:include/linux/list.h|Use of memory after it is freed [clang-analyzer-unix.Malloc]|__list_del(entry->prev, entry->next); via layer/index.c: list_del(&sd->list);
+clang|layer/index.c|Use of memory after it is freed [clang-analyzer-unix.Malloc]|rb_erase(&e->node, &e->name->entries);
+
+# attr_buf_add(): b->data is NULL only while b->cap is 0 (attr_buf_init() clears both), and
+# need is at least 3 (two size bytes and a name's NUL), so the first call always takes the
+# allocation branch. The analyzer does not carry cap == 0 into attr_buf_add() on this path and
+# assumes need <= cap with data NULL. Not a defect (journal 0242).
+clang|layer/index.c|Null pointer passed as 1st argument to memory copy function [clang-analyzer-unix.cstring.NullArg]|memcpy(b->data + b->len, &size, sizeof(size));
+
+# result_path() hands the reference d_find_alias() took to its caller through *held
+# (c->held), and the query drops it with dput(cand[i].held) once the index lock is released;
+# api/d_find_alias.cocci looks for the dput() in the same function. Not a defect (journal 0242).
+coccinelle|layer/index.c|Missing call to dput() at line N.|struct dentry *alias = d_find_alias(rec->upper);
+
+# misc/minmax.cocci suggests min(err, 0) for "err = err < 0 ? err : 0;" in scan_child(): a style
+# suggestion, not a defect; the kernel code is frozen (ADR-0022), so it waits for the next
+# change of that function (journal 0242).
+coccinelle|layer/index.c|WARNING opportunity for min()|err = err < 0 ? err : 0;

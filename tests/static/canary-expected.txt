@@ -1,0 +1,9 @@
+# The known defect of tests/static/canary/canary.c each checker must report (journal 0242).
+# tool|text that must appear in one of its findings on the canary.
+w1|variable 'unused' set but not used
+sparse|dereference of noderef expression
+smatch|buffer overflow 'buf' 8 <= 8
+coccinelle|ARRAY_SIZE
+clang|Use of memory after it is freed
+clang-w1|array index 8 is past the end of the array
+kerneldoc|not described in 'canary_kdoc'
