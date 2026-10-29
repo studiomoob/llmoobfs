@@ -381,12 +381,15 @@ Read these coverage exclusions even when the aggregate marker passes:
 | `DOMAINREUSE_PASS` | `MOOB_ONLY=domainreuse`: on ext4, XFS and btrfs, domains of uid 1001 removed on the lower; a new directory with a removed domain's inode number answers `QUERY2` of uid 1002 with nothing, whether `QUERY2` or the mount-wide `QUERY` comes first (the latter drops the removed file's entries), and a new file with a removed file's number in another built domain does not match the removed file's values (GHSA-756j-cgwq-gvwm, journal 0216) |
 | `MINACL_PASS` | `MOOB_ONLY=minacl`: on ext4 only (debugfs plants the fixtures), two minimal access ACLs written on the unmounted filesystem, one equal to the mode `0644` and one refusing others; `QUERY2` of uid 1001 answers the first and leaves out the second and a named-user ACL, returns nothing uid 1001 cannot read, and equals `moobfs-index --domain`, `moobfs-check --domain-depth` and, when the guest has `python3` (KASAN), the Python scan (journal 0222) |
 | `IXLOCK_PASS` | `MOOB_ONLY=ixlock`: on ext4, while one domain build and then another hold the index lock for writing (test parameter `scan_hold_us`, 2.5 s per file, 3 files each, measured from 1 s into the build), 8 layer inodes of a third domain, which have no index record, are instantiated during the first build and evicted with `drop_caches` during the second, each in under 1 s, and each build is still running when its measurement ends (issue #117, journal 0223) |
+| `LANDLOCK_PASS` | Every run, after `ixlock`: on ext4, as uid 1001 under `tests/landlock_run.c` (directory listing beneath one tree, file reads beneath a subdirectory and the program's directory; `/proc/self/mountinfo` checked to be unreadable), `moobfs query` on a domain gives the same answer as without the sandbox and as `moobfs-index --domain`, in text and JSON; a directory that is not a domain and a path off the layer give exit 69 as without it; `moobfs info --json` on the mount root equals the unconfined output with `index_build_work` and `index_idle` `null`, and `info` from a domain directory finds the mount root; on a mount without domains the root still answers the mount-wide `QUERY` (issue #167, journal 0230) |
+| `LANDLOCK_SKIPPED` | No CLI-under-Landlock test: the guest kernel has no Landlock |
 | `PYLIB_SKIPPED` | No Python library test: the guest has no `python3` (the `vm-test` initramfs); the KASAN guest boots the host's root and runs it, ending in `MOOBFS_PYLIB_PASS`; since journal 0209 the KASAN job runs only for kernel-side changes, so a change to `python/` alone is checked by `make pylib-test` and not by this step |
 | `LOWERRO_PASS: ... idmapped lower: not tested ...` | Read-only/freeze checks ran, but an idmapped bind lower could not be created; only `idmapped lower: refused` proves that case |
 | `ipc` binary present | Built/staged only, not invoked by the suite; no `IPC_PRIMITIVES_PASS` evidence |
 
-`tests/landlock_run.c` and `tests/notify.c` are standalone investigation helpers,
-not built by `vm/build-tests.sh` or invoked by this suite. `faults` is exclusive
+`tests/notify.c` is a standalone investigation helper, not built by
+`vm/build-tests.sh` or invoked by this suite; `tests/landlock_run.c` is built and
+run by the step `landlock` since journal 0230. `faults` is exclusive
 to the KASAN harness; a full Debian run does not execute `failnth`,
 `renamepath-fault` or `deadscan` scenarios merely because their binaries compile.
 
@@ -510,7 +513,8 @@ kernel versions are unverified.
 
 ## 9. What is not covered
 
-- Linux security modules beyond the SELinux run above (AppArmor, Smack, Landlock).
+- Linux security modules beyond the SELinux run above (AppArmor, Smack, and Landlock
+  beyond the CLI run of the step `landlock`).
 - xfstests over the layer (only the vendored `fsx`), syzkaller over the ioctls
   and `setxattr`, a hostile lower tree, KMSAN/KCSAN/KFENCE: see
   [security-roadmap.md](security-roadmap.md) S2 to S4 and S7 to S8.

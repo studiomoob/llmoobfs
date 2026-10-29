@@ -12,6 +12,15 @@
   module is refused until its key is in the MokList and loads after, an unsigned build is refused,
   and upgrade and roll back keep the query and `moobfs-check` equal to the oracle. The VM harness
   runs QEMU under KVM inside its container when the host has `/dev/kvm`. Not published.
+- `moobfs query` and `moobfs info` work without `/proc/self/mountinfo` (issue #167, journal
+  0230). Under a sandbox that denies reading it (Landlock without `READ_FILE` on `/proc`) the CLI
+  stopped with exit 1 before issuing `QUERY2`. It now recognises the layer by `statfs`, issues
+  `QUERY2`, learns the domain depth from `GET_INFO` when the directory is the mount root (so the
+  mount-wide `QUERY` fallback is kept), and `info` finds the mount root by walking up the device;
+  only `index_build_work` and `index_idle` (`null` in `info --json`) and the domain depth in
+  one error message are then unknown. `docs/tools.md` states what the CLI reads.
+  `tests/landlock_run.c` is now built by `vm/build-tests.sh`; new suite step `landlock`, which
+  failed with the CLI before the change.
 - Fair shares of the index budget (journal 0228, ADR-0027; security roadmap S9, the rest of
   finding F2). Each domain counts the bytes of its partition, and a build that does not fit
   releases the builder's own domains first and then, while the builder holds less than its

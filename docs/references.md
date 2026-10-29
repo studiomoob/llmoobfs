@@ -819,3 +819,16 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   without MokManager's console.
 - OVMF 2025.02-8+deb13u1 (`ovmf`): `OVMF_CODE_4M.secboot.fd` with `OVMF_VARS_4M.ms.fd`, the
   variable store with the Microsoft keys enrolled, which accept Debian's signed shim.
+
+## 28. The moobfs CLI without the mount record (issue #167, journal 0230)
+
+- `find_mount_point()`, `src/find-mount-point.c`, GNU coreutils v9.5
+  ([source](https://github.com/coreutils/coreutils/blob/v9.5/src/find-mount-point.c), GPL-3.0):
+  the mount point of a file is found without the mount table by walking up `..` while `st_dev`
+  stays the same; `moobfs info` does the same on the real path when `/proc/self/mountinfo`
+  cannot be read.
+- [Landlock documentation](https://docs.kernel.org/userspace-api/landlock.html), already listed
+  in §19: `stat` is among the actions Landlock cannot restrict yet, and
+  `LANDLOCK_ACCESS_FS_IOCTL_DEV` (ABI 5) covers ioctls on device files only; `statfs` was seen
+  to work under the sandbox of `tests/landlock_run.c` (journal 0230). A sandbox that may list a
+  domain directory can therefore still recognise the layer and issue `QUERY2` on it.
