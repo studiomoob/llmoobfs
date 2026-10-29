@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Mutants of the homogeneity rule (security roadmap S14, journal 0242; docs/spec-query-v2.md §2
+# and §3, ADR-0017, ADR-0025): each removes or weakens one check of reach_ok(), target_ok(),
+# ext_acl(), place_dentry_above(), index_load() or the scan's and the rename's inner_ok, the
+# checks that decide whether a file may be answered from its domain's partition.
+# scripts/mutants.py applies one mutant to a copy of layer/; a mutant that the suite steps of its
+# "steps" line do not fail is a check no test needs, which S14 counts as a gap.
+#
+# Format: "@ ID function: what the mutant breaks", then "steps: <MOOB_ONLY steps expected to
+# fail it>", then the lines to replace ("- " followed by the exact text) and their replacement
+# ("+ " followed by the text). The "-" lines must occur exactly once in the file named by
+# "file:" (default layer/index.c), and a mutant keeps the number of lines, so that __LINE__ and
+# the line table do not change and only the check differs in the object.
+# The "steps" lines are the steps expected to fail each mutant; they are checked only by a VM
+# run of `scripts/mutants.py run` (journal 0242: not yet run).
+
+@ M01 reach_ok: an extended ACL on the inode no longer stops the shortcut for 0777-like bits
+steps: permmatrix minacl
+- 	if (!acl && (in->i_mode & (u | g | o)) == (u | g | o))
++ 	if ((in->i_mode & (u | g | o)) == (u | g | o))
+
+@ M02 reach_ok: an extended ACL on the domain directory is no longer looked at
+steps: permmatrix
+- 	if (acl || ext_acl(dom, err))
++ 	if (acl)
+
+@ M03 reach_ok: an extended ACL on the inode no longer counts when the domain has none
+steps: permmatrix minacl
+- 	if (acl || ext_acl(dom, err))
++ 	if (ext_acl(dom, err))
+
+@ M04 reach_ok: a different owner from the domain directory's is accepted
+steps: permmatrix
+- 	if (!uid_eq(in->i_uid, dom->i_uid) || !gid_eq(in->i_gid, dom->i_gid))
++ 	if (!gid_eq(in->i_gid, dom->i_gid))
+
+@ M05 reach_ok: a different group from the domain directory's is accepted
+steps: permmatrix
+- 	if (!uid_eq(in->i_uid, dom->i_uid) || !gid_eq(in->i_gid, dom->i_gid))
++ 	if (!uid_eq(in->i_uid, dom->i_uid))
+
+@ M06 reach_ok: the owner class is not checked when the domain lets the owner traverse
+steps: permmatrix
+- 	if ((dom->i_mode & 0100) && (in->i_mode & u) != u)
++ 	if (0 && (in->i_mode & u) != u)
+
+@ M07 reach_ok: the group class is not checked when the domain lets the group traverse
+steps: permmatrix
+- 	if ((dom->i_mode & 0010) && (in->i_mode & g) != g)
++ 	if (0 && (in->i_mode & g) != g)
+
+@ M08 reach_ok: the other class is not checked when the domain lets others traverse
+steps: permmatrix
+- 	if ((dom->i_mode & 0001) && (in->i_mode & o) != o)
++ 	if (0 && (in->i_mode & o) != o)
+
+@ M09 reach_ok: an intermediate directory needs search only, not read (F15, ADR-0025)
+steps: permmatrix ext4
+- #define MOOBL_REACH_DIR		05	/* class bits: read and search */
++ #define MOOBL_REACH_DIR		01	/* class bits: read and search */
+
+@ M10 target_ok: a regular file with another name (nlink > 1) is answered from the domain
+steps: ext4
+- 	if (S_ISREG(in->i_mode) && in->i_nlink > 1)
++ 	if (S_ISREG(in->i_mode) && in->i_nlink > 1 && 0)
+
+@ M11 ext_acl: an ACL that could not be read counts as permissive
+steps: xattrread
+- 		return true;	/* unknown: treat as restrictive */
++ 		return false;	/* unknown: treat as restrictive */
+
+@ M12 ext_acl: a minimal ACL whose entries differ from the mode bits is ignored (F17)
+steps: minacl
+- 	ext = posix_acl_equiv_mode(acl, &mode) || ((mode ^ inode->i_mode) & 0777);
++ 	ext = posix_acl_equiv_mode(acl, &mode) || 0;
+
+@ M13 ext_acl: an ACL with named or mask entries is ignored when its classes match the bits
+steps: permmatrix ext4
+- 	ext = posix_acl_equiv_mode(acl, &mode) || ((mode ^ inode->i_mode) & 0777);
++ 	ext = (posix_acl_equiv_mode(acl, &mode) && 0) || ((mode ^ inode->i_mode) & 0777);
+
+@ M14 place_dentry_above: the directories between the domain and the name are not checked
+steps: permmatrix permgaps
+- 				ok = reach_ok(moobl_lower_inode(d_inode(d)), dom, MOOBL_REACH_DIR,
++ 				ok = 1 || reach_ok(moobl_lower_inode(d_inode(d)), dom, MOOBL_REACH_DIR,
+
+@ M15 place_dentry_above: the file itself is not checked at its new place
+steps: permmatrix ext4
+- 				ok = target_ok(moobl_lower_inode(self ? self : d_inode(dentry)), dom,
++ 				ok = 1 || target_ok(moobl_lower_inode(self ? self : d_inode(dentry)), dom,
+
+@ M16 place_dentry_above: a path too deep to evaluate is answered from its domain
+steps: ext4
+- 			pl->hetero = true;	/* cannot evaluate: keep it out of every domain answer */
++ 			pl->hetero = false;	/* cannot evaluate: keep it out of every domain answer */
+
+@ M17 index_load: a file read from the lower is not checked against its domain
+steps: permmatrix ext4
+- 			cur.hetero = !target_ok(li, dom, &err);
++ 			cur.hetero = 0 && !target_ok(li, dom, &err);
+
+@ M18 scan: a directory below one that fails the rule is taken as passing
+steps: permmatrix permgaps
+- 		nd->inner_ok = cur->inner_ok &&
++ 		nd->inner_ok = 1 ||
+
+@ M19 scan: the attributes of a directory under a failing one go to the partition
+steps: permmatrix
+- 		nd->self.hetero = !cur->inner_ok;	/* the directory itself: index_load() */
++ 		nd->self.hetero = false;	/* the directory itself: index_load() */
+
+@ M20 scan: a file under a failing directory goes to the partition
+steps: permmatrix ext4
+- 	struct moobl_place fpl = { .domain = cur->inner, .hetero = cur->inner && !cur->inner_ok };
++ 	struct moobl_place fpl = { .domain = cur->inner, .hetero = false };
+
+@ M21 rename: a directory moved under a failing one is taken as passing (its own reach)
+steps: permgaps ext4
+- 		md->inner_ok = above && reach_ok(moobl_lower_inode(d_inode(moved)), dom,
+- 						 MOOBL_REACH_DIR, NULL);
++ 		md->inner_ok = above && (1 || reach_ok(moobl_lower_inode(d_inode(moved)), dom,
++ 						 MOOBL_REACH_DIR, NULL));
+
+@ M22 rename: a directory moved to a place whose directories fail is taken as passing
+steps: permgaps
+- 		md->inner_ok = above && reach_ok(moobl_lower_inode(d_inode(moved)), dom,
++ 		md->inner_ok = reach_ok(moobl_lower_inode(d_inode(moved)), dom,
+
+@ M23 rename: a directory moved under a failing one keeps its own attributes in the partition
+steps: permgaps
+- 			md->self.hetero = !above;
++ 			md->self.hetero = false;

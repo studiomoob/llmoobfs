@@ -1082,3 +1082,19 @@ hand and carries the same code paths:
   (`-fmin-function-alignment`, `-fconserve-stack`).
 - `scripts/kernel-doc` of Linux 6.12.112, `-Wall -none`; `W=1` of 6.12 also runs it on each
   compiled file (`scripts/Makefile.build`).
+- Mutation testing: R. A. DeMillo, R. J. Lipton and F. G. Sayward, "Hints on test data
+  selection: help for the practicing programmer", IEEE Computer 11(4), 1978 (the method: a test
+  suite is judged by the faults it detects when they are seeded one at a time); Y. Jia and
+  M. Harman, "An analysis and survey of the development of mutation testing", IEEE Transactions
+  on Software Engineering 37(5), 2011 (deletion and negation of conditions as operators, the
+  equivalent-mutant problem). Neither was re-read online in this session.
+- M. Papadakis, Y. Jia, M. Harman and Y. Le Traon, "Trivial compiler equivalence: a large scale
+  empirical study of a simple, fast and effective equivalent mutant detection technique", ICSE
+  2015: a mutant whose compiled object equals the original's is equivalent. `scripts/mutants.py
+  check` applies it to `layer/index.o`, built at one fixed path with the debug sections stripped,
+  so that file names and line tables cannot make two equal programs differ. Not re-read online
+  in this session.
+- Mull ([mull-project/mull](https://github.com/mull-project/mull), Apache-2.0) and Dextool
+  ([joakim-brannstrom/dextool](https://github.com/joakim-brannstrom/dextool), MPL-2.0), generic
+  mutation tools for C, considered and not used: they mutate a whole program built for user
+  space, and S14 asks for the checks of one rule in a kernel module.

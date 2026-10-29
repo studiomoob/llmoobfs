@@ -7,7 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test static
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test static mutants-check
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
@@ -16,6 +16,7 @@ help:
 	@echo '  make lint          shellcheck on vm/ and scripts/ shell scripts, SPDX headers on C, shell and Python sources (same as CI)'
 	@echo '  make checkpatch    kernel checkpatch.pl --no-tree on layer/ and kernel/ (required in CI; needs curl, perl)'
 	@echo '  make static        W=1, sparse, smatch, Coccinelle, clang analyzer, kernel-doc on the modules (S19); needs only Docker'
+	@echo '  make mutants-check the mutants of the homogeneity rule (S14) apply, build and change the code; needs only Docker'
 	@echo '  make man-lint      lint the manual pages in man/ with mandoc'
 	@echo '  make fuzz          libFuzzer over the attributes, the image parser and the tool parsers'
 	@echo 'Linux-only targets:'
@@ -134,6 +135,12 @@ checkpatch:
 # findings compared with tests/static/baseline.txt (.github/workflows/static.yml runs the same).
 static:
 	sh scripts/static-analysis.sh
+# Security roadmap S14 (journal 0242): every mutant of tests/mutation/homogeneity.mut applies,
+# builds and changes the object code, in the same image; `python3 scripts/mutants.py run` runs
+# them in the VM on a test host.
+mutants-check:
+	docker build -q -t moobfs-static -f tests/static/Dockerfile tests/static
+	docker run --rm --user "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$(CURDIR):/src:ro" moobfs-static python3 /src/scripts/mutants.py check
 module:
 	$(MAKE) -C $(KDIR) M=$(CURDIR)/kernel modules
 # The source root maps to the empty prefix, so neither __FILE__ nor the debug information
