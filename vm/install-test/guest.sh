@@ -3,7 +3,7 @@
 # Runs as root inside the disposable Debian 13 guest of vm/install-test/. Each phase follows
 # docs/operations.md with the same commands, in the same order, and prints markers.
 #   phase 0: the image's stock kernel is listed; an unlisted release is refused (reboot follows)
-#   phase 1: stock kernel; install, load, mount, users, fstab (reboot follows)
+#   phase 1: stock kernel; install, load, mount, users, memory limit, fstab (reboot follows)
 #   phase 2: mounted at boot; mount unit; uninstall; lower still readable
 set -eu
 cd /home/tester
@@ -71,6 +71,26 @@ phase1() {
 	[ "$rc" -eq 77 ] || fail "bob's query: exit $rc, not 77"
 	moobfs info /srv/memory | grep -q 'directories 1 level below /srv/memory' || fail "moobfs info"
 	mark "CLI_QUERY: alice finds her note through the index; bob is refused with exit 77"
+	# section 5, the memory limit of the users of a shared mount (journal 0243). A process of a
+	# user's slice, as a login would put it there; moobfs diagnose reads the limit that applies.
+	in_slice() { u=$1; shift; systemd-run --quiet --wait --pipe --collect --uid="$u" --slice="user-$(id -u "$u").slice" "$@"; }
+	rc=0
+	in_slice bob moobfs diagnose --json /srv/memory >diag-before.json || rc=$?
+	[ "$rc" -eq 2 ] && grep -q '"code": "no-memory-limit"' diag-before.json ||
+		{ cat diag-before.json; fail "diagnose without the drop-in: exit $rc"; }
+	systemctl stop "user-$(id -u bob).slice"
+	mkdir -p /etc/systemd/system/user-.slice.d
+	printf '[Slice]\nMemoryMax=2G\n' | tee /etc/systemd/system/user-.slice.d/50-moobfs.conf >/dev/null
+	systemctl daemon-reload
+	[ "$(systemctl show -P MemoryMax "user-$(id -u alice).slice")" = 2147483648 ] ||
+		fail "the drop-in did not set MemoryMax on alice's slice"
+	for u in alice bob; do
+		rc=0
+		in_slice "$u" moobfs diagnose --json /srv/memory >"diag-$u.json" || rc=$?
+		python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); l=d["memory_cgroup"]["limit"]; assert l == {"cgroup": "/user.slice/user-%s.slice" % sys.argv[2], "memory_max": 2147483648}, l; assert not [f for f in d["findings"] if f["code"] == "no-memory-limit"]' "diag-$u.json" "$(id -u "$u")" ||
+			{ cat "diag-$u.json"; fail "diagnose with the drop-in ($u): exit $rc"; }
+	done
+	mark "MEMORY_LIMIT: user-.slice.d drop-in sets MemoryMax=2G on each user's slice; moobfs diagnose reads it there"
 	if as alice ln -s note.md /srv/memory/alice/link 2>/dev/null; then fail "nolinks did not refuse"; fi
 	mark "NOLINKS_REFUSED"
 	if as bob cat /srv/moobfs/lower/alice/note.md 2>/dev/null; then fail "lower reachable by a user"; fi

@@ -52,6 +52,9 @@
 #   limits              S9 caps hit: a domain larger than index_budget, retained QUERY2 buffers
 #                       and a build in a limited memory cgroup refused with ENOMEM, another uid
 #                       answered meanwhile (journal 0235)
+#   diag                G2 diagnostics: moobfs query says whether an ENOMEM came from the index
+#                       budget or from the memory.max of an ancestor cgroup, and moobfs diagnose
+#                       reports the limits that apply, as a user and as root (journal 0243)
 #   landlock            the moobfs CLI under a Landlock sandbox that cannot read
 #                       /proc/self/mountinfo answers as without it (issue #167)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
@@ -74,7 +77,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -2002,6 +2005,93 @@ else
     echo "LIMITS_MEMCG_PASS: $lm_held retained buffers filled a 16 MiB cgroup (current=$lm_capped) until ENOMEM; uid 1002 answered meanwhile; freed to $lm_freed; a $lm_big-byte build refused with ENOMEM in a 4 MiB cgroup and built outside it"
 fi
 rm -rf "$LOWER/lm" && umount "$LOWER" || fail lm-cleanup
+fi
+if want diag; then
+# G2 (journal 0243): the refusals of the limits step, as a user sees them through the moobfs
+# CLI. 1. On a 1 MiB index_budget, uid 1003's domain larger than the budget is refused with exit
+#    75 and a message naming the index budget, not a memory cgroup (the process is in the root
+#    cgroup, which has no memory.max); moobfs diagnose as a user warns that no memory.max
+#    applies, and as root also shows the index counters, the tracepoints and a test-only module
+#    parameter left set.
+# 2. In a cgroup /moob-dg/leaf whose parent /moob-dg holds a 4 MiB memory.max (the shape of a
+#    systemd session scope below user-UID.slice), uid 1001's build of a 6000-file domain is
+#    refused with exit 75 and a message naming /moob-dg and its memory.max; diagnose there names
+#    the same limit and that it was reached. The test process is made unkillable, as in limits,
+#    so the cap is seen as ENOMEM. The same uid outside the cgroup then gets the oracle's answer.
+dg_info() { "$BIN/query" "$LAYER" info | tr ' ' '\n' | sed -n "s/^$1=//p" | head -1; }
+dg_has() { grep -q "\"code\": \"$2\"" "$1"; }
+# the CLI reads the caller's cgroups under /sys/fs/cgroup, which the initramfs guest leaves empty
+dg_cg=/sys/fs/cgroup dg_mounted=0
+if [ ! -e "$dg_cg/cgroup.controllers" ]; then
+    mount -t cgroup2 none "$dg_cg" || fail dg-cgroup2-mount
+    dg_mounted=1
+fi
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail dg-lower-mount
+mkdir -p "$LOWER/dg/a" "$LOWER/dg/c" "$LOWER/dg/big" || fail dg-directories
+"$BIN/overbudget-race" plant "$LOWER/dg/a" 100 || fail dg-plant-a
+"$BIN/overbudget-race" plant "$LOWER/dg/c" 4000 || fail dg-plant-c
+"$BIN/overbudget-race" plant "$LOWER/dg/big" 6000 || fail dg-plant-big
+chown -R 1001:1001 "$LOWER/dg/a" "$LOWER/dg/big" && chown -R 1003:1003 "$LOWER/dg/c" &&
+    chmod 700 "$LOWER/dg/a" "$LOWER/dg/c" "$LOWER/dg/big" || fail dg-private-domains
+mount -t moobfs_layer -o "lower=$LOWER/dg,domain_depth=1,index_budget=1048576" none "$LAYER" ||
+    fail dg-budget-mount
+[ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail dg-tracefs
+"$BIN/asuid" 1001 "$BIN/moobfs" query "$LAYER/a" kind exists - - > /tmp/dg.k || fail dg-a
+[ "$(wc -l < /tmp/dg.k)" -eq 100 ] || fail "dg-a-count $(wc -l < /tmp/dg.k)"
+dg_builds=$(dg_info domain_builds)
+rc=0; "$BIN/asuid" 1003 "$BIN/moobfs" query "$LAYER/c" kind exists - - > /tmp/dg.k 2> /tmp/dg.e || rc=$?
+cat /tmp/dg.e
+[ "$rc" -eq 75 ] && [ ! -s /tmp/dg.k ] || fail "dg-budget-status $rc"
+grep -q 'refused (ENOMEM): the domain does not fit the mount.s index budget (index_budget, 1 MiB)' /tmp/dg.e &&
+    grep -q 'no memory cgroup limit applies' /tmp/dg.e && ! grep -q 'reached its memory.max' /tmp/dg.e ||
+    fail dg-budget-message
+[ "$(dg_info domain_builds)" -eq "$dg_builds" ] || fail dg-budget-built
+rc=0; "$BIN/asuid" 1001 "$BIN/moobfs" diagnose --json "$LAYER/a" > /tmp/dg.j 2> /tmp/dg.e || rc=$?
+cat /tmp/dg.j /tmp/dg.e
+[ "$rc" -eq 2 ] && dg_has /tmp/dg.j no-memory-limit && dg_has /tmp/dg.j administrator-only &&
+    grep -q '"role": "domain"' /tmp/dg.j && grep -q '"index_budget": 1048576' /tmp/dg.j &&
+    grep -q '"index_used": null' /tmp/dg.j || fail "dg-diagnose-user $rc"
+"$BIN/asuid" 1001 "$BIN/moobfs" diagnose "$LAYER" > /tmp/dg.t 2>&1; grep -q '(above the domains)' /tmp/dg.t || fail dg-diagnose-above
+echo 7 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail dg-param-set
+rc=0; "$BIN/moobfs" diagnose --json "$LAYER/a" > /tmp/dg.j 2> /tmp/dg.e || rc=$?
+echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail dg-param-reset
+cat /tmp/dg.j /tmp/dg.e
+[ "$rc" -eq 2 ] && dg_has /tmp/dg.j test-parameter && dg_has /tmp/dg.j tracepoints &&
+    grep -q '"scan_delay_us": 7' /tmp/dg.j && grep -q '"index_used": [0-9]' /tmp/dg.j &&
+    grep -q '"tracepoints": "\(on\|off\)"' /tmp/dg.j || fail "dg-diagnose-root $rc"
+umount "$LAYER" || fail dg-budget-unmount
+echo "DIAG_BUDGET_PASS: ENOMEM of a domain over index_budget named the budget, not a cgroup; diagnose warned of no memory.max (user) and of a test parameter (root)"
+if ! grep -qw memory "$dg_cg/cgroup.controllers"; then
+    [ "${MOOB_EXPECT_MEMCG:-0}" = 1 ] && fail dg-memcg-unavailable
+    echo "DIAG_MEMCG_SKIPPED: no cgroup v2 memory controller in this guest"
+else
+    echo +memory > "$dg_cg/cgroup.subtree_control" &&
+        mkdir "$dg_cg/moob-dg" && echo +memory > "$dg_cg/moob-dg/cgroup.subtree_control" &&
+        mkdir "$dg_cg/moob-dg/leaf" && echo 4194304 > "$dg_cg/moob-dg/memory.max" || fail dg-cgroups
+    mount -t moobfs_layer -o lower="$LOWER/dg",domain_depth=1 none "$LAYER" || fail dg-memcg-mount
+    dg_builds=$(dg_info domain_builds)
+    dg_inleaf() { sh -c 'echo $$ > "$1/moob-dg/leaf/cgroup.procs" && echo -1000 > /proc/self/oom_score_adj && shift && exec "$@"' sh "$dg_cg" "$@"; }
+    rc=0; dg_inleaf "$BIN/asuid" 1001 "$BIN/moobfs" query --page 16 "$LAYER/big" kind exists - - > /tmp/dg.k 2> /tmp/dg.e || rc=$?
+    cat /tmp/dg.e
+    [ "$rc" -eq 75 ] && [ ! -s /tmp/dg.k ] || fail "dg-memcg-status $rc"
+    grep -q 'refused (ENOMEM): the memory cgroup /moob-dg reached its memory.max (4 MiB)' /tmp/dg.e ||
+        fail dg-memcg-not-named
+    [ "$(dg_info domain_builds)" -eq "$dg_builds" ] || fail dg-memcg-built
+    rc=0; dg_inleaf "$BIN/asuid" 1001 "$BIN/moobfs" diagnose --json "$LAYER/big" > /tmp/dg.j 2> /tmp/dg.e || rc=$?
+    cat /tmp/dg.j /tmp/dg.e
+    [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || fail "dg-diagnose-cgroup-status $rc"
+    ! dg_has /tmp/dg.j no-memory-limit && dg_has /tmp/dg.j limit-reached &&
+        grep -q '"cgroup": "/moob-dg/leaf", "limit": {"cgroup": "/moob-dg", "memory_max": 4194304}' /tmp/dg.j ||
+        fail dg-diagnose-cgroup
+    "$BIN/asuid" 1001 "$BIN/moobfs" query "$LAYER/big" kind exists - - | sort > /tmp/dg.k || fail dg-big-outside
+    "$BIN/moobfs-index" --domain "$LOWER/dg/big" kind exists - - | cut -f2 | sort > /tmp/dg.o || fail dg-big-oracle
+    cmp -s /tmp/dg.k /tmp/dg.o && [ "$(wc -l < /tmp/dg.k)" -eq 6000 ] ||
+        fail "dg-big-differs kernel=$(wc -l < /tmp/dg.k) oracle=$(wc -l < /tmp/dg.o)"
+    umount "$LAYER" && rmdir "$dg_cg/moob-dg/leaf" "$dg_cg/moob-dg" || fail dg-memcg-cleanup
+    echo "DIAG_MEMCG_PASS: ENOMEM of a build in /moob-dg/leaf named the 4 MiB memory.max of /moob-dg; diagnose named the same limit, reached; built outside, equal to the oracle"
+fi
+rm -rf "$LOWER/dg" && umount "$LOWER" || fail dg-cleanup
+[ "$dg_mounted" -eq 0 ] || umount "$dg_cg" || fail dg-cgroup-unmount
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want builddenial; then
 # Compare the same cold 17,000-file QUERY2 with the pre-limit and limited

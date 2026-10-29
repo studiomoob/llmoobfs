@@ -193,7 +193,7 @@ if [ "$NAME" = BENCH ]; then
 	fetch_results || { log "MOOBFS_BENCH_FAIL: no results.tar"; exit 1; }
 fi
 case $NAME in
-INSTALL) log "MOOBFS_INSTALL_PASS: docs/operations.md followed on Debian 13; refused an unlisted kernel release, installed on the image's 6.12.113, mounted by hand, by fstab at boot and by a mount unit, two users isolated, uninstalled with the lower readable" ;;
+INSTALL) log "MOOBFS_INSTALL_PASS: docs/operations.md followed on Debian 13; refused an unlisted kernel release, installed on the image's 6.12.113, mounted by hand, by fstab at boot and by a mount unit, two users isolated, MemoryMax= set on their slices by the drop-in and read by moobfs diagnose, uninstalled with the lower readable" ;;
 PACKAGE) log "MOOBFS_PACKAGE_PASS: moobfs-dkms and moobfs-tools on Debian 13 under Secure Boot; DKMS refused an unlisted kernel, the module was refused before its key was enrolled and loaded after, an unsigned build was refused, two users isolated, upgrade and roll back with the query and moobfs-check equal to the oracle, purge left the lower readable" ;;
 BENCH) log "MOOBFS_BENCH_PASS: bench/ondemand.sh on a $BENCH_FS lower, Debian 13, kernel 6.12.113, under KVM; results in $OUT/results" ;;
 CONTAINER) log "MOOBFS_CONTAINER_PASS: docs/container-integration.md followed on Debian 13 with Docker and Podman" ;;
