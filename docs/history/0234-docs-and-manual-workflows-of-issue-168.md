@@ -1,7 +1,7 @@
 # 0234 — Documentation and manual workflows of issue #168
 
 Date: 2026-10-29. Status: done on `claudiofp/b7-docs-gaps`, for the batch pull request. Work
-started: 2026-10-29 12:27 UTC; ended about 13:45 UTC. Wall-clock time, most of it waiting for the
+started: 2026-10-29 12:27 UTC; ended about 13:40 UTC. Wall-clock time, most of it waiting for the
 two workflow runs, not an engineering-effort measurement. Estimated effort: S; actual: S.
 
 ## Goal
@@ -34,8 +34,9 @@ manual run, not kernel code (ADR-0022 keeps kernel, UAPI and format frozen):
   the rule already excludes network and FUSE lowers; the note gives one reason why.
 - **A marked current-state section in each of the two dated documents**, read by the check. Both
   documents are dated analyses whose later notes quote the claims they correct, so reading them
-  whole fails on history (seven retired phrases appear in the security roadmap's dated notes
-  alone, among them "F1 to F16" and "never been loaded with SELinux"). Each now has a section
+  whole fails on history: four retired phrases appear in the security roadmap ("never been
+  loaded with SELinux", "findings F1 to F5", "no outside human review yet." and "F1 to F16")
+  and one in the adoption risks ("rebuilt at every mount"), all in dated text. Each now has a section
   between `<!-- current-state -->` and `<!-- /current-state -->` that states, item by item, where
   things stand at `7ac52cd`; the check reads only those lines and fails when a marker is missing,
   so that deleting the markers cannot switch it off. Alternative not taken: moving the history
@@ -137,7 +138,8 @@ The last runs of both before this one were scheduled and predate journal 0211's 
   it is.
 - The arm64 workflow was not changed. Its system programs (`wc`, `grep`, the shell) still run
   from the virtio-fs root, where journal 0137's crashes under emulation happen. Of the seven
-  runs since the tmpfs copy (39265856488 on), this one alone failed, that way. Running them from tmpfs too would mean
+  runs since the tmpfs copy (39265856488 on), only 40873509652 failed, this way. Running them
+  from tmpfs too would mean
   copying a dynamic userland into the guest, and a retry on a user-space fatal signal could hide
   a real defect that corrupts what a program reads; neither was done. The workflow is not a
   required check and the failure stays recorded here.
