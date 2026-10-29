@@ -91,7 +91,6 @@ Debian 6.12.111 guest kernel (Landlock ABI 6).
   `info` may then report the bind mount's root and refuse it.
 - The path-based LSM limit on `QUERY2` results (`docs/faq.md`; journal 0030) is unchanged and
   separate.
-
 - The KASAN kernel of `vm/kasan.config` has no Landlock, so the step prints `LANDLOCK_SKIPPED`
   there (batch run of journal 0229); it runs on the Debian kernels of `make vm-test` and CI.
 
