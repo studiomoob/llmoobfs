@@ -9,6 +9,7 @@ cd "$(dirname "$0")/../.."
 # MOOB_TEST=container runs the container recipe instead (roadmap C3, build/container-test/)
 out=build/install-test
 [ "${MOOB_TEST:-install}" = container ] && out=build/container-test
+[ "${MOOB_TEST:-install}" = package ] && out=build/package-test
 mkdir -p "$out"
 # --no-xattrs: macOS tar would otherwise store its provenance attribute in every entry
 git ls-files -z --cached --others --exclude-standard |
@@ -20,4 +21,8 @@ if [ "${MOOB_HOST_QEMU:-}" = 1 ]; then
 	MOOB_WORK=$PWD MOOB_TEST="${MOOB_TEST:-install}" exec sh vm/install-test/in-container.sh
 fi
 docker build --platform linux/amd64 -t moobfs-install-test -f vm/install-test/Dockerfile vm/install-test
-docker run --rm --platform linux/amd64 -e MOOB_TEST="${MOOB_TEST:-install}" -v "$PWD:/work" moobfs-install-test sh vm/install-test/in-container.sh
+# KVM inside the container when the host has it (the dedicated Linux host); TCG otherwise
+KVM=
+[ ! -w /dev/kvm ] || KVM=--device=/dev/kvm
+# shellcheck disable=SC2086   # $KVM is empty or one option
+docker run --rm --platform linux/amd64 $KVM -e MOOB_COMMIT="${MOOB_COMMIT:-$(git rev-parse --short HEAD)}" -e MOOB_TEST="${MOOB_TEST:-install}" -v "$PWD:/work" moobfs-install-test sh vm/install-test/in-container.sh

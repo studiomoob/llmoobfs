@@ -1,0 +1,15 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# A copy left by `make install` (scripts/install.sh) would sit next to the DKMS one under
+# updates/, and depmod would pick one of them silently. Refuse until it is removed.
+set -e
+if [ "$1" = install ] || [ "$1" = upgrade ]; then
+	for f in /lib/modules/*/updates/moobfs/moobfs_layer.ko; do
+		if [ -e "$f" ] || [ -L "$f" ]; then
+			echo "moobfs-dkms: $f was installed by make install; run make uninstall first" >&2
+			exit 1
+		fi
+	done
+fi
+#DEBHELPER#
+exit 0

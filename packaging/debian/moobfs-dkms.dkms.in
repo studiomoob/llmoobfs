@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# dkms.conf of moobfs-dkms (ADR-0028). debian/rules fills BUILD_EXCLUSIVE_KERNEL from
+# scripts/supported-kernels, so DKMS builds only on a listed release (exit 77 elsewhere).
+PACKAGE_NAME="moobfs"
+PACKAGE_VERSION="#MODULE_VERSION#"
+BUILT_MODULE_NAME[0]="moobfs_layer"
+BUILT_MODULE_LOCATION[0]="layer/"
+DEST_MODULE_LOCATION[0]="/updates/dkms"
+MAKE[0]="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/layer modules"
+CLEAN="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/layer clean"
+BUILD_EXCLUSIVE_KERNEL="^(@KERNELS@)$"
+AUTOINSTALL="yes"

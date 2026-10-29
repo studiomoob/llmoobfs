@@ -5,6 +5,9 @@
 # NoCloud over HTTP, and drives a guest script over SSH, rebooting between its phases.
 #   MOOB_TEST=install (default)  vm/install-test/guest.sh, phases 0 1 2 (roadmap C2)
 #   MOOB_TEST=container          vm/container-test/guest.sh, phases 0 1 (roadmap C3)
+#   MOOB_TEST=package            vm/package-test/guest.sh, phases 0 1 (roadmap C6, ADR-0028):
+#     builds the .deb packages first, boots with UEFI Secure Boot, and between the phases
+#     powers the guest off and enrols the guest's DKMS key in the firmware's MokList
 # With /dev/kvm writable the guest runs under KVM, otherwise under TCG emulation. MOOB_WORK is the
 # repository root (default /work, the container's bind mount; run.sh sets it for MOOB_HOST_QEMU=1).
 set -eu
@@ -17,6 +20,7 @@ fi
 case ${MOOB_TEST:-install} in
 install) OUT=build/install-test GUEST=vm/install-test/guest.sh PHASES="0 1 2" NAME=INSTALL ;;
 container) OUT=build/container-test GUEST=vm/container-test/guest.sh PHASES="0 1" NAME=CONTAINER ;;
+package) OUT=build/package-test GUEST=vm/package-test/guest.sh PHASES="0 1" NAME=PACKAGE ;;
 *) echo "unknown MOOB_TEST ${MOOB_TEST}" >&2; exit 64 ;;
 esac
 CACHE=build/install-test	# the base image is shared by both tests
@@ -38,6 +42,21 @@ echo "$SUM  $CACHE/$IMG" | sha512sum -c - >/dev/null || { log "MOOBFS_${NAME}_FA
 
 # A fresh overlay every run: the base image is never written.
 rm -f "$OUT/disk.qcow2" "$OUT"/console-*.log
+UEFI=
+if [ "$NAME" = PACKAGE ]; then
+	# Two versions of each package, so the guest can upgrade and roll back. Built from a copy
+	# of the tree; a fresh directory every run.
+	rm -rf "$OUT/debs"
+	sh scripts/build-debs.sh 0.5.0~c6test1 "$OUT/debs/v1" >>"$LOG"
+	sh scripts/build-debs.sh 0.5.0~c6test2 "$OUT/debs/v2" >>"$LOG"
+	tar -C "$OUT" -cf "$OUT/debs.tar" debs
+	# Secure Boot: the firmware's own code with the Microsoft keys enrolled, which accept the
+	# image's signed shim; a fresh copy of the variable store every run.
+	cp /usr/share/OVMF/OVMF_VARS_4M.ms.fd "$OUT/vars.fd"
+	UEFI="-machine q35,smm=on -global driver=cfi.pflash01,property=secure,value=on
+		-drive if=pflash,format=raw,unit=0,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd
+		-drive if=pflash,format=raw,unit=1,file=$OUT/vars.fd"
+fi
 qemu-img create -q -f qcow2 -F qcow2 -b "$(pwd)/$CACHE/$IMG" "$OUT/disk.qcow2" 16G
 
 # The key stays in the container: a bind mount from macOS may not keep mode 0600.
@@ -68,8 +87,8 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory "$SEED" >/dev/null 2>&1
 HPID=$!
 
 boot() {
-	# shellcheck disable=SC2086   # $ACCEL holds several options
-	qemu-system-x86_64 $ACCEL -smp 4 -m 4096 \
+	# shellcheck disable=SC2086   # $ACCEL and $UEFI hold several options
+	qemu-system-x86_64 $ACCEL $UEFI -smp 4 -m 4096 \
 		-drive file="$OUT/disk.qcow2",if=virtio,format=qcow2 \
 		-smbios 'type=1,serial=ds=nocloud;s=http://10.0.2.2:8000/' \
 		-nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22 \
@@ -93,6 +112,23 @@ reboot_guest() {
 	sleep 30
 	wait_ssh "$1"
 }
+# MokManager would ask at the console to confirm `mokutil --import`; the test writes the same
+# certificate into the firmware's MokList with virt-fw-vars while the guest is off, with the
+# owner GUID shim gives enrolled keys (SHIM_LOCK_GUID).
+enrol_mok() {
+	scp -q -i "$KEY" -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+		tester@127.0.0.1:mok.der "$SEED/mok.der" || { log "MOOBFS_${NAME}_FAIL: no mok.der"; exit 1; }
+	$SSH 'sudo systemctl poweroff' || true
+	wait "$QPID" || true
+	QPID=
+	openssl x509 -inform DER -in "$SEED/mok.der" -out "$SEED/mok.pem"
+	virt-fw-vars --input "$OUT/vars.fd" --output "$OUT/vars-mok.fd" \
+		--add-mok 605dab50-e046-4300-abb6-3dd810dd8b23 "$SEED/mok.pem" >>"$LOG" 2>&1
+	mv "$OUT/vars-mok.fd" "$OUT/vars.fd"
+	log "MOK_ENROLLED: $(openssl x509 -in "$SEED/mok.pem" -noout -subject -fingerprint -sha256 | tr '\n' ' ')"
+	boot "$1"
+	wait_ssh "$1"
+}
 phase() {
 	$SSH "sudo sh guest.sh $1" 2>&1 | tee -a "$LOG" || true
 	grep -q "PHASE_DONE: $1" "$LOG" || { log "MOOBFS_${NAME}_FAIL: phase $1"; exit 1; }
@@ -102,11 +138,16 @@ START=$(date +%s)
 boot 1
 wait_ssh 1
 cp "$GUEST" "$SEED/guest.sh"
+FILES="$OUT/src.tar"
+[ "$NAME" != PACKAGE ] || FILES="$OUT/debs.tar"
+# shellcheck disable=SC2086   # $FILES is one or two paths without spaces
 scp -q -i "$KEY" -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-	"$OUT/src.tar" "$SEED/guest.sh" tester@127.0.0.1:
+	$FILES "$SEED/guest.sh" tester@127.0.0.1:
 n=1
 for p in $PHASES; do
-	if [ "$n" -gt 1 ]; then
+	if [ "$n" -gt 1 ] && [ "$NAME" = PACKAGE ]; then
+		enrol_mok "$n"
+	elif [ "$n" -gt 1 ]; then
 		reboot_guest "$n"
 	fi
 	phase "$p"
@@ -115,5 +156,6 @@ done
 log "ELAPSED: $(($(date +%s) - START)) s under $ACCEL_NAME"
 case $NAME in
 INSTALL) log "MOOBFS_INSTALL_PASS: docs/operations.md followed on Debian 13; refused an unlisted kernel release, installed on the image's 6.12.113, mounted by hand, by fstab at boot and by a mount unit, two users isolated, uninstalled with the lower readable" ;;
+PACKAGE) log "MOOBFS_PACKAGE_PASS: moobfs-dkms and moobfs-tools on Debian 13 under Secure Boot; DKMS refused an unlisted kernel, the module was refused before its key was enrolled and loaded after, an unsigned build was refused, two users isolated, upgrade and roll back with the query and moobfs-check equal to the oracle, purge left the lower readable" ;;
 CONTAINER) log "MOOBFS_CONTAINER_PASS: docs/container-integration.md followed on Debian 13 with Docker and Podman" ;;
 esac

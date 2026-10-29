@@ -1,0 +1,44 @@
+#!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-2.0-only
+# Builds moobfs-dkms and moobfs-tools (ADR-0028). Run through scripts/build-debs.sh, which
+# copies the sources and writes debian/changelog with the version.
+include /usr/share/dpkg/pkg-info.mk
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+SRC = debian/moobfs-dkms/usr/src/moobfs-$(DEB_VERSION_UPSTREAM)
+TOOLS = moobfs moobfs-attr moobfs-check moobfs-index
+
+%:
+	dh $@
+
+# One alternative per listed release, dots and plus signs escaped for the regular expression.
+override_dh_auto_configure:
+	kernels=$$(grep -v '^#' scripts/supported-kernels | sed 's/[.+]/\\&/g' | paste -sd '|' -); \
+	[ -n "$$kernels" ] && K=$$kernels awk '{ i = index($$0, "@KERNELS@"); \
+		if (i) $$0 = substr($$0, 1, i - 1) ENVIRON["K"] substr($$0, i + 9); print }' \
+		debian/moobfs-dkms.dkms.in >debian/moobfs-dkms.dkms
+
+override_dh_auto_build:
+	$(MAKE) attr-tools BUILD=build/deb
+
+override_dh_auto_test:
+
+override_dh_auto_install:
+	install -d debian/moobfs-tools/usr/bin debian/moobfs-tools/usr/share/man/man1
+	for t in $(TOOLS); do \
+		install -m 0755 build/deb/$$t debian/moobfs-tools/usr/bin/$$t; \
+		install -m 0644 man/$$t.1 debian/moobfs-tools/usr/share/man/man1/$$t.1; \
+	done
+	install -d $(SRC)/layer $(SRC)/include $(SRC)/common
+	install -m 0644 layer/*.c layer/*.h layer/Makefile $(SRC)/layer/
+	install -m 0644 include/*.h $(SRC)/include/
+	install -m 0644 common/attr.c $(SRC)/common/
+
+# no -dbgsym package: nothing is published (ADR-0028)
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym
+
+override_dh_dkms:
+	dh_dkms -V
+
+override_dh_auto_clean:
+	rm -rf build/deb debian/moobfs-dkms.dkms

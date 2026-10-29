@@ -1,0 +1,33 @@
+Source: moobfs
+Section: kernel
+Priority: optional
+Maintainer: MoobFS maintainers <claudio@studiomoob.com>
+Build-Depends: debhelper-compat (= 13), dh-sequence-dkms
+Standards-Version: 4.7.0
+Homepage: https://github.com/studiomoob/llmoobfs
+Rules-Requires-Root: no
+
+Package: moobfs-dkms
+Architecture: all
+Depends: ${misc:Depends}
+Recommends: linux-headers-amd64
+Description: MoobFS layer module as DKMS sources (experimental)
+ Sources of moobfs_layer, a stacking Linux filesystem that keeps an index of
+ the typed user.moob.* attributes of each directory domain and answers
+ queries from it. DKMS builds the module only for the kernel releases the
+ project tests (BUILD_EXCLUSIVE_KERNEL) and signs it with the DKMS machine
+ owner key when the kernel supports module signing.
+ .
+ Experimental research software, for disposable test hosts only. Not
+ published: built and tested in virtual machines (roadmap item C6).
+
+Package: moobfs-tools
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: moobfs-dkms
+Description: MoobFS user-space tools (experimental)
+ moobfs (query and inspect a mount), moobfs-attr (typed attributes),
+ moobfs-check (consistency check of a lower directory) and moobfs-index
+ (user-space index of a domain), with their manual pages.
+ .
+ Experimental research software, for disposable test hosts only.
