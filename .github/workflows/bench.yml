@@ -85,6 +85,8 @@ jobs:
             echo "## On-demand index, $FS lower"
             echo
             echo "Trend monitor on a GitHub-hosted runner, not a reference measurement (journal 0238)."
+            echo "With the default MOOB_BENCH_CACHE=host the lower's disk image sits in the runner's page cache:"
+            echo "the \"cold\" rows are cold in the guest only (guest caches dropped, host page cache warm)."
             echo "The reference is \`bench/results/2026-10-13-macmini-ondemand/new/\` (ext4 only)."
             echo
             python3 -I bench/ondemand-summary.py bench/results/2026-10-13-macmini-ondemand/new/times.txt \

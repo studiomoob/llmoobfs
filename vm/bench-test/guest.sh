@@ -18,7 +18,11 @@ LAYER=/srv/moob/layer
 OUT=/home/tester/results
 BIN=$SRC/build/host
 mark() { echo "$*"; }
-fail() { echo "MOOBFS_BENCH_FAIL: $*"; exit 1; }
+# what there is of the results goes out on a failure too (in-container.sh copies results.tar)
+save() {
+	[ ! -d "$OUT" ] || { tar -C /home/tester -cf /home/tester/results.tar results && chown tester:tester /home/tester/results.tar; }
+}
+fail() { save 2>/dev/null || true; echo "MOOBFS_BENCH_FAIL: $*"; exit 1; }
 now() { date +%s; }
 
 phase0() {
@@ -68,9 +72,9 @@ phase0() {
 	load_s=$(($(now) - t))
 	mark "LOADED: 60000 memories with W1 in $load_s s"
 	t=$(now)
-	env BIN="$BIN" sh bench/ondemand.sh "$LAYER" ns3 "$OUT" >ondemand.log 2>&1 ||
-		{ tail -n 20 ondemand.log; fail "bench/ondemand.sh"; }
-	grep -q '^ONDEMAND_DONE' ondemand.log || fail "bench/ondemand.sh did not finish"
+	env BIN="$BIN" sh bench/ondemand.sh "$LAYER" ns3 "$OUT" >"$OUT/ondemand.log" 2>&1 ||
+		{ tail -n 20 "$OUT/ondemand.log"; fail "bench/ondemand.sh"; }
+	grep -q '^ONDEMAND_DONE' "$OUT/ondemand.log" || fail "bench/ondemand.sh did not finish"
 	mark "ONDEMAND: $(($(now) - t)) s"
 	python3 bench/report.py --out "$OUT/report" "$OUT"/rep[0-9]* >report.log 2>&1 ||
 		{ tail -n 20 report.log; fail "bench/report.py"; }
@@ -79,7 +83,10 @@ phase0() {
 		echo "commit: ${MOOB_COMMIT:-unknown}"
 		echo "kernel: $(uname -r)"
 		echo "lower filesystem: $FS on $DEV ($(findmnt -n -o OPTIONS "$LOWERFS"))"
-		echo "lower disk: virtio-blk, raw sparse file on the host opened with cache=none, $(lsblk -dn -o SIZE "$DEV")"
+		case ${MOOB_BENCH_CACHE:-host} in
+		direct) echo "lower disk: virtio-blk, raw sparse file on the host, O_DIRECT, guest flushes ignored, $(lsblk -dn -o SIZE "$DEV")" ;;
+		*) echo "lower disk: virtio-blk, raw sparse file in the host's page cache (cold rows are cold in the guest only), guest flushes ignored, $(lsblk -dn -o SIZE "$DEV")" ;;
+		esac
 		echo "cpu: $(sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo | head -n 1) (as the guest sees it, -cpu host)"
 		echo "vcpus: $(nproc)"
 		echo "memory: $(sed -n 's/^MemTotal: *//p' /proc/meminfo)"
@@ -87,10 +94,8 @@ phase0() {
 		echo "load_W1_s: $load_s"
 	} >"$OUT/system.txt"
 	cat "$OUT/times.txt" "$OUT/system.txt"
-	cp ondemand.log "$OUT/"
 	umount "$LAYER"
-	tar -C /home/tester -cf /home/tester/results.tar results
-	chown tester:tester /home/tester/results.tar
+	save
 	mark "PHASE_DONE: 0"
 }
 

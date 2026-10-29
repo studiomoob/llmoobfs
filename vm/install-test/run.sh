@@ -20,11 +20,11 @@ git ls-files -z --cached --others --exclude-standard |
 # container; needs qemu-system-x86, qemu-utils, openssh-client, python3 and curl. Nothing of
 # MoobFS is installed or loaded on the host either way.
 if [ "${MOOB_HOST_QEMU:-}" = 1 ]; then
-	MOOB_WORK=$PWD MOOB_TEST="${MOOB_TEST:-install}" MOOB_BENCH_FS="${MOOB_BENCH_FS:-ext4}" exec sh vm/install-test/in-container.sh
+	MOOB_WORK=$PWD MOOB_TEST="${MOOB_TEST:-install}" MOOB_BENCH_FS="${MOOB_BENCH_FS:-ext4}" MOOB_BENCH_CACHE="${MOOB_BENCH_CACHE:-host}" exec sh vm/install-test/in-container.sh
 fi
 docker build --platform linux/amd64 -t moobfs-install-test -f vm/install-test/Dockerfile vm/install-test
 # KVM inside the container when the host has it (the dedicated Linux host); TCG otherwise
 KVM=
 [ ! -w /dev/kvm ] || KVM=--device=/dev/kvm
 # shellcheck disable=SC2086   # $KVM is empty or one option
-docker run --rm --platform linux/amd64 $KVM -e MOOB_COMMIT="${MOOB_COMMIT:-$(git rev-parse --short HEAD)}" -e MOOB_TEST="${MOOB_TEST:-install}" -e MOOB_BENCH_FS="${MOOB_BENCH_FS:-ext4}" -v "$PWD:/work" moobfs-install-test sh vm/install-test/in-container.sh
+docker run --rm --platform linux/amd64 $KVM -e MOOB_COMMIT="${MOOB_COMMIT:-$(git rev-parse --short HEAD)}" -e MOOB_TEST="${MOOB_TEST:-install}" -e MOOB_BENCH_FS="${MOOB_BENCH_FS:-ext4}" -e MOOB_BENCH_CACHE="${MOOB_BENCH_CACHE:-host}" -v "$PWD:/work" moobfs-install-test sh vm/install-test/in-container.sh
