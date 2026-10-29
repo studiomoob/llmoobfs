@@ -43,7 +43,7 @@ git clone https://github.com/studiomoob/llmoobfs.git
 cd llmoobfs
 make            # builds build/host/{mkfs.moobfs,fsck.moobfs,attr_test}
 make test       # attr_test unit tests + tests/test_images.py (9 tests, 15 malformed images)
-make fuzz FUZZ_TIME=30   # libFuzzer over the attribute encoding (LLVM clang only)
+make fuzz FUZZ_TIME=30   # libFuzzer, 30 s per target: attributes, image parser, tool parsers (LLVM clang only)
 ```
 
 Sanitizers, in a separate output directory so that host binaries stay untouched:

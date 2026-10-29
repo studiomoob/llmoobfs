@@ -25,6 +25,9 @@
 #   buildcost           bounded unprivileged first-build and post-rename cost probe (#118)
 #   buildcostlarge      optional 7500-file scale of the same probe (not in the full suite)
 #   builddenial         optional 17000-file cold QUERY2 cost with/without work cap
+#   mountscale          optional mount and unmount time and memory over 100 to 200,100 files,
+#                       with and without noindex, and the first query of a domain over
+#                       index_build_work (S9, journal 0235); formats the ext4 disk
 #   buildclient         optional 6000-file, six-attribute domain shape from client scale
 #   buildcostevict      optional two-uid budget probe: the second uid lends the first one's room
 #                       back, since that domain is over its share (ADR-0021, ADR-0027)
@@ -46,6 +49,9 @@
 #                       waiting for the index lock held by a build (issue #117)
 #   fairshare           a uid over its share of index_budget lends room to a uid under its own,
 #                       and a uid within its share keeps its domain (ADR-0027)
+#   limits              S9 caps hit: a domain larger than index_budget, retained QUERY2 buffers
+#                       and a build in a limited memory cgroup refused with ENOMEM, another uid
+#                       answered meanwhile (journal 0235)
 #   landlock            the moobfs CLI under a Landlock sandbox that cannot read
 #                       /proc/self/mountinfo answers as without it (issue #167)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
@@ -68,7 +74,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -1510,77 +1516,81 @@ if want permmatrix; then
 # on the way, since a search-only one (0711) lets getxattr through but hides its names, and the
 # matrix is checked again in fallback mode (per-result checks) after a chmod through the layer;
 # the cases the rule before 0215 (search alone for a directory) got wrong are counted too.
-mount -t ext4 "$DEV_EXT4" "$LOWER" || fail "pm-lower-mount"
-pm_wrong=0
-pm_prev=0
-for seed in 1 2 3 4 5 6 7 8 9 10 11 12; do
-    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-mkdir-$seed"
-    "$BIN/permmatrix" plant "$LOWER/pmx" $seed || fail "pm-plant-$seed"
-    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mount-$seed"
-    "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
-    cat /tmp/pm.txt
-    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-fallback-$seed (the partition was not what answered)"; }
-    [ $rc -eq 0 ] || fail "pm-mismatch-$seed"
-    pm_wrong=$((pm_wrong + $(sed -n 's/.* old_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
-    pm_prev=$((pm_prev + $(sed -n 's/.* prev_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
-    chmod "$(stat -c %a "$LOWER/pmx/pm")" "$LAYER/pm" || fail "pm-chmod-$seed"
-    "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
-    cat /tmp/pm.txt
-    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-no-fallback-$seed (per-result checks were not what answered)"; }
-    [ $rc -eq 0 ] || fail "pm-mismatch-fallback-$seed"
-    umount "$LAYER" || fail "pm-umount-$seed"
-done
-[ $pm_wrong -gt 0 ] || fail "pm-no-case-of-the-old-rule (the matrix proved nothing)"
-[ $pm_prev -gt 0 ] || fail "pm-no-case-of-the-rule-before-0215 (the matrix proved nothing)"
-# The matrix's fallback round meets only files the rule already left out. A directory made
-# search-only through the layer after the build leaves its files in the partition and puts the
-# domain in fallback mode: the per-result check must ask read of that directory too (0215).
-rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-so-mkdir"
-mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-so-mount"
-mkdir -m 755 "$LAYER/d" "$LAYER/d/s" && : > "$LAYER/d/s/f" && chmod 644 "$LAYER/d/s/f" || fail "pm-so-files"
-"$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-so-attr"
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-before"
-chmod 0711 "$LAYER/d/s" || fail "pm-so-chmod"
-"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-so-no-fallback"; }
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-so.txt || fail "pm-so-query"
-grep -q 's/f' /tmp/pm-so.txt && fail "pm-so-leak (a search-only directory's file named per result)"
-"$BIN/query" "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-owner-missing"
-umount "$LAYER" || fail "pm-so-umount"
-# The two other places the rule is applied, with no permission change and so no fallback: a
-# search-only directory created through the layer in a built domain (place_dentry_above), and
-# one renamed during the domain's first build (dir_moved_prepare). Its file stays out of the
-# partition: uid 1001 does not get it and it is counted heterogeneous.
+# Journal 0233 (issue #168): the matrix and the three fixtures after it run on ext4, btrfs and XFS.
 pm_hetero() { "$BIN/query" "$LAYER" info | sed -n 's/.*heterogeneous=\([0-9]*\).*/\1/p'; }
-rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-cr-mkdir"
-mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-cr-mount"
-# no mkdir -m nor chmod through the layer: busybox mkdir -m chmods, and a chmod of a directory
-# puts the domain in fallback mode
-(umask 022; mkdir "$LAYER/d" && : > "$LAYER/d/top") && "$BIN/moobfs-attr" set "$LAYER/d/top" kind string so > /dev/null || fail "pm-cr-domain"
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q top || fail "pm-cr-build"
-h0=$(pm_hetero)
-(umask 066; mkdir "$LAYER/d/s") && [ "$(stat -c %a "$LAYER/d/s")" = 711 ] || fail "pm-cr-mkdir-0711"
-(umask 022; : > "$LAYER/d/s/f") && "$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-cr-file"
-[ "$(stat -c %a "$LAYER/d/s/f")" = 644 ] || fail "pm-cr-file-mode"
-"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-cr-fallback (the partition was not what answered)"; }
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-cr.txt || fail "pm-cr-query"
-grep -q 's/f' /tmp/pm-cr.txt && fail "pm-cr-leak (a file created under a search-only directory answered)"
-[ "$(pm_hetero)" -gt "$h0" ] || fail "pm-cr-not-heterogeneous"
-umount "$LAYER" || fail "pm-cr-umount"
-rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" && mkdir -m 711 "$LOWER/pmx/d/s" || fail "pm-mv-mkdir"
-"$BIN/query-build-limit" plant6 "$LOWER/pmx/d/s" 600 || fail "pm-mv-plant"
-mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mv-mount"
-[ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail "pm-mv-tracefs"
-echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-on"
-"$BIN/query-build-moved" "$LAYER/d" any; pm_rc=$?
-echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-off"
-[ "$pm_rc" -eq 0 ] || fail "pm-mv-no-move-during-build"
-"$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-mv-fallback (the partition was not what answered)"; }
-"$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-mv.txt || fail "pm-mv-query"
-grep -q 't/' /tmp/pm-mv.txt && fail "pm-mv-leak (a directory moved during the build answered)"
-[ "$(pm_hetero)" -ge 600 ] || fail "pm-mv-not-heterogeneous"
-umount "$LAYER" || fail "pm-mv-umount"
-rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup"
-echo "PERMMATRIX_STEP_PASS: 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
+for fs in ext4 btrfs xfs; do
+    case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t "$fs" "$dev" "$LOWER" || fail "pm-lower-mount-$fs"
+    pm_wrong=0
+    pm_prev=0
+    for seed in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-mkdir-$fs-$seed"
+        "$BIN/permmatrix" plant "$LOWER/pmx" $seed || fail "pm-plant-$fs-$seed"
+        mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mount-$fs-$seed"
+        "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
+        cat /tmp/pm.txt
+        "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-fallback-$fs-$seed (the partition was not what answered)"; }
+        [ $rc -eq 0 ] || fail "pm-mismatch-$fs-$seed"
+        pm_wrong=$((pm_wrong + $(sed -n 's/.* old_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
+        pm_prev=$((pm_prev + $(sed -n 's/.* prev_rule_wrong=\([0-9]*\).*/\1/p' /tmp/pm.txt)))
+        chmod "$(stat -c %a "$LOWER/pmx/pm")" "$LAYER/pm" || fail "pm-chmod-$fs-$seed"
+        "$BIN/permmatrix" check "$LAYER" "$LOWER/pmx" > /tmp/pm.txt; rc=$?
+        cat /tmp/pm.txt
+        "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-no-fallback-$fs-$seed (per-result checks were not what answered)"; }
+        [ $rc -eq 0 ] || fail "pm-mismatch-fallback-$fs-$seed"
+        umount "$LAYER" || fail "pm-umount-$fs-$seed"
+    done
+    [ $pm_wrong -gt 0 ] || fail "pm-no-case-of-the-old-rule-$fs (the matrix proved nothing)"
+    [ $pm_prev -gt 0 ] || fail "pm-no-case-of-the-rule-before-0215-$fs (the matrix proved nothing)"
+    # The matrix's fallback round meets only files the rule already left out. A directory made
+    # search-only through the layer after the build leaves its files in the partition and puts the
+    # domain in fallback mode: the per-result check must ask read of that directory too (0215).
+    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-so-mkdir-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-so-mount-$fs"
+    mkdir -m 755 "$LAYER/d" "$LAYER/d/s" && : > "$LAYER/d/s/f" && chmod 644 "$LAYER/d/s/f" || fail "pm-so-files-$fs"
+    "$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-so-attr-$fs"
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-before-$fs"
+    chmod 0711 "$LAYER/d/s" || fail "pm-so-chmod-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=1' || { "$BIN/query" "$LAYER" info; fail "pm-so-no-fallback-$fs"; }
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-so.txt || fail "pm-so-query-$fs"
+    grep -q 's/f' /tmp/pm-so.txt && fail "pm-so-leak-$fs (a search-only directory's file named per result)"
+    "$BIN/query" "$LAYER/d" q2 kind exists - - | grep -q 's/f' || fail "pm-so-owner-missing-$fs"
+    umount "$LAYER" || fail "pm-so-umount-$fs"
+    # The two other places the rule is applied, with no permission change and so no fallback: a
+    # search-only directory created through the layer in a built domain (place_dentry_above), and
+    # one renamed during the domain's first build (dir_moved_prepare). Its file stays out of the
+    # partition: uid 1001 does not get it and it is counted heterogeneous.
+    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pm-cr-mkdir-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-cr-mount-$fs"
+    # no mkdir -m nor chmod through the layer: busybox mkdir -m chmods, and a chmod of a directory
+    # puts the domain in fallback mode
+    (umask 022; mkdir "$LAYER/d" && : > "$LAYER/d/top") && "$BIN/moobfs-attr" set "$LAYER/d/top" kind string so > /dev/null || fail "pm-cr-domain-$fs"
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - | grep -q top || fail "pm-cr-build-$fs"
+    h0=$(pm_hetero)
+    (umask 066; mkdir "$LAYER/d/s") && [ "$(stat -c %a "$LAYER/d/s")" = 711 ] || fail "pm-cr-mkdir-0711-$fs"
+    (umask 022; : > "$LAYER/d/s/f") && "$BIN/moobfs-attr" set "$LAYER/d/s/f" kind string so > /dev/null || fail "pm-cr-file-$fs"
+    [ "$(stat -c %a "$LAYER/d/s/f")" = 644 ] || fail "pm-cr-file-mode-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-cr-fallback-$fs (the partition was not what answered)"; }
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-cr.txt || fail "pm-cr-query-$fs"
+    grep -q 's/f' /tmp/pm-cr.txt && fail "pm-cr-leak-$fs (a file created under a search-only directory answered)"
+    [ "$(pm_hetero)" -gt "$h0" ] || fail "pm-cr-not-heterogeneous-$fs"
+    umount "$LAYER" || fail "pm-cr-umount-$fs"
+    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" && mkdir -m 711 "$LOWER/pmx/d/s" || fail "pm-mv-mkdir-$fs"
+    "$BIN/query-build-limit" plant6 "$LOWER/pmx/d/s" 600 || fail "pm-mv-plant-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mv-mount-$fs"
+    [ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail "pm-mv-tracefs-$fs"
+    echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-on-$fs"
+    "$BIN/query-build-moved" "$LAYER/d" any; pm_rc=$?
+    echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mv-delay-off-$fs"
+    [ "$pm_rc" -eq 0 ] || fail "pm-mv-no-move-during-build-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-mv-fallback-$fs (the partition was not what answered)"; }
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-mv.txt || fail "pm-mv-query-$fs"
+    grep -q 't/' /tmp/pm-mv.txt && fail "pm-mv-leak-$fs (a directory moved during the build answered)"
+    [ "$(pm_hetero)" -ge 600 ] || fail "pm-mv-not-heterogeneous-$fs"
+    umount "$LAYER" || fail "pm-mv-umount-$fs"
+    rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup-$fs"
+    echo "PERMMATRIX_STEP_PASS: $fs, 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
+done
 fi
 if want permgaps; then
 for fs in ext4 btrfs xfs; do
@@ -1604,30 +1614,39 @@ if want rootpath; then
 # meanwhile; the mount-wide QUERY after that must find every attributed file under the new
 # name. The files are planted on the lower and the caches dropped, so that the build is slow
 # and the layer has no inode of them: the answer comes from the names the build recorded.
-rp_files=${ROOTPATH_FILES:-10000}; rp_every=200
-rp_expect=$(( (rp_files + rp_every - 1) / rp_every ))
+rp_files0=${ROOTPATH_FILES:-10000}; rp_every=200
+# Journal 0233 (issue #168): a fast guest (KVM) could finish B's build before the interleaving
+# was reached in all three attempts. tests/rootpath-race.c now starts A when the outside part is
+# built rather than after a fixed wait, and each attempt that does not reach the interleaving
+# plants twice the files for the next one where the lower has the inodes, up to four attempts
+# (10 000 to 80 000 files). What makes a run conclusive is unchanged; four inconclusive attempts
+# still fail the step.
 for fs in ext4 btrfs xfs; do
     case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
     mount -t "$fs" "$dev" "$LOWER" || fail "rp-lower-$fs"
-    rm -rf "$LOWER/rp" && mkdir -p "$LOWER/rp/d" || fail "rp-directory-$fs"
-    "$BIN/rootpath-race" plant "$LOWER/rp/d" "$rp_files" "$rp_every" || fail "rp-plant-$fs"
-    sync && echo 3 > /proc/sys/vm/drop_caches
-    mount -t moobfs_layer -o lower="$LOWER/rp",domain_depth=1 none "$LAYER" || fail "rp-mount-$fs"
     rp_ok=0
-    for attempt in 1 2 3; do
+    rp_files=$rp_files0
+    for attempt in 1 2 3 4; do
+        rp_expect=$(( (rp_files + rp_every - 1) / rp_every ))
+        rm -rf "$LOWER/rp" && mkdir -p "$LOWER/rp/d" || fail "rp-directory-$fs"
+        "$BIN/rootpath-race" plant "$LOWER/rp/d" "$rp_files" "$rp_every" || fail "rp-plant-$fs"
+        sync && echo 3 > /proc/sys/vm/drop_caches
+        mount -t moobfs_layer -o lower="$LOWER/rp",domain_depth=1 none "$LAYER" || fail "rp-mount-$fs"
         run_logged /tmp/rp.txt "$BIN/rootpath-race" run "$LAYER" d e "$rp_expect"; rc=$?
         [ $rc -eq 0 ] && { rp_ok=1; break; }
         [ $rc -eq 3 ] || fail "rootpath-race-$fs"
-        echo "rootpath: $fs attempt $attempt did not reach the interleaving"
-        # the interleaving was not reached: put the name back and start from a cold mount
+        echo "rootpath: $fs attempt $attempt with $rp_files files did not reach the interleaving"
+        # start again from a cold mount over a fresh tree twice as large, when the lower has
+        # the inodes for it (the 64 MiB ext4 image does not hold 20 000; btrfs reports none)
         umount "$LAYER" || fail "rp-unmount-$fs"
-        [ -d "$LOWER/rp/e" ] && { mv "$LOWER/rp/e" "$LOWER/rp/d" || fail "rp-rename-back-$fs"; }
-        sync && echo 3 > /proc/sys/vm/drop_caches
-        mount -t moobfs_layer -o lower="$LOWER/rp",domain_depth=1 none "$LAYER" || fail "rp-remount-$fs"
+        rp_free=$(stat -f -c %d "$LOWER") || fail "rp-statfs-$fs"
+        if [ "$rp_free" -eq 0 ] || [ "$rp_free" -gt $((rp_files + 1000)) ]; then
+            rp_files=$((rp_files * 2))
+        fi
     done
     [ $rp_ok -eq 1 ] || fail "rootpath-race-inconclusive-$fs"
     umount "$LAYER" && rm -rf "$LOWER/rp" && umount "$LOWER" || fail "rp-cleanup-$fs"
-    echo "ROOTPATH_PASS: $fs"
+    echo "ROOTPATH_PASS: $fs ($rp_files files, attempt $attempt)"
 done
 fi
 if want overbudget; then
@@ -1888,6 +1907,102 @@ tr_off moobfs_domain_release
 umount "$LAYER" && rm -rf "$LOWER/fs" && umount "$LOWER" || fail fs-cleanup
 echo "FAIRSHARE_PASS: a=$fs_a b=$fs_b budget=$fs_budget; b alone, a lent b's room, b refused while a within its share"
 fi
+if want limits; then
+# S9 (journal 0235, ADR-0029): the caps on index memory and on QUERY2 results, hit. Every
+# refusal is an errno with no answer, and another uid is answered meanwhile.
+# 1. index_budget. On a 1 MiB budget, uid 1003's private domain c is larger than the whole
+#    budget; uid 1001's small domain a is built first and holds less than its share. c's build
+#    is refused with ENOMEM to its caller, releases nothing, leaves the index's bytes as they
+#    were, and a is answered again without a rebuild.
+lm_info() { "$BIN/query" "$LAYER" info | tr ' ' '\n' | sed -n "s/^$1=//p" | head -1; }
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail lm-lower-mount
+mkdir -p "$LOWER/lm/a/s" "$LOWER/lm/c/s" || fail lm-directories
+"$BIN/overbudget-race" plant "$LOWER/lm/a/s" 100 || fail lm-plant-a
+"$BIN/overbudget-race" plant "$LOWER/lm/c/s" 4000 || fail lm-plant-c
+chown -R 1001:1001 "$LOWER/lm/a" && chown -R 1003:1003 "$LOWER/lm/c" &&
+    chmod 700 "$LOWER/lm/a" "$LOWER/lm/c" || fail lm-private-domains
+mount -t moobfs_layer -o lower="$LOWER/lm",domain_depth=1 none "$LAYER" || fail lm-measure-mount
+"$BIN/query-build-cost" "$LAYER/c" 1003 measure-c > /dev/null || fail lm-measure-c
+lm_c=$(lm_info used)
+umount "$LAYER" || fail lm-measure-unmount
+[ "$lm_c" -gt 1048576 ] || fail "lm-c-fits-the-budget c=$lm_c"
+mount -t moobfs_layer -o "lower=$LOWER/lm,domain_depth=1,index_budget=1048576" none "$LAYER" ||
+    fail lm-budget-mount
+"$BIN/query-build-cost" "$LAYER/a" 1001 a > /dev/null || fail lm-a
+lm_used=$(lm_info used)
+lm_builds=$(lm_info domain_builds)
+lm_built=$(lm_info domains_built)
+[ $((lm_used * 2)) -lt 1048576 ] || fail "lm-a-over-its-share a=$lm_used"
+"$BIN/query-build-cost" "$LAYER/c" 1003 c-over-budget expect-enomem || fail lm-c-not-refused
+[ "$(lm_info domain_builds)" -eq "$lm_builds" ] && [ "$(lm_info domain_releases)" -eq 0 ] &&
+    [ "$(lm_info used)" -eq "$lm_used" ] && [ "$(lm_info domains_built)" -eq "$lm_built" ] ||
+    { "$BIN/query" "$LAYER" info; fail lm-budget-counters; }
+"$BIN/query-build-cost" "$LAYER/a" 1001 a-kept > /dev/null || fail lm-a-again
+[ "$(lm_info domain_builds)" -eq "$lm_builds" ] || fail lm-a-rebuilt
+umount "$LAYER" || fail lm-budget-unmount
+echo "LIMITS_BUDGET_PASS: c=$lm_c bytes refused with ENOMEM on a 1048576-byte budget; a=$lm_used bytes kept, no release, no rebuild"
+# 2. The memory cgroup (ADR-0018). In a cgroup limited to 16 MiB, uid 1001 keeps descriptors
+#    whose retained QUERY2 buffers (limit 4096) fill it until a query fails with ENOMEM, its
+#    request untouched (tests/memcg-query.c hold). While it holds them, uid 1002 outside the
+#    cgroup gets a complete answer equal to the oracle; when it exits, the buffers are freed.
+#    In a cgroup limited to 4 MiB, uid 1001's build of a 6000-file domain fails with ENOMEM and
+#    builds nothing; the same uid outside the cgroup then builds it.
+lm_cgroot=$(mktemp -d /tmp/moob-lm-cgroup.XXXXXX) || fail lm-cgroup-tempdir
+if ! mount -t cgroup2 none "$lm_cgroot"; then
+    [ "${MOOB_EXPECT_MEMCG:-0}" = 1 ] && fail lm-cgroup2-mount
+    rmdir "$lm_cgroot" || fail lm-cgroup-skip-cleanup
+    echo "LIMITS_MEMCG_SKIPPED: cgroup v2 unavailable in this guest"
+elif ! grep -qw memory "$lm_cgroot/cgroup.controllers"; then
+    [ "${MOOB_EXPECT_MEMCG:-0}" = 1 ] && fail lm-memcg-controller-unavailable
+    umount "$lm_cgroot" && rmdir "$lm_cgroot" || fail lm-cgroup-skip-cleanup
+    echo "LIMITS_MEMCG_SKIPPED: kernel built without the memory controller"
+else
+    echo +memory > "$lm_cgroot/cgroup.subtree_control" || fail lm-memcg-enable
+    mkdir -m 755 "$LOWER/lm/empty" "$LOWER/lm/u2" "$LOWER/lm/big" || fail lm-memcg-domains
+    "$BIN/overbudget-race" plant "$LOWER/lm/u2" 20 || fail lm-plant-u2
+    "$BIN/overbudget-race" plant "$LOWER/lm/big" 6000 || fail lm-plant-big
+    chown -R 1002:1002 "$LOWER/lm/u2" && chown -R 1001:1001 "$LOWER/lm/big" || fail lm-memcg-owners
+    mount -t moobfs_layer -o lower="$LOWER/lm",domain_depth=1 none "$LAYER" || fail lm-memcg-mount
+    lm_cg="$lm_cgroot/hold"
+    mkdir "$lm_cg" && echo 16777216 > "$lm_cg/memory.max" || fail lm-hold-cgroup
+    "$BIN/memcg-query" hold "$lm_cg" "$LAYER/empty" > /tmp/lm-hold.txt 2>&1 &
+    lm_pid=$!
+    lm_wait=0
+    while ! grep -q '^MEMCG_HOLD_' /tmp/lm-hold.txt && kill -0 "$lm_pid" 2> /dev/null &&
+        [ "$lm_wait" -lt 120 ]; do
+        sleep 1; lm_wait=$((lm_wait + 1))
+    done
+    cat /tmp/lm-hold.txt
+    grep -q '^MEMCG_HOLD_CAPPED: ' /tmp/lm-hold.txt || { kill "$lm_pid" 2> /dev/null; fail lm-hold-not-capped; }
+    lm_held=$(sed -n 's/^MEMCG_HOLD_CAPPED: descriptors=\([0-9]*\) .*/\1/p' /tmp/lm-hold.txt)
+    lm_capped=$(cat "$lm_cg/memory.current") || fail lm-hold-current
+    "$BIN/query" --uid 1002 "$LAYER/u2" q2 kind exists - - | cut -f2 | sort > /tmp/lm.k || fail lm-u2-query
+    "$BIN/moobfs-index" --domain "$LOWER/lm/u2" kind exists - - | cut -f2 | sort > /tmp/lm.o || fail lm-u2-oracle
+    cmp -s /tmp/lm.k /tmp/lm.o && [ "$(wc -l < /tmp/lm.k)" -eq 20 ] ||
+        { kill "$lm_pid"; fail "lm-u2-differs kernel=$(wc -l < /tmp/lm.k) oracle=$(wc -l < /tmp/lm.o)"; }
+    kill -0 "$lm_pid" || fail lm-holder-gone-before-the-other-uid
+    kill "$lm_pid" && wait "$lm_pid"
+    lm_freed=$(cat "$lm_cg/memory.current") || fail lm-freed-current
+    [ "$lm_freed" -lt 2097152 ] || fail "lm-buffers-not-freed current=$lm_freed"
+    rmdir "$lm_cg" || fail lm-hold-cgroup-cleanup
+    lm_cg="$lm_cgroot/build"
+    mkdir "$lm_cg" && echo 4194304 > "$lm_cg/memory.max" || fail lm-build-cgroup
+    lm_used=$(lm_info used)
+    lm_built=$(lm_info domains_built)
+    lm_builds=$(lm_info domain_builds)
+    "$BIN/memcg-query" build "$lm_cg" "$LAYER/big" || fail lm-build-not-capped
+    [ "$(lm_info used)" -eq "$lm_used" ] && [ "$(lm_info domains_built)" -eq "$lm_built" ] &&
+        [ "$(lm_info domain_builds)" -eq "$lm_builds" ] ||
+        { "$BIN/query" "$LAYER" info; fail lm-capped-build-left-something; }
+    rmdir "$lm_cg" || fail lm-build-cgroup-cleanup
+    "$BIN/query-build-cost" "$LAYER/big" 1001 big-outside-the-cgroup > /dev/null || fail lm-big-outside
+    [ "$(lm_info domain_builds)" -eq $((lm_builds + 1)) ] || fail lm-big-not-built-outside
+    lm_big=$(($(lm_info used) - lm_used))
+    umount "$LAYER" && umount "$lm_cgroot" && rmdir "$lm_cgroot" || fail lm-memcg-cleanup
+    echo "LIMITS_MEMCG_PASS: $lm_held retained buffers filled a 16 MiB cgroup (current=$lm_capped) until ENOMEM; uid 1002 answered meanwhile; freed to $lm_freed; a $lm_big-byte build refused with ENOMEM in a 4 MiB cgroup and built outside it"
+fi
+rm -rf "$LOWER/lm" && umount "$LOWER" || fail lm-cleanup
+fi
 if [ -n "${MOOB_ONLY:-}" ] && want builddenial; then
 # Compare the same cold 17,000-file QUERY2 with the pre-limit and limited
 # modules. The helper accepts only a complete empty answer or E2BIG with
@@ -1915,6 +2030,75 @@ bdn_raw_after=$(awk '{print $3}' /sys/block/vda/stat)
 [ "$bdn_raw_after" -gt "$bdn_raw_before" ] || fail bdn-block-counter-no-increase
 echo "BUILD_DENIAL_DEVICE_CONTROL: raw device read advanced sectors by $((bdn_raw_after - bdn_raw_before))"
 echo "BUILD_DENIAL_OBSERVED: 17000 empty files, one cold query, outcome=$bdn_result"
+fi
+if [ -n "${MOOB_ONLY:-}" ] && want mountscale; then
+# S9 (journal 0235): the mount does not scan the lower (ADR-0012; moobl_index_mount() reads
+# only whether the lower root answers listxattr). Mount and unmount are timed over a lower of
+# about 100, 50,100 and 200,100 files, with the index (default) and with noindex, five times
+# each, cold (caches dropped, lower mounted again) and warm. At each scale the first QUERY2 of
+# the bulk domain is measured: over index_build_work it is refused with E2BIG and nothing is
+# built, while a small domain is answered. Optional: it formats the ext4 disk with 210,000
+# inodes of 128 bytes, and the timings are those of a guest that may share its host.
+"$TOOLS/mke2fs" -q -F -t ext4 -b 4096 -I 128 -N 210000 "$DEV_EXT4" || fail ms-format
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail ms-lower-mount
+mkdir -p "$LOWER/ms/big/p0" "$LOWER/ms/big/p1" "$LOWER/ms/big/p2" "$LOWER/ms/small" || fail ms-directories
+"$BIN/overbudget-race" plant "$LOWER/ms/small" 100 || fail ms-plant-small
+sync && umount "$LOWER" || fail ms-lower-unmount
+ms_info() { "$BIN/query" "$LAYER" info | tr ' ' '\n' | sed -n "s/^$1=//p" | head -1; }
+ms_round() {   # files
+    for ms_rep in 1 2 3 4 5; do
+        for ms_mode in default noindex; do
+            ms_opts=domain_depth=1
+            [ "$ms_mode" = noindex ] && ms_opts=domain_depth=1,noindex
+            echo 3 > /proc/sys/vm/drop_caches || return 1
+            mount -t ext4 "$DEV_EXT4" "$LOWER" || return 1
+            for ms_cache in cold warm; do
+                ms_r=$("$BIN/mount-scale" mount "$LOWER/ms" "$LAYER" "$ms_opts") || return 1
+                echo "MOUNT_SCALE_RESULT files=$1 mode=$ms_mode cache=$ms_cache rep=$ms_rep ${ms_r#MOUNT_SCALE op=mount }"
+                ms_r=$("$BIN/mount-scale" umount "$LAYER") || return 1
+                echo "MOUNT_SCALE_RESULT files=$1 mode=$ms_mode cache=$ms_cache rep=$ms_rep ${ms_r#MOUNT_SCALE }"
+            done
+            umount "$LOWER" || return 1
+        done
+    done
+    echo 3 > /proc/sys/vm/drop_caches || return 1
+    mount -t ext4 "$DEV_EXT4" "$LOWER" || return 1
+    mount -t moobfs_layer -o lower="$LOWER/ms",domain_depth=1 none "$LAYER" || return 1
+    ms_r=$("$BIN/query-build-denial" "$LAYER/big" 1001) || return 1
+    echo "MOUNT_SCALE_FIRST_QUERY files=$1 ${ms_r#QUERY_BUILD_DENIAL }"
+    case "$1:$ms_r" in
+        100:*"outcome=full "*) ms_big=1 ;;
+        100:*) echo "ms: the empty bulk domain was not answered"; return 1 ;;
+        *:*"outcome=denied "*) ms_big=0 ;;
+        *) echo "ms: the bulk domain over index_build_work was not refused with E2BIG"; return 1 ;;
+    esac
+    [ "$(ms_info domain_builds)" -eq "$ms_big" ] || return 1
+    ms_r=$("$BIN/query-build-cost" "$LAYER/small" 1001 small) || return 1
+    echo "MOUNT_SCALE_SMALL files=$1 ${ms_r#QUERY_BUILD_COST }"
+    [ "$(ms_info domain_builds)" -eq $((ms_big + 1)) ] || return 1
+    echo "MOUNT_SCALE_INDEX files=$1 used=$(ms_info used) domains_built=$(ms_info domains_built)"
+    if [ "$ms_big" -eq 0 ]; then
+        # the mount-wide QUERY of an administrator needs the bulk domain too: refused the same way
+        "$BIN/query" "$LAYER" kind exists - - > /dev/null 2> /tmp/ms-v1.err && return 1
+        grep -q 'Argument list too long' /tmp/ms-v1.err || { cat /tmp/ms-v1.err; return 1; }
+    fi
+    umount "$LAYER" || return 1
+    mount -t moobfs_layer -o lower="$LOWER/ms",domain_depth=1,noindex none "$LAYER" || return 1
+    [ "$("$BIN/query" --uid 1001 "$LAYER/small" q2errno kind exists - -)" = "q2 95" ] || return 1
+    umount "$LAYER" && umount "$LOWER"
+}
+ms_round 100 || fail ms-round-100
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail ms-lower-mount-50k
+"$BIN/query-build-limit" plant "$LOWER/ms/big/p0" 50000 || fail ms-plant-50k
+sync && umount "$LOWER" || fail ms-lower-unmount-50k
+ms_round 50100 || fail ms-round-50k
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail ms-lower-mount-200k
+"$BIN/query-build-limit" plant "$LOWER/ms/big/p1" 100000 &&
+    "$BIN/query-build-limit" plant "$LOWER/ms/big/p2" 50000 || fail ms-plant-200k
+df -i "$LOWER" | tail -1
+sync && umount "$LOWER" || fail ms-lower-unmount-200k
+ms_round 200100 || fail ms-round-200k
+echo "MOUNT_SCALE_OBSERVED: mount and unmount over 100, 50100 and 200100 files, with and without noindex; first query of the bulk domain refused with E2BIG above index_build_work"
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildclient; then
 # Journal 0068 measured 60,000 client pages in ten similarly sized domains,

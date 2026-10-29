@@ -162,3 +162,43 @@ produces a document that strict JSON parsers reject; `moobfs query --json` behav
 | 1 | privilege change or walk failed |
 | 64 | usage error |
 | 65 | invalid query terms |
+
+## Walking a tree other users can write
+
+`moobfs-check` and `moobfs-index` can be run by root over a lower directory that other users
+write, such as a shared domain (`2770`, no sticky bit, `docs/operations.md`). Since journal 0232
+they walk by directory descriptor (`tools/walk.h`), as the Python scan (journal 0231) and the MCP
+server (journal 0227) do:
+
+- Below the directory argument no name is resolved through a path. Each entry is looked at with
+  `fstatat(..., AT_SYMLINK_NOFOLLOW)` relative to its directory's descriptor and opened relative
+  to it with `O_NOFOLLOW`; its mode, owner, link count, inode number, access ACL and typed
+  attributes come from that descriptor (`fstat`, `fgetxattr`, `flistxattr`), and a directory is
+  listed through the descriptor that was judged. A directory or file swapped for a symbolic link
+  between two steps (`renameat2(RENAME_EXCHANGE)`) is then left out, never followed: the tools
+  do not report, under a name inside the tree, an inode outside it. Before, `nftw()` and the
+  reads by path could (`tests/tools-walk.sh` shows it on the old tools).
+- Symbolic links are not reported, as before; a symbolic link given as the directory argument,
+  with or without a trailing slash, is not walked, and entries on other filesystems are skipped.
+- A FIFO, socket or device, and a regular file the caller may not open for reading (a run as a
+  user other than root, or `--uid`), get an `O_PATH` descriptor, which opens nothing; their
+  attributes are read through `/proc/self/fd/N`, which reaches the same inode with the same
+  permission check as a read by path. Without `/proc` those reads fail and are reported as
+  unreadable.
+- The walk holds at most 32 directory descriptors, as `nftw(..., 32, ...)` did: deeper, it closes
+  the shallowest one and reopens it by name from the root down when it is needed again, checking
+  at each level that it is still the directory it judged. One that is not ends its listing with
+  a line on standard error.
+
+For a tree that does not change, the output (text, JSON and exit status) is the one the
+`nftw()` walk gave. Limits:
+
+- The directory argument itself is opened by its path; whoever controls the directories above it
+  controls which tree is walked. `moobfs-check` also reads the format marker by that path.
+- A tree that changes during the walk has no defined answer: a directory moved elsewhere after it
+  was opened is still walked under its old name, and a `chmod` between the judgement and the
+  read is not seen (the kernel's index is also built from the state it sees).
+- Each directory and regular file is opened for reading, which an `fanotify` permission watcher
+  sees. A regular file replaced by a device node between `fstatat` and `open` is opened
+  (`O_NONBLOCK | O_NOCTTY`) and closed at once by the identity check; placing a device node in the
+  tree needs `CAP_MKNOD`, or a hard link that `fs.protected_hardlinks` refuses to other users.

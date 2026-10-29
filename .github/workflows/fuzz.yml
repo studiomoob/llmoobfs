@@ -1,0 +1,88 @@
+name: Long fuzzing
+# The libFuzzer targets of `make fuzz` (tests/fuzz_attr.c, tests/fuzz_image.c, tests/fuzz_tools.c)
+# for much longer than the 30 s of CI, twice a week and on demand (security roadmap S7, journal
+# 0237); twice, because the Actions cache drops an entry not read for seven days.
+# Each target runs in its own job; its corpus is kept between runs in the Actions cache (restored
+# from the newest earlier run, merged down to a minimal set, saved under this run's id) and
+# uploaded with any crash as an artifact. A crash fails the job; the reproducer is the artifact's
+# crash-* file, replayed with `build/host/fuzz_<target> <file>`. The job summary holds the exec
+# count and coverage that the journal of a reviewed run copies. Not a required check.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: 'Minutes of fuzzing per target (1-300)'
+        default: '45'
+  schedule:
+    - cron: '41 4 * * 3,6'
+permissions:
+  contents: read
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  fuzz:
+    name: Fuzz ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [attr, image, tools]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Restore the corpus of the last run
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/host/fuzz-corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+      - name: Fuzz
+        shell: bash   # -o pipefail: a crash fails the step through tee
+        env:
+          MINUTES: ${{ github.event.inputs.minutes || '45' }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          case "$MINUTES" in ''|*[!0-9]*) echo "minutes must be a number: $MINUTES" >&2; exit 1 ;; esac
+          [ "$MINUTES" -ge 1 ] && [ "$MINUTES" -le 300 ] || { echo "minutes out of 1-300" >&2; exit 1; }
+          mkdir -p build/host/fuzz-corpus/"$TARGET"
+          echo "corpus before: $(find build/host/fuzz-corpus/"$TARGET" -type f | wc -l) files"
+          make fuzz FUZZ_TARGETS="$TARGET" FUZZ_TIME=$((MINUTES * 60)) 2>&1 | tee build/host/fuzz-"$TARGET".log
+      - name: Merge the corpus to a minimal set
+        if: always()
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          [ -x build/host/fuzz_"$TARGET" ] || exit 0
+          mkdir -p build/host/fuzz-merged
+          build/host/fuzz_"$TARGET" -merge=1 build/host/fuzz-merged build/host/fuzz-corpus/"$TARGET" tests/fuzz-corpus/"$TARGET" > build/host/fuzz-merge.log 2>&1 || true
+          if [ -n "$(ls -A build/host/fuzz-merged)" ]; then
+            rm -rf build/host/fuzz-corpus/"$TARGET" && mv build/host/fuzz-merged build/host/fuzz-corpus/"$TARGET"
+          fi
+          {
+            echo "### Fuzz target \`$TARGET\`"
+            echo '```'
+            grep -E '^#[0-9]+.*DONE|^stat::|^Done|ERROR: |^SUMMARY:' build/host/fuzz-"$TARGET".log || echo "no final statistics (see the log)"
+            echo "corpus after merge: $(find build/host/fuzz-corpus/"$TARGET" -type f | wc -l) files"
+            ls build/host/fuzz-crashes 2>/dev/null | sed 's/^/crash file: /'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Save the corpus for the next run
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/host/fuzz-corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+      - name: Preserve the corpus, crashes and log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: |
+            build/host/fuzz-corpus/${{ matrix.target }}
+            build/host/fuzz-crashes
+            build/host/fuzz-${{ matrix.target }}.log
+          if-no-files-found: warn
+          retention-days: 30

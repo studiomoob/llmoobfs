@@ -11,6 +11,10 @@
  *                                               tree cannot be walked
  *   hostile marker <lower-dir> <text>|--size N  set user.moob.format on the lower root to the
  *                                               text, or to N bytes of '1'
+ *   hostile swap <dir> <a> <b> <seconds>        exchange the names a and b in dir with
+ *                                               renameat2(RENAME_EXCHANGE) for that long: a
+ *                                               directory and a symbolic link to somewhere else
+ *                                               trade places under a walking tool (journal 0232)
  *
  * Names: a pool the queries of vm/suite.sh ask for (k0..k5) and names the layer must skip
  * (upper case, other punctuation, leading, trailing and double dots, 65 bytes or more).
@@ -32,6 +36,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
+#include <time.h>
+#include <sys/syscall.h>
 
 static uint64_t state;
 
@@ -215,12 +221,38 @@ static int probe(const char *dir)
 	return 0;
 }
 
+#ifndef RENAME_EXCHANGE
+#define RENAME_EXCHANGE (1 << 1)
+#endif
+/* Exchange two names until the time is up; prints how many exchanges were made. */
+static int swap(const char *dir, const char *a, const char *b, long seconds)
+{
+	time_t end = time(NULL) + seconds;
+	unsigned long n = 0;
+	int fd = open(dir, O_RDONLY | O_DIRECTORY);
+
+	if (fd < 0) { perror(dir); return 1; }
+	while (time(NULL) < end) {
+		unsigned i;
+
+		for (i = 0; i < 1000; i++, n++)
+			if (syscall(SYS_renameat2, fd, a, fd, b, RENAME_EXCHANGE)) {
+				perror("renameat2(RENAME_EXCHANGE)");
+				return 1;
+			}
+	}
+	printf("HOSTILE_SWAP: exchanges=%lu\n", n);
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc == 5 && (!strcmp(argv[1], "plant") || !strcmp(argv[1], "mutate"))) {
 		state = strtoull(argv[3], NULL, 10) * 2654435761ULL + (argv[1][0] == 'm');
 		return plant(argv[2], (unsigned)strtoul(argv[4], NULL, 10), argv[1][0] == 'm');
 	}
+	if (argc == 6 && !strcmp(argv[1], "swap"))
+		return swap(argv[2], argv[3], argv[4], strtol(argv[5], NULL, 10));
 	if (argc == 3 && !strcmp(argv[1], "probe")) {
 		if (probe(argv[2])) return 1;
 		printf("HOSTILE_PROBE: entries=%lu attributes_read=%lu\n", entries, attrs_read);
@@ -244,6 +276,6 @@ int main(int argc, char **argv)
 		if (lsetxattr(argv[2], "user.moob.format", buf, n, 0)) { perror("format marker"); return 1; }
 		return 0;
 	}
-	fprintf(stderr, "usage: hostile plant|mutate <lower-dir> <seed> <files> | probe <dir> | marker <lower-dir> <text>|--size N\n");
+	fprintf(stderr, "usage: hostile plant|mutate <lower-dir> <seed> <files> | probe <dir> | marker <lower-dir> <text>|--size N | swap <dir> <a> <b> <seconds>\n");
 	return 64;
 }

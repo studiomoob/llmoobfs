@@ -19,6 +19,10 @@ Later campaigns ran on a dedicated host (journal 0042) and have a directory each
 named `2026-10-12-macmini-*`, `2026-10-13-macmini-*` and `2026-10-14-macmini-*`, with their own `README.md`; the table
 above was not extended for them.
 
+The weekly benchmark workflow (`.github/workflows/bench.yml`, journal 0238) does not add
+campaigns here: its results stay Actions artifacts (`bench-ondemand-<fs>`, 90 days), since they
+are a trend monitor on GitHub's shared runners, not reference measurements.
+
 ## Raw archives
 
 The raw records (`*.rec`, SQLite databases, manifests, `perf.data`) are too large for Git. They

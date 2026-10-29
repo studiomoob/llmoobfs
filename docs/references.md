@@ -853,3 +853,166 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   a directory descriptor since 3.7 (entries then carry names only, and `DirEntry.is_dir()` and
   `is_file()` with `follow_symlinks=False` use the directory's descriptor), and the `dir_fd`
   parameters of `os.open` and `os.access` ([paths relative to directory descriptors](https://docs.python.org/3/library/os.html#dir-fd)).
+
+## 30. moobfs-check and moobfs-index walked by directory descriptor (journal 0232)
+
+- glibc's `nftw()`, `io/ftw.c` at glibc 2.41 (the C library of the dedicated host, Debian
+  `2.41-12+deb13u4`; [source](https://sourceware.org/git/?p=glibc.git;a=blob;f=io/ftw.c;hb=refs/tags/glibc-2.41)):
+  what the new walk keeps for a tree that does not change. The trailing slashes of the root are
+  stripped before the first `lstat` (`:660`), so a link written `link/` is reported as `FTW_SL`;
+  an entry that cannot be stat'ed for `EACCES` or `ENOENT` is `FTW_NS`, another error stops the
+  walk (`:428`); with `FTW_MOUNT` an entry on another device is skipped, not reported (`:461`); a
+  directory that cannot be opened for `EACCES` is `FTW_DNR` before any `FTW_D` (`:501`); and a
+  child's path is the parent's with one `/` (`:541`). Its subdirectories are opened by the full
+  path, which is where a directory swapped for a link is followed.
+- `fgetxattr` and `flistxattr`, `fs/xattr.c:809` and `:883`, Linux 6.12.112
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/xattr.c)): they take the file
+  with `CLASS(fd)`, which is `fdget()`, and `fdget()` refuses an `O_PATH` file
+  (`__fget_light(fd, FMODE_PATH)`, `fs/file.c:1135`), hence `EBADF`. `xattr_permission()`
+  (`fs/xattr.c:147`) answers `ENODATA` for a `user.` attribute of a FIFO, socket or device, so
+  such entries carry no typed attribute.
+- `proc_fd_permission()` and `proc_fd_link()`, `fs/proc/fd.c:331` and `:175`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/proc/fd.c)): `/proc/self/fd/N`
+  resolves to the open file's own path (a magic link, no lookup of the names above it), and the
+  process may always reach its own descriptors, also after `setuid()` (checked on the dedicated
+  host: `getxattr` on `/proc/self/fd/N` after dropping from root to uid 1001 answered
+  `ENODATA`, not `EACCES`). The walk reads an `O_PATH` entry's attributes this way.
+- [`renameat2(2)`](https://man7.org/linux/man-pages/man2/rename.2.html) with `RENAME_EXCHANGE`:
+  the atomic exchange of a directory and a symbolic link that `hostile swap` runs against the
+  tools, as the Python tests of journals 0227 and 0231 do.
+- The same `O_NOFOLLOW`, `ELOOP` and `ENOTDIR` behaviour of `do_open()` and `may_open()` as §29,
+  and `O_NONBLOCK` for a FIFO swapped in (`fifo_open()`, §24).
+## 31. Splice and sendfile in the set-user-ID check (issue #168, journal 0233)
+
+- `do_sendfile()`, `fs/read_write.c:1315`, Linux 6.12.111 (the Debian kernel of `make vm-test`;
+  [source](https://github.com/gregkh/linux/blob/v6.12.111/fs/read_write.c)): when the output is
+  not a pipe, `sendfile(2)` calls `do_splice_direct()` (`:1388`), which reaches the output file's
+  `->splice_write` through `direct_splice_actor()` and `do_splice_from()` (`fs/splice.c:1160` and
+  `:939`, same tree; [source](https://github.com/gregkh/linux/blob/v6.12.111/fs/splice.c)).
+  `splice(2)` from a pipe to a file reaches the same `do_splice_from()` from `do_splice()`
+  (`:1308`, `:1357`). So both exercise `moobl_splice_write()`, which `write(2)` and
+  `copy_file_range(2)` do not.
+- `backing_file_splice_write()`, `fs/backing-file.c:298`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/backing-file.c)): calls
+  `file_remove_privs()` on the layer's file (`:312`), then writes to the lower file under the
+  credentials the layer passes (`override_creds()`, `:316`); the lower's own removal of
+  set-user-ID then runs under those credentials, which is what journal 0218 changed.
+## 32. Lowers without inode generations and `EXT4_IOC_SETVERSION` (issue #168, journal 0234)
+
+- `ext4_ioctl()`, `fs/ext4/ioctl.c:1250` to `:1295`, Linux 6.12.112 (the tree the KASAN harness
+  builds; [source](https://github.com/gregkh/linux/blob/v6.12.112/fs/ext4/ioctl.c)):
+  `EXT4_IOC_GETVERSION` returns `i_generation` to any caller with an open descriptor;
+  `EXT4_IOC_SETVERSION` and `EXT4_IOC_SETVERSION_OLD` (= `FS_IOC_SETVERSION`,
+  `include/uapi/linux/fs.h:226`; numbers in `include/uapi/linux/ext4.h:13` to `:16`) set it
+  after `inode_owner_or_capable()` and return `ENOTTY` when the filesystem has `metadata_csum`
+  (`:1263`).
+- `inode_init_always_gfp()`, `fs/inode.c:184`, same tree: every new VFS inode starts with
+  `i_generation` 0; `fs/nfs/inode.c` never assigns it.
+- `fuse_iget()`, `fs/fuse/inode.c:500`, same tree: the generation is the one the FUSE server sent.
+- `__shmem_get_inode()`, `mm/shmem.c:2898`, same tree: tmpfs gives a new inode a random
+  generation (`get_random_u32()`), as ext4 does (§17).
+## 33. The remaining S9 limits (ADR-0029, journal 0235)
+
+All in Linux 6.12.112, the tree the KASAN harness builds
+([source](https://github.com/gregkh/linux/tree/v6.12.112)); the Debian guest of `make vm-test`
+runs 6.12.111.
+
+- `try_charge_memcg()`, `mm/memcontrol.c:2169`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/mm/memcontrol.c)): a charge over
+  `memory.max` reclaims, calls the cgroup's OOM killer through `mem_cgroup_oom()` (`:1617`), and
+  returns `-ENOMEM` when that kills nothing. `tests/memcg-query.c` (`hold`, `build`) relies on
+  it: with `oom_score_adj` at −1000 the cap is seen as `ENOMEM`.
+- `out_of_memory()`, `mm/oom_kill.c:1113`, and its "no killable processes" branch (`:1166`),
+  which panics only for a global OOM; `oom_badness()` (`:203`), which scores a process by its
+  RSS, swap entries and page tables, not by kernel memory its open files pin
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/mm/oom_kill.c)).
+- `kmalloc_gfp_adjust()` and `__kvmalloc_node_noprof()`, `mm/util.c:611` and `:650`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/mm/util.c)): a contiguous attempt
+  with `__GFP_NORETRY | __GFP_NOWARN`, then `vmalloc` with the caller's flags; why the
+  1,114,112-byte retained buffer takes about 2 MiB when contiguous memory is free.
+- `too_many_pipe_buffers_soft()` and `pipe_user_pages_soft`, `fs/pipe.c:771` and `:60`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/pipe.c)): the per-user soft limit
+  past which an unprivileged user's new pipe gets one page; the alternative ADR-0029 keeps for a
+  per-user count of retained query buffers.
+## 34. Reproducible build of the module and the packages (S10, journal 0236)
+
+- `Documentation/kbuild/reproducible-builds.rst`, Linux 6.12.112 (the tree the KASAN harness
+  builds; [source](https://github.com/gregkh/linux/blob/v6.12.112/Documentation/kbuild/reproducible-builds.rst)):
+  `KBUILD_BUILD_TIMESTAMP`, `KBUILD_BUILD_USER` and `KBUILD_BUILD_HOST` (they reach `uname`, the
+  initramfs and kheaders, none of which a module has); absolute file names of an out-of-tree build
+  in the debug information, to be overridden with a prefix map in `KCFLAGS`; `__DATE__` and
+  `__TIME__` refused by the kernel's own flags; module signing as the part that cannot be
+  reproduced without the key.
+- `Makefile:1031` of the same tree: Kbuild passes `-fmacro-prefix-map=$(srctree)/=` for the kernel
+  tree only, so `__FILE__` in an external module keeps its absolute path; `scripts/Makefile.extrawarn:94`
+  adds `-Werror=date-time`. `scripts/Makefile.modfinal:28` compiles `<module>.mod.c` with
+  `c_flags` without reading the module's own Kbuild file, which is why the prefix map goes in
+  `KCFLAGS` and not in `layer/Makefile` (journal 0236).
+- `include/linux/module_signature.h` of the same tree: the appended signature is the signature
+  data, a 12-byte `struct module_signature` whose last field is the big-endian `sig_len`, and the
+  marker `~Module signature appended~\n`; how `scripts/repro-ko.sh` removes it.
+- GCC 14 manual, [`-ffile-prefix-map`](https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Overall-Options.html#index-ffile-prefix-map)
+  (both `-fdebug-prefix-map` and `-fmacro-prefix-map`).
+- Reproducible Builds project: [build path](https://reproducible-builds.org/docs/build-path/),
+  [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/) and
+  [diffoscope](https://diffoscope.org/) (Debian `diffoscope-minimal` 297), used to find what
+  differed.
+- `dpkg-buildflags(1)`, dpkg 1.22.22: the `reproducible` feature area, whose `fixfilepath`
+  (on by default) adds `-ffile-prefix-map=<build dir>=.` to `CFLAGS`, and `dpkg-buildpackage(1)`,
+  which sets `SOURCE_DATE_EPOCH` from the changelog date when it is not set; `dh_builddeb` and
+  `dpkg-deb` clamp file times to it.
+## 35. Longer fuzzing and runtime hardening (security roadmap S7 and S8, journal 0237)
+
+- libFuzzer, LLVM ([documentation](https://llvm.org/docs/LibFuzzer.html)), as shipped by clang
+  19 on Debian 13 and by the clang of the `ubuntu-24.04` runner: `-max_total_time`,
+  `-max_len`, `-artifact_prefix`, `-print_final_stats` and corpus merging with `-merge=1`, used
+  by `make fuzz` and `.github/workflows/fuzz.yml`. The first corpus directory is the one new
+  inputs are written to, why `make fuzz` now lists `build/host/fuzz-corpus/<target>` first.
+- `actions/cache` v6.1.0 ([tips and workarounds, "Update a cache"](https://github.com/actions/cache/blob/main/tips-and-workarounds.md)):
+  a cache entry is immutable, so a key unique per run (`github.run_id`) with `restore-keys` on
+  the prefix carries a corpus forward; the separate `restore` and `save` actions let the save
+  run after a failed (crashing) fuzz step. Entries unread for seven days are evicted
+  ([cache limits](https://github.com/actions/cache/blob/main/README.md#cache-limits)), why the
+  workflow runs twice a week.
+- OSS-Fuzz ([new project guide](https://google.github.io/oss-fuzz/getting-started/new-project-guide/))
+  and ClusterFuzzLite ([documentation](https://google.github.io/clusterfuzzlite/)): what an
+  integration would need (`project.yaml`, `Dockerfile`, `build.sh` with `$LIB_FUZZING_ENGINE`
+  and `<target>_seed_corpus.zip`); drafted in the journal, not applied.
+- Janus and Hydra (§ "Security roadmap (proposal)" above), and LFUZZ as journal 0017 names it: weighed in the journal
+  for image-plus-syscall fuzzing of the lower tree; not adopted.
+- Linux 6.12.112, the tree the KASAN harness builds
+  ([source](https://github.com/gregkh/linux/tree/v6.12.112)): `__check_object_size()` and
+  `check_heap_object()`, `mm/usercopy.c:213` and `:162` (`CONFIG_HARDENED_USERCOPY`, bounds of a
+  `copy_to_user`/`copy_from_user` against the slab object, the stack frame or the vmalloc area);
+  `__fortify_report()` and `__fortify_panic()`, `lib/string_helpers.c:1025` and `:1037`
+  (`CONFIG_FORTIFY_SOURCE`); `__list_add_valid_or_report()`, `lib/list_debug.c:22`, which
+  `CONFIG_BUG_ON_DATA_CORRUPTION` turns into a `BUG`; `refcount_warn_saturate()`,
+  `lib/refcount.c:13`, the saturation warning every `refcount_t` has had since 5.x without an
+  option; the Kconfig entries `security/Kconfig:162`, `:174`, `security/Kconfig.hardening:227`,
+  `:240`, `:293`, `mm/Kconfig:272`, `:280`, `lib/Kconfig.debug:727`, `:752`, `:793` and
+  `lib/Kconfig.kfence:28` (default sample interval 100 ms);
+  `Documentation/dev-tools/kfence.rst` (KFENCE is off when `kfence.sample_interval` is 0) and
+  `Documentation/core-api/debug-objects.rst`.
+- Debian's kernel configuration `/boot/config-6.12.113+deb13-amd64` of the package
+  `linux-image-6.12.113+deb13-amd64` 6.12.113-1, the kernel of the `Native Linux VM (Debian
+  6.12.113)` job: the hardening it enables, compared option by option in the journal.
+- Kernel Self Protection Project, [recommended settings](https://kspp.github.io/Recommended_Settings)
+  (the list the S8 options come from).
+## 36. The weekly benchmark workflow (journal 0238)
+
+- thumbor's release workflow, `.github/workflows/release.yml`
+  ([source](https://github.com/thumbor/thumbor/blob/master/.github/workflows/release.yml),
+  MIT): one job definition with a `strategy.matrix` over the variants (operating system, Python
+  version, platform). Suggested by the external reviewer as the pattern; `bench.yml` uses one
+  axis, the lower filesystem, with `fail-fast: false`.
+- GitHub, [GitHub-hosted runners reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners):
+  the standard `ubuntu-24.04` runner of a public repository has 4 CPUs, 16 GB of RAM and 14 GB
+  of SSD (read on 2026-10-29); the machine behind it is not fixed, which is why the workflow
+  records it on every run.
+- GitHub changelog, [hardware-accelerated Android virtualization on Linux runners](https://github.blog/changelog/2024-04-02-github-actions-hardware-accelerated-android-virtualization-now-available/)
+  (2024-04-02): the Linux runners expose KVM, and the udev rule
+  `KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"` lets an unprivileged
+  QEMU use it, as `interop.yml` already does. GitHub's arm64 runners exposed no `/dev/kvm`
+  (journal 0124), so arm64 is not in the matrix.
+- [actionlint](https://github.com/rhysd/actionlint) 1.7.7 (MIT), run locally from the
+  `rhysd/actionlint` image pinned by digest, to check the workflow; not part of CI.

@@ -41,6 +41,16 @@ There are three interfaces, each with its own version and its own rule.
    install from the 2026-10-21 cloud image is now accepted by `make install` as it is.
 4. Lower filesystems: ext4, btrfs and XFS, on a local block device. A network or FUSE filesystem
    as the lower is unsupported.
+   *Note, 2026-10-29 (journal 0234):* one reason is now part of the rule. Since journal 0216
+   (GHSA-756j-cgwq-gvwm) domain and file records keep the lower inode's `i_generation` and are
+   rebuilt or dropped when it differs, which detects an inode number reused after a removal
+   behind the layer. A supported lower must therefore give each new inode a generation: ext4
+   (random), XFS (random on v5 without `ikeep`, otherwise bumped on free) and btrfs (the creating
+   transaction) do in Linux 6.12.112. The NFS client leaves it 0 for every inode, and FUSE takes
+   the server's value, 0 in libfuse unless the filesystem fills it; over them a reused number is
+   not detected. On ext4 without `metadata_csum` (not the `mke2fs` default) the owner of an inode
+   can set its generation with `EXT4_IOC_SETVERSION` directly on the lower, which can make stale
+   records current again; [when-not-to-use.md](when-not-to-use.md) §3 gives the details.
 5. Architecture: x86-64 only until another one runs the same two jobs.
 
 ## 2. Attribute encoding (what is on disk)

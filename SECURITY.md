@@ -196,8 +196,8 @@ experimental work and rebuild-frequency limits
 and a per-mount `index_build_work` choice of 1,024–65,536 units, default
 32,768 ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md),
 [PR 138](https://github.com/studiomoob/llmoobfs/pull/138)).
-They do not strictly cap CPU time or physical I/O, nor provide fair index
-memory shares. The default still denies the measured valid 17,000-file
+They do not strictly cap CPU time or physical I/O; fair index-memory shares
+came with ADR-0027, and the caps of S9 were tested when hit in journal 0235. The default still denies the measured valid 17,000-file
 domain with `E2BIG`; 65,536 completed that fixture in a dedicated VM.
 Over a lower slowed by `dm-delay` the first build of a 5,000-file domain took
 9.8 s at 200 ms per I/O and stopped at the deadline with `ETIMEDOUT`, with no

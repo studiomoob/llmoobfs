@@ -5,7 +5,9 @@ help is wanted) are stated in many places. `AGENTS.md` asks that a change of sta
 place that states it, in the same unit of work, so that no surface contradicts another. This file
 is the inventory; walk it when closing a batch, a merge, a finding or a publication. Two checks
 in CI enforce part of it: `scripts/check-retired-claims.sh` (no claim listed in
-`docs/retired-claims.txt` may appear in a current-state document) and `scripts/site-faq.py --check`
+`docs/retired-claims.txt` may appear in a current-state document; of `docs/security-roadmap.md`
+and `docs/adoption-risks.md`, whose dated history keeps old claims, only the section between
+`<!-- current-state -->` and `<!-- /current-state -->` is read, journal 0234) and `scripts/site-faq.py --check`
 (the FAQ page is generated from `docs/faq.md`). Walking it also means closing what is done or
 obsolete: issues whose acceptance is met or whose premise no longer holds, finished calls.
 

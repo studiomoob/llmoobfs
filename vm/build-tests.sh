@@ -23,6 +23,7 @@ t deadscan   -Iinclude tests/deadscan.c
 t rootpath-race -Iinclude tests/rootpath-race.c
 t overbudget-race -Iinclude tests/overbudget-race.c
 t memcg-query -Iinclude tests/memcg-query.c
+t mount-scale -Iinclude tests/mount-scale.c
 t query-build-cost -Iinclude tests/query-build-cost.c
 t query-build-denial -Iinclude tests/query-build-denial.c
 t query-build-limit -Iinclude tests/query-build-limit.c

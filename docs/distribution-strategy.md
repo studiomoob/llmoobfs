@@ -25,6 +25,11 @@ host's own DKMS key signs the module, and there is no project key (ADR-0028, dec
 below marked FUTURE for DKMS, packages and signing are now EXISTS in a VM; the `moobfs` CLI is
 item C4 (journal 0198).
 
+*Note, 2026-10-29 ([journal 0236](history/0236-reproducible-module-build.md)).* The unsigned
+module is built reproducibly: `make repro-test` builds it twice per listed kernel in clean
+containers and gets byte-identical files, and DKMS's `MAKE` line gives the same file; the two
+`.deb` packages are reproducible too. A row in section 6 records it.
+
 Legend:
 
 - **EXISTS**: it is in the repository and was exercised by the suite described in `docs/testing.md`.
@@ -348,6 +353,7 @@ with `EPERM`. Pending: KASAN on the branch and `chmod`/`rename`/`unlink` concurr
 | Packages | `moobfs-dkms` (sources + `dkms.conf`), `moobfs-tools` (`moobfs-attr`, `moobfs-check`, `moobfs-index`, future `moobfs`). Do not package `mkfs.moobfs`/`fsck.moobfs` (M1 frozen) by default | EXISTS in a VM, not published (ADR-0028) |
 | Kernel matrix | see table below | EXISTS (two rows) |
 | Signing | generate a project key for release builds; users with Secure Boot sign the DKMS `.ko` with their own MOK; `CONFIG_MODULE_SIG_FORCE` rejects unsigned modules | EXISTS in a VM with the host's own DKMS key, no project key (ADR-0028, decision 3; S10) |
+| Reproducible build | the same commit and kernel headers give the same unsigned `.ko`, whose hash is recorded; signing is applied afterwards | EXISTS in containers: `make repro-test`, two builds per listed kernel byte-identical, DKMS's `MAKE` line gives the same module, and the two `.deb` packages reproducible (journal 0236, S10) |
 
 Kernel matrix (what was actually run):
 
@@ -368,7 +374,7 @@ Kernel matrix (what was actually run):
 | Secure Boot/lockdown, production hosts, absence of syzkaller and fstests | module does not load without a signature; ioctl and xattr surface not fuzzed in the kernel | MOK signing; S2, S3, S10; do not use in production before the preview | MOK signing by the host's DKMS key EXISTS in a VM (ADR-0028); the rest FUTURE |
 | Root bypasses the layer | unrestricted read and write on the lower | document; dm-crypt/fscrypt; auditing | structural limit |
 | Lower modified with the layer mounted | stale index and paths; undefined behavior (overlayfs rule) | 0700 permissions; do not back up by writing; `moobfs-check` afterwards | EXISTS (rule); real-time detection does not exist |
-| Index memory | `index_budget` of up to 4 GiB per mount; several mounts add up; not verified whether the memory is accounted to a cgroup | per-mount budget; `GET_INFO` monitored; `MOOB_FLAG_INDEX_INCOMPLETE` | EXISTS (budget); per-user ceiling FUTURE (S9) |
+| Index memory | `index_budget` of up to 4 GiB per mount; several mounts add up; index and query buffers are charged to the caller's memory cgroup (ADR-0018) | per-mount budget and per-uid shares (ADR-0027); `GET_INFO` monitored; `memory.max` on the users' cgroups as the per-user ceiling, tested when hit (journal 0235) | EXISTS; S9 done with ADR-0029 (accepted 2026-10-29) |
 | Stale paths after renaming a directory | `QUERY` with false negatives until remount (`MOOB_FLAG_PATHS_STALE`) | avoid renaming namespace directories in production; remount afterwards; dentry alias covers cached entries | EXISTS (documented, measurement pending) |
 | TOCTOU between `QUERY` and `open()` | result listed and then refused | client handles `EACCES`/`ENOENT` | v1 contract |
 | Mount/userns/idmap | overlayfs CVE class avoided by flags turned off | flags turned off; `EINVAL` and `EPERM` tests in the suite (journal 0020) | EXISTS (code and test) |

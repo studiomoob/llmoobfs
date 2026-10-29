@@ -1,6 +1,9 @@
 # Security and robustness roadmap for the layer
 
 Status: **proposal** (2026-10-10). No item below marked "to do" has been implemented.
+*Note, 2026-10-29 (journal 0234):* that status line is the one of 2026-10-10. Most items have
+progressed or closed since, each with dated notes below; "Where each item stands" gives the
+current state in one place.
 Origin: the survey recorded in [docs/history/0017](history/0017-macos-and-security-posture.md),
 which compares MoobFS with the kernel documentation for new filesystems, with the filesystem
 fuzzing literature (Janus, Hydra, LFUZZ) and with the CVE history of overlayfs, eCryptfs,
@@ -14,7 +17,34 @@ edge, detectors in CI, continuous fuzzing, a minimal surface and a written threa
 crash triggerable by an ordinary user is a vulnerability (denial of service), even without an
 exploit, as the XFS and ext4 maintainers treat it.
 
+## Where each item stands (2026-10-29)
+
+<!-- current-state -->
+State on `main` at `7ac52cd`, summarised from the dated notes of each item below.
+
+| Item | State |
+| --- | --- |
+| S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer reported kernel defects privately; there is no independent human review of the whole kernel code. |
+| S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091); the `auto` group has not run. |
+| S3 syzkaller | Five six-hour runs; the handlers at 88.7 % of their PCs, above the threshold (journal 0143). Open: the per-function criterion, until a run's report shows `moobl_xattr_get()` covered (journal 0154). |
+| S4 hostile lower | Done for its scope (journal 0073). |
+| S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job; `sparse`, `smatch`, `W=1` and `kernel-doc` do not run in CI. |
+| S6 disclosure and versions | Done: `SECURITY.md` and [compatibility.md](compatibility.md); the KASAN/lockdep job is a required check of `main`. Open: a build-time refusal of an unlisted kernel (`make install` and the DKMS package refuse one, `make layer` does not). |
+| S7 continuous fuzzing | Three libFuzzer targets (attributes, the image parser, the tool parsers) run 30 s each per push, and `.github/workflows/fuzz.yml` runs them 45 min twice a week with a cached corpus (journal 0237); its first scheduled run is pending. Locally: 30–60 min per target, no crash. OSS-Fuzz is not applied for. |
+| S8 runtime hardening | KCSAN over `buildrace` and `release` in CI (journal 0127), with no race in the module; the KASAN kernel adds KFENCE, `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, freelist hardening, `BUG_ON_DATA_CORRUPTION` and `DEBUG_OBJECTS`, and the full suite passed under them (journal 0237); a read-only review found no defect. Open: KMSAN. |
+| S9 resource limits | Done (ADR-0029, accepted 2026-10-29; journal 0235): memory-cgroup charges (ADR-0018), bounded build work and rebuild frequency (ADR-0019, ADR-0020), fair shares of the index budget (ADR-0027) and the per-call result `limit`, each tested when hit (suite step `limits`); the mount scans nothing (`mountscale`). Residual: without `memory.max` on the users' cgroups a user can pin about 2 MiB of kernel memory per open descriptor; `docs/operations.md` §5 sets `MemoryMax=`. |
+| S10 signing and distribution | The done criterion is met in a VM (journal 0229, ADR-0028), and the unsigned `.ko` and the packages build reproducibly (`make repro-test`, journal 0236). Open: real firmware and hardware, a rebuild by a third party, no published package. |
+| S11 M3 and M4 surfaces | Nothing recorded yet. |
+| S12 SELinux | One run with SELinux enforcing (journal 0104): F6 and the labels read with the caller's credentials fixed; the rule `fs_use_xattr moobfs_layer` is needed. Open: mmap, attribute writes, rename and link under a policy, MLS/MCS, a distribution booted with SELinux, the per-result check over a lower labelled by SELinux (journal 0215), Smack; AppArmor is outside the item. |
+| S13 tracepoints | Done (journal 0102). |
+| S14 to S21 | Planned, not started; journal 0172 added bounded tests that do not complete S14 or S15. |
+| S22 security operations | Documented (journal 0205). Open: the subscriptions, which are the maintainer's action, and the re-read of the access table before each tag. |
+<!-- /current-state -->
+
 ## Current state (verified on 2026-10-10)
+
+*Note, 2026-10-29 (journal 0234):* this table is kept as verified on 2026-10-10; "Where each
+item stands" above is the current state.
 
 | Technique | Where | Status |
 | --- | --- | --- |
@@ -237,6 +267,18 @@ turning that rule on, and the build-time check of an unlisted kernel.
 
 ### S7. Continuous and larger fuzzing
 
+*Status, 2026-10-29 (journal 0237).* Workflow written, not yet run on GitHub: `fuzz.yml` runs
+each libFuzzer target 45 minutes (on demand 1 to 300) twice a week, keeps each corpus in the
+Actions cache from run to run and uploads it with any crash as an artifact; the job summary
+carries the exec count and coverage for the journal. Two targets were added, `image` (the image
+parser `common/format.c` that the M1 module and `fsck.moobfs` share) and `tools` (query terms
+and ACL values of the tools); `make fuzz` runs all three. Locally on the test host, with no
+crash: `attr` 258 million executions in 30 minutes, `image` 1.6 million in 60 minutes (every
+line of `common/format.c` reached), `tools` 66 million in 30 minutes. Janus, Hydra and LFUZZ
+were weighed and not adopted (journal 0237): the layer has no image of its own, and syzkaller
+(S3) and the hostile trees (S4) cover the system calls and the lower's attributes. Still open:
+the first scheduled run and its report in `docs/history/`.
+
 - Raise the libFuzzer `FUZZ_TIME` in a scheduled workflow; keep the corpus in an artifact.
 - Evaluate Janus/Hydra or LFUZZ for image-plus-syscall fuzzing over the lower layer mounted
   through the layer; record feasibility.
@@ -261,8 +303,37 @@ turning that rule on, and the build-time check of an unlisted kernel.
 - *Progress, 2026-10-18 (journal 0127):* the KCSAN run moves to CI (`.github/workflows/kcsan.yml`,
   on demand and weekly, a runner with KVM), with the report filter of journal 0115; it no longer
   needs the benchmark host.
+- *Progress, 2026-10-29 (journal 0237):* `vm/kasan.config` adds `FORTIFY_SOURCE`,
+  `HARDENED_USERCOPY`, `SLAB_FREELIST_HARDENED`, `SLAB_FREELIST_RANDOM`, `BUG_ON_DATA_CORRUPTION`,
+  KFENCE (100 ms), `SCHED_STACK_END_CHECK` and `DEBUG_OBJECTS` (`_FREE`, `_RCU_HEAD`), so the
+  KASAN suite builds and runs the module under them; the full suite passed locally with them
+  (`MOOBFS_KASAN_PASS`, KFENCE initialized, no report).
+  `INIT_ON_ALLOC_DEFAULT_ON` stays off in the KASAN kernel (zeroing would hide uninitialized
+  state from the detectors); the Debian 6.12.113 job already runs the whole suite on a kernel
+  with `init_on_alloc=1`, `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, `SLAB_FREELIST_HARDENED` and
+  `BUG_ON_DATA_CORRUPTION` (KFENCE built but off: sample interval 0). The `WARN_ON`/`pr_*`
+  review is complete: the module has only `WARN_ON_ONCE`, the messages a caller can repeat are
+  `_once` (journal 0221), and the one plain `pr_info` is printed at mount, which needs
+  `CAP_SYS_ADMIN` in the initial namespace (no `FS_USERNS_MOUNT`). Every `copy_to_user` is of
+  a fixed size or of a count bounded by its buffer; `refcount_t` is the only reference count.
+  The `KASAN and lockdep` workflow runs the new fragment on the batch's pull request (it touches
+  `vm/`); arm64 has not run it. Still open under S8: KMSAN.
 
 ### S9. Resource limits and denial of service
+
+*Remaining limits, 2026-10-29 ([ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md),
+proposed; journal 0235):* both bullets at the end of this section are met by bounds already in
+the code, now tested when hit and measured. The cap on `QUERY` results is the per-call `limit`
+(at most 4,096, the cursor beyond it); the per-user cap on query and index memory is the memory
+cgroup (ADR-0018) beside `index_budget` and the shares (ADR-0027). The new suite step `limits`
+(full suite) hits each cap: a domain larger than the whole budget, retained `QUERY2` buffers in
+a 16 MiB cgroup and a build in a 4 MiB cgroup are refused with `ENOMEM`, nothing answered or
+left built, another uid answered meanwhile. The mount scans nothing: the optional step
+`mountscale` measured the mount at 0.4 to 1.5 ms cold and 76 to 86 µs warm (medians) from 100 to
+200,100 files, with and without `noindex`, with no index memory; the first query of a domain
+over `index_build_work` was refused with `E2BIG` in about 0.5 s at 50,100 and 200,100 files.
+S9 is done: the maintainer accepted ADR-0029 on 2026-10-29. Residual risk: without a `memory.max` on the
+users' cgroups, an unprivileged user can pin about 2 MiB of kernel memory per open descriptor.
 
 *Fair shares, 2026-10-28 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md),
 journal 0228):* each domain counts its own bytes; a build that does not fit releases the
@@ -270,8 +341,8 @@ builder's own domains first and then, while the builder holds less than its shar
 divided by the uids with a built domain), the least recently queried domain of a uid holding
 more. The suite step `fairshare` checks both halves on ext4 and failed on the module before
 the change; `buildcostevict` follows the amended property. The G2 latency ceiling (protocol
-section 14) is measured in the same journal. Still open under S9: the per-mount and per-user
-cap on `QUERY` results, and the mount-time scan cost below.
+section 14) is measured in the same journal. The two bullets left at that date are answered by
+the paragraph above (journal 0235).
 
 *Local measurement, 2026-10-23 (journal 0182, issue 118):* bounded native-KVM
 probes measured first-build CPU and lower-device reads on 1,000- and
@@ -331,7 +402,12 @@ of this change was not run. G2 remains open.
   by `index_budget`; test the behavior when the cap is hit.
 - Cost of the mount-time scan with a large lower layer; `index=off` and a lazy index option
   as the escape hatch.
+  *Note, 2026-10-29 (journal 0234):* the lazy index exists since journal 0098 (ADR-0012):
+  nothing is scanned at mount, and the scan cost is paid by the first query on each domain, which
+  ADR-0019 and ADR-0020 bound.
 - Done when: limit tests in the suite and the numbers recorded.
+- *Progress, 2026-10-29 (journal 0235):* both bullets above tested and measured (`limits`,
+  `mountscale`); no new mechanism or option; done with ADR-0029, accepted on 2026-10-29.
 
 ### S10. Module signing and distribution
 
@@ -343,9 +419,17 @@ of this change was not run. G2 remains open.
 The done criterion is met in a VM: under UEFI Secure Boot with lockdown `integrity`, the module
 built and signed by DKMS from `moobfs-dkms` was refused before its key was enrolled and loaded
 after; an unsigned build of the same sources was refused (`make package-test`). Signing uses the
-host's own DKMS key, not a project key. Open: the reproducible build of the `.ko` with its hash
-recorded, real firmware and hardware, and MokManager's enrolment screen itself (the test writes
-the key into the firmware's `MokList`).
+host's own DKMS key, not a project key.
+
+*Update, 2026-10-29 ([journal 0236](history/0236-reproducible-module-build.md)).* The second item
+is done: `make repro-test` builds the unsigned `.ko` twice for each listed kernel, in two clean
+containers that differ in build path, user, host name, time zone, umask and time, and the
+results are byte-identical; the hashes for the commit are recorded in journal 0236. The build
+path reached the module through `__FILE__` and the debug information, and is now mapped away by
+`-ffile-prefix-map` in `make layer` and in the DKMS `MAKE` line, so a DKMS build gives the same
+unsigned module. The two `.deb` packages are reproducible too. Open: real firmware and
+hardware, MokManager's enrolment screen itself (the test writes the key into the firmware's
+`MokList`), and a rebuild by someone outside the project.
 
 ### S11. M3 and M4 surfaces
 
@@ -365,6 +449,9 @@ test is replaced (decision in journal 0097).
   the module does not work there (denials), or a confined process reaches through the layer a
   file that the policy would deny it directly. The second would be a security defect and
   belongs to the threat model (ADR-0011).
+  *Note, 2026-10-29 (journal 0234):* that sentence describes 2026-10-13, when the item was added.
+  Since journal 0104 (2026-10-14) the module has been loaded and tested with SELinux enforcing,
+  in a Debian 6.12.111 guest with the Debian reference policy (status line of this item).
 - One run of the suite on a distribution with SELinux enforcing, plus a test with a confined
   process and a file it may not read. Result in a journal.
 - Before designing anything: read how overlayfs handles labels and what the SELinux test suite

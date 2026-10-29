@@ -48,7 +48,7 @@ area/site:
 
 area/bench-m4:
   - changed-files:
-      - any-glob-to-any-file: ['bench/**', 'docs/bench*.md']
+      - any-glob-to-any-file: ['bench/**', 'docs/bench*.md', 'vm/bench-test/**', '.github/workflows/bench.yml']
 
 area/security:
   - changed-files:

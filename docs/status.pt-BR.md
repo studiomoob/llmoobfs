@@ -97,3 +97,15 @@ uid abaixo da dele, e um uid dentro da cota mantém os seus domínios
 roadmap: pacotes Debian `moobfs-dkms` e `moobfs-tools`, gerados com `make deb`, com o DKMS restrito
 aos kernels da lista e o módulo assinado pela chave DKMS do próprio host. Testados numa VM
 descartável Debian 13 com Secure Boot (`make package-test`); não publicados.
+*Atualização, 29/10/2026 ([diário 0235](history/0235-s9-remaining-limits.md)):* o restante do S9
+foi testado e medido sem mecanismo novo: um domínio maior que `index_budget`, buffers retidos do
+`QUERY2` e uma construção num cgroup de memória limitado são recusados com `ENOMEM` enquanto outro
+uid é respondido (passo `limits` da suíte), e a montagem não lê nada do disco inferior, de 0,4 a
+1,5 ms a frio de 100 a 200.100 arquivos (`mountscale`). Com a
+[ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md), aceita em 29/10/2026, o S9 está
+concluído; uma montagem compartilhada precisa de `memory.max` nos cgroups dos seus usuários
+(`docs/operations.md` §5).
+*Atualização, 29/10/2026 ([diário 0236](history/0236-reproducible-module-build.md)):* o módulo
+sem assinatura é reprodutível: `make repro-test` o compila duas vezes para cada kernel da lista em
+contêineres limpos e obtém arquivos idênticos byte a byte, cujos hashes o diário registra; os dois
+pacotes também são reprodutíveis.

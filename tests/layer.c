@@ -24,6 +24,7 @@
 #include <sys/ioctl.h>
 #include <sys/xattr.h>
 #include <sys/wait.h>
+#include <sys/sendfile.h>
 #include <linux/fs.h>
 #include <linux/fiemap.h>
 #include <linux/btrfs.h>
@@ -88,7 +89,8 @@ static int count_entries(const char *dir)
 /*
  * As uid and gid 1001, on a descriptor that root opened: writes to it (how 0), truncates it
  * (how 1), fills it until ENOSPC (how 2), copies into it with copy_file_range (how 3), clones
- * into it (how 4) or preallocates in it (how 5). src_fd is the source of 3 and 4.
+ * into it (how 4), preallocates in it (how 5), splices into it from a pipe (how 8) or copies
+ * into it with sendfile (how 9). src_fd is the source of 3, 4 and 9.
  * Without CAP_FSETID the VFS then clears set-user-ID and set-group-ID through ->setattr, the
  * path that reached BUG() in notify_change (journal 0069). Returns the child's exit status.
  */
@@ -113,6 +115,20 @@ static int as_user(int fd, int how)
 		}
 		if (how == 4) _exit(ioctl(fd, FICLONE, src_fd) ? 7 : 0);
 		if (how == 5) _exit(fallocate(fd, 0, 0, 65536) ? 8 : 0);
+		if (how == 8) {
+			/* splice(2) from a pipe: the layer's ->splice_write, not ->write_iter */
+			loff_t out = 0;
+			int p[2];
+
+			if (pipe(p) || write(p[1], "zzzz", 4) != 4) _exit(13);
+			_exit(splice(p[0], NULL, fd, &out, 4, 0) == 4 ? 0 : 14);
+		}
+		if (how == 9) {
+			/* sendfile(2) from a file: do_splice_direct() into the same ->splice_write */
+			off_t in = 0;
+
+			_exit(sendfile(fd, src_fd, &in, 4096) == 4096 ? 0 : 15);
+		}
 		if (how == 6) {
 			/* dedupe into a descriptor this user could not open for writing */
 			struct file_dedupe_range *dr = calloc(1, sizeof(*dr) + sizeof(struct file_dedupe_range_info));
@@ -713,22 +729,33 @@ int main(int argc, char **argv)
 	src_fd = open(up("suidsrc"), O_RDWR | O_CREAT | O_EXCL, 0644); CHECK(src_fd >= 0);
 	memset(buf, 'S', 4096);
 	CHECK(write(src_fd, buf, 4096) == 4096 && !fsync(src_fd));
-	for (i = 3; i <= 5; i++) {
-		if (i == 4 && !reflink)
-			continue;
-		CHECK(!fchmod(fd, 06755));
-		CHECK(!stat(lo("suid"), &lst) && (lst.st_mode & 07777) == 06755);
-		CHECK(as_user(fd, i) == 0);
-		CHECK(!stat(lo("suid"), &lst) && (lst.st_mode & 07777) == 0755);
+	{
+		/* splice and sendfile go through ->splice_write; first, as copy_file_range then
+		 * writes the 'S' block at offset 0 (sendfile writes at the descriptor's position) */
+		int how[] = { 8, 9, 3, 4, 5 };
+		unsigned k;
+
+		for (k = 0; k < sizeof how / sizeof how[0]; k++) {
+			if (how[k] == 4 && !reflink)
+				continue;
+			CHECK(!fchmod(fd, 06755));
+			CHECK(!stat(lo("suid"), &lst) && (lst.st_mode & 07777) == 06755);
+			CHECK(as_user(fd, how[k]) == 0);
+			CHECK(!stat(lo("suid"), &lst));
+			if ((lst.st_mode & 07777) != 0755)
+				fprintf(stderr, "suid: call %d left mode %o\n", how[k],
+					(unsigned)(lst.st_mode & 07777));
+			CHECK((lst.st_mode & 07777) == 0755);
+		}
 	}
 	CHECK(pread(fd, buf, 1, 0) == 1 && buf[0] == 'S');
 	{
 		/* file capabilities go the same way: an ordinary write removes them and succeeds */
 		static const unsigned char caps[20] = { 0x01, 0x00, 0x00, 0x02, 0xc0 };	/* v2, setuid+setgid, effective */
-		int how[] = { 0, 3, 5 };
+		int how[] = { 0, 3, 5, 8, 9 };
 		unsigned k;
 
-		for (k = 0; k < 3; k++) {
+		for (k = 0; k < sizeof how / sizeof how[0]; k++) {
 			CHECK(!fsetxattr(fd, "security.capability", caps, sizeof caps, 0));
 			CHECK(getxattr(lo("suid"), "security.capability", buf, sizeof buf) == (ssize_t)sizeof caps);
 			CHECK(as_user(fd, how[k]) == 0);
@@ -742,13 +769,13 @@ int main(int argc, char **argv)
 	 * it goes for the same writer on the lower directly.
 	 */
 	{
-		int how[] = { 0, 3, 4, 5 };
+		int how[] = { 0, 3, 4, 5, 8, 9 };
 		unsigned k, again;
 		int lfd;
 
 		lfd = open(up("suidlow"), O_RDWR | O_CREAT | O_EXCL, 0666); CHECK(lfd >= 0);
 		CHECK(!fchown(lfd, 1001, 1001) && !fchmod(lfd, 0666));
-		for (k = 0; k < 4; k++) {
+		for (k = 0; k < sizeof how / sizeof how[0]; k++) {
 			if (how[k] == 4 && !reflink)
 				continue;
 			for (again = 0; again < 2; again++) {
@@ -756,7 +783,11 @@ int main(int argc, char **argv)
 					CHECK(as_user(lfd, 0) == 0);	/* sets S_NOSEC on the layer's inode */
 				CHECK(!chmod(lo("suidlow"), 04666));
 				CHECK(as_user(lfd, how[k]) == 0);
-				CHECK(!stat(lo("suidlow"), &lst) && (lst.st_mode & 07777) == 0666);
+				CHECK(!stat(lo("suidlow"), &lst));
+				if ((lst.st_mode & 07777) != 0666)
+					fprintf(stderr, "suidlow: call %d (after a write %u) left mode %o\n",
+						how[k], again, (unsigned)(lst.st_mode & 07777));
+				CHECK((lst.st_mode & 07777) == 0666);
 			}
 		}
 		close(lfd);

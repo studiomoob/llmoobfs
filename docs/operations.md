@@ -212,6 +212,21 @@ sudo -u bob moobfs query /srv/memory/alice kind eq string decision     # permiss
 moobfs info /srv/memory                                                # the mount's settings
 ```
 
+On a host where several users query a shared mount, cap each user's memory: the kernel memory a
+query keeps (about 2 MiB per open descriptor that asked for the largest page) and the index it
+builds are charged to the caller's memory cgroup, which has no limit on a default Debian user
+slice ([ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md)). A systemd drop-in for
+every user slice, with a value that fits the host:
+
+```sh
+sudo mkdir -p /etc/systemd/system/user-.slice.d
+printf '[Slice]\nMemoryMax=2G\n' | sudo tee /etc/systemd/system/user-.slice.d/50-moobfs.conf
+sudo systemctl daemon-reload                  # applies to sessions started afterwards
+```
+
+Over the limit a query fails with `ENOMEM` and other users keep their answers (suite step
+`limits`, journal 0235). The drop-in itself has not been run in a test VM yet.
+
 A directory shared by a group is `root:<group>` with mode `2770` and a default ACL; the recipe is
 in [distribution-strategy.md](distribution-strategy.md) §2.2. Containers: §2.5 of the same
 document, until item C3 validates a recipe.

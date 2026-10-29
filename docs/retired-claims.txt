@@ -1,6 +1,7 @@
 # Claims that were true once and are not any more (journal 0126). scripts/check-retired-claims.sh
 # fails when one of them appears in a document that states the project's current state (the
-# files it lists); journals, ADRs and dated research keep them as history. When a fact changes,
+# files it lists, and the marked current-state sections of two dated plans, journal 0234); journals,
+# ADRs and dated research keep them as history. When a fact changes,
 # add the old wording here in the same commit that updates the surfaces (AGENTS.md).
 # One phrase per line, matched case-insensitively as a fixed string.
 no syzkaller
@@ -241,3 +242,21 @@ packaged signing is item C6
 so the guide starts by switching kernels
 `tests/landlock_run.c` and `tests/notify.c` are standalone investigation helpers
 the walk costs one `stat`
+Up to three attempts per lower
+
+# Journal 0234: the tested kernels include Debian 6.12.113 (journal 0206); fair shares exist (ADR-0027).
+Only Debian 6.12.111 (QEMU) and upstream
+cap or fair memory shares
+does not provide per-user fair sharing (S9)
+não garante divisão justa por usuário (S9)
+nor provide fair index
+or fair memory shares
+the rest of S9 and the open issues remain
+
+# Journal 0236: the reproducible build of the module (S10) is done.
+of the `.ko` is roadmap item S10 and has not been evaluated
+Open: the reproducible build of the `.ko`
+KFENCE (not enabled)
+Fuzzing beyond 30 s per CI run
+KMSAN/KCSAN/KFENCE
+| KMSAN, KCSAN, KFENCE |

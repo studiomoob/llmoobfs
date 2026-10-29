@@ -2,6 +2,99 @@
 
 ## Unreleased
 
+- `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
+  They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
+  another writer of the tree who swapped a directory for a symbolic link while root ran them
+  could make them list a directory outside the root and report its files, with their
+  attributes, under names inside it. `tools/walk.h` now opens every entry relative to its
+  directory's descriptor with `O_NOFOLLOW` and judges and reads it through that descriptor
+  (`fstat`, `fgetxattr`, `flistxattr`); entries the caller cannot open for reading, and FIFOs,
+  sockets and devices, are read through an `O_PATH` descriptor and `/proc/self/fd/N`. At most 32
+  directories are held open; deeper ones are reopened by name with an identity check. Output is
+  byte for byte the old one on unchanging trees (5 229 comparisons as a user and 5 249 as root
+  on hostile trees). New `tests/tools-walk.sh` in `make hostile-test`, with `hostile swap`
+  (`renameat2(RENAME_EXCHANGE)`): the old tools answered from outside the root in about 78% of
+  rounds, the new ones in none. `docs/tools.md` states the guarantee and its limits.
+- `bench/userspace/udx.h` applies the homogeneity rule of ADR-0025 (journal 0232, issue #168):
+  an intermediate directory needs read and search for every class the domain lets traverse,
+  every class is judged (it looked at the others' bits only), and only an extended ACL counts
+  (`tools/ext-acl.h`, as the oracle; an ACL read that fails because the path was just renamed is
+  judged on the `lstat` already taken). `bench/userspace/test.sh` gained a `0711` and a `0705`
+  directory, on which the old rule differed from the oracle (6 of 296 comparisons).
+- Test gaps of issue #168 closed in the suite (journal 0233; tests only, no kernel, UAPI or
+  format change). The set-user-ID check of GHSA-6xf4-r246-92r6 (`tests/layer.c`) now also
+  writes through the layer with `splice(2)` from a pipe and with `sendfile(2)`, the layer's
+  `->splice_write` path; the bit is cleared on ext4, btrfs and XFS, and a module whose splice
+  path keeps the mounter's credentials fails it. The `permmatrix` step runs on btrfs and XFS as
+  well as ext4. The `rootpath` step starts its waiting query once the part outside the domain is
+  built instead of after a fixed 100 ms, and an inconclusive attempt plants twice the files for
+  the next (up to four attempts), so it concludes under KVM, where it stopped twice at
+  `rootpath-race-inconclusive-btrfs`.
+- Documentation and manual workflows of issue #168 (journal 0234). `docs/when-not-to-use.md` and
+  `docs/compatibility.md` state that the inode-generation check of journal 0216 needs a lower that
+  sets `i_generation` (the NFS client leaves it 0, FUSE takes the server's) and that on ext4
+  without `metadata_csum` an inode's owner can set it with `EXT4_IOC_SETVERSION` on the lower.
+  `docs/security-roadmap.md` and `docs/adoption-risks.md` gain a marked current-state section that
+  `scripts/check-retired-claims.sh` now reads (and fails without), with dated notes on S12's
+  SELinux sentence, S9's mount-time scan and risk 7. The manual KCSAN and arm64 KASAN workflows
+  ran on `main`: KCSAN passed (run 40873505079, no race in the module); arm64 KASAN failed once
+  when the guest's own `wc`, run from virtio-fs under emulation, died with SIGSEGV and no kernel
+  report (run 40873509652, the fault class of journal 0137), and passed on a second dispatch (run
+  40877439822).
+- S9's remaining limits tested when hit and measured (journal 0235, ADR-0029 proposed; no
+- S9's remaining limits tested when hit and measured (journal 0235, ADR-0029 accepted; no
+  kernel change). New suite step `limits` (full suite): on a 1 MiB `index_budget` a domain
+  larger than the whole budget is refused with `ENOMEM` to its uid, nothing released, another
+  uid's domain kept; in a 16 MiB memory cgroup, retained `QUERY2` buffers (about 2 MiB each)
+  fill it until a query fails with `ENOMEM` while another uid is answered; in a 4 MiB cgroup a
+  6,000-file build fails with `ENOMEM` and builds nothing. New optional step `mountscale`
+  (`tests/mount-scale.c`): the mount reads nothing of the lower, 0.4 to 1.5 ms cold and about
+  80 µs warm from 100 to 200,100 files, with and without `noindex`; the first query of a domain
+  over `index_build_work` is refused with `E2BIG` in about 0.5 s at 50,100 and 200,100 files.
+  `tests/memcg-query.c` gains the `hold` and `build` modes.
+- Reproducible build of the module and the packages (journal 0236; security roadmap S10, its
+  second item). `make repro-test` (`scripts/repro-ko.sh`) builds the unsigned
+  `layer/moobfs_layer.ko` for each listed kernel in two fresh `debian:trixie-slim` containers,
+  pinned by digest, that differ in build path, uid, host name, time zone, umask and time, and
+  requires byte-identical modules (marker `MOOBFS_REPRO_PASS: <sha256>`); each container also
+  builds with the DKMS package's `MAKE` line, which must give the same module, and the two `.deb`
+  packages must be byte-identical too. The build path reached the module through `__FILE__`
+  (`WARN_ON`) and the debug information: `make layer` and the DKMS `MAKE` line now pass
+  `KCFLAGS=-ffile-prefix-map=<source root>/=`, as `Documentation/kbuild/reproducible-builds.rst`
+  asks for out-of-tree builds. `scripts/build-debs.sh` dates the changelog from
+  `SOURCE_DATE_EPOCH` when it is set. A signed module is the reproducible one plus a signature
+  that depends on the host's key. No change to the module's C code.
+- Longer fuzzing and runtime hardening (journal 0237; security roadmap S7 and S8). Two new
+  libFuzzer targets: `tests/fuzz_image.c` over the image parser `common/format.c` (shared by
+  the M1 module and `fsck.moobfs`; the target writes the checksums an input's fields ask for so
+  mutations reach the checks behind them) and `tests/fuzz_tools.c` over the query terms of
+  `tools/query-common.h` and the ACL value of `tools/ext-acl.h`. `make fuzz` runs all three
+  targets (`FUZZ_TARGETS`), `FUZZ_TIME` seconds each, and no longer writes new inputs into
+  `tests/fuzz-corpus`. New workflow `fuzz.yml` (on demand and twice a week, not yet run on
+  GitHub) fuzzes each target 45 minutes with its corpus kept in the Actions cache. Locally, no
+  crash: 258 million executions of `attr` in 30 minutes, 1.6 million of `image` in 60 minutes
+  (all lines of `common/format.c`), 66 million of `tools` in 30 minutes. `vm/kasan.config`
+  adds `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, `SLAB_FREELIST_HARDENED`/`_RANDOM`,
+  `BUG_ON_DATA_CORRUPTION`, KFENCE, `SCHED_STACK_END_CHECK` and `DEBUG_OBJECTS` (`_FREE`,
+  `_RCU_HEAD`); the full local KASAN suite passed with them (`MOOBFS_KASAN_PASS`).
+- Weekly benchmark workflow (journal 0238; suggested by the external reviewer).
+  `.github/workflows/bench.yml` runs the on-demand index benchmark of issue #68
+  (`bench/ondemand.sh`, 60 000 memories of profile 8) every Monday, on demand and on pull
+  requests touching its harness, in the disposable Debian 13 VM of `make install-test` under KVM
+  on GitHub's `ubuntu-24.04` runner, one matrix job per lower filesystem (ext4, btrfs, XFS),
+  and writes a table against the Mac mini reference to the job summary
+  (`bench/ondemand-summary.py`). It fails on a harness failure or on counts different from the
+  reference's, never on a timing. `make bench-test` (`MOOB_TEST=bench`, `MOOB_BENCH_FS`,
+  `vm/bench-test/guest.sh`) runs the same locally. A trend monitor on shared virtual hardware,
+  not a reference measurement; issue #68, a run on other physical hardware, stays open. amd64
+  only: arm64 runners have no KVM. `make bench-tools` now also builds `build/host/query`, which
+  `bench/ondemand.sh` and the other bench scripts call as `$BIN/query`; the steps of issue #68
+  had no line that built it. `bench/ondemand.sh` predates the build limits of ADR-0019 and
+  ADR-0020: its mount-wide `QUERY` of 60 000 memories is now refused (`E2BIG` or `ETIMEDOUT`)
+  and stopped the script; the refusal is now recorded in `times.txt` and the script goes on.
+  In the VM the lower's disk image stays in the host's page cache (`MOOB_BENCH_CACHE=host`), so
+  its "cold" rows are cold in the guest only: with O_DIRECT the cold first `QUERY2` of a
+  7 459-file domain exceeded the ten-second build deadline and was refused with `ETIMEDOUT`.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and

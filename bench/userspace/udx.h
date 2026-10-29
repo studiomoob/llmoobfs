@@ -16,8 +16,8 @@
  *       domain and stored as a BLOB, because a file name is bytes, not text. ok is 1 when the
  *       entry passes the homogeneity rule of docs/spec-query-v2.md §3 as the oracle evaluates
  *       it; a query lists only ok = 1. trav (directories) says whether everyone who can
- *       traverse the domain can traverse this directory; when it changes the subtree is
- *       evaluated again. nlink is kept to notice hard links, which fail the rule.
+ *       traverse the domain can list and traverse this directory (ADR-0025); when it changes
+ *       the subtree is evaluated again. nlink is kept to notice hard links, which fail the rule.
  *   attr(eid, name, type, v)
  *       one row per valid, indexable typed attribute (raw values and invalid values are not
  *       stored: for a query they are missing, as in the oracle). v uses SQLite's own typing:
@@ -53,6 +53,7 @@
 #include <unistd.h>
 #include <sqlite3.h>
 #include "moobfs_attr.h"
+#include "ext-acl.h"
 
 #define UDX_DB_NAME ".udx.db"
 #define UDX_SCHEMA_VERSION 1
@@ -267,7 +268,12 @@ UDX_FN int udx_open(struct udx_db *d, const char *dir, int create)
 	d->dirlen = strlen(d->dir);
 	if (stat(dir, &d->dst) || !S_ISDIR(d->dst.st_mode))
 		return -1;
-	d->dacl = getxattr(dir, "system.posix_acl_access", NULL, 0) > 0;
+	{	/* the domain directory as the oracle judges it: followed, as stat() above */
+		static unsigned char acl[65536];
+		ssize_t n = getxattr(dir, "system.posix_acl_access", acl, sizeof acl);
+
+		d->dacl = moob_ext_acl_bytes(acl, n, n < 0 ? errno : 0, d->dst.st_mode);
+	}
 	snprintf(path, sizeof path, "%s/%s", dir, UDX_DB_NAME);
 	if (create) {
 		fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
@@ -322,22 +328,35 @@ UDX_FN int udx_open(struct udx_db *d, const char *dir, int create)
 	return 0;
 }
 
-/* The oracle's reach_ok(): can everyone who can traverse the domain read (or traverse) this? */
+/*
+ * The oracle's reach_ok() (tools/moobfs-index.c): can everyone who can traverse the domain read
+ * this file (want_read), or list and traverse this directory? Since ADR-0025 a search-only
+ * directory keeps its names from those who cannot list it, so an intermediate directory needs
+ * read and search for every class the domain lets through; every class is judged, never owner
+ * or group by the bits of others, and an ACL counts only when it is extended (tools/ext-acl.h).
+ */
 UDX_FN int udx_reach(const struct udx_db *d, const char *full, const struct stat *st, int want_read)
 {
-	mode_t u = want_read ? S_IRUSR : S_IXUSR, g = want_read ? S_IRGRP : S_IXGRP;
-	mode_t o = want_read ? S_IROTH : S_IXOTH;
-	int acl = lgetxattr(full, "system.posix_acl_access", NULL, 0) > 0;
+	mode_t u = want_read ? S_IRUSR : S_IRUSR | S_IXUSR;
+	mode_t g = want_read ? S_IRGRP : S_IRGRP | S_IXGRP;
+	mode_t o = want_read ? S_IROTH : S_IROTH | S_IXOTH;
+	static unsigned char buf[65536];	/* XATTR_SIZE_MAX */
+	ssize_t n = lgetxattr(full, "system.posix_acl_access", buf, sizeof buf);
+	int err = n < 0 ? errno : 0;
+	/* a path renamed or removed since its lstat is judged on that lstat, as before: the
+	 * events of the change refresh it; only an ACL that exists and cannot be read is
+	 * restrictive, as in the oracle, which never sees a vanished path */
+	int acl = err == ENOENT || err == ENOTDIR ? 0 : moob_ext_acl_bytes(buf, n, err, st->st_mode);
 
-	if (!acl && (st->st_mode & o))
+	if (!acl && (st->st_mode & (u | g | o)) == (u | g | o))
 		return 1;
 	if (acl || d->dacl || st->st_uid != d->dst.st_uid || st->st_gid != d->dst.st_gid)
 		return 0;
-	if ((d->dst.st_mode & S_IXUSR) && !(st->st_mode & u))
+	if ((d->dst.st_mode & S_IXUSR) && (st->st_mode & u) != u)
 		return 0;
-	if ((d->dst.st_mode & S_IXGRP) && !(st->st_mode & g))
+	if ((d->dst.st_mode & S_IXGRP) && (st->st_mode & g) != g)
 		return 0;
-	if ((d->dst.st_mode & S_IXOTH) && !(st->st_mode & o))
+	if ((d->dst.st_mode & S_IXOTH) && (st->st_mode & o) != o)
 		return 0;
 	return 1;
 }

@@ -93,3 +93,14 @@ its own, and a uid within its share keeps its domains
 `moobfs-dkms` and `moobfs-tools` Debian packages, built with `make deb`, DKMS limited to the listed
 kernels and the module signed by the host's own DKMS key. Tested in a disposable Debian 13 VM
 under Secure Boot (`make package-test`); not published.
+*Update, 2026-10-29 ([journal 0235](history/0235-s9-remaining-limits.md)):* the rest of S9 is
+tested and measured with no new mechanism: a domain larger than `index_budget`, retained
+`QUERY2` buffers and a build in a limited memory cgroup are refused with `ENOMEM` while another
+uid is answered (suite step `limits`), and the mount reads nothing of the lower, 0.4 to 1.5 ms
+cold from 100 to 200,100 files (`mountscale`). With
+[ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md), accepted on 2026-10-29, S9 is
+done; a shared mount needs `memory.max` on its users' cgroups (`docs/operations.md` §5).
+*Update, 2026-10-29 ([journal 0236](history/0236-reproducible-module-build.md)):* the unsigned
+module is reproducible: `make repro-test` builds it twice per listed kernel in clean containers
+and gets byte-identical files, whose hashes the journal records; the two packages are
+reproducible too.

@@ -523,7 +523,12 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
 - `QUERY2` pode manter um buffer de resultados de até 1.114.112 bytes por descritor aberto.
   Esse buffer e as alocações de índice/consulta acionadas pelo usuário são cobrados
   do cgroup de memória da tarefa que os alocou, quando disponível (issue 116, diário 0180).
-  O orçamento do índice ainda é compartilhado pela montagem e não garante divisão justa por usuário (S9).
+  Sem `memory.max` no cgroup de um usuário, nada mais limita esses buffers por usuário: o
+  kvmalloc pode tomar 2 MiB para cada um, então defina `MemoryMax=` para os usuários de uma
+  montagem compartilhada. O passo `limits` da suíte mostra o limite de um cgroup atingido como
+  `ENOMEM`, com os outros usuários respondidos, e `mountscale` mediu uma montagem que não lê
+  nada do disco inferior, de 0,4 a 1,5 ms de 100 a 200.100 arquivos (diário 0235,
+  [ADR-0029](docs/decisions/0029-s9-limits-met-by-existing-bounds.md), aceita).
 - Montar exige `CAP_SYS_ADMIN` no namespace de usuário inicial; montagens em namespace de usuário
   e idmapped são recusadas, assim como uma montagem idmapped como `lower=`. Um contêiner sem root não
   monta o layer; pode usar um que o host montou (Podman `--userns=keep-id`,

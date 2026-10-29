@@ -103,7 +103,14 @@ slsa-verifier verify-artifact llmoobfs-<tag>.tar.gz --provenance-path llmoobfs-<
 
 The tags before that date have no such assets; their source is the tag itself.
 
-**Reproducible build** of the `.ko` is roadmap item S10 and has not been evaluated.
+**Reproducible build** of the `.ko` (roadmap item S10, [journal 0236](history/0236-reproducible-module-build.md)):
+`make repro-test` (`scripts/repro-ko.sh`) builds the unsigned module twice for each listed
+kernel, in two clean `debian:trixie-slim` containers pinned by digest that differ in build path,
+user, host name, time zone, umask and time, and requires byte-identical results; the two
+experimental `.deb` packages are compared the same way. The unsigned module is the reproducible
+artifact: a signature depends on the key that made it (DKMS signs with the host's own key), and
+removing it gives the unsigned module back. The hashes of each commit are those the command
+prints; the ones recorded for the commit of journal 0236 are in that journal.
 
 ## 5. When to raise the security effort
 

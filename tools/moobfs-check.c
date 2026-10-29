@@ -21,12 +21,11 @@
 #include <string.h>
 #include <errno.h>
 #include <linux/limits.h>
-#include <ftw.h>
 #include <sys/xattr.h>
 #include <sys/stat.h>
 #include <limits.h>
 #include "moobfs_attr.h"
-#include "ext-acl.h"
+#include "walk.h"
 
 static unsigned long files, attrs, problems;
 /* identity records for the (namespace, memory_id) uniqueness check */
@@ -34,20 +33,18 @@ struct ident { char ns[1025]; char id[1025]; dev_t dev; ino_t ino; char *path; }
 static struct ident *idents; static size_t nidents, cidents;
 static unsigned long ident_conflicts, ident_cross_namespace;
 static int first_problem = 1;
-static size_t root_len;
 static int domain_depth;	/* 0: do not look for files left out of QUERY2 */
 struct left { char *path; char *why; };
 static struct left *lefts; static size_t nlefts, clefts;
 
 /* The rule of tools/moobfs-index.c (reach_ok), with the reason when it fails. */
-static const char *reach_why(const char *path, const struct stat *st, const struct stat *dom,
+static const char *reach_why(const struct stat *st, int acl, const struct stat *dom,
 			     int dom_acl, int want_read)
 {
 	/* an intermediate directory needs read as well as search (journal 0215) */
 	mode_t u = want_read ? S_IRUSR : S_IRUSR | S_IXUSR;
 	mode_t g = want_read ? S_IRGRP : S_IRGRP | S_IXGRP;
 	mode_t o = want_read ? S_IROTH : S_IROTH | S_IXOTH;
-	int acl = moob_ext_acl(path, st->st_mode);
 
 	/* every class: the kernel never judges owner or group by the bits of others */
 	if (!acl && (st->st_mode & (u | g | o)) == (u | g | o))
@@ -65,7 +62,8 @@ static const char *reach_why(const char *path, const struct stat *st, const stru
 	return NULL;
 }
 
-static int left_out(const char *path, const char *where, const char *why)
+/* rel: the file, relative to the root; where (or NULL): the directory between, likewise */
+static int left_out(const char *rel, const char *where, const char *why)
 {
 	char buf[PATH_MAX + 96];
 
@@ -76,10 +74,10 @@ static int left_out(const char *path, const char *where, const char *why)
 			return 1;
 	}
 	if (where)
-		snprintf(buf, sizeof buf, "directory %s: %s", where + root_len + 1, why);
+		snprintf(buf, sizeof buf, "directory %s: %s", where, why);
 	else
 		snprintf(buf, sizeof buf, "%s", why);
-	lefts[nlefts].path = strdup(path);
+	lefts[nlefts].path = strdup(rel);
 	lefts[nlefts].why = strdup(buf);
 	if (!lefts[nlefts].path || !lefts[nlefts].why)
 		return 1;
@@ -87,43 +85,37 @@ static int left_out(const char *path, const char *where, const char *why)
 	return 0;
 }
 
-/* Is this inode, which carries typed attributes, in its domain's answers? */
-static int check_domain(const char *path, const struct stat *st, int level)
+/*
+ * Is this inode, which carries typed attributes, in its domain's answers? The domain directory
+ * and every directory between are the walk's frames: the inodes it listed to reach this one.
+ */
+static int check_domain(struct moob_walk *w, const char *rel, const struct moob_node *n, int level)
 {
-	char buf[PATH_MAX];
-	struct stat dom, ds;
+	const struct stat *st = &n->st, *dom;
 	const char *why;
-	size_t i, dom_end = 0;
-	int depth = 0, dom_acl;
+	int i, dom_acl;
 
 	if (level < domain_depth || (level == domain_depth && !S_ISDIR(st->st_mode)))
-		return left_out(path, NULL, "above every domain directory");
+		return left_out(rel, NULL, "above every domain directory");
 	if (level == domain_depth)
 		return 0;	/* a domain directory itself */
-	snprintf(buf, sizeof buf, "%s", path);
-	for (i = root_len + 1; buf[i] && !dom_end; i++)
-		if (buf[i] == '/' && ++depth == domain_depth)
-			dom_end = i;
-	if (!dom_end)
-		return 0;
-	buf[dom_end] = 0;
-	if (lstat(buf, &dom))
-		return 0;
-	dom_acl = moob_ext_acl(buf, dom.st_mode);
-	buf[dom_end] = '/';
+	dom = &w->frames[domain_depth].node.st;
+	dom_acl = w->frames[domain_depth].ext_acl;
 	if (S_ISREG(st->st_mode) && st->st_nlink > 1)
-		return left_out(path, NULL, "has more than one hard link");
-	for (i = dom_end + 1; buf[i]; i++) {	/* every directory strictly between */
-		if (buf[i] != '/')
-			continue;
-		buf[i] = 0;
-		why = lstat(buf, &ds) ? "cannot be read" : reach_why(buf, &ds, &dom, dom_acl, 0);
-		if (why)
-			return left_out(path, buf, why);
-		buf[i] = '/';
+		return left_out(rel, NULL, "has more than one hard link");
+	for (i = domain_depth + 1; i < level; i++) {	/* every directory strictly between */
+		const struct moob_walk_frame *f = &w->frames[i];
+
+		why = reach_why(&f->node.st, f->ext_acl, dom, dom_acl, 0);
+		if (why) {
+			char where[PATH_MAX];
+
+			snprintf(where, sizeof where, "%.*s", (int)f->rel_len, rel);
+			return left_out(rel, where, why);
+		}
 	}
-	why = reach_why(path, st, &dom, dom_acl, 1);
-	return why ? left_out(path, NULL, why) : 0;
+	why = reach_why(st, moob_node_ext_acl(n), dom, dom_acl, 1);
+	return why ? left_out(rel, NULL, why) : 0;
 }
 
 /*
@@ -144,17 +136,11 @@ static void json_str(const char *s)
 	putchar('"');
 }
 
-static const char *relative(const char *path)
-{
-	const char *rel = path + root_len;
-
-	return *rel == '/' ? rel + 1 : rel;
-}
-
-static void report(const char *path, const char *name, const char *why)
+/* rel: the path relative to the root, "" for the root itself */
+static void report(const char *rel, const char *name, const char *why)
 {
 	printf("%s\n    {\"path\": ", first_problem ? "" : ",");
-	json_str(relative(path));
+	json_str(rel);
 	printf(", \"attribute\": ");
 	json_str(name ? name : "");
 	printf(", \"problem\": ");
@@ -164,16 +150,16 @@ static void report(const char *path, const char *name, const char *why)
 	problems++;
 }
 
-static int visit(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
+/* Every read goes through the descriptor the walk opened: the inode judged is the one reported. */
+static int visit(struct moob_walk *w, const char *path, const struct moob_node *node, int level)
 {
+	const struct stat *sb = &node->st;
 	char *list, *p;
 	ssize_t len;
 	unsigned long per_file = 0;
 
-	if (flag == FTW_SL || flag == FTW_SLN || flag == FTW_NS || flag == FTW_DNR)
-		return 0;
 	files++;
-	len = llistxattr(path, NULL, 0);
+	len = moob_node_listxattr(node, NULL, 0);
 	if (len < 0) {
 		if (errno == ENOTSUP || errno == EOPNOTSUPP)
 			return 0;
@@ -187,7 +173,7 @@ static int visit(const char *path, const struct stat *sb, int flag, struct FTW *
 	list = malloc((size_t)len);
 	if (!list)
 		return 1;
-	len = llistxattr(path, list, (size_t)len);
+	len = moob_node_listxattr(node, list, (size_t)len);
 	if (len < 0) {
 		free(list);
 		report(path, NULL, "cannot list attributes");
@@ -204,7 +190,7 @@ static int visit(const char *path, const struct stat *sb, int flag, struct FTW *
 			continue;
 		nlen = strlen(name);
 		if (moob_attr_name_reserved(name, nlen)) {
-			if (ftw->level != 0)
+			if (level != 0)
 				report(path, name, "format marker outside the root");
 			continue;
 		}
@@ -214,7 +200,7 @@ static int visit(const char *path, const struct stat *sb, int flag, struct FTW *
 			report(path, name, moob_attr_strerror(MOOB_ATTR_EBADNAME));
 			continue;
 		}
-		n = lgetxattr(path, p, value, sizeof value);
+		n = moob_node_getxattr(node, p, value, sizeof value);
 		if (n < 0) {
 			report(path, name, errno == ERANGE ? "value larger than the maximum" : "cannot read value");
 			continue;
@@ -227,12 +213,12 @@ static int visit(const char *path, const struct stat *sb, int flag, struct FTW *
 		report(path, NULL, "more typed attributes than the per-file limit");
 	free(list);
 	if (domain_depth && per_file && (S_ISREG(sb->st_mode) || S_ISDIR(sb->st_mode)) &&
-	    check_domain(path, sb, ftw->level))
+	    check_domain(w, path, node, level))
 		return 1;
 	{	/* collect (namespace, memory_id) when both are well-formed strings */
 		ma_u8 ns[MOOB_ATTR_VALUE_MAX + 1], id[MOOB_ATTR_VALUE_MAX + 1];
-		ssize_t a = lgetxattr(path, MOOB_ATTR_PREFIX "namespace", ns, sizeof ns);
-		ssize_t b = lgetxattr(path, MOOB_ATTR_PREFIX "memory_id", id, sizeof id);
+		ssize_t a = moob_node_getxattr(node, MOOB_ATTR_PREFIX "namespace", ns, sizeof ns);
+		ssize_t b = moob_node_getxattr(node, MOOB_ATTR_PREFIX "memory_id", id, sizeof id);
 		if (a > 1 && b > 1 && ns[0] == MOOB_T_STRING && id[0] == MOOB_T_STRING &&
 		    !moob_attr_validate(ns, (size_t)a) && !moob_attr_validate(id, (size_t)b)) {
 			if (nidents == cidents) {
@@ -301,7 +287,6 @@ int main(int argc, char **argv)
 		      "       moobfs-check --help\n", stderr);
 		return 64;
 	}
-	root_len = strlen(argv[1]);
 	n = lgetxattr(argv[1], MOOB_ATTR_PREFIX MOOB_ATTR_FORMAT_NAME, value, sizeof value);
 	if (n < 0 && errno == ENODATA) {
 		format_state = "missing";
@@ -314,8 +299,8 @@ int main(int argc, char **argv)
 	printf("{\n  \"format\": {\"state\": \"%s\", \"version\": %u, \"supported\": %u},\n  \"problems\": [",
 	       format_state, version, MOOB_ATTR_FORMAT_VERSION);
 	if (strcmp(format_state, "ok") && strcmp(format_state, "missing"))
-		report(argv[1], MOOB_ATTR_FORMAT_NAME, format_state);
-	if (nftw(argv[1], visit, 32, FTW_PHYS | FTW_MOUNT)) {
+		report("", MOOB_ATTR_FORMAT_NAME, format_state);
+	if (moob_walk(argv[1], visit)) {
 		fprintf(stderr, "moobfs-check: %s: %s\n", argv[1], strerror(errno));
 		return 1;
 	}
@@ -328,7 +313,7 @@ int main(int argc, char **argv)
 		printf("  \"domain_depth\": %d,\n  \"left_out\": [", domain_depth);
 		for (k = 0; k < nlefts; k++) {
 			printf("%s\n    {\"path\": ", k ? "," : "");
-			json_str(relative(lefts[k].path));
+			json_str(lefts[k].path);
 			printf(", \"reason\": ");
 			json_str(lefts[k].why);
 			putchar('}');

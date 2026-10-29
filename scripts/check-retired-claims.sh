@@ -10,11 +10,29 @@ docs/architecture-overview.md docs/development.md docs/tools.md docs/accessibili
 docs/public-surfaces.md docs/status.md docs/status.pt-BR.md docs/operations.md
 docs/container-integration.md docs/security-operations.md GOVERNANCE.md
 site/*.html site/pt/*.html"
+# Documents whose dated history would give false hits (journal 0234): only the lines between
+# "<!-- current-state -->" and "<!-- /current-state -->" are checked, and the markers must exist,
+# so that removing them does not turn the check off.
+sectioned="docs/security-roadmap.md docs/adoption-risks.md"
+current=$(mktemp)
+trap 'rm -f "$current"' EXIT
 found=0
+for f in $sectioned; do
+	if ! grep -q '^<!-- current-state -->$' "$f" || ! grep -q '^<!-- /current-state -->$' "$f"; then
+		echo "no current-state section in $f"
+		found=1
+	fi
+	awk -v f="$f" '/^<!-- \/current-state -->$/ { on = 0 } on { print f ":" FNR ":" $0 }
+		/^<!-- current-state -->$/ { on = 1 }' "$f" >> "$current"
+done
 while IFS= read -r claim; do
 	case "$claim" in ''|'#'*) continue ;; esac
 	# shellcheck disable=SC2086
 	if grep -n -i -F -- "$claim" $files 2>/dev/null | grep -v 'retired-claims' ; then
+		echo "retired claim still stated: \"$claim\""
+		found=1
+	fi
+	if grep -i -F -- "$claim" "$current"; then
 		echo "retired claim still stated: \"$claim\""
 		found=1
 	fi
