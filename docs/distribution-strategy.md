@@ -411,6 +411,14 @@ Acceptance:
 
 Done when: a third party reproduces everything, the matrix and the limitations fit on one page and no leak is known.
 
+*Amended, 2026-10-29 ([ADR-0030](decisions/0030-stage-2-review-criterion.md), journal 0240):* the
+text above is kept. Read with `ROADMAP.md`, "S1 completed" meant S1 including an independent
+human review of the whole kernel code. Stage 2 now requires no human review; its review criterion
+is (1) strong automated coverage: the existing suite, KASAN/UBSAN/lockdep, KCSAN, syzkaller
+meeting the S3 threshold, fstests (S2 results) and fuzzing (S7); (2) every finding of an
+AI-assisted review triaged, reproduced and turned into a regression test; (3) S14 to S21 of the
+security roadmap done. The other deliverables and acceptance steps are unchanged.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount
@@ -425,6 +433,12 @@ Acceptance: stage 2 repeated on each distribution/kernel in the matrix; syzkalle
 reports for a defined period; kernel upgrade with DKMS; scale above what was measured documented
 as not validated.
 Done when: everything is green and the journals carry the numbers.
+
+*Amended, 2026-10-29 ([ADR-0030](decisions/0030-stage-2-review-criterion.md), journal 0240):* a
+further precondition of stage 3: at least one independent human review, read by hand by a
+volunteer who knows the VFS, targeted at the credential paths (`override_creds()` and the paths
+that reach the lower filesystem) and the `QUERY2` authorization. A hand-read review of all of
+the kernel code is a goal of stage 3.
 
 ## 9. Repository files that would need to change
 

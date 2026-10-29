@@ -1031,3 +1031,12 @@ runs 6.12.111.
 - syzkaller, https://github.com/google/syzkaller, main at `8fb0ae8` (Apache-2.0), as in §syzkaller
   above: `syz-manager` (`/funccover`), `syz-execprog -cover -coverfile`, `syz-db unpack`.
 - virtme-ng and `taskset(1)` (util-linux) to pin each guest to its host CPUs.
+
+## 38. The review criterion of the technical preview (ADR-0030, journal 0240)
+
+- OSTIF (Open Source Technology Improvement Fund), [Get an audit](https://ostif.org/get-an-audit/):
+  the published range for an initial security audit of an open-source project, roughly US$30k to
+  US$200k (read on 2026-10-29). Used for the paid-audit alternative of ADR-0030, rejected for lack
+  of budget.
+- AWS Open Source Blog, [AWS teams with OSTIF on open source security audits](https://aws.amazon.com/blogs/opensource/aws-teams-with-ostif-on-open-source-security-audits/):
+  an AWS-funded program of ten audits, at an average of about US$74k each (read on 2026-10-29).
