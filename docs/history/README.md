@@ -254,3 +254,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0232 — moobfs-check and moobfs-index walk by directory descriptor; udx follows ADR-0025](0232-tools-walk-by-descriptor.md)
 - [0233 — Suite gaps of issue #168: splice in the set-user-ID check, permmatrix on three lowers, rootpath under KVM](0233-suite-gaps-of-issue-168.md)
 - [0234 — Documentation and manual workflows of issue #168](0234-docs-and-manual-workflows-of-issue-168.md)
+- [0235 — S9's remaining limits: caps hit in the suite, mount cost measured (ADR-0029)](0235-s9-remaining-limits.md)

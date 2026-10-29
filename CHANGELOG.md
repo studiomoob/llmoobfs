@@ -41,6 +41,16 @@
   when the guest's own `wc`, run from virtio-fs under emulation, died with SIGSEGV and no kernel
   report (run 40873509652, the fault class of journal 0137), and passed on a second dispatch (run
   40877439822).
+- S9's remaining limits tested when hit and measured (journal 0235, ADR-0029 proposed; no
+  kernel change). New suite step `limits` (full suite): on a 1 MiB `index_budget` a domain
+  larger than the whole budget is refused with `ENOMEM` to its uid, nothing released, another
+  uid's domain kept; in a 16 MiB memory cgroup, retained `QUERY2` buffers (about 2 MiB each)
+  fill it until a query fails with `ENOMEM` while another uid is answered; in a 4 MiB cgroup a
+  6,000-file build fails with `ENOMEM` and builds nothing. New optional step `mountscale`
+  (`tests/mount-scale.c`): the mount reads nothing of the lower, 0.4 to 1.5 ms cold and about
+  80 µs warm from 100 to 200,100 files, with and without `noindex`; the first query of a domain
+  over `index_build_work` is refused with `E2BIG` in about 0.5 s at 50,100 and 200,100 files.
+  `tests/memcg-query.c` gains the `hold` and `build` modes.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and

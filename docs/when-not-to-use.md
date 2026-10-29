@@ -142,6 +142,8 @@ These limits update the cases discussed in the value assessment, §9.6.
   `main` includes experimental work and frequency limits
   ([ADR-0019](decisions/0019-bound-query-build-work-and-frequency.md)),
   but not a strict CPU/I/O cap (fair memory shares came later, ADR-0027). The 32,768-unit
+  but not a strict CPU/I/O cap (fair memory shares came with ADR-0027; per-user query
+  memory is capped only by a `memory.max` on the user's cgroup, journal 0235). The 32,768-unit
   default denies the measured valid 17,000-file domain; an administrator
   can opt into up to 65,536 units per mount under the merged ADR-0020
   policy, which admitted that fixture in a dedicated VM. Issue 118 remains

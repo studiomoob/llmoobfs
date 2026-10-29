@@ -495,8 +495,12 @@ KASAN harness runs the layer suite), and no benchmark exists.
   and [journal 0193](docs/history/0193-merged-per-mount-build-work-policy.md).
 - `QUERY2` can retain a result buffer of up to 1,114,112 bytes per open descriptor. This
   code charges that buffer and user-triggered index/query allocations to the allocating
-  task's memory cgroup where supported (issue 116, journal 0180). The mount-wide index
-  budget is still shared, so this does not provide per-user fair sharing (S9).
+  task's memory cgroup where supported (issue 116, journal 0180). With no `memory.max` on a
+  user's cgroup nothing else caps those buffers per user: kvmalloc may take 2 MiB for each,
+  so set `MemoryMax=` for the users of a shared mount. The suite step `limits` shows a cgroup
+  limit hit as `ENOMEM` with other users answered, and `mountscale` measured a mount that
+  reads nothing of the lower, 0.4 to 1.5 ms from 100 to 200,100 files (journal 0235,
+  [ADR-0029](docs/decisions/0029-s9-limits-met-by-existing-bounds.md), proposed).
 - Mounting needs `CAP_SYS_ADMIN` in the initial user namespace; user-namespace and idmapped
   mounts are refused, and so is an idmapped mount as `lower=`. A rootless container cannot mount
   the layer; it can use one the host mounted (Podman `--userns=keep-id`,

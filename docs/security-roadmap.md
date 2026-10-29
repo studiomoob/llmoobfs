@@ -294,14 +294,28 @@ turning that rule on, and the build-time check of an unlisted kernel.
 
 ### S9. Resource limits and denial of service
 
+*Remaining limits, 2026-10-29 ([ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md),
+proposed; journal 0235):* both bullets at the end of this section are met by bounds already in
+the code, now tested when hit and measured. The cap on `QUERY` results is the per-call `limit`
+(at most 4,096, the cursor beyond it); the per-user cap on query and index memory is the memory
+cgroup (ADR-0018) beside `index_budget` and the shares (ADR-0027). The new suite step `limits`
+(full suite) hits each cap: a domain larger than the whole budget, retained `QUERY2` buffers in
+a 16 MiB cgroup and a build in a 4 MiB cgroup are refused with `ENOMEM`, nothing answered or
+left built, another uid answered meanwhile. The mount scans nothing: the optional step
+`mountscale` measured the mount at 0.4 to 1.5 ms cold and 76 to 86 µs warm (medians) from 100 to
+200,100 files, with and without `noindex`, with no index memory; the first query of a domain
+over `index_build_work` was refused with `E2BIG` in about 0.5 s at 50,100 and 200,100 files.
+S9 is done once the maintainer accepts ADR-0029. Residual risk: without a `memory.max` on the
+users' cgroups, an unprivileged user can pin about 2 MiB of kernel memory per open descriptor.
+
 *Fair shares, 2026-10-28 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md),
 journal 0228):* each domain counts its own bytes; a build that does not fit releases the
 builder's own domains first and then, while the builder holds less than its share (the budget
 divided by the uids with a built domain), the least recently queried domain of a uid holding
 more. The suite step `fairshare` checks both halves on ext4 and failed on the module before
 the change; `buildcostevict` follows the amended property. The G2 latency ceiling (protocol
-section 14) is measured in the same journal. Still open under S9: the per-mount and per-user
-cap on `QUERY` results, and the mount-time scan cost below.
+section 14) is measured in the same journal. The two bullets left at that date are answered by
+the paragraph above (journal 0235).
 
 *Local measurement, 2026-10-23 (journal 0182, issue 118):* bounded native-KVM
 probes measured first-build CPU and lower-device reads on 1,000- and
@@ -365,6 +379,8 @@ of this change was not run. G2 remains open.
   nothing is scanned at mount, and the scan cost is paid by the first query on each domain, which
   ADR-0019 and ADR-0020 bound.
 - Done when: limit tests in the suite and the numbers recorded.
+- *Progress, 2026-10-29 (journal 0235):* both bullets above tested and measured (`limits`,
+  `mountscale`); no new mechanism or option; closure waits for ADR-0029's acceptance.
 
 ### S10. Module signing and distribution
 

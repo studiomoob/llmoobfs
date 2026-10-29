@@ -911,3 +911,26 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
 - `fuse_iget()`, `fs/fuse/inode.c:500`, same tree: the generation is the one the FUSE server sent.
 - `__shmem_get_inode()`, `mm/shmem.c:2898`, same tree: tmpfs gives a new inode a random
   generation (`get_random_u32()`), as ext4 does (§17).
+## 33. The remaining S9 limits (ADR-0029, journal 0235)
+
+All in Linux 6.12.112, the tree the KASAN harness builds
+([source](https://github.com/gregkh/linux/tree/v6.12.112)); the Debian guest of `make vm-test`
+runs 6.12.111.
+
+- `try_charge_memcg()`, `mm/memcontrol.c:2169`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/mm/memcontrol.c)): a charge over
+  `memory.max` reclaims, calls the cgroup's OOM killer through `mem_cgroup_oom()` (`:1617`), and
+  returns `-ENOMEM` when that kills nothing. `tests/memcg-query.c` (`hold`, `build`) relies on
+  it: with `oom_score_adj` at −1000 the cap is seen as `ENOMEM`.
+- `out_of_memory()`, `mm/oom_kill.c:1113`, and its "no killable processes" branch (`:1166`),
+  which panics only for a global OOM; `oom_badness()` (`:203`), which scores a process by its
+  RSS, swap entries and page tables, not by kernel memory its open files pin
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/mm/oom_kill.c)).
+- `kmalloc_gfp_adjust()` and `__kvmalloc_node_noprof()`, `mm/util.c:611` and `:650`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/mm/util.c)): a contiguous attempt
+  with `__GFP_NORETRY | __GFP_NOWARN`, then `vmalloc` with the caller's flags; why the
+  1,114,112-byte retained buffer takes about 2 MiB when contiguous memory is free.
+- `too_many_pipe_buffers_soft()` and `pipe_user_pages_soft`, `fs/pipe.c:771` and `:60`
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/pipe.c)): the per-user soft limit
+  past which an unprivileged user's new pipe gets one page; the alternative ADR-0029 keeps for a
+  per-user count of retained query buffers.

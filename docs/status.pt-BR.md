@@ -97,3 +97,10 @@ uid abaixo da dele, e um uid dentro da cota mantém os seus domínios
 roadmap: pacotes Debian `moobfs-dkms` e `moobfs-tools`, gerados com `make deb`, com o DKMS restrito
 aos kernels da lista e o módulo assinado pela chave DKMS do próprio host. Testados numa VM
 descartável Debian 13 com Secure Boot (`make package-test`); não publicados.
+*Atualização, 29/10/2026 ([diário 0235](history/0235-s9-remaining-limits.md)):* o restante do S9
+foi testado e medido sem mecanismo novo: um domínio maior que `index_budget`, buffers retidos do
+`QUERY2` e uma construção num cgroup de memória limitado são recusados com `ENOMEM` enquanto outro
+uid é respondido (passo `limits` da suíte), e a montagem não lê nada do disco inferior, de 0,4 a
+1,5 ms a frio de 100 a 200.100 arquivos (`mountscale`). O S9 fecha quando o mantenedor aceitar a
+[ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md); uma montagem compartilhada precisa
+de `memory.max` nos cgroups dos seus usuários.

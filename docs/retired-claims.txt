@@ -247,3 +247,8 @@ Up to three attempts per lower
 # Journal 0234: the tested kernels include Debian 6.12.113 (journal 0206); fair shares exist (ADR-0027).
 Only Debian 6.12.111 (QEMU) and upstream
 cap or fair memory shares
+does not provide per-user fair sharing (S9)
+não garante divisão justa por usuário (S9)
+nor provide fair index
+or fair memory shares
+the rest of S9 and the open issues remain

@@ -191,6 +191,13 @@ Markers come from three places: `vm/init` and `tests/mounted.c` (M1),
 | `MEMCG_ACCOUNT_PASS` | Both accounting assertions passed in a guest with the memory controller enabled | Every allocation path or every kernel configuration |
 | `MEMCG_SKIPPED` | The guest lacks the memory controller; no accounting assertion ran | Accounting correctness; the Debian harness treats this as a failure |
 
+| S9 limit marker (journal 0235) | Proves | Does not prove |
+| --- | --- | --- |
+| `LIMITS_BUDGET_PASS` | On a 1 MiB `index_budget`, a domain larger than the whole budget is refused with `ENOMEM` to its own uid; nothing is released, the index's byte count is unchanged and another uid's domain within its share is answered without a rebuild | Behavior with more than two uids or under the shrinker |
+| `MEMCG_HOLD_CAPPED`, `MEMCG_BUILD_CAPPED`, `LIMITS_MEMCG_PASS` | In a 16 MiB cgroup, descriptors with retained `QUERY2` buffers fill it until a query fails with `ENOMEM`, request untouched, while another uid outside it gets the oracle's answer, and the buffers are freed on exit; in a 4 MiB cgroup a 6,000-file build fails with `ENOMEM` and leaves nothing built, and the same uid builds it outside the cgroup | A cap on hosts whose cgroups have no `memory.max`; the OOM-killer path (the test process is made unkillable so the cap shows as `ENOMEM`) |
+| `LIMITS_MEMCG_SKIPPED` | The guest lacks cgroup v2 or the memory controller (the KASAN kernel); the memcg half did not run | Anything about the memcg half; the Debian harness treats this as a failure |
+| `MOUNT_SCALE_RESULT`, `MOUNT_SCALE_FIRST_QUERY`, `MOUNT_SCALE_OBSERVED` | Optional step `mountscale`: wall time and Slab change of mount and unmount over 100 to 200,100 files with and without `noindex`, index bytes 0 after the mount, and the first query of a domain over `index_build_work` refused with `E2BIG` while a small domain is answered | A stable timing distribution (one guest that may share its host), other lower filesystems, a slow disk |
+
 | Issue 118 probe marker | Proves | Does not prove |
 | --- | --- | --- |
 | `QUERY_BUILD_COST` | The helper issued one unprivileged `QUERY2` and recorded its wall, CPU, process read-byte and ext4-device sectors-read deltas | A stable performance distribution, precise per-query disk attribution or a resource limit |
