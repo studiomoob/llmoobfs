@@ -533,7 +533,9 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   do cgroup de memória da tarefa que os alocou, quando disponível (issue 116, diário 0180).
   Sem `memory.max` no cgroup de um usuário, nada mais limita esses buffers por usuário: o
   kvmalloc pode tomar 2 MiB para cada um, então defina `MemoryMax=` para os usuários de uma
-  montagem compartilhada. O passo `limits` da suíte mostra o limite de um cgroup atingido como
+  montagem compartilhada: a receita em `docs/operations.md` §5 faz isso com um drop-in para as
+  fatias de usuário, e `moobfs diagnose` mostra o limite que vale para quem chama (diário 0243;
+  rodadas em VM pendentes). O passo `limits` da suíte mostra o limite de um cgroup atingido como
   `ENOMEM`, com os outros usuários respondidos, e `mountscale` mediu uma montagem que não lê
   nada do disco inferior, de 0,4 a 1,5 ms de 100 a 200.100 arquivos (diário 0235,
   [ADR-0029](docs/decisions/0029-s9-limits-met-by-existing-bounds.md), aceita).

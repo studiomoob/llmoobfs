@@ -109,3 +109,11 @@ done; a shared mount needs `memory.max` on its users' cgroups (`docs/operations.
 module is reproducible: `make repro-test` builds it twice per listed kernel in clean containers
 and gets byte-identical files, whose hashes the journal records; the two packages are
 reproducible too.
+*Update, 2026-10-29 ([journal 0243](history/0243-g2-diagnostics-and-deployment-recipe.md)):* G2's
+user-visible diagnostics and deployment recipe are written, in user space: `moobfs diagnose`
+shows the limits that apply to a caller (index budget, the memory cgroup limit above the process
+and how often it was reached, descriptors, test-only module parameters, and for root the
+counters and tracepoints), `moobfs query` says whether an `ENOMEM` came from the index budget or
+from a memory cgroup's `memory.max`, and `docs/operations.md` §5 sets `MemoryMax=` for every user
+slice with a systemd drop-in. Unit-tested offline; the VM runs (suite step `diag`,
+`make install-test`) are pending, so G2 stays open.

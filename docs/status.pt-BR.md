@@ -114,3 +114,12 @@ concluído; uma montagem compartilhada precisa de `memory.max` nos cgroups dos s
 sem assinatura é reprodutível: `make repro-test` o compila duas vezes para cada kernel da lista em
 contêineres limpos e obtém arquivos idênticos byte a byte, cujos hashes o diário registra; os dois
 pacotes também são reprodutíveis.
+*Atualização, 29/10/2026 ([diário 0243](history/0243-g2-diagnostics-and-deployment-recipe.md)):*
+os diagnósticos visíveis ao usuário e a receita de implantação do G2 estão escritos, em espaço de
+usuário: `moobfs diagnose` mostra os limites que valem para quem chama (orçamento do índice, o
+limite do cgroup de memória acima do processo e quantas vezes foi atingido, descritores,
+parâmetros de módulo só de teste e, para o root, os contadores e os tracepoints), `moobfs query`
+diz se um `ENOMEM` veio do orçamento do índice ou do `memory.max` de um cgroup de memória, e
+`docs/operations.md` §5 define `MemoryMax=` para toda fatia de usuário com um drop-in do systemd.
+Testados em unidade fora da VM; as rodadas em VM (passo `diag` da suíte, `make install-test`)
+estão pendentes, então o G2 segue aberto.

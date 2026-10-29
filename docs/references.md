@@ -1098,3 +1098,33 @@ hand and carries the same code paths:
   ([joakim-brannstrom/dextool](https://github.com/joakim-brannstrom/dextool), MPL-2.0), generic
   mutation tools for C, considered and not used: they mutate a whole program built for user
   space, and S14 asks for the checks of one rule in a kernel module.
+
+## 41. User-visible diagnostics and the deployment recipe of G2 (journal 0243)
+
+- Linux 6.12.112 ([source](https://github.com/gregkh/linux/tree/v6.12.112)):
+  `memcg_memory_event()`, `include/linux/memcontrol.h:1061`, which counts an event in the
+  cgroup's `memory_events_local` and in `memory_events` of it and of every ancestor below the
+  root (unless `memory_localevents`); `try_charge_memcg()`, `mm/memcontrol.c:2169`, which raises
+  `MEMCG_MAX` on `mem_over_limit`, the cgroup whose counter refused the charge (`:2219`). Why
+  `moobfs query` compares the local `max` and `oom` counts of each level before and after a
+  failed query, and why the level that counts is the one holding the limit (`user-UID.slice`),
+  not the session scope the process is in. `out_of_memory()`'s cgroup branch, `mm/oom_kill.c:1180`,
+  logs "Memory cgroup out of memory" when it kills.
+- `Documentation/admin-guide/cgroup-v2.rst` of the same tree: `memory.events` (fields `max`,
+  `oom`, `oom_kill`; hierarchical), `memory.events.local`, `memory.max`, `memory.current`, and
+  the `memory_localevents` mount option; the files `moobfs diagnose` reads.
+- systemd v257 manual pages ([source](https://github.com/systemd/systemd/tree/v257/man)), the
+  systemd of Debian 13: `user@.service(5)`, "Controlling resources for logged-in users" (a
+  drop-in for the truncated unit name `user-.slice` applies to every `user-UID.slice`; the
+  default `TasksMax=33%` is set the same way), and `systemd.unit(5)`, drop-in directories (the
+  name truncated after each dash is searched; drop-ins apply in lexicographic order of their
+  file names, whatever their directory). The recipe of `docs/operations.md` §5 and the
+  `MEMORY_LIMIT` check of `make install-test` (`systemd-run --uid --slice --pipe --wait`).
+  Context7 (`/systemd/systemd/v257`) was asked first and returned the user-record and
+  delegation documents, not these pages, so they were read from the source tree.
+- Prior art for a per-user report of the limit that refused an operation: `quota(1)` of the
+  Linux quota tools ([project](https://sourceforge.net/projects/linuxquota/)), which prints a
+  user's usage against each soft and hard limit of each filesystem, the limits behind `EDQUOT`, and
+  `systemctl status`, which shows a unit's memory use beside its `MemoryMax=`. `moobfs diagnose`
+  follows the same shape (usage, limit, where it is set) for the bounds of a query; unlike quota
+  it changes nothing and needs no privilege.

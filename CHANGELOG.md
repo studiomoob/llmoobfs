@@ -52,6 +52,21 @@
 - `docs/security-roadmap.md` gives S14 to S21 a plan, an effort and a done check each, and
   `CONTRIBUTING.md` the S20 checklist item for changes to the permission rule or the index
   protocol (journal 0242).
+- G2's user-visible diagnostics and deployment recipe (journal 0243; user space only, no kernel,
+  UAPI or format change). New `moobfs diagnose [--json] <path>`: read-only report of what bounds
+  a query by the caller (domain role of the path, index on/off, budget and build work, the
+  memory cgroup of the process and the smallest `memory.max` above it with its usage and how
+  often it was reached, `RLIMIT_NOFILE`, test-only module parameters left set, and for root the
+  index's use of its budget and the tracepoints); warnings exit 2. `moobfs query` now says, after
+  an `ENOMEM`, whether a memory cgroup's own limit was reached during the query (its local `max`
+  or `oom` count in `memory.events.local` grew) or the index budget or the uid's share refused
+  it; the `E2BIG` and `EDQUOT` messages name the bound. `docs/operations.md` §5 gains "Limits for
+  a shared mount": the three bounds, the `user-.slice.d` drop-in setting `MemoryMax=`, per-user
+  overrides, sizing, services and `sudo -u` outside user slices; §8 gains the exit-75 and
+  OOM-kill rows and the tracepoints (`err=` of `moobfs_domain_build`). Tests: `tests/diag_test.c`
+  in `make test` (portable; two negative variants fail it), `moobfs diagnose` usage and no-layer
+  exit in `tests/tools-json.sh`, new VM suite step `diag` and a `MEMORY_LIMIT` check in
+  `make install-test`; the VM runs are pending, so G2 stays open.
 - `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
   They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
   another writer of the tree who swapped a directory for a symbolic link while root ran them

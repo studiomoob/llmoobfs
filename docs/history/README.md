@@ -262,4 +262,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0240 — Review categories corrected; the review criterion of the technical preview (ADR-0030)](0240-review-categories-and-stage-2-criterion.md)
 - [0241 — The domain-build deadline counts the builder's CPU time (ADR-0031, proposed)](0241-build-deadline-cpu-time.md)
 - [0242 — Plan for S14 to S21; static analysis in CI (S5, S19); mutants of the homogeneity rule (S14)](0242-s14-s21-plan-static-analysis-mutants.md)
+- [0243 — G2: user-visible diagnostics and the deployment recipe (in progress: VM runs pending)](0243-g2-diagnostics-and-deployment-recipe.md)
 - [0244 — Roadmap: an applicability track for corporate directory identities](0244-directory-identities-roadmap.md)

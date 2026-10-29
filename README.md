@@ -504,7 +504,9 @@ KASAN harness runs the layer suite), and no benchmark exists.
   code charges that buffer and user-triggered index/query allocations to the allocating
   task's memory cgroup where supported (issue 116, journal 0180). With no `memory.max` on a
   user's cgroup nothing else caps those buffers per user: kvmalloc may take 2 MiB for each,
-  so set `MemoryMax=` for the users of a shared mount. The suite step `limits` shows a cgroup
+  so set `MemoryMax=` for the users of a shared mount: the recipe in `docs/operations.md` §5
+  does it with a user-slice drop-in, and `moobfs diagnose` shows the limit that applies to a
+  caller (journal 0243; its VM runs pending). The suite step `limits` shows a cgroup
   limit hit as `ENOMEM` with other users answered, and `mountscale` measured a mount that
   reads nothing of the lower, 0.4 to 1.5 ms from 100 to 200,100 files (journal 0235,
   [ADR-0029](docs/decisions/0029-s9-limits-met-by-existing-bounds.md), accepted).
