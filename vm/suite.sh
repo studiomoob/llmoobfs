@@ -25,6 +25,9 @@
 #   buildcost           bounded unprivileged first-build and post-rename cost probe (#118)
 #   buildcostlarge      optional 7500-file scale of the same probe (not in the full suite)
 #   builddenial         optional 17000-file cold QUERY2 cost with/without work cap
+#   mountscale          optional mount and unmount time and memory over 100 to 200,100 files,
+#                       with and without noindex, and the first query of a domain over
+#                       index_build_work (S9, journal 0235); formats the ext4 disk
 #   buildclient         optional 6000-file, six-attribute domain shape from client scale
 #   buildcostevict      optional two-uid budget probe: the second uid lends the first one's room
 #                       back, since that domain is over its share (ADR-0021, ADR-0027)
@@ -46,6 +49,9 @@
 #                       waiting for the index lock held by a build (issue #117)
 #   fairshare           a uid over its share of index_budget lends room to a uid under its own,
 #                       and a uid within its share keeps its domain (ADR-0027)
+#   limits              S9 caps hit: a domain larger than index_budget, retained QUERY2 buffers
+#                       and a build in a limited memory cgroup refused with ENOMEM, another uid
+#                       answered meanwhile (journal 0235)
 #   landlock            the moobfs CLI under a Landlock sandbox that cannot read
 #                       /proc/self/mountinfo answers as without it (issue #167)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
@@ -68,7 +74,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -1901,6 +1907,102 @@ tr_off moobfs_domain_release
 umount "$LAYER" && rm -rf "$LOWER/fs" && umount "$LOWER" || fail fs-cleanup
 echo "FAIRSHARE_PASS: a=$fs_a b=$fs_b budget=$fs_budget; b alone, a lent b's room, b refused while a within its share"
 fi
+if want limits; then
+# S9 (journal 0235, ADR-0029): the caps on index memory and on QUERY2 results, hit. Every
+# refusal is an errno with no answer, and another uid is answered meanwhile.
+# 1. index_budget. On a 1 MiB budget, uid 1003's private domain c is larger than the whole
+#    budget; uid 1001's small domain a is built first and holds less than its share. c's build
+#    is refused with ENOMEM to its caller, releases nothing, leaves the index's bytes as they
+#    were, and a is answered again without a rebuild.
+lm_info() { "$BIN/query" "$LAYER" info | tr ' ' '\n' | sed -n "s/^$1=//p" | head -1; }
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail lm-lower-mount
+mkdir -p "$LOWER/lm/a/s" "$LOWER/lm/c/s" || fail lm-directories
+"$BIN/overbudget-race" plant "$LOWER/lm/a/s" 100 || fail lm-plant-a
+"$BIN/overbudget-race" plant "$LOWER/lm/c/s" 4000 || fail lm-plant-c
+chown -R 1001:1001 "$LOWER/lm/a" && chown -R 1003:1003 "$LOWER/lm/c" &&
+    chmod 700 "$LOWER/lm/a" "$LOWER/lm/c" || fail lm-private-domains
+mount -t moobfs_layer -o lower="$LOWER/lm",domain_depth=1 none "$LAYER" || fail lm-measure-mount
+"$BIN/query-build-cost" "$LAYER/c" 1003 measure-c > /dev/null || fail lm-measure-c
+lm_c=$(lm_info used)
+umount "$LAYER" || fail lm-measure-unmount
+[ "$lm_c" -gt 1048576 ] || fail "lm-c-fits-the-budget c=$lm_c"
+mount -t moobfs_layer -o "lower=$LOWER/lm,domain_depth=1,index_budget=1048576" none "$LAYER" ||
+    fail lm-budget-mount
+"$BIN/query-build-cost" "$LAYER/a" 1001 a > /dev/null || fail lm-a
+lm_used=$(lm_info used)
+lm_builds=$(lm_info domain_builds)
+lm_built=$(lm_info domains_built)
+[ $((lm_used * 2)) -lt 1048576 ] || fail "lm-a-over-its-share a=$lm_used"
+"$BIN/query-build-cost" "$LAYER/c" 1003 c-over-budget expect-enomem || fail lm-c-not-refused
+[ "$(lm_info domain_builds)" -eq "$lm_builds" ] && [ "$(lm_info domain_releases)" -eq 0 ] &&
+    [ "$(lm_info used)" -eq "$lm_used" ] && [ "$(lm_info domains_built)" -eq "$lm_built" ] ||
+    { "$BIN/query" "$LAYER" info; fail lm-budget-counters; }
+"$BIN/query-build-cost" "$LAYER/a" 1001 a-kept > /dev/null || fail lm-a-again
+[ "$(lm_info domain_builds)" -eq "$lm_builds" ] || fail lm-a-rebuilt
+umount "$LAYER" || fail lm-budget-unmount
+echo "LIMITS_BUDGET_PASS: c=$lm_c bytes refused with ENOMEM on a 1048576-byte budget; a=$lm_used bytes kept, no release, no rebuild"
+# 2. The memory cgroup (ADR-0018). In a cgroup limited to 16 MiB, uid 1001 keeps descriptors
+#    whose retained QUERY2 buffers (limit 4096) fill it until a query fails with ENOMEM, its
+#    request untouched (tests/memcg-query.c hold). While it holds them, uid 1002 outside the
+#    cgroup gets a complete answer equal to the oracle; when it exits, the buffers are freed.
+#    In a cgroup limited to 4 MiB, uid 1001's build of a 6000-file domain fails with ENOMEM and
+#    builds nothing; the same uid outside the cgroup then builds it.
+lm_cgroot=$(mktemp -d /tmp/moob-lm-cgroup.XXXXXX) || fail lm-cgroup-tempdir
+if ! mount -t cgroup2 none "$lm_cgroot"; then
+    [ "${MOOB_EXPECT_MEMCG:-0}" = 1 ] && fail lm-cgroup2-mount
+    rmdir "$lm_cgroot" || fail lm-cgroup-skip-cleanup
+    echo "LIMITS_MEMCG_SKIPPED: cgroup v2 unavailable in this guest"
+elif ! grep -qw memory "$lm_cgroot/cgroup.controllers"; then
+    [ "${MOOB_EXPECT_MEMCG:-0}" = 1 ] && fail lm-memcg-controller-unavailable
+    umount "$lm_cgroot" && rmdir "$lm_cgroot" || fail lm-cgroup-skip-cleanup
+    echo "LIMITS_MEMCG_SKIPPED: kernel built without the memory controller"
+else
+    echo +memory > "$lm_cgroot/cgroup.subtree_control" || fail lm-memcg-enable
+    mkdir -m 755 "$LOWER/lm/empty" "$LOWER/lm/u2" "$LOWER/lm/big" || fail lm-memcg-domains
+    "$BIN/overbudget-race" plant "$LOWER/lm/u2" 20 || fail lm-plant-u2
+    "$BIN/overbudget-race" plant "$LOWER/lm/big" 6000 || fail lm-plant-big
+    chown -R 1002:1002 "$LOWER/lm/u2" && chown -R 1001:1001 "$LOWER/lm/big" || fail lm-memcg-owners
+    mount -t moobfs_layer -o lower="$LOWER/lm",domain_depth=1 none "$LAYER" || fail lm-memcg-mount
+    lm_cg="$lm_cgroot/hold"
+    mkdir "$lm_cg" && echo 16777216 > "$lm_cg/memory.max" || fail lm-hold-cgroup
+    "$BIN/memcg-query" hold "$lm_cg" "$LAYER/empty" > /tmp/lm-hold.txt 2>&1 &
+    lm_pid=$!
+    lm_wait=0
+    while ! grep -q '^MEMCG_HOLD_' /tmp/lm-hold.txt && kill -0 "$lm_pid" 2> /dev/null &&
+        [ "$lm_wait" -lt 120 ]; do
+        sleep 1; lm_wait=$((lm_wait + 1))
+    done
+    cat /tmp/lm-hold.txt
+    grep -q '^MEMCG_HOLD_CAPPED: ' /tmp/lm-hold.txt || { kill "$lm_pid" 2> /dev/null; fail lm-hold-not-capped; }
+    lm_held=$(sed -n 's/^MEMCG_HOLD_CAPPED: descriptors=\([0-9]*\) .*/\1/p' /tmp/lm-hold.txt)
+    lm_capped=$(cat "$lm_cg/memory.current") || fail lm-hold-current
+    "$BIN/query" --uid 1002 "$LAYER/u2" q2 kind exists - - | cut -f2 | sort > /tmp/lm.k || fail lm-u2-query
+    "$BIN/moobfs-index" --domain "$LOWER/lm/u2" kind exists - - | cut -f2 | sort > /tmp/lm.o || fail lm-u2-oracle
+    cmp -s /tmp/lm.k /tmp/lm.o && [ "$(wc -l < /tmp/lm.k)" -eq 20 ] ||
+        { kill "$lm_pid"; fail "lm-u2-differs kernel=$(wc -l < /tmp/lm.k) oracle=$(wc -l < /tmp/lm.o)"; }
+    kill -0 "$lm_pid" || fail lm-holder-gone-before-the-other-uid
+    kill "$lm_pid" && wait "$lm_pid"
+    lm_freed=$(cat "$lm_cg/memory.current") || fail lm-freed-current
+    [ "$lm_freed" -lt 2097152 ] || fail "lm-buffers-not-freed current=$lm_freed"
+    rmdir "$lm_cg" || fail lm-hold-cgroup-cleanup
+    lm_cg="$lm_cgroot/build"
+    mkdir "$lm_cg" && echo 4194304 > "$lm_cg/memory.max" || fail lm-build-cgroup
+    lm_used=$(lm_info used)
+    lm_built=$(lm_info domains_built)
+    lm_builds=$(lm_info domain_builds)
+    "$BIN/memcg-query" build "$lm_cg" "$LAYER/big" || fail lm-build-not-capped
+    [ "$(lm_info used)" -eq "$lm_used" ] && [ "$(lm_info domains_built)" -eq "$lm_built" ] &&
+        [ "$(lm_info domain_builds)" -eq "$lm_builds" ] ||
+        { "$BIN/query" "$LAYER" info; fail lm-capped-build-left-something; }
+    rmdir "$lm_cg" || fail lm-build-cgroup-cleanup
+    "$BIN/query-build-cost" "$LAYER/big" 1001 big-outside-the-cgroup > /dev/null || fail lm-big-outside
+    [ "$(lm_info domain_builds)" -eq $((lm_builds + 1)) ] || fail lm-big-not-built-outside
+    lm_big=$(($(lm_info used) - lm_used))
+    umount "$LAYER" && umount "$lm_cgroot" && rmdir "$lm_cgroot" || fail lm-memcg-cleanup
+    echo "LIMITS_MEMCG_PASS: $lm_held retained buffers filled a 16 MiB cgroup (current=$lm_capped) until ENOMEM; uid 1002 answered meanwhile; freed to $lm_freed; a $lm_big-byte build refused with ENOMEM in a 4 MiB cgroup and built outside it"
+fi
+rm -rf "$LOWER/lm" && umount "$LOWER" || fail lm-cleanup
+fi
 if [ -n "${MOOB_ONLY:-}" ] && want builddenial; then
 # Compare the same cold 17,000-file QUERY2 with the pre-limit and limited
 # modules. The helper accepts only a complete empty answer or E2BIG with
@@ -1928,6 +2030,75 @@ bdn_raw_after=$(awk '{print $3}' /sys/block/vda/stat)
 [ "$bdn_raw_after" -gt "$bdn_raw_before" ] || fail bdn-block-counter-no-increase
 echo "BUILD_DENIAL_DEVICE_CONTROL: raw device read advanced sectors by $((bdn_raw_after - bdn_raw_before))"
 echo "BUILD_DENIAL_OBSERVED: 17000 empty files, one cold query, outcome=$bdn_result"
+fi
+if [ -n "${MOOB_ONLY:-}" ] && want mountscale; then
+# S9 (journal 0235): the mount does not scan the lower (ADR-0012; moobl_index_mount() reads
+# only whether the lower root answers listxattr). Mount and unmount are timed over a lower of
+# about 100, 50,100 and 200,100 files, with the index (default) and with noindex, five times
+# each, cold (caches dropped, lower mounted again) and warm. At each scale the first QUERY2 of
+# the bulk domain is measured: over index_build_work it is refused with E2BIG and nothing is
+# built, while a small domain is answered. Optional: it formats the ext4 disk with 210,000
+# inodes of 128 bytes, and the timings are those of a guest that may share its host.
+"$TOOLS/mke2fs" -q -F -t ext4 -b 4096 -I 128 -N 210000 "$DEV_EXT4" || fail ms-format
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail ms-lower-mount
+mkdir -p "$LOWER/ms/big/p0" "$LOWER/ms/big/p1" "$LOWER/ms/big/p2" "$LOWER/ms/small" || fail ms-directories
+"$BIN/overbudget-race" plant "$LOWER/ms/small" 100 || fail ms-plant-small
+sync && umount "$LOWER" || fail ms-lower-unmount
+ms_info() { "$BIN/query" "$LAYER" info | tr ' ' '\n' | sed -n "s/^$1=//p" | head -1; }
+ms_round() {   # files
+    for ms_rep in 1 2 3 4 5; do
+        for ms_mode in default noindex; do
+            ms_opts=domain_depth=1
+            [ "$ms_mode" = noindex ] && ms_opts=domain_depth=1,noindex
+            echo 3 > /proc/sys/vm/drop_caches || return 1
+            mount -t ext4 "$DEV_EXT4" "$LOWER" || return 1
+            for ms_cache in cold warm; do
+                ms_r=$("$BIN/mount-scale" mount "$LOWER/ms" "$LAYER" "$ms_opts") || return 1
+                echo "MOUNT_SCALE_RESULT files=$1 mode=$ms_mode cache=$ms_cache rep=$ms_rep ${ms_r#MOUNT_SCALE op=mount }"
+                ms_r=$("$BIN/mount-scale" umount "$LAYER") || return 1
+                echo "MOUNT_SCALE_RESULT files=$1 mode=$ms_mode cache=$ms_cache rep=$ms_rep ${ms_r#MOUNT_SCALE }"
+            done
+            umount "$LOWER" || return 1
+        done
+    done
+    echo 3 > /proc/sys/vm/drop_caches || return 1
+    mount -t ext4 "$DEV_EXT4" "$LOWER" || return 1
+    mount -t moobfs_layer -o lower="$LOWER/ms",domain_depth=1 none "$LAYER" || return 1
+    ms_r=$("$BIN/query-build-denial" "$LAYER/big" 1001) || return 1
+    echo "MOUNT_SCALE_FIRST_QUERY files=$1 ${ms_r#QUERY_BUILD_DENIAL }"
+    case "$1:$ms_r" in
+        100:*"outcome=full "*) ms_big=1 ;;
+        100:*) echo "ms: the empty bulk domain was not answered"; return 1 ;;
+        *:*"outcome=denied "*) ms_big=0 ;;
+        *) echo "ms: the bulk domain over index_build_work was not refused with E2BIG"; return 1 ;;
+    esac
+    [ "$(ms_info domain_builds)" -eq "$ms_big" ] || return 1
+    ms_r=$("$BIN/query-build-cost" "$LAYER/small" 1001 small) || return 1
+    echo "MOUNT_SCALE_SMALL files=$1 ${ms_r#QUERY_BUILD_COST }"
+    [ "$(ms_info domain_builds)" -eq $((ms_big + 1)) ] || return 1
+    echo "MOUNT_SCALE_INDEX files=$1 used=$(ms_info used) domains_built=$(ms_info domains_built)"
+    if [ "$ms_big" -eq 0 ]; then
+        # the mount-wide QUERY of an administrator needs the bulk domain too: refused the same way
+        "$BIN/query" "$LAYER" kind exists - - > /dev/null 2> /tmp/ms-v1.err && return 1
+        grep -q 'Argument list too long' /tmp/ms-v1.err || { cat /tmp/ms-v1.err; return 1; }
+    fi
+    umount "$LAYER" || return 1
+    mount -t moobfs_layer -o lower="$LOWER/ms",domain_depth=1,noindex none "$LAYER" || return 1
+    [ "$("$BIN/query" --uid 1001 "$LAYER/small" q2errno kind exists - -)" = "q2 95" ] || return 1
+    umount "$LAYER" && umount "$LOWER"
+}
+ms_round 100 || fail ms-round-100
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail ms-lower-mount-50k
+"$BIN/query-build-limit" plant "$LOWER/ms/big/p0" 50000 || fail ms-plant-50k
+sync && umount "$LOWER" || fail ms-lower-unmount-50k
+ms_round 50100 || fail ms-round-50k
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail ms-lower-mount-200k
+"$BIN/query-build-limit" plant "$LOWER/ms/big/p1" 100000 &&
+    "$BIN/query-build-limit" plant "$LOWER/ms/big/p2" 50000 || fail ms-plant-200k
+df -i "$LOWER" | tail -1
+sync && umount "$LOWER" || fail ms-lower-unmount-200k
+ms_round 200100 || fail ms-round-200k
+echo "MOUNT_SCALE_OBSERVED: mount and unmount over 100, 50100 and 200100 files, with and without noindex; first query of the bulk domain refused with E2BIG above index_build_work"
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildclient; then
 # Journal 0068 measured 60,000 client pages in ten similarly sized domains,
