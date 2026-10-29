@@ -20,7 +20,7 @@ help:
 	@echo 'Linux-only targets:'
 	@echo '  make attr-tools    moobfs, moobfs-attr, moobfs-check, moobfs-index'
 	@echo '  make bench-tools   M4 harness binaries; make bench-smoke runs its smoke test'
-	@echo '  make hostile-test  adversarial lower trees through moobfs-check and moobfs-index (S4)'
+	@echo '  make hostile-test  adversarial lower trees through moobfs-check and moobfs-index (S4), and their walk under a racing link swap'
 	@echo '  make sqlite-ext    the moobfs SQLite extension, $$(BUILD)/moobfs.so (needs libsqlite3-dev >= 3.38)'
 	@echo 'Kernel (inside the VM container, not on your host):'
 	@echo '  make vm-test       full native suite in a disposable QEMU VM; needs only Docker'
@@ -52,9 +52,9 @@ $(BUILD)/attr_test: tests/attr_test.c common/attr.c include/moobfs_attr.h | $(BU
 attr-tools: $(BUILD)/moobfs-attr $(BUILD)/moobfs-check $(BUILD)/moobfs-index $(BUILD)/moobfs
 $(BUILD)/moobfs-attr: tools/moobfs-attr.c common/attr.c include/moobfs_attr.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs-attr.c common/attr.c $(LDFLAGS) -o $@
-$(BUILD)/moobfs-check: tools/moobfs-check.c tools/ext-acl.h common/attr.c include/moobfs_attr.h | $(BUILD)
+$(BUILD)/moobfs-check: tools/moobfs-check.c tools/walk.h tools/ext-acl.h common/attr.c include/moobfs_attr.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs-check.c common/attr.c $(LDFLAGS) -o $@
-$(BUILD)/moobfs-index: tools/moobfs-index.c tools/query-common.h tools/ext-acl.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
+$(BUILD)/moobfs-index: tools/moobfs-index.c tools/query-common.h tools/walk.h tools/ext-acl.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs-index.c common/attr.c $(LDFLAGS) -o $@
 $(BUILD)/moobfs: tools/moobfs.c tools/query-common.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs.c common/attr.c $(LDFLAGS) -o $@
@@ -76,7 +76,7 @@ $(BUILD)/bench-aimem-latency: bench/client/aimem-latency.c bench/common.h includ
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude bench/client/aimem-latency.c $(SQLITE_LIBS) -lm $(LDFLAGS) -o $@
 # User-space baseline of the index (journal 0092): SQLite per domain kept current by inotify. Linux only.
 userspace-tools: $(BUILD)/udx-index $(BUILD)/udx-watch $(BUILD)/udx-query
-$(BUILD)/udx-%: bench/userspace/udx-%.c bench/userspace/udx.h tools/query-common.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
+$(BUILD)/udx-%: bench/userspace/udx-%.c bench/userspace/udx.h tools/query-common.h tools/ext-acl.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude -Itools $< common/attr.c $(SQLITE_LIBS) $(LDFLAGS) -o $@
 bench-smoke: bench-tools attr-tools
 	sh bench/smoke.sh $(BUILD)
@@ -86,6 +86,7 @@ $(BUILD)/hostile: tests/hostile.c | $(BUILD)
 hostile-test: attr-tools $(BUILD)/hostile
 	sh tests/hostile-user.sh $(BUILD) $(HOSTILE_SEEDS)
 	sh tests/tools-json.sh $(BUILD)
+	sh tests/tools-walk.sh $(BUILD)
 json-test: attr-tools $(BUILD)/hostile
 	sh tests/tools-json.sh $(BUILD)
 test: tools
