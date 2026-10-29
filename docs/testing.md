@@ -30,7 +30,7 @@ Measured wall-clock times per machine are not recorded yet; the CI timeouts are
 | `make` / `make tools` | `mkfs.moobfs`, `fsck.moobfs`, `attr_test` | `build/host/` (`BUILD=` overrides) |
 | `make test` | `attr_test` (host unit tests of the typed attribute encoding) and `tests/test_images.py`: nine tests covering exact-byte sharing, distinct data, hash boundary sizes (0 to 65536 bytes), an independent CRC vector, deterministic images, overwrite refusal, limits, 128 objects and 15 malformed variants | `build/host/` |
 | `make test BUILD=build/asan CC=clang CFLAGS=... LDFLAGS=...` | Same, under ASan and UBSan (see development.md for the exact flags) | `build/asan/` |
-| `make fuzz FUZZ_TIME=30` | libFuzzer over `common/attr.c` from `tests/fuzz_attr.c`, seeded by `tests/fuzz-corpus/attr` | `build/host/fuzz_attr`, `build/host/fuzz-corpus/` |
+| `make fuzz FUZZ_TIME=30` | libFuzzer, `FUZZ_TIME` seconds per target (`FUZZ_TARGETS`, default all three): `attr` over `common/attr.c` (`tests/fuzz_attr.c`), `image` over the image parser `common/format.c` that the M1 module and `fsck.moobfs` share (`tests/fuzz_image.c`, which writes the checksums an input's fields ask for so that mutations pass them), `tools` over the query terms of `tools/query-common.h` and the ACL value of `tools/ext-acl.h` (`tests/fuzz_tools.c`); seeded by `tests/fuzz-corpus/<target>` (journal 0237) | `build/host/fuzz_<target>`, new inputs in `build/host/fuzz-corpus/<target>/`, crashes in `build/host/fuzz-crashes/` |
 | `make attr-tools` | Linux-only `moobfs-attr`, `moobfs-check`, `moobfs-index` | `build/host/` |
 | `make hostile-test` / `make json-test` | Linux, no module (CI job "Tools and sanitizers", under ASan and UBSan): `tests/hostile-user.sh` runs `moobfs-check` and `moobfs-index` over the adversarial trees of `tests/hostile.c` (S4), `tests/tools-json.sh` checks both JSON documents, and since journal 0232 `tests/tools-walk.sh` (`hostile-test` only) runs both tools while `hostile swap` exchanges a directory and a link to outside the root with `renameat2(RENAME_EXCHANGE)` (no answer may come from outside; the `nftw()` tools failed most rounds), checks that planted links and a FIFO are not followed, walks 150 levels with 64 descriptors and, as a user other than root, keeps an unreadable file reported as before. Each skips or fails cleanly where `TMPDIR` has no user extended attributes | a `mktemp -d` under `TMPDIR`, removed at exit |
 | `make module` / `make layer` | `kernel/moobfs.ko` / `layer/moobfs_layer.ko` against `KDIR` | in-tree (`kernel/`, `layer/`) |
@@ -338,7 +338,7 @@ native KVM and KASAN runs. The KVM wrapper was a dedicated-host cross-check;
 
 | Marker | Proves | Does not prove |
 | --- | --- | --- |
-| `MOOBFS_KASAN_PASS: ...` | The full `vm/suite.sh` passed on upstream 6.12.112 with KASAN (generic, inline, vmalloc), UBSAN bounds, `PROVE_LOCKING`, `DEBUG_ATOMIC_SLEEP`, `DEBUG_LIST`, `DEBUG_VM`, `PROVE_RCU`, and `dmesg` contains none of `BUG: KASAN`, `KASAN:`, `BUG:`, `Oops:`, `WARNING:`, `possible circular/recursive locking`, `INFO: task/rcu`, `UBSAN:` | KMSAN, KFENCE (not enabled); data races (KCSAN runs separately, `kcsan.yml`, journal 0127); code paths the suite does not reach; other kernel versions |
+| `MOOBFS_KASAN_PASS: ...` | The full `vm/suite.sh` passed on upstream 6.12.112 with KASAN (generic, inline, vmalloc), UBSAN bounds, `PROVE_LOCKING`, `DEBUG_ATOMIC_SLEEP`, `DEBUG_LIST`, `DEBUG_VM`, `PROVE_RCU`, and since journal 0237 `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, `SLAB_FREELIST_HARDENED`/`_RANDOM`, `BUG_ON_DATA_CORRUPTION`, KFENCE, `SCHED_STACK_END_CHECK` and `DEBUG_OBJECTS` (`_FREE`, `_RCU_HEAD`), and `dmesg` contains none of `BUG: KASAN`, `KASAN:`, `BUG:`, `Oops:`, `WARNING:`, `possible circular/recursive locking`, `INFO: task/rcu`, `UBSAN:` | KMSAN (not enabled); `init_on_alloc`/`init_on_free` (off here on purpose, on in the Debian 6.12.113 job); data races (KCSAN runs separately, `kcsan.yml`, journal 0127); code paths the suite does not reach; other kernel versions |
 | `MOOBFS_VM_FAIL: kernel diagnostics under KASAN/lockdep` | The suite passed but `dmesg` had a diagnostic; `build/vng/dmesg.txt` has it | — |
 | `MOOBFS_VM_FAIL: missing <tool> on the host` / `missing disk /dev/vdX` | Environment error before the suite started | — |
 
@@ -544,7 +544,7 @@ kernel versions are unverified.
 - Linux security modules beyond the SELinux run above (AppArmor, Smack, and Landlock
   beyond the CLI run of the step `landlock`).
 - xfstests over the layer (only the vendored `fsx`), syzkaller over the ioctls
-  and `setxattr`, a hostile lower tree, KMSAN/KCSAN/KFENCE: see
+  and `setxattr`, a hostile lower tree, KMSAN: see
   [security-roadmap.md](security-roadmap.md) S2 to S4 and S7 to S8.
 - Kernels other than Debian 6.12.111 and upstream 6.12.112; architectures other
   than x86-64.
@@ -554,10 +554,11 @@ kernel versions are unverified.
 ## 10. CI and documentation
 
 GitHub Actions runs `Tools and sanitizers` (host tests, ASan/UBSan, 30 s of
-fuzzing, site link check), `Lint` (shellcheck, SPDX headers, DCO sign-off on
+fuzzing per libFuzzer target, site link check), `Lint` (shellcheck, SPDX headers, DCO sign-off on
 pull requests) and `Native Linux VM` on pushes to `main` and on pull requests;
 `Native Linux VM (Debian 6.12.113)` runs on the same pushes and pull requests;
 `KASAN and lockdep` runs on pull requests touching `layer/` or `vm/`, weekly and
-on demand. Logs are temporary Actions artifacts; permanent conclusions belong
+on demand. `Long fuzzing` (`fuzz.yml`) runs the three libFuzzer targets 45 minutes each, twice a
+week and on demand, with the corpus kept in the Actions cache (journal 0237). Logs are temporary Actions artifacts; permanent conclusions belong
 in the journal with links to the run. The Pages workflow publishes only `site/`.
 Preview locally with `python3 -m http.server 8080 --directory site`.

@@ -99,7 +99,8 @@ value before passing the xattr to the lower filesystem; an invalid encoding is r
 `EINVAL`. Other xattr namespaces pass through unchanged. The user-space tools `moobfs-attr`
 (set and get), `moobfs-check` (walk a tree and report invalid encodings and identity
 conflicts) and `moobfs-index` (oracle for `QUERY`) live in `tools/`; the encoder is fuzzed by
-`tests/fuzz_attr.c` ([journal 0013](history/0013-phase-2c-typed-attributes.md)).
+`tests/fuzz_attr.c` ([journal 0013](history/0013-phase-2c-typed-attributes.md)), the tools' query
+terms and ACL parsing by `tests/fuzz_tools.c` ([journal 0237](history/0237-s7-fuzzing-and-s8-hardening.md)).
 
 ## 4. In-memory index
 

@@ -256,3 +256,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0234 — Documentation and manual workflows of issue #168](0234-docs-and-manual-workflows-of-issue-168.md)
 - [0235 — S9's remaining limits: caps hit in the suite, mount cost measured (ADR-0029)](0235-s9-remaining-limits.md)
 - [0236 — Reproducible build of the module and the packages (S10)](0236-reproducible-module-build.md)
+- [0237 — Longer fuzzing (S7) and runtime hardening in the KASAN kernel (S8)](0237-s7-fuzzing-and-s8-hardening.md)

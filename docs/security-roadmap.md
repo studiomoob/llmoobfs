@@ -267,6 +267,18 @@ turning that rule on, and the build-time check of an unlisted kernel.
 
 ### S7. Continuous and larger fuzzing
 
+*Status, 2026-10-29 (journal 0237).* Workflow written, not yet run on GitHub: `fuzz.yml` runs
+each libFuzzer target 45 minutes (on demand 1 to 300) twice a week, keeps each corpus in the
+Actions cache from run to run and uploads it with any crash as an artifact; the job summary
+carries the exec count and coverage for the journal. Two targets were added, `image` (the image
+parser `common/format.c` that the M1 module and `fsck.moobfs` share) and `tools` (query terms
+and ACL values of the tools); `make fuzz` runs all three. Locally on the test host, with no
+crash: `attr` 258 million executions in 30 minutes, `image` 1.6 million in 60 minutes (every
+line of `common/format.c` reached), `tools` 66 million in 30 minutes. Janus, Hydra and LFUZZ
+were weighed and not adopted (journal 0237): the layer has no image of its own, and syzkaller
+(S3) and the hostile trees (S4) cover the system calls and the lower's attributes. Still open:
+the first scheduled run and its report in `docs/history/`.
+
 - Raise the libFuzzer `FUZZ_TIME` in a scheduled workflow; keep the corpus in an artifact.
 - Evaluate Janus/Hydra or LFUZZ for image-plus-syscall fuzzing over the lower layer mounted
   through the layer; record feasibility.
@@ -291,6 +303,21 @@ turning that rule on, and the build-time check of an unlisted kernel.
 - *Progress, 2026-10-18 (journal 0127):* the KCSAN run moves to CI (`.github/workflows/kcsan.yml`,
   on demand and weekly, a runner with KVM), with the report filter of journal 0115; it no longer
   needs the benchmark host.
+- *Progress, 2026-10-29 (journal 0237):* `vm/kasan.config` adds `FORTIFY_SOURCE`,
+  `HARDENED_USERCOPY`, `SLAB_FREELIST_HARDENED`, `SLAB_FREELIST_RANDOM`, `BUG_ON_DATA_CORRUPTION`,
+  KFENCE (100 ms), `SCHED_STACK_END_CHECK` and `DEBUG_OBJECTS` (`_FREE`, `_RCU_HEAD`), so the
+  KASAN suite builds and runs the module under them; the full suite passed locally with them
+  (`MOOBFS_KASAN_PASS`, KFENCE initialized, no report).
+  `INIT_ON_ALLOC_DEFAULT_ON` stays off in the KASAN kernel (zeroing would hide uninitialized
+  state from the detectors); the Debian 6.12.113 job already runs the whole suite on a kernel
+  with `init_on_alloc=1`, `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, `SLAB_FREELIST_HARDENED` and
+  `BUG_ON_DATA_CORRUPTION` (KFENCE built but off: sample interval 0). The `WARN_ON`/`pr_*`
+  review is complete: the module has only `WARN_ON_ONCE`, the messages a caller can repeat are
+  `_once` (journal 0221), and the one plain `pr_info` is printed at mount, which needs
+  `CAP_SYS_ADMIN` in the initial namespace (no `FS_USERNS_MOUNT`). Every `copy_to_user` is of
+  a fixed size or of a count bounded by its buffer; `refcount_t` is the only reference count.
+  The `KASAN and lockdep` workflow runs the new fragment on the batch's pull request (it touches
+  `vm/`); arm64 has not run it. Still open under S8: KMSAN.
 
 ### S9. Resource limits and denial of service
 

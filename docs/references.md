@@ -961,3 +961,40 @@ runs 6.12.111.
   (on by default) adds `-ffile-prefix-map=<build dir>=.` to `CFLAGS`, and `dpkg-buildpackage(1)`,
   which sets `SOURCE_DATE_EPOCH` from the changelog date when it is not set; `dh_builddeb` and
   `dpkg-deb` clamp file times to it.
+## 35. Longer fuzzing and runtime hardening (security roadmap S7 and S8, journal 0237)
+
+- libFuzzer, LLVM ([documentation](https://llvm.org/docs/LibFuzzer.html)), as shipped by clang
+  19 on Debian 13 and by the clang of the `ubuntu-24.04` runner: `-max_total_time`,
+  `-max_len`, `-artifact_prefix`, `-print_final_stats` and corpus merging with `-merge=1`, used
+  by `make fuzz` and `.github/workflows/fuzz.yml`. The first corpus directory is the one new
+  inputs are written to, why `make fuzz` now lists `build/host/fuzz-corpus/<target>` first.
+- `actions/cache` v6.1.0 ([tips and workarounds, "Update a cache"](https://github.com/actions/cache/blob/main/tips-and-workarounds.md)):
+  a cache entry is immutable, so a key unique per run (`github.run_id`) with `restore-keys` on
+  the prefix carries a corpus forward; the separate `restore` and `save` actions let the save
+  run after a failed (crashing) fuzz step. Entries unread for seven days are evicted
+  ([cache limits](https://github.com/actions/cache/blob/main/README.md#cache-limits)), why the
+  workflow runs twice a week.
+- OSS-Fuzz ([new project guide](https://google.github.io/oss-fuzz/getting-started/new-project-guide/))
+  and ClusterFuzzLite ([documentation](https://google.github.io/clusterfuzzlite/)): what an
+  integration would need (`project.yaml`, `Dockerfile`, `build.sh` with `$LIB_FUZZING_ENGINE`
+  and `<target>_seed_corpus.zip`); drafted in the journal, not applied.
+- Janus and Hydra (§ "Security roadmap (proposal)" above), and LFUZZ as journal 0017 names it: weighed in the journal
+  for image-plus-syscall fuzzing of the lower tree; not adopted.
+- Linux 6.12.112, the tree the KASAN harness builds
+  ([source](https://github.com/gregkh/linux/tree/v6.12.112)): `__check_object_size()` and
+  `check_heap_object()`, `mm/usercopy.c:213` and `:162` (`CONFIG_HARDENED_USERCOPY`, bounds of a
+  `copy_to_user`/`copy_from_user` against the slab object, the stack frame or the vmalloc area);
+  `__fortify_report()` and `__fortify_panic()`, `lib/string_helpers.c:1025` and `:1037`
+  (`CONFIG_FORTIFY_SOURCE`); `__list_add_valid_or_report()`, `lib/list_debug.c:22`, which
+  `CONFIG_BUG_ON_DATA_CORRUPTION` turns into a `BUG`; `refcount_warn_saturate()`,
+  `lib/refcount.c:13`, the saturation warning every `refcount_t` has had since 5.x without an
+  option; the Kconfig entries `security/Kconfig:162`, `:174`, `security/Kconfig.hardening:227`,
+  `:240`, `:293`, `mm/Kconfig:272`, `:280`, `lib/Kconfig.debug:727`, `:752`, `:793` and
+  `lib/Kconfig.kfence:28` (default sample interval 100 ms);
+  `Documentation/dev-tools/kfence.rst` (KFENCE is off when `kfence.sample_interval` is 0) and
+  `Documentation/core-api/debug-objects.rst`.
+- Debian's kernel configuration `/boot/config-6.12.113+deb13-amd64` of the package
+  `linux-image-6.12.113+deb13-amd64` 6.12.113-1, the kernel of the `Native Linux VM (Debian
+  6.12.113)` job: the hardening it enables, compared option by option in the journal.
+- Kernel Self Protection Project, [recommended settings](https://kspp.github.io/Recommended_Settings)
+  (the list the S8 options come from).

@@ -64,6 +64,19 @@
   asks for out-of-tree builds. `scripts/build-debs.sh` dates the changelog from
   `SOURCE_DATE_EPOCH` when it is set. A signed module is the reproducible one plus a signature
   that depends on the host's key. No change to the module's C code.
+- Longer fuzzing and runtime hardening (journal 0237; security roadmap S7 and S8). Two new
+  libFuzzer targets: `tests/fuzz_image.c` over the image parser `common/format.c` (shared by
+  the M1 module and `fsck.moobfs`; the target writes the checksums an input's fields ask for so
+  mutations reach the checks behind them) and `tests/fuzz_tools.c` over the query terms of
+  `tools/query-common.h` and the ACL value of `tools/ext-acl.h`. `make fuzz` runs all three
+  targets (`FUZZ_TARGETS`), `FUZZ_TIME` seconds each, and no longer writes new inputs into
+  `tests/fuzz-corpus`. New workflow `fuzz.yml` (on demand and twice a week, not yet run on
+  GitHub) fuzzes each target 45 minutes with its corpus kept in the Actions cache. Locally, no
+  crash: 258 million executions of `attr` in 30 minutes, 1.6 million of `image` in 60 minutes
+  (all lines of `common/format.c`), 66 million of `tools` in 30 minutes. `vm/kasan.config`
+  adds `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, `SLAB_FREELIST_HARDENED`/`_RANDOM`,
+  `BUG_ON_DATA_CORRUPTION`, KFENCE, `SCHED_STACK_END_CHECK` and `DEBUG_OBJECTS` (`_FREE`,
+  `_RCU_HEAD`); the full local KASAN suite passed with them (`MOOBFS_KASAN_PASS`).
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and
