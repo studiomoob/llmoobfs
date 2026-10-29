@@ -15,9 +15,10 @@
  * or descending (the QUERY2 order); terms may then be empty. --limit keeps the first N.
  * An operator ending in '?' (for example "gt?") also matches files without the attribute.
  * --json prints one object with dir, count and ordered {ino, path} results.
+ * The walk is by directory descriptor (tools/walk.h, journal 0232): every attribute, mode and
+ * ACL is read from the inode the walk opened, and no symbolic link is followed below <dir>.
  */
 #define _GNU_SOURCE
-#include <ftw.h>
 #include <sys/xattr.h>
 #include <sys/stat.h>
 #include <inttypes.h>
@@ -25,11 +26,10 @@
 #include <limits.h>
 #include <grp.h>
 #include "query-common.h"
-#include "ext-acl.h"
+#include "walk.h"
 
 static struct moob_query_term terms[MOOB_QUERY_MAX_TERMS];
 static int nterms;
-static size_t root_len;
 static int domain_mode;
 static struct stat dom_st;
 static int dom_acl;
@@ -38,12 +38,11 @@ static int dom_acl;
  * Everyone who can traverse the domain can read (want_read) or list and traverse this inode:
  * a search-only directory keeps its names from those who cannot read it (journal 0215).
  */
-static int reach_ok(const char *path, const struct stat *st, int want_read)
+static int reach_ok(const struct stat *st, int acl, int want_read)
 {
 	mode_t u = want_read ? S_IRUSR : S_IRUSR | S_IXUSR;
 	mode_t g = want_read ? S_IRGRP : S_IRGRP | S_IXGRP;
 	mode_t o = want_read ? S_IROTH : S_IROTH | S_IXOTH;
-	int acl = moob_ext_acl(path, st->st_mode);
 
 	/* every class: the kernel never judges owner or group by the bits of others */
 	if (!acl && (st->st_mode & (u | g | o)) == (u | g | o))
@@ -59,25 +58,17 @@ static int reach_ok(const char *path, const struct stat *st, int want_read)
 	return 1;
 }
 
-static int homogeneous(const char *path, const struct stat *st)
+/* The directories strictly between are the walk's frames 1 .. level-1, the inodes it listed. */
+static int homogeneous(const struct moob_walk *w, const struct moob_node *n, int level)
 {
-	char buf[PATH_MAX];
-	size_t i;
+	int i;
 
-	if (S_ISREG(st->st_mode) && st->st_nlink > 1)
+	if (S_ISREG(n->st.st_mode) && n->st.st_nlink > 1)
 		return 0;
-	snprintf(buf, sizeof buf, "%s", path);
-	for (i = root_len + 1; buf[i]; i++) {		/* every directory strictly between */
-		struct stat ds;
-
-		if (buf[i] != '/')
-			continue;
-		buf[i] = 0;
-		if (lstat(buf, &ds) || !reach_ok(buf, &ds, 0))
+	for (i = 1; i < level; i++)
+		if (!reach_ok(&w->frames[i].node.st, w->frames[i].ext_acl, 0))
 			return 0;
-		buf[i] = '/';
-	}
-	return reach_ok(path, st, 1);
+	return reach_ok(&n->st, moob_node_ext_acl(n), 1);
 }
 
 struct hit { uint64_t ino; char *path; ma_u8 *ov; size_t olen; };
@@ -125,7 +116,7 @@ static int value_cmp(int type, const ma_u8 *a, size_t alen, const ma_u8 *b, size
 	}
 }
 
-static int term_matches(const char *path, const struct moob_query_term *t)
+static int term_matches(const struct moob_node *node, const struct moob_query_term *t)
 {
 	char full[MOOB_ATTR_PREFIX_LEN + MOOB_QUERY_NAME_MAX + 1];
 	ma_u8 v[MOOB_ATTR_VALUE_MAX + 1];
@@ -133,7 +124,7 @@ static int term_matches(const char *path, const struct moob_query_term *t)
 	int c;
 
 	snprintf(full, sizeof full, "%s%s", MOOB_ATTR_PREFIX, t->name);
-	n = lgetxattr(path, full, v, sizeof v);
+	n = moob_node_getxattr(node, full, v, sizeof v);
 	/* absent, invalid and raw values are not indexed: for the index they are missing */
 	if (n <= 0 || moob_attr_validate(v, (size_t)n) != MOOB_ATTR_OK || v[0] == MOOB_T_RAW)
 		return (t->flags & MOOB_TERM_MISSING_OK) ? 1 : 0;
@@ -154,16 +145,21 @@ static int term_matches(const char *path, const struct moob_query_term *t)
 	return 0;
 }
 
-static int visit(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
+static int visit(struct moob_walk *w, const char *path, const struct moob_node *node, int level)
 {
+	const struct stat *sb = &node->st;
 	int i;
 
-	if (flag != FTW_F && flag != FTW_D)
+	if (domain_mode && level == 0) {
+		/* the domain as the walk opened it, not as a second lookup of its path found it */
+		dom_st = node->st;
+		dom_acl = moob_node_ext_acl(node);
 		return 0;
-	if (domain_mode && (ftw->level == 0 || !homogeneous(path, sb)))
+	}
+	if (domain_mode && !homogeneous(w, node, level))
 		return 0;
 	for (i = 0; i < nterms; i++)
-		if (!term_matches(path, &terms[i]))
+		if (!term_matches(node, &terms[i]))
 			return 0;
 	ma_u8 ov[MOOB_ATTR_VALUE_MAX + 1];
 	ssize_t on = 0;
@@ -172,7 +168,7 @@ static int visit(const char *path, const struct stat *sb, int flag, struct FTW *
 		char full[MOOB_ATTR_PREFIX_LEN + MOOB_QUERY_NAME_MAX + 1];
 
 		snprintf(full, sizeof full, "%s%s", MOOB_ATTR_PREFIX, order_name);
-		on = lgetxattr(path, full, ov, sizeof ov);
+		on = moob_node_getxattr(node, full, ov, sizeof ov);
 		if (on <= 0 || moob_attr_validate(ov, (size_t)on) != MOOB_ATTR_OK || ov[0] != order_type)
 			return 0;
 	}
@@ -182,7 +178,7 @@ static int visit(const char *path, const struct stat *sb, int flag, struct FTW *
 		if (!hits) return 1;
 	}
 	hits[nhits].ino = sb->st_ino;
-	hits[nhits].path = strdup(path + root_len + (path[root_len] == '/'));
+	hits[nhits].path = strdup(path);
 	hits[nhits].ov = NULL;
 	hits[nhits].olen = 0;
 	if (on > 0) {
@@ -264,16 +260,12 @@ int main(int argc, char **argv)
 		fprintf(stderr, "moobfs-index: invalid query terms\n");
 		return 65;
 	}
-	root_len = strlen(argv[1]);
-	if (domain_mode) {
-		if (stat(argv[1], &dom_st)) {
-			perror(argv[1]);
-			return 1;
-		}
-		dom_acl = moob_ext_acl(argv[1], dom_st.st_mode);
+	if (domain_mode && stat(argv[1], &dom_st)) {
+		perror(argv[1]);
+		return 1;
 	}
-	if (nftw(argv[1], visit, 32, FTW_PHYS | FTW_MOUNT)) {
-		perror("nftw");
+	if (moob_walk(argv[1], visit)) {
+		perror("walk");
 		return 1;
 	}
 	if (nhits)	/* hits is NULL when nothing matched, and qsort's base must not be NULL */

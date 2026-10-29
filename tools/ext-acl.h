@@ -12,18 +12,22 @@
 #ifndef MOOBFS_EXT_ACL_H
 #define MOOBFS_EXT_ACL_H
 #include <errno.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/xattr.h>
 
-static int moob_ext_acl(const char *path, mode_t mode)
+/*
+ * The decision on the bytes a getxattr of "system.posix_acl_access" returned: len < 0 with err
+ * its errno. moobfs-check and moobfs-index read them through the descriptor of the inode they
+ * judge (tools/walk.h, journal 0232).
+ */
+static inline int moob_ext_acl_bytes(const unsigned char *buf, ssize_t n, int err, mode_t mode)
 {
-	static unsigned char buf[65536];	/* XATTR_SIZE_MAX: getxattr cannot return ERANGE */
 	unsigned int bits = 0, i;
 	int not_equiv = 0;
-	ssize_t n = getxattr(path, "system.posix_acl_access", buf, sizeof buf);
 
 	if (n < 0)
-		return !(errno == ENODATA || errno == EOPNOTSUPP);
+		return !(err == ENODATA || err == EOPNOTSUPP);
 	if (n < 4 || (n - 4) % 8 || buf[0] != 2 || buf[1] || buf[2] || buf[3])
 		return 1;
 	for (i = 4; i < (unsigned int)n; i += 8) {
@@ -40,5 +44,14 @@ static int moob_ext_acl(const char *path, mode_t mode)
 		}
 	}
 	return not_equiv || bits != (mode & 0777);
+}
+
+/* The same decision by path, without following a final symbolic link (bench/userspace/udx.h). */
+static inline int moob_ext_acl_path(const char *path, mode_t mode)
+{
+	static unsigned char buf[65536];	/* XATTR_SIZE_MAX: getxattr cannot return ERANGE */
+	ssize_t n = lgetxattr(path, "system.posix_acl_access", buf, sizeof buf);
+
+	return moob_ext_acl_bytes(buf, n, n < 0 ? errno : 0, mode);
 }
 #endif
