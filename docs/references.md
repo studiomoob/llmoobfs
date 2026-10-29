@@ -882,3 +882,18 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   tools, as the Python tests of journals 0227 and 0231 do.
 - The same `O_NOFOLLOW`, `ELOOP` and `ENOTDIR` behaviour of `do_open()` and `may_open()` as §29,
   and `O_NONBLOCK` for a FIFO swapped in (`fifo_open()`, §24).
+## 31. Splice and sendfile in the set-user-ID check (issue #168, journal 0233)
+
+- `do_sendfile()`, `fs/read_write.c:1315`, Linux 6.12.111 (the Debian kernel of `make vm-test`;
+  [source](https://github.com/gregkh/linux/blob/v6.12.111/fs/read_write.c)): when the output is
+  not a pipe, `sendfile(2)` calls `do_splice_direct()` (`:1388`), which reaches the output file's
+  `->splice_write` through `direct_splice_actor()` and `do_splice_from()` (`fs/splice.c:1160` and
+  `:939`, same tree; [source](https://github.com/gregkh/linux/blob/v6.12.111/fs/splice.c)).
+  `splice(2)` from a pipe to a file reaches the same `do_splice_from()` from `do_splice()`
+  (`:1308`, `:1357`). So both exercise `moobl_splice_write()`, which `write(2)` and
+  `copy_file_range(2)` do not.
+- `backing_file_splice_write()`, `fs/backing-file.c:298`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.111/fs/backing-file.c)): calls
+  `file_remove_privs()` on the layer's file (`:312`), then writes to the lower file under the
+  credentials the layer passes (`override_creds()`, `:316`); the lower's own removal of
+  set-user-ID then runs under those credentials, which is what journal 0218 changed.

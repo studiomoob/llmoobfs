@@ -21,6 +21,15 @@
   (`tools/ext-acl.h`, as the oracle; an ACL read that fails because the path was just renamed is
   judged on the `lstat` already taken). `bench/userspace/test.sh` gained a `0711` and a `0705`
   directory, on which the old rule differed from the oracle (6 of 296 comparisons).
+- Test gaps of issue #168 closed in the suite (journal 0233; tests only, no kernel, UAPI or
+  format change). The set-user-ID check of GHSA-6xf4-r246-92r6 (`tests/layer.c`) now also
+  writes through the layer with `splice(2)` from a pipe and with `sendfile(2)`, the layer's
+  `->splice_write` path; the bit is cleared on ext4, btrfs and XFS, and a module whose splice
+  path keeps the mounter's credentials fails it. The `permmatrix` step runs on btrfs and XFS as
+  well as ext4. The `rootpath` step starts its waiting query once the part outside the domain is
+  built instead of after a fixed 100 ms, and an inconclusive attempt plants twice the files for
+  the next (up to four attempts), so it concludes under KVM, where it stopped twice at
+  `rootpath-race-inconclusive-btrfs`.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and

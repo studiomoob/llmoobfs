@@ -241,3 +241,4 @@ packaged signing is item C6
 so the guide starts by switching kernels
 `tests/landlock_run.c` and `tests/notify.c` are standalone investigation helpers
 the walk costs one `stat`
+Up to three attempts per lower

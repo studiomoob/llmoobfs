@@ -211,7 +211,7 @@ Markers come from three places: `vm/init` and `tests/mounted.c` (M1),
 
 | Marker | Printed by | Proves | Does not prove |
 | --- | --- | --- | --- |
-| `LAYER_PASSTHROUGH_TESTS_PASS` | `tests/layer.c`, once per lower filesystem and once more with `nolinks` | Create, write, pread, append, truncate, shared and private mmap, mkdir/rmdir, readdir, chmod, unlink, rename, xattr, hard links and symlinks behave as on the lower tree, with the same inode numbers and bytes visible below; `FICLONE`/`FIDEDUPERANGE` share extents on btrfs and XFS and fail cleanly on ext4; a set-user-ID bit given on the lower behind the layer goes with the next write, `copy_file_range`, clone or `fallocate` through it as uid 1001, also after an earlier write cached `S_NOSEC` (GHSA-6xf4-r246-92r6) | Full POSIX conformance (fstests ran as its `quick` group only, `vm/fstests/`); other lower filesystems |
+| `LAYER_PASSTHROUGH_TESTS_PASS` | `tests/layer.c`, once per lower filesystem and once more with `nolinks` | Create, write, pread, append, truncate, shared and private mmap, mkdir/rmdir, readdir, chmod, unlink, rename, xattr, hard links and symlinks behave as on the lower tree, with the same inode numbers and bytes visible below; `FICLONE`/`FIDEDUPERANGE` share extents on btrfs and XFS and fail cleanly on ext4; a set-user-ID bit given on the lower behind the layer goes with the next write, `copy_file_range`, clone, `fallocate`, `splice` from a pipe or `sendfile` through it as uid 1001, also after an earlier write cached `S_NOSEC` (GHSA-6xf4-r246-92r6; splice and sendfile since journal 0233) | Full POSIX conformance (fstests ran as its `quick` group only, `vm/fstests/`); other lower filesystems |
 | `PASSTHROUGH_PASS` | `tests/passthrough.c`, once per lower filesystem (issue #115, journal 0224) | `posix_fadvise(DONTNEED)` on a layer descriptor empties the lower page cache (`PT_FADVISE_PASS`) and `readahead(2)` fills it (`PT_READAHEAD_PASS`), counted with `mincore` on the lower file; `statx` reports the lower's `STATX_DIOALIGN`, `STATX_SUBVOL`, `STATX_WRITE_ATOMIC` and encrypted, verity and DAX attributes (`PT_STATX_PASS`); a file removed behind the layer frees its blocks once a lookup through the layer drops the name (`PT_DROP_INODE_PASS`); `O_NOATIME` set with `F_SETFL` after open keeps the lower's access time and clearing it lets a read move it (`PT_NOATIME_PASS`) | `cachestat(2)` (no hook: it reads the layer's empty mapping); fields the three lowers of the suite do not report (atomic writes on 6.12 ext4 and XFS, encryption, verity, DAX); the space of a removed file whose layer name is never looked up again (it waits for dentry reclaim) |
 | `TYPED_LIMITS_PASS` | `tests/layer.c typed`, once per lower filesystem | Every refusal of a typed attribute write through the layer, with its errno, and the lower file unchanged after each (names and values): `user.moob.format` gives `EPERM`; empty, uppercase, non-ASCII, 65-byte, edge-dot, doubled-dot and out-of-alphabet names give `EINVAL` (also on removal); an empty value, unknown types, wrong lengths of int64, time, double and bool, NaN doubles, bools outside 0/1, strings with NUL, overlong, surrogate, above U+10FFFF or cut sequences, a 1 025-byte string and a 4 097-byte raw give `EINVAL`, also as a replacement; `XATTR_CREATE` on an existing and `XATTR_REPLACE` or removal on an absent typed name give `EEXIST` and `ENODATA`. The 65th distinct typed attribute gives `ENOSPC` while an opaque attribute of the same size still fits; replacing at the limit succeeds, `XATTR_CREATE` of an existing one gives `EEXIST`, a removal frees one slot; `user.moob.format` and opaque names (`user.moob`, `user.moobx.*`, `user.other.*`) do not count. The bounds themselves (1 024-byte string, 64-byte name, +infinity, four-byte UTF-8) are accepted | Which errno `XATTR_REPLACE` on an absent name gives at the limit (the code gives `ENOSPC`, not tested); ENOMEM paths; a lower whose own xattr space holds fewer than 64 entries |
 | `CLI_PASS` | `vm/suite.sh` with `tools/moobfs.c` and `tests/asuid.c`, once per lower filesystem (journal 0198) | `moobfs query` as uid 1001 and 1002 equals `moobfs-index --domain` on four domain answers, with one result per call (`--page 1`), ordered descending, limited to two, and in JSON; on a mount without domains the mount-wide `QUERY` equals the oracle; exit 77 and "permission denied" for another user's domain, 69 for the mount root, a non-domain directory, `noindex` and a path off the layer, 65 for invalid terms; `info` hides the counters from a user and shows them to root; `check` runs `moobfs-check` | Large answers across many pages under concurrent writes (the kernel's own `race2` covers the cursor), `ENOMEM`, `EDQUOT` and `ETIMEDOUT` messages (not provoked) |
@@ -249,6 +249,21 @@ coherence between two processes) is built and staged but is not currently
 invoked by `vm/suite.sh`; it was used during the phase 2e investigation
 (journal 0015).
 
+### QUERY2 against the lower's own permission decision (journals 0116, 0215)
+
+`MOOB_ONLY=permmatrix make vm-test` runs `tests/permmatrix.c` on ext4, btrfs
+and XFS (ext4 only until journal 0233); the full suite includes it too. Twelve
+seeds plant random modes, owners and groups, and named-user access ACLs on some
+files and directories; the oracle is the lower kernel
+(`getxattr` and a listing of each directory on the way, with the identity's
+credentials), not a copy of the rule.
+
+| Marker | Proves | Does not prove |
+| --- | --- | --- |
+| `PERMMATRIX_PASS identities=... mismatches=0` | For one seed, no identity gets a file the lower would refuse it, from the partition and again in fallback mode (per-result checks) after a chmod through the layer | Shapes outside the seeds; default ACLs; SELinux labels on the lower |
+| `QUERY_BUILD_MOVED_PASS` | Inside this step: a search-only directory renamed during the domain's first build stays out of the partition | Other renames during a build |
+| `PERMMATRIX_STEP_PASS: <fs>, ...` | On that lower: the twelve seeds, counts showing that they met cases the rules before journals 0116 and 0215 got wrong, and the three fixtures for a search-only directory made through the layer after the build, created in a built domain and renamed during the first build | A complete suite by itself |
+
 ### Decisive permission and independent-oracle checks (journal 0172)
 
 `MOOB_ONLY=permgaps make vm-test` runs `tests/permission-gaps.c` on ext4,
@@ -279,13 +294,17 @@ and XFS; the full suite includes it too. A mount-wide QUERY holds a domain's
 build mutex while a QUERY2 on that domain waits for it, and the domain
 directory is renamed meanwhile. The files are planted on the lower and the
 caches dropped, so the answer of the next mount-wide QUERY comes from the
-names the build recorded. Up to three attempts per lower; an attempt that
-misses the interleaving is inconclusive, never a pass.
+names the build recorded. The waiting QUERY2 starts once the build counter
+shows the part outside the domain built, not after a fixed wait (journal 0233).
+Up to four attempts per lower; an attempt that misses the interleaving is
+inconclusive, never a pass, and the next one plants twice the files (10 000,
+then 20 000, 40 000 and 80 000) where the lower has the inodes for them (the
+64 MiB ext4 image has 16 384, so ext4 stays at 10 000).
 
 | Marker | Proves | Does not prove |
 | --- | --- | --- |
 | `ROOTPATH_RACE_PASS` | After that interleaving (QUERY2 seen in `D` state while the holder builds, rename before the holder returned, a build by the waiter counted), the mount-wide QUERY returns every attributed file, under the new name, each resolving to its inode | The unwidened microsecond window, or renames of a directory above the domain |
-| `ROOTPATH_PASS: <fs>` | The check above passed on that lower | A complete suite by itself |
+| `ROOTPATH_PASS: <fs> (<n> files, attempt <k>)` | The check above passed on that lower, at the size and attempt named | A complete suite by itself |
 
 The holder may fail with `EAGAIN`, the documented answer of a v1 QUERY whose
 domain is taken down while it checks results (`query_repin()`).
