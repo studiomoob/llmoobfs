@@ -281,3 +281,10 @@ human audit of the whole code
 the external reviewer's reports and the fix of F16 aside
 Partly answered: an external reviewer
 revisão humana independente de todo o código do kernel
+
+the build stops at the deadline with
+the build stops at its deadline
+ten-second cooperative deadline
+cooperative ten-second deadline
+o build para no prazo
+a construção para no prazo

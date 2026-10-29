@@ -1040,3 +1040,25 @@ runs 6.12.111.
   of budget.
 - AWS Open Source Blog, [AWS teams with OSTIF on open source security audits](https://aws.amazon.com/blogs/opensource/aws-teams-with-ostif-on-open-source-security-audits/):
   an AWS-funded program of ten audits, at an average of about US$74k each (read on 2026-10-29).
+
+## 39. The build deadline counts CPU time (ADR-0031, journal 0241)
+
+Upstream Linux v6.12 sources (GPL-2.0), read at the `v6.12` tag; Debian's 6.12 tree was not at
+hand and carries the same code paths:
+
+- `fs/xfs/scrub/scrub.h`, `xchk_maybe_relax()` and `xchk_should_terminate()`: XFS online scrub
+  bounds its long walks by `cond_resched()` and fatal signals, with no wall-clock deadline.
+- `fs/btrfs/relocation.c`, `btrfs_should_cancel_balance()`: btrfs balance and relocation stop on
+  a cancel request or a fatal signal.
+- `kernel/time/posix-cpu-timers.c`, `check_thread_timers()` and `task_sample_cputime()`:
+  `RLIMIT_CPU` counts a task's CPU time from `p->se.sum_exec_runtime`; the model for counting
+  the builder's CPU time and not its time asleep.
+- `kernel/sched/core.c`, `task_sched_runtime()`: adds the not yet accounted part of the running
+  slice; not exported to modules, so the module reads `se.sum_exec_runtime`
+  (`include/linux/sched.h`), which lags by at most one tick.
+- `kernel/hung_task.c` and `lib/Kconfig.debug` (`CONFIG_DEFAULT_HUNG_TASK_TIMEOUT`, default
+  120 s): the kernel's wall-clock threshold for a stuck task; the elapsed backstop uses it.
+- `include/linux/delay.h` (`udelay()`): the busy-wait of the test-only `scan_spin_us`.
+- `kernel/delayacct.c` (`delayacct_on` is 0 unless the `delayacct` boot option or the
+  `kernel.task_delayacct` sysctl turns it on): why I/O wait is not excluded through delay
+  accounting (option G of ADR-0031).

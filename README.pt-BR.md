@@ -195,13 +195,15 @@ Fatos em 2026-10-25:
   montagem inteira) custa o que a varredura da montagem custava.
 - Uma construção sem privilégio também é limitada por `index_build_work`
   (padrão de 32.768 unidades acumuladas; quem monta pode escolher de 1.024 a
-  65.536), por um prazo cooperativo de dez segundos e por limites de
-  frequência de reconstrução. O padrão recusa o domínio medido de 17 mil
-  arquivos. A issue 118 foi fechada: com o disco inferior atrasado em
-  400 ms por E/S, o build para no prazo com `ETIMEDOUT` e sem resposta parcial,
-  e os domínios de 25 mil arquivos do G5 se constroem com 65.536
-  ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md),
-  [diário 0210](docs/history/0210-security-batch-1-domain-records-and-slow-lower.md)).
+  65.536), por um prazo cooperativo de dez segundos de CPU de quem constrói,
+  com um limite de 120 s de tempo decorrido, e por limites de frequência de
+  reconstrução. O tempo de espera por um disco inferior lento não conta para
+  os dez segundos
+  ([ADR-0031](docs/decisions/0031-build-deadline-counts-cpu-time.md), proposta;
+  o prazo anterior, de tempo decorrido, recusava builds num disco lento, diários
+  0210 e 0238). O padrão recusa o domínio medido de 17 mil arquivos; os domínios
+  de 25 mil arquivos do G5 se constroem com 65.536
+  ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md)).
 - Montar exige **`CAP_SYS_ADMIN` no namespace de usuário inicial**.
 - **A interface pode mudar**, sem promessa de compatibilidade.
 

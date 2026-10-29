@@ -53,6 +53,11 @@ domínio de 5.000 arquivos levou 0,3 s sem atraso e 9,8 s com 200 ms por E/S; co
 prazo com `ETIMEDOUT`, sem resposta parcial, e a consulta seguinte respondeu completa. Os domínios
 de cerca de 25 mil memórias reais do G5 se construíram com `index_build_work=65536`. A issue 113
 (registros de domínio mantidos até o umount) foi corrigida no mesmo lote.
+*Atualização, 29/10/2026 ([diário 0241](history/0241-build-deadline-cpu-time.md)):* aquele prazo
+contava tempo decorrido, então só um disco inferior lento já podia recusar um build que cabe em
+`index_build_work` (também diário 0238). O ADR-0031 (proposta) conta o tempo de CPU de quem
+constrói contra os dez segundos, com um limite de 120 s de tempo decorrido; a rodada na VM está
+pendente.
 *Atualização, 28/10/2026 ([diário 0219](history/0219-security-batch-checks.md)):* um segundo lote
 de segurança corrige três relatos privados de um revisor externo, cada um com teste e rodada
 negativa: o `QUERY2` nomeando arquivos sob um diretório só de busca (F15 do ADR-0011,

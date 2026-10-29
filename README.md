@@ -181,13 +181,15 @@ Facts as of 2026-10-25:
   recently queried first; a query that needs every domain (the
   mount-wide `QUERY`) costs what the mount scan used to.
 - An unprivileged build is also bounded by `index_build_work` (default
-  32,768 cumulative units; a mounter may choose 1,024–65,536), a ten-second
-  cooperative deadline and rebuild-frequency limits. The default denies the
-  measured 17,000-file domain. Issue 118 is closed: over a lower slowed to
-  400 ms per I/O the build stops at the deadline with `ETIMEDOUT` and no
-  partial answer, and G5's 25,000-file domains build at 65,536
-  ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md),
-  [journal 0210](docs/history/0210-security-batch-1-domain-records-and-slow-lower.md)).
+  32,768 cumulative units; a mounter may choose 1,024–65,536), a cooperative
+  deadline of ten seconds of the builder's CPU time with a 120 s elapsed
+  backstop, and rebuild-frequency limits. Time waiting for a slow lower does
+  not count against the ten seconds
+  ([ADR-0031](docs/decisions/0031-build-deadline-counts-cpu-time.md), proposed;
+  the earlier elapsed deadline refused builds on a slow disk, journals 0210
+  and 0238). The default denies the measured 17,000-file domain; G5's
+  25,000-file domains build at 65,536
+  ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md)).
 - Mounting needs **`CAP_SYS_ADMIN` in the initial user namespace**.
 - **The interface may change**, with no compatibility promise.
 

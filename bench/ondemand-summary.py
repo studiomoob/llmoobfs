@@ -108,7 +108,7 @@ def main(argv):
     print()
     if refused(run):
         print("The mount-wide `QUERY` was refused by the build limits of ADR-0019 and ADR-0020 "
-              "(`index_build_work`, the ten-second deadline), which postdate the reference; its "
+              "(`index_build_work`, the build deadline), which postdate the reference; its "
               "inode count is not compared.")
         print()
     if same:

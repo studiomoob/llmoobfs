@@ -33,7 +33,7 @@ for mode in cold warm cold warm; do
     echo "$mode mount_ms=$m after_mount[$u0] first_query_ms=$q1 results=$n after_first_query[$u1] domains_built=${b1:-n/a} second_query_ms=$q2" | tee -a "$OUT/times.txt"
 done
 # the mount-wide QUERY, which needs every domain. This script predates the build limits of
-# ADR-0019 and ADR-0020 (index_build_work, a ten-second deadline): a build that exceeds them is
+# ADR-0019 and ADR-0020 (index_build_work, the build deadline): a build that exceeds them is
 # refused with E2BIG or ETIMEDOUT, and that refusal is recorded instead of a time (journal 0238).
 wide() {
     t=$(now)

@@ -261,3 +261,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0239 — S2: fstests `auto` on three lowers; S3: a sixth syzkaller round with `moobl_xattr_get` covered](0239-s2-auto-and-s3-round.md)
 - [0240 — Review categories corrected; the review criterion of the technical preview (ADR-0030)](0240-review-categories-and-stage-2-criterion.md)
 - [0244 — Roadmap: an applicability track for corporate directory identities](0244-directory-identities-roadmap.md)
+- [0241 — The domain-build deadline counts the builder's CPU time (ADR-0031, proposed)](0241-build-deadline-cpu-time.md)

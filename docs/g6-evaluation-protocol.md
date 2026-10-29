@@ -804,7 +804,9 @@ of bob's builds releases another of his, and alice stays within her share.
 
 - **Warm contention bound.** Alice's p99 in phase 2 is at most 2 times her p99 in phase 1.
 - **Build bound.** The p99 of bob's queries in phase 2, each of which builds a domain, is at
-  most 10 s, the cooperative deadline of ADR-0019.
+  most 10 s, the cooperative deadline of ADR-0019. *Note, 2026-10-29 (journal 0241):* ADR-0031
+  (proposed) makes that deadline ten seconds of CPU time with a 120 s elapsed backstop; the
+  10 s elapsed threshold stays as this protocol's measured bound, no longer implied by the module.
 - **No partial answer.** Every one of alice's searches returns the same items as her first;
   every one of bob's returns all 2 000 items of the domain or fails with `ENOMEM`, `E2BIG`,
   `ETIMEDOUT` or `EDQUOT` and no list.

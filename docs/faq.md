@@ -173,8 +173,10 @@ Since that tag, `main` also bounds an unprivileged domain build.
 `index_build_work` defaults to 32,768 cumulative units, and a mounter may choose
 1,024–65,536 ([ADR-0020](https://github.com/studiomoob/llmoobfs/blob/main/docs/decisions/0020-configurable-query-build-work-per-mount.md),
 [PR 138](https://github.com/studiomoob/llmoobfs/pull/138)). The default denies the measured
-17,000-file domain. Issue 118 is closed: over a lower slowed to 400 ms per I/O the build stops at
-its deadline with no partial answer (journal 0210); this is not a strict CPU or I/O cap.
+17,000-file domain. The build's deadline is ten seconds of the builder's CPU time with a 120 s
+elapsed backstop (ADR-0031, proposed): the earlier elapsed deadline refused builds over a slow
+lower, at 400 ms per I/O (journal 0210) and on an `O_DIRECT` disk (journal 0238). It is not a
+strict CPU or I/O cap.
 See [R1 validation](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0149-sync-backing-file-flags.md)
 and [R2 validation](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0150-propagate-index-xattr-read-errors.md).
 [`SECURITY.md`; `docs/decisions/0011-threat-and-credential-model.md`; `CHANGELOG.md`; journal 0144]

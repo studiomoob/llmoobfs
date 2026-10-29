@@ -18,6 +18,17 @@
   finding reproduced with a regression test, and S14 to S21 done, with no human review; stage 3
   (public release) requires a hand-read human review of the credential paths and the `QUERY2`
   authorization by a volunteer who knows the VFS.
+- The `QUERY2` domain-build deadline counts the builder's CPU time (ADR-0031, proposed; journal
+  0241). The ten-second deadline of ADR-0019 counted elapsed time, so a slow lower alone could
+  refuse with `ETIMEDOUT` a build that fits `index_build_work`, and every retry with it: the cold
+  first `QUERY2` of a 7,459-file domain on an `O_DIRECT` disk (journal 0238), a lower slowed to
+  400 ms per I/O (journal 0210). The ten seconds now count `se.sum_exec_runtime` of the building
+  task, the clock of `RLIMIT_CPU`; a 120 s elapsed backstop (the hung-task default) bounds how
+  long a build holds its domain. Same errno, no partial answer, no interface change; only builds
+  refused before can now succeed. Test-only `scan_spin_us` module parameter; the opt-in
+  `buildtime` step checks a 12 s sleeping build completes, a 12 s spinning build and a 126 s
+  sleeping build are refused. `make checkpatch`, `make lint` and the retired-claims check ran
+  locally; the VM step, its negative round and KASAN/lockdep are pending.
 - `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
   They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
   another writer of the tree who swapped a directory for a symbolic link while root ran them
