@@ -42,6 +42,7 @@
   report (run 40873509652, the fault class of journal 0137), and passed on a second dispatch (run
   40877439822).
 - S9's remaining limits tested when hit and measured (journal 0235, ADR-0029 proposed; no
+- S9's remaining limits tested when hit and measured (journal 0235, ADR-0029 accepted; no
   kernel change). New suite step `limits` (full suite): on a 1 MiB `index_budget` a domain
   larger than the whole budget is refused with `ENOMEM` to its uid, nothing released, another
   uid's domain kept; in a 16 MiB memory cgroup, retained `QUERY2` buffers (about 2 MiB each)

@@ -97,6 +97,6 @@ under Secure Boot (`make package-test`); not published.
 tested and measured with no new mechanism: a domain larger than `index_budget`, retained
 `QUERY2` buffers and a build in a limited memory cgroup are refused with `ENOMEM` while another
 uid is answered (suite step `limits`), and the mount reads nothing of the lower, 0.4 to 1.5 ms
-cold from 100 to 200,100 files (`mountscale`). S9 closes when the maintainer accepts
-[ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md); a shared mount needs
-`memory.max` on its users' cgroups.
+cold from 100 to 200,100 files (`mountscale`). With
+[ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md), accepted on 2026-10-29, S9 is
+done; a shared mount needs `memory.max` on its users' cgroups (`docs/operations.md` §5).

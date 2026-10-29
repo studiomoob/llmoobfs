@@ -1,6 +1,7 @@
 # ADR-0029 — S9's remaining limits are met by the existing bounds; no new per-user counter
 
-Date: 2026-10-29. Status: **proposed; waits for the maintainer's acceptance** (journal 0235).
+Date: 2026-10-29. Status: **accepted by the maintainer on 2026-10-29** (journal 0235), with option A: the memory
+cgroup is the per-user cap, and the deployment recipe sets `MemoryMax=`.
 Estimated effort: S (hours) for the decision and its tests. Closes the last two bullets of
 security roadmap S9 if accepted. No kernel, UAPI or format change (ADR-0022).
 
@@ -87,10 +88,15 @@ What the code already does:
 
 ## Consequences
 
-- S9 is done once this is accepted; its numbers are in journal 0235.
+- S9 is done (accepted 2026-10-29); its numbers are in journal 0235.
 - **Residual risk:** on a host where the users' cgroups have no `memory.max` (the default of a
   Debian user slice), an unprivileged user can pin about 2 MiB of kernel memory per open file
   that queried with the maximum limit, bounded only by `RLIMIT_NOFILE` per process and the
   number of processes, and the global OOM killer does not count it to that user's processes.
   The deployment recipe of G2 has to set `MemoryMax=` (or `memory.max`) for the users of a
   shared mount; the alternative above is the kernel-side answer if that is not enough.
+  `docs/operations.md` §5 carries that setting since the acceptance; the systemd drop-in itself
+  has not been run in a VM.
+- The per-user kernel counter (the alternative above) is deferred, not rejected: it is the
+  answer for hosts where cgroups cannot be required, and its tunable is a UAPI question for after
+  the freeze of ADR-0022 ends, once G6 has run.

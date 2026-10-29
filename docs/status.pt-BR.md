@@ -101,6 +101,7 @@ descartável Debian 13 com Secure Boot (`make package-test`); não publicados.
 foi testado e medido sem mecanismo novo: um domínio maior que `index_budget`, buffers retidos do
 `QUERY2` e uma construção num cgroup de memória limitado são recusados com `ENOMEM` enquanto outro
 uid é respondido (passo `limits` da suíte), e a montagem não lê nada do disco inferior, de 0,4 a
-1,5 ms a frio de 100 a 200.100 arquivos (`mountscale`). O S9 fecha quando o mantenedor aceitar a
-[ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md); uma montagem compartilhada precisa
-de `memory.max` nos cgroups dos seus usuários.
+1,5 ms a frio de 100 a 200.100 arquivos (`mountscale`). Com a
+[ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md), aceita em 29/10/2026, o S9 está
+concluído; uma montagem compartilhada precisa de `memory.max` nos cgroups dos seus usuários
+(`docs/operations.md` §5).

@@ -145,3 +145,9 @@ Dedicated host (Debian 13, 8 threads), `make vm-test` guest Debian `6.12.111+deb
 The maintainer accepts or amends ADR-0029; on acceptance S9 is marked done in the security
 roadmap, ROADMAP and status pages. G2's deployment recipe sets `memory.max` for the users of a
 shared mount.
+
+*Note, 2026-10-29, by the coordinator of the batch:* the maintainer accepted ADR-0029 with
+option A (the memory cgroup is the per-user cap). S9 is marked done, and `docs/operations.md` §5
+now sets `MemoryMax=` for the users of a shared mount through a systemd drop-in for user
+slices; that drop-in was not run in a VM. The per-user kernel counter stays a deferred
+alternative.

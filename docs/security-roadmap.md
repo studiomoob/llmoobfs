@@ -305,7 +305,7 @@ left built, another uid answered meanwhile. The mount scans nothing: the optiona
 `mountscale` measured the mount at 0.4 to 1.5 ms cold and 76 to 86 µs warm (medians) from 100 to
 200,100 files, with and without `noindex`, with no index memory; the first query of a domain
 over `index_build_work` was refused with `E2BIG` in about 0.5 s at 50,100 and 200,100 files.
-S9 is done once the maintainer accepts ADR-0029. Residual risk: without a `memory.max` on the
+S9 is done: the maintainer accepted ADR-0029 on 2026-10-29. Residual risk: without a `memory.max` on the
 users' cgroups, an unprivileged user can pin about 2 MiB of kernel memory per open descriptor.
 
 *Fair shares, 2026-10-28 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md),
@@ -380,7 +380,7 @@ of this change was not run. G2 remains open.
   ADR-0019 and ADR-0020 bound.
 - Done when: limit tests in the suite and the numbers recorded.
 - *Progress, 2026-10-29 (journal 0235):* both bullets above tested and measured (`limits`,
-  `mountscale`); no new mechanism or option; closure waits for ADR-0029's acceptance.
+  `mountscale`); no new mechanism or option; done with ADR-0029, accepted on 2026-10-29.
 
 ### S10. Module signing and distribution
 

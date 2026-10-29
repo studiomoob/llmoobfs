@@ -500,7 +500,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
   so set `MemoryMax=` for the users of a shared mount. The suite step `limits` shows a cgroup
   limit hit as `ENOMEM` with other users answered, and `mountscale` measured a mount that
   reads nothing of the lower, 0.4 to 1.5 ms from 100 to 200,100 files (journal 0235,
-  [ADR-0029](docs/decisions/0029-s9-limits-met-by-existing-bounds.md), proposed).
+  [ADR-0029](docs/decisions/0029-s9-limits-met-by-existing-bounds.md), accepted).
 - Mounting needs `CAP_SYS_ADMIN` in the initial user namespace; user-namespace and idmapped
   mounts are refused, and so is an idmapped mount as `lower=`. A rootless container cannot mount
   the layer; it can use one the host mounted (Podman `--userns=keep-id`,
