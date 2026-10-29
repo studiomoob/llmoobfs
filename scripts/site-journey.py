@@ -67,6 +67,8 @@ MILESTONES = [
   'Um terceiro lote: F17 (uma ACL mínima gravada por fora do VFS) corrigido; issues 119 (errnos do lookup, o byte reservado de um termo de consulta, um só teste de privilégio) e 115 (fadvise, readahead, campos de statx, drop_inode, O_NOATIME) fechadas; issue 117 corrigida para inodes sem registro no índice.', ['0221', '0222', '0223', '0224']),
  ('2026-10-28', 'v0.5.0-experimental published, with every correction up to that date: F1 to F17 except the fair shares of F2. Its source archive is the first one signed (Sigstore) and with SLSA provenance.',
   'v0.5.0-experimental publicada, com todas as correções até essa data: F1 a F17, exceto as cotas justas do F2. O arquivo de código-fonte é o primeiro assinado (Sigstore) e com proveniência SLSA.', ['0226']),
+ ('2026-10-28', 'Fair shares of the index budget: a uid above its share lends its room back to a uid below its own, which closes finding F2; G2\'s latency ceiling is registered first and then met beside a noisy neighbour in three runs.',
+  'Cotas justas do orçamento do índice: um uid acima da sua cota devolve o espaço a um uid abaixo da dele, o que fecha o achado F2; o teto de latência do G2 é registrado antes e cumprido ao lado de um vizinho barulhento em três rodadas.', ['0228']),
 ]
 
 T = {

@@ -774,3 +774,21 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   ([PyPI JSON](https://pypi.org/pypi/langgraph/1.2.0/json)); why the store does not call it.
 - Python's [`urllib.parse.quote()`](https://docs.python.org/3/library/urllib.parse.html#urllib.parse.quote)
   never quotes `.` (an unreserved character), so `_enc()` leaves `.` and `..` as directory names.
+
+## 26. Fair shares of the index budget (ADR-0027, journal 0228)
+
+- `effective_protection()`, `mm/page_counter.c:335`, Linux 6.12.112 (the tree the KASAN harness
+  builds; [source](https://github.com/gregkh/linux/blob/v6.12.112/mm/page_counter.c)): memcg's
+  `memory.low` protection is `min(usage, setting)`, reclaim takes only usage above it, and
+  protection a group does not use stays available to its siblings ("work-conserving"). ADR-0027
+  applies the same rule with an equal setting per uid and a build's release in place of reclaim.
+- D. Bertsekas and R. Gallager, *Data Networks*, 2nd ed., Prentice Hall, 1992, §6.5.2 (max-min
+  fairness): no user's allocation grows at the expense of a user with a smaller or equal one.
+- A. Cidon, D. Rushton, S. M. Rumble and R. Stutsman, "Memshare: a Dynamic Multi-tenant
+  Key-value Cache", USENIX ATC 2017
+  ([paper](https://www.usenix.org/conference/atc17/technical-sessions/presentation/cidon)):
+  memory a tenant does not need is given to others and taken back on demand.
+- Q. Pu, H. Li, M. Zaharia, A. Ghodsi and I. Stoica, "FairRide: Near-Optimal, Fair Cache
+  Sharing", NSDI 2016 ([paper](https://www.usenix.org/conference/nsdi16/technical-sessions/presentation/pu)):
+  the isolation guarantee of a shared cache. Both evict per item; the index releases whole
+  domains, so ADR-0027's guarantee is per domain.

@@ -492,8 +492,10 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   deixa o outro domínio construído
   ([ADR-0021](docs/decisions/0021-budget-release-keeps-the-builders-domain.md),
   [diário 0192](docs/history/0192-same-fsuid-budget-release.md)).
-  Um uid ainda pode ocupar o orçamento inteiro ao liberar os próprios domínios.
-  Não há fração reservada por usuário.
+  Desde a [ADR-0027](docs/decisions/0027-fair-shares-of-the-index-budget.md) um uid pode usar o
+  orçamento inteiro enquanto ninguém mais precisa, mas um uid acima da sua cota (o orçamento
+  dividido pelos uids com domínio construído) devolve o espaço a um uid abaixo da dele; um uid
+  dentro da cota mantém os seus domínios ([diário 0228](docs/history/0228-security-batch-5-fair-shares.md)).
   São observações delimitadas, não uma garantia de latência. A `main` contém
   limites experimentais de trabalho e frequência de reconstrução
   ([ADR-0019](docs/decisions/0019-bound-query-build-work-and-frequency.md));

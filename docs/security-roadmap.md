@@ -40,6 +40,7 @@ with findings F1 to F5 added since. Outside review was requested on 2026-10-13 (
 *Update, 2026-10-20 (journal 0156):* findings F13 (review round 1, journal 0151) and F14 (round 2, journal 0155) recorded and fixed; the other defects of round 2 are fixed or recorded as issues, and S14 to S21 below plan the tests that would have found them.
 *Update, 2026-10-28 (journal 0222):* finding F17 found by the maintainer's team and fixed: a minimal access ACL written outside the VFS could refuse a caller the index's rule admitted by the bits ([GHSA-82w5-ph62-47wf](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-82w5-ph62-47wf)).
 *Update, 2026-10-28 (journals 0221, 0222, 0223 and 0224):* of the round-2 issues, 119 (M4, M6 to M8: lookup errnos, the reserved byte of a query term, one privilege test, ADR-0026) and 115 (V1, V3, V5, V7: `fadvise`, `readahead`, `statx` fields, `drop_inode`, `O_NOATIME`) are fixed; 117 (M2) is fixed for inodes without an index record and stays open for inodes with one. `cachestat(2)` stays a limitation.
+*Update, 2026-10-28 (journal 0228):* F2's fair shares implemented ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md)): a uid above its share of the index budget lends its room back to a uid below its own, and a uid within its share keeps its domains. Findings F1 to F17 are all fixed on `main`.
 *Update, 2026-10-28 (journal 0227):* outside ADR-0011's kernel scope, two private reports from the same external reviewer, with their fixes, on the user-space clients: the MCP adapter followed a directory swapped for a symbolic link by a member of a shared domain ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), and the LangGraph store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). Both fixed, with tests that fail before the fix.
 *Update, 2026-10-28 (journals 0215, 0216, 0218 and 0219):* three private reports from an external reviewer recorded and fixed through private advisories: F15 (search-only directories, GHSA-95h9-j7c2-gcw6, ADR-0025), F16 (`CAP_FSETID` in the write credentials, GHSA-6xf4-r246-92r6) and records answered for a reused inode number (GHSA-756j-cgwq-gvwm, no finding number). Findings F1 to F16 recorded; all fixed but part of F2 (fair shares, S9).
 
@@ -261,6 +262,15 @@ turning that rule on, and the build-time check of an unlisted kernel.
   needs the benchmark host.
 
 ### S9. Resource limits and denial of service
+
+*Fair shares, 2026-10-28 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md),
+journal 0228):* each domain counts its own bytes; a build that does not fit releases the
+builder's own domains first and then, while the builder holds less than its share (the budget
+divided by the uids with a built domain), the least recently queried domain of a uid holding
+more. The suite step `fairshare` checks both halves on ext4 and failed on the module before
+the change; `buildcostevict` follows the amended property. The G2 latency ceiling (protocol
+section 14) is measured in the same journal. Still open under S9: the per-mount and per-user
+cap on `QUERY` results, and the mount-time scan cost below.
 
 *Local measurement, 2026-10-23 (journal 0182, issue 118):* bounded native-KVM
 probes measured first-build CPU and lower-device reads on 1,000- and

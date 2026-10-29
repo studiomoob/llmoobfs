@@ -6,6 +6,9 @@ The host regression, the opt-in native-KVM probe, the steps `release`,
 UBSAN and lockdep suite passed (`MOOBFS_KASAN_PASS`). The complete
 native-KVM suite of this change was not run. The opening status originally
 ended with "Not published."
+*Note, 2026-10-28:* decision 4 (no reserved fraction, one uid may fill the budget) is amended by
+[ADR-0027](0027-fair-shares-of-the-index-budget.md): a uid above its share lends its room back to
+a uid below its own. Decisions 1 to 3, 5 and 6 stand.
 Estimated effort: M (one to three days). This is an estimate, not recorded
 labor time. Journal 0192 records the host validation window.
 This is ADR-0021 because ADR-0020, the per-mount query-build work policy,

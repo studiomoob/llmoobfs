@@ -182,7 +182,7 @@ through a write, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/se
 `main` with a test and a negative round. The threat and credential
 model is [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)
 (accepted 2026-10-12): adversaries, promises, non-promises, unprivileged surfaces and the
-findings F1 to F17, of which part of F2 (fair shares of the index budget) is open. [docs/security-roadmap.md](docs/security-roadmap.md) lists
+findings F1 to F17, all fixed on `main` (F2's fair shares by ADR-0027, after `v0.5.0-experimental`). [docs/security-roadmap.md](docs/security-roadmap.md) lists
 fstests, syzkaller, hostile-lower handling and the other open items.
 
 Known availability limit (issue 118): an authorized, unprivileged `QUERY2`

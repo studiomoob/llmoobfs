@@ -82,3 +82,8 @@ um diretório trocado por um link simbólico por um membro de um domínio compar
 *Atualização, 28/10/2026 ([diário 0226](history/0226-sixth-prerelease-tag.md)):* a `v0.5.0-experimental`
 foi marcada na `main` depois do terceiro lote e dessas duas correções e tem todas as correções acima; o arquivo de
 código-fonte é assinado com Sigstore e tem proveniência SLSA.
+*Atualização, 28/10/2026 ([diário 0228](history/0228-security-batch-5-fair-shares.md)):* o achado
+F2 está corrigido na `main`: um uid acima da sua cota do orçamento do índice devolve o espaço a um
+uid abaixo da dele, e um uid dentro da cota mantém os seus domínios
+([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md)). O teto de latência do G2 (seção
+14 do protocolo) foi registrado e cumprido no host dedicado em três rodadas. Não está na `v0.5.0-experimental`.

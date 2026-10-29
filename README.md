@@ -467,8 +467,10 @@ KASAN harness runs the layer suite), and no benchmark exists.
   small, that query returns `ENOMEM` and leaves the other domain built
   ([ADR-0021](docs/decisions/0021-budget-release-keeps-the-builders-domain.md),
   [journal 0192](docs/history/0192-same-fsuid-budget-release.md)).
-  One uid can still occupy the whole budget by releasing that uid's own
-  domains. There is no reserved per-user fraction.
+  Since [ADR-0027](docs/decisions/0027-fair-shares-of-the-index-budget.md) a uid may use the
+  whole budget while nobody else needs it, but a uid above its share (the budget divided by the
+  uids with a built domain) lends its room back to a uid below its own; a uid within its share
+  keeps its domains ([journal 0228](docs/history/0228-security-batch-5-fair-shares.md)).
   These are bounded observations, not a latency guarantee. `main` includes
   experimental work and rebuild-frequency limits
   ([ADR-0019](docs/decisions/0019-bound-query-build-work-and-frequency.md));

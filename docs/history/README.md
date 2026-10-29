@@ -247,3 +247,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0225 — Security batch 3: issues 115, 117 and 119, finding F17, the plan map and Scorecard](0225-security-batch-3.md)
 - [0226 — Sixth pre-release tag: v0.5.0-experimental](0226-sixth-prerelease-tag.md)
 - [0227 — MCP adapter and LangGraph store confinement (two private reports)](0227-mcp-and-store-confinement.md)
+- [0228 — Security batch 5: fair shares of the index budget (S9, F2) and the G2 latency ceiling](0228-security-batch-5-fair-shares.md)
