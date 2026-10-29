@@ -6,9 +6,9 @@
  * Byte 0 selects the parser, the rest is its input:
  *   even: parse_terms() of tools/query-common.h, the query terms of moobfs, moobfs-index and
  *         tests/query.c; the input is split at NUL bytes into argv words.
- *   odd:  moob_ext_acl() of tools/ext-acl.h over a system.posix_acl_access value from the lower
- *         tree; byte 1 picks the errno or the value, bytes 2-3 the mode, the rest is the value
- *         that getxattr() returns (replaced below, so no file is read).
+ *   odd:  moob_ext_acl_bytes() of tools/ext-acl.h, the decision on a system.posix_acl_access
+ *         value read from the lower tree (journal 0232 moved the read out of it); byte 1 picks
+ *         an errno of the read or the value, bytes 2-3 the mode, the rest is the value.
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -16,31 +16,8 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/xattr.h>
 
-static const uint8_t *acl_data;
-static size_t acl_len;
-static int acl_errno;
-
-static ssize_t fuzz_getxattr(const char *path, const char *name, void *buf, size_t size)
-{
-	(void)path;
-	(void)name;
-	if (acl_errno) {
-		errno = acl_errno;
-		return -1;
-	}
-	if (acl_len > size) {
-		errno = ERANGE;
-		return -1;
-	}
-	memcpy(buf, acl_data, acl_len);
-	return (ssize_t)acl_len;
-}
-
-#define getxattr fuzz_getxattr
 #include "../tools/ext-acl.h"
-#undef getxattr
 #include "../tools/query-common.h"
 
 #define MAX_WORDS 64
@@ -85,11 +62,11 @@ static void fuzz_acl(const uint8_t *p, size_t n)
 
 	if (n < 3)
 		return;
-	acl_errno = p[0] < 4 ? errs[p[0]] : 0;
 	mode = (mode_t)((p[1] | p[2] << 8) & 07777);
-	acl_data = p + 3;
-	acl_len = n - 3;
-	(void)moob_ext_acl("/fuzz", mode);
+	if (p[0] < 4)
+		(void)moob_ext_acl_bytes(NULL, -1, errs[p[0]], mode);
+	else
+		(void)moob_ext_acl_bytes(p + 3, (ssize_t)(n - 3), 0, mode);
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)

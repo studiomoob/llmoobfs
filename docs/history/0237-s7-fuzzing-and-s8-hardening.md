@@ -244,3 +244,10 @@ the repository):
 was being compiled on every core of the same host. That step counts queries done within a time
 cap, so it measures throughput. It passed on the three lowers in the rerun above, when the host
 was otherwise idle.
+
+*Note, 2026-10-29, after the batch merge:* journal 0232 replaced `moob_ext_acl()` with
+`moob_ext_acl_bytes()`, which decides on bytes the walk has already read through a descriptor.
+On the combined branch, `tests/fuzz_tools.c` still called the old function, so the "Tools and
+sanitizers" job of PR #178 failed to compile it. The target now fuzzes `moob_ext_acl_bytes()`
+directly, with no `getxattr` stub; the errno and value selection are unchanged. A 30 s run of
+`make fuzz FUZZ_TARGETS=tools` on the test host gave 2 773 352 executions and no crash.
