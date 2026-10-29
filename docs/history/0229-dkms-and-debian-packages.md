@@ -1,6 +1,6 @@
 # 0229 — DKMS and Debian packages, tested under Secure Boot (C6, S10)
 
-Started 2026-10-29 09:02 UTC. Ended: see the closing note. Estimated effort: L (ROADMAP item C6);
+Started 2026-10-29 09:02 UTC; ended 11:35 UTC (calendar time, with the batch's full runs). Estimated effort: L (ROADMAP item C6);
 the actual effort is recorded at the end.
 
 ## Goal
@@ -102,8 +102,22 @@ All runs were on the dedicated host (Debian 13, KVM). Logs are kept outside the 
      note, and the `moobfs-check` report is byte-identical to the first one;
    - `PURGED`: module and tools removed, content and `user.moob.kind` readable on the lower;
    - `MAKE_INSTALL_COPY_REFUSED`.
-4. **Existing tests after the harness change.** `make install-test` and `make container-test`
-   ran again: see the closing note.
+4. **Existing tests after the harness change, now under KVM in the container.**
+   - `MOOB_TEST=install`: `MOOBFS_INSTALL_PASS`, 396 s.
+   - `MOOB_TEST=container`: `MOOBFS_CONTAINER_PASS`, 707 s.
+5. **Batch runs, once, on the batch tree with journals 0229 to 0231.**
+   - `make vm-test`, under QEMU TCG, the CI mode: `MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS` and
+     `MOOBFS_ACCEPTANCE_PASS` in about 42 min. Among the steps: `LANDLOCK_PASS` (journal 0230),
+     `FAIRSHARE_PASS` and `MINACL_PASS`. Under KVM it was not run this time, because of the
+     `rootpath` timing of issue 168.
+   - `sh vm/kasan-local.sh` on upstream 6.12.112: `MOOBFS_KASAN_PASS` with no kernel diagnostics,
+     and `MOOBFS_PYLIB_PASS` (kernel = scan through the mount = scan of the lower, journal 0231).
+     That kernel has no Landlock (`vm/kasan.config`), so the step printed `LANDLOCK_SKIPPED`.
+   - The first KASAN attempt never started. Run in the same tree as `make vm-test`, whose
+     container had left `build/` owned by root, it could not create `build/vng`; it was run again
+     from a separate copy.
+   - Also: `make lint`; `make attr-tools` with clang, ASan and UBSan; `RETIRED_CLAIMS_OK`; and
+     `scripts/site-faq.py --check`.
 
 ## Limitations
 
@@ -119,5 +133,9 @@ All runs were on the dedicated host (Debian 13, KVM). Logs are kept outside the 
 
 ## Next steps
 
-Full `make vm-test` and the full KASAN suite for the batch, the batch pull request, then G6. The
+The batch pull request, then G6. The
 maintainer reviews ADR-0028's design choices.
+
+Actual effort: about 2.5 hours of calendar time for C6 alone, against an estimate of L (a week
+or more). Most of the estimate assumed building the Secure Boot test without prior art;
+`virt-fw-vars --add-mok` and DKMS's own signing removed that work.
