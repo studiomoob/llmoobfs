@@ -64,8 +64,8 @@ restrict reading xattrs either (its documentation lists `stat` and xattr calls a
 cannot restrict yet; a metadata access right is in progress upstream, landlock-lsm/linux issue
 11), so a query reveals the names and values that `getxattr` already returns there, and the
 content stays protected (journals 0030 and 0220). Once Landlock restricts metadata, the layer
-should follow it. AppArmor was not tested. No independent human has reviewed the whole kernel code, though an external reviewer
-privately reported three kernel defects, one of them F15 in this rule (journal 0215).
+should follow it. AppArmor was not tested. No independent human has reviewed the kernel code; an external reviewer's AI-assisted
+private reports found three kernel defects, one of them F15 in this rule (journal 0215).
 [`docs/spec-query-v2.md` §3; `docs/decisions/0011-threat-and-credential-model.md`; journals 0104, 0116]
 
 ## 7. What is the TOCTOU contract?
@@ -151,7 +151,7 @@ APIs change between versions; compatibility with other kernels is not promised.
 ## 15. Is it production-ready? Is there a release?
 It is not production-ready. It is a research project with source pre-release tags only, the last of which,
 `v0.5.0-experimental` (2026-10-28), is a source snapshot with every correction up to that date. A module bug can cause a
-kernel panic or data loss; the project's tests, two source reviews by AI assistants and private
+kernel panic or data loss; the project's tests, two source reviews by AI assistants and AI-assisted private
 reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011, all fixed on `main`; the fair shares of F2 came after
 `v0.5.0-experimental`). Run it only in a disposable VM with synthetic data.
 

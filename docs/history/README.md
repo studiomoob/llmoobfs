@@ -259,3 +259,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0237 — Longer fuzzing (S7) and runtime hardening in the KASAN kernel (S8)](0237-s7-fuzzing-and-s8-hardening.md)
 - [0238 — Weekly benchmark workflow: the on-demand index benchmark under KVM on GitHub's runner](0238-weekly-bench-workflow.md)
 - [0239 — S2: fstests `auto` on three lowers; S3: a sixth syzkaller round with `moobl_xattr_get` covered](0239-s2-auto-and-s3-round.md)
+- [0240 — Review categories corrected; the review criterion of the technical preview (ADR-0030)](0240-review-categories-and-stage-2-criterion.md)

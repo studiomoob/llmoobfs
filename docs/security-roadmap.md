@@ -24,7 +24,7 @@ State on `main` at `7ac52cd`, with the S2 and S3 rows from batch 10 (journal 023
 
 | Item | State |
 | --- | --- |
-| S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer reported kernel defects privately; there is no independent human review of the whole kernel code. |
+| S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer's AI-assisted private reports found kernel defects, all fixed with regression tests; there is no independent human review of the kernel code. The hand-read review of the credential paths and the `QUERY2` authorization is a stage-3 gate, not a stage-2 one ([ADR-0030](decisions/0030-stage-2-review-criterion.md)). |
 | S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091). The `auto` group ran once on the three lowers on Debian 6.12.113 (journal 0239): 1, 4 and 1 failures of 779, none a layer defect, now in exclusion lists. Open: a repeat of `auto` with those lists, and a make target. |
 | S3 syzkaller | Six six-hour runs, no open report. The sixth (journal 0239), on the hardened KASAN kernel, reports `moobl_xattr_get()` covered, so every handler function is exercised. The handlers are at 84.5 % of their PCs there, below the 85 % threshold (88.7 % in the fifth run, on earlier code and kernel). Open: the aggregate on the current code. |
 | S4 hostile lower | Done for its scope (journal 0073). |
@@ -37,7 +37,7 @@ State on `main` at `7ac52cd`, with the S2 and S3 rows from batch 10 (journal 023
 | S11 M3 and M4 surfaces | Nothing recorded yet. |
 | S12 SELinux | One run with SELinux enforcing (journal 0104): F6 and the labels read with the caller's credentials fixed; the rule `fs_use_xattr moobfs_layer` is needed. Open: mmap, attribute writes, rename and link under a policy, MLS/MCS, a distribution booted with SELinux, the per-result check over a lower labelled by SELinux (journal 0215), Smack; AppArmor is outside the item. |
 | S13 tracepoints | Done (journal 0102). |
-| S14 to S21 | Planned, not started; journal 0172 added bounded tests that do not complete S14 or S15. |
+| S14 to S21 | Planned, not started; journal 0172 added bounded tests that do not complete S14 or S15. A stage-2 gate since ADR-0030. |
 | S22 security operations | Documented (journal 0205). Open: the subscriptions, which are the maintainer's action, and the re-read of the access table before each tag. |
 <!-- /current-state -->
 
@@ -74,6 +74,7 @@ with findings F1 to F5 added since. Outside review was requested on 2026-10-13 (
 *Update, 2026-10-28 (journal 0227):* outside ADR-0011's kernel scope, two private reports from the same external reviewer, with their fixes, on the user-space clients: the MCP adapter followed a directory swapped for a symbolic link by a member of a shared domain ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), and the LangGraph store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). Both fixed, with tests that fail before the fix.
 *Update, 2026-10-29 (journal 0231):* the same class as GHSA-4gr9-rvgr-44qj, pointed out by the external reviewer in the Python library's scan fallback: it walked the domain by path, so a member of a shared domain who swapped a directory or a file for a symbolic link during the walk could make it report a file outside the domain. The walk now goes through directory descriptors with `O_NOFOLLOW`; three tests fail before the fix.
 *Update, 2026-10-28 (journals 0215, 0216, 0218 and 0219):* three private reports from an external reviewer recorded and fixed through private advisories: F15 (search-only directories, GHSA-95h9-j7c2-gcw6, ADR-0025), F16 (`CAP_FSETID` in the write credentials, GHSA-6xf4-r246-92r6) and records answered for a reused inode number (GHSA-756j-cgwq-gvwm, no finding number). Findings F1 to F16 recorded; all fixed but part of F2 (fair shares, S9).
+*Correction, 2026-10-29 (journal 0240, ADR-0030):* the external reviewer's private reports (F15, F16, GHSA-756j-cgwq-gvwm, and in user space GHSA-4gr9-rvgr-44qj, GHSA-3wx4-fh9w-2v66 and the pointer behind GHSA-f769-xjf5-54wc) were produced with AI assistance: the reviewer chose where to look, reproduced the defects and wrote or checked the fixes, but the analysis was AI-assisted. They are AI-assisted reviews, like those of journals 0111 and 0114, not independent human review, of which there has been none; the defects they found are real and each is fixed with a regression test.
 
 *Update, 2026-10-21 (journals 0174 and 0175):* the round-2 domain-rename
 (R2-5, issue 110) and concurrent index-budget refusal (R2-7, issue 111)
@@ -105,6 +106,7 @@ reviews by AI assistants (journals 0111, 0114) found F9 to F12, fixed in pull re
 private advisories published afterwards; no outside human review yet. *Note, 2026-10-28:* an
 external reviewer has since reported three kernel defects privately (update of that date above);
 there is still no independent human review of the whole kernel code.
+*Correction, 2026-10-29 (journal 0240, ADR-0030):* the external reviewer's private reports (F15, F16, GHSA-756j-cgwq-gvwm, and in user space GHSA-4gr9-rvgr-44qj, GHSA-3wx4-fh9w-2v66 and the pointer behind GHSA-f769-xjf5-54wc) were produced with AI assistance: the reviewer chose where to look, reproduced the defects and wrote or checked the fixes, but the analysis was AI-assisted. They are AI-assisted reviews, like those of journals 0111 and 0114, not independent human review, of which there has been none; the defects they found are real and each is fixed with a regression test.
 
 *Separate stabilization note, 2026-10-20:* independent review 0144 identified
 two file/index correctness defects outside the F1–F12 list. Corrections
@@ -153,6 +155,12 @@ model, reviewers cannot tell whether the credentials scheme is exploitable.
   handles returned by `QUERY`.
 - Done when: ADR published, the module's `fs_flags` reviewed against it, and `moobfs-check`
   reports the model version.
+- *Note, 2026-10-29 ([ADR-0030](decisions/0030-stage-2-review-criterion.md), journal 0240):* that
+  criterion is met (ADR-0011). The independent human review of the whole kernel code that
+  `ROADMAP.md` carried as S1's remaining work is no longer a stage-2 gate: stage 2 rests on
+  automated coverage, on every AI-assisted finding reproduced with a regression test and on S14
+  to S21; stage 3 needs a hand-read human review of the credential paths and the `QUERY2`
+  authorization.
 
 ### S2. fstests (xfstests) over the layer
 

@@ -271,3 +271,13 @@ five six-hour runs
 five six-hour rounds
 cinco rodadas de seis horas
 until a run's report shows `moobl_xattr_get()` covered
+
+# Journal 0240 (ADR-0030): the external reviewer's reports were AI-assisted; there has been no
+# independent human review of any of the kernel code, so the "whole" qualifier and the
+# "partly answered" call are retired.
+human review of the whole kernel code
+human has reviewed the whole kernel code
+human audit of the whole code
+the external reviewer's reports and the fix of F16 aside
+Partly answered: an external reviewer
+revisão humana independente de todo o código do kernel

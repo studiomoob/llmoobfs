@@ -155,20 +155,24 @@ Facts as of 2026-10-25:
   filesystems and one run of its `auto` group (no layer defect among the failures), syzkaller
   (six six-hour runs; one defect found and fixed), a first KCSAN run (no race in the module) and
   SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143, 0239).
-- **No independent human review of the whole kernel code yet.** It was requested on 2026-10-13.
-  An external reviewer privately reported three kernel defects and wrote the fix of one (F16,
-  below). An outside contributor reviewed the scripts, tools and Python library with an AI
-  assistant (2026-10-27, pull requests 161 to 163). Two independent source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
+- **No independent human review of the kernel code yet.** It was requested on 2026-10-13. The
+  kernel code has been checked by automated tools (the suite under KASAN, UBSAN and lockdep,
+  KCSAN, syzkaller, fstests, fuzzing) and by AI-assisted reviews, and by no independent human
+  reviewer ([ADR-0030](docs/decisions/0030-stage-2-review-criterion.md)). An outside contributor
+  reviewed the scripts, tools and Python library with an AI
+  assistant (2026-10-27, pull requests 161 to 163). Two source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
   [journal 0114](docs/history/0114-second-inspection-of-5582e06.md)) and verified against the
   kernel found four security defects (findings F9 to F12 of ADR-0011), reported as private
   advisories and fixed in journals 0116 and 0117; our own tests and reviews found others before.
-  Three private reports from an external reviewer (2026-10-27) found `QUERY2` naming files under
+  Three private reports from an external reviewer (2026-10-27), AI-assisted and triaged by the
+  reviewer, who chose where to look, reproduced each defect and wrote or checked the fix, found `QUERY2` naming files under
   a search-only directory (F15, [GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6)), domain and file
   records answered for a reused inode number ([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm)) and a
   set-user-ID bit kept through a write (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), fixed
   on `main` in journals [0215](docs/history/0215-search-only-directories.md),
   [0216](docs/history/0216-domain-record-generation.md) and
-  [0218](docs/history/0218-write-credentials-fsetid.md); the reviewer wrote the fix of F16.
+  [0218](docs/history/0218-write-credentials-fsetid.md); the reviewer wrote the fix of F16. They
+  are real defects, each reproduced, fixed and given a regression test.
   `v0.5.0-experimental` has these fixes; tags up to `v0.4.1-experimental` carry defects fixed since ([changelog](CHANGELOG.md)).
 - **The measurements are pilot-grade**, from one host; the report that gathers them is
   [journal 0088](docs/history/0088-m4-report.md). They are not a general speed claim.
@@ -193,9 +197,9 @@ For anything beyond a disposable VM, SQLite or plain files remain the recommenda
 
 ## How to help
 
-The project has one maintainer and no independent human review of the whole kernel code yet; an
-external reviewer privately reported three kernel defects and wrote the fix of one (F16), and an
-outside contributor reviewed the scripts, tools and Python library (pull requests 161 to 163).
+The project has one maintainer and no independent human review of the kernel code yet; an
+external reviewer's AI-assisted private reports found three kernel defects, and the reviewer wrote
+the fix of one (F16), and an outside contributor reviewed the scripts, tools and Python library (pull requests 161 to 163).
 What would help most, by how much kernel knowledge it takes, is in **[docs/help-wanted.md](docs/help-wanted.md)**: a review of the
 credential model or of the index locking, if you know the VFS; a check of whether your memory
 system fits, if you build one; a run of the tests on your machine or on another kernel; and
@@ -512,9 +516,9 @@ KASAN harness runs the layer suite), and no benchmark exists.
   (journals 0139 and 0143). No speed or efficiency claim beyond the conditions stated in
   [What was measured](#what-was-measured) may be made from them; no comparison with FUSE
   exists, and the comparison with the bare lower filesystem on the current module is pending.
-- No independent human review of the whole kernel code. Two independent source reviews by AI assistants (journals
+- No independent human review of the kernel code. Two source reviews by AI assistants (journals
   [0111](docs/history/0111-review-5582e06.md) and [0114](docs/history/0114-second-inspection-of-5582e06.md)),
-  private reports from an external reviewer (journals 0215, 0216, 0218; the reviewer wrote the fix of F16) and the project's own tests found and fixed kernel-side defects, security ones among them; the
+  AI-assisted private reports from an external reviewer, who triaged and reproduced them (journals 0215, 0216, 0218; the reviewer wrote the fix of F16) and the project's own tests found and fixed kernel-side defects, security ones among them; the
   findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F17),
   the earlier defects in journals [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),

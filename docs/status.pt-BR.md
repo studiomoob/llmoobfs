@@ -12,10 +12,10 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 ## Última tag e correções posteriores
 
 **Experimental. Não é para produção.** Uma série de kernel (6.12), testada só em VM; ainda sem
-revisão humana independente de todo o código do kernel (duas revisões independentes do código, feitas por
-assistentes de IA, diários 0111 e 0114; um revisor externo relatou em privado três defeitos do kernel e
+revisão humana independente do código do kernel, só ferramentas automáticas e revisões assistidas por IA ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): duas revisões do código, feitas por
+assistentes de IA, diários 0111 e 0114; os relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele, acharam três defeitos do kernel, e o revisor
 escreveu a correção de um deles, F16, diários 0215, 0216 e 0218; um colaborador de fora revisou scripts,
-ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163). A última tag, `v0.5.0-experimental` (2026-10-28), tem todas as correções abaixo; a anterior,
+ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163. A última tag, `v0.5.0-experimental` (2026-10-28), tem todas as correções abaixo; a anterior,
 `v0.4.1-experimental` (2026-10-20), é um retrato do
 código anterior a elas. Os dois achados da
 [revisão independente](history/0144-independent-review.md) têm correções na

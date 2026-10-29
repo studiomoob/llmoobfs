@@ -182,8 +182,8 @@ Evidence: two uids, two namespaces, mode bits and POSIX ACLs, remount, a five-se
 `chmod`/`rename`/`unlink` against `QUERY`, over the three lower filesystems, in the Debian VM
 and under KASAN on 6.12.112 ([journal 0020](history/0020-phase-3b-query-authorization.md)).
 The timing channel was measured (`QUERY2` against v1, journal
-[0043](history/0043-timing-channel-query2.md)); no independent human review of the whole kernel code exists,
-though an external reviewer privately reported three kernel defects (journals 0215, 0216, 0218).
+[0043](history/0043-timing-channel-query2.md)); no independent human review of the kernel code exists;
+an external reviewer's AI-assisted private reports found three kernel defects (journals 0215, 0216, 0218).
 
 `MOOB_IOC_GET_INFO` returns `struct moob_info`: UAPI and format versions, the attribute
 limits above, capabilities advertised from the lower filesystem type (`MOOB_CAP_REFLINK`,
@@ -238,7 +238,7 @@ mount or a release (ADR-0012).
 Only pilot-grade figures exist, from one host ([report](history/0088-m4-report.md)); no kernel
 beyond the two above has been tried; fstests' `quick` group passes with an exclusion list and its `auto` group ran once (journal 0239); the code is mostly one
 author's (the fix of F16 is the external reviewer's), with the defects found by its own tests, by two source reviews by AI assistants and by
-private reports from an external reviewer listed in
+AI-assisted private reports from an external reviewer listed in
 [ADR-0011](decisions/0011-threat-and-credential-model.md) (F1 to F17), and no independent
-human review of the whole. See
+human review of the kernel code ([ADR-0030](decisions/0030-stage-2-review-criterion.md)). See
 [when-not-to-use.md](when-not-to-use.md) and [faq.md](faq.md).

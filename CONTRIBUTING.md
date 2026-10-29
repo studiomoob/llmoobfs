@@ -12,8 +12,8 @@ attribute index lives only in RAM, built per domain by the first query on it and
 memory pressure (ADR-0012). The UAPI (v1 and v2) may
 change. Only pilot-grade measurements exist. Our own tests and reviews keep
 finding kernel-side defects (the README banner and `CHANGELOG.md` list them);
-there has been no independent human review of the whole kernel code (two source reviews by AI assistants, journals 0111 and 0114;
-an external reviewer privately reported three kernel defects and wrote the fix of one, F16, journals 0215, 0216 and 0218;
+there has been no independent human review of the kernel code, only automated tools and AI-assisted reviews (two source reviews by AI assistants, journals 0111 and 0114;
+an external reviewer's AI-assisted private reports found three kernel defects, and the reviewer wrote the fix of one, F16, journals 0215, 0216 and 0218;
 an outside contributor reviewed the scripts, tools and Python library, pull requests 161 to 163). Do not expect production readiness, compatibility promises or quick
 turnaround on every issue. See the status banner in [README.md](README.md).
 

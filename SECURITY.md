@@ -169,12 +169,13 @@ access is provided. `QUERY2` answers from the partition of a domain directory th
 caller can traverse and read, holding only files every traverser can read; with
 domains on, the v1 `QUERY` is limited to `CAP_SYS_ADMIN` (`docs/spec-query-v2.md`).
 The VM suite, the KASAN/lockdep workflow and the attribute fuzzer are not a
-security audit; no independent human audit of the whole code has taken place. Two independent source reviews by AI
+security audit; no independent human audit or review of the code has taken place. Two source reviews by AI
 assistants (journals 0111 and 0114) found findings F9 to F12, fixed through private advisories. A third
 (journal 0151, at `v0.4.1-experimental`) found that a chmod landing during the first build of a domain
 left the file in the domain's `QUERY2` answers to callers who can no longer read it; reproduced in
 the VM and fixed in journal 0152, with a suite test and a negative round. Three private reports
-from an external reviewer (2026-10-27), credited in the advisories, found F15 (`QUERY2` named
+from an external reviewer (2026-10-27), credited in the advisories, AI-assisted and triaged by the
+reviewer (who chose where to look, reproduced each defect and wrote or checked the fix), found F15 (`QUERY2` named
 files under a search-only directory, [GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6), journal 0215),
 domain and file records answered for a reused inode number
 ([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm), journal 0216) and F16 (a set-user-ID bit kept

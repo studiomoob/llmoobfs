@@ -165,22 +165,27 @@ Fatos em 2026-10-25:
   syzkaller (seis rodadas de seis horas; um defeito achado e corrigido), uma primeira rodada do
   KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091, 0096, 0104, 0109,
   0112, 0115, 0133, 0138, 0143, 0239).
-- **Ainda sem revisão humana independente de todo o código do kernel.** Foi pedida em 2026-10-13.
-  Um revisor externo relatou em privado três defeitos do kernel e escreveu a correção de um deles
-  (F16, abaixo). Um colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um
-  assistente de IA (2026-10-27, pull requests 161 a 163). Duas revisões independentes do
+- **Ainda sem revisão humana independente do código do kernel.** Foi pedida em 2026-10-13. O
+  código do kernel foi verificado por ferramentas automáticas (a suíte sob KASAN, UBSAN e
+  lockdep, KCSAN, syzkaller, fstests, fuzzing) e por revisões assistidas por IA, e por nenhum
+  revisor humano independente ([ADR-0030](docs/decisions/0030-stage-2-review-criterion.md)). Um
+  colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um
+  assistente de IA (2026-10-27, pull requests 161 a 163). Duas revisões do
   código, feitas por assistentes de IA ([diário 0111](docs/history/0111-review-5582e06.md),
   [diário 0114](docs/history/0114-second-inspection-of-5582e06.md)) e conferidas contra o kernel,
   acharam quatro defeitos de segurança (achados F9 a F12 do ADR-0011), relatados como avisos de
   segurança privados e corrigidos nos diários 0116 e 0117; nossos próprios testes e revisões
-  acharam outros antes. Três relatos privados de um revisor externo (2026-10-27) acharam o `QUERY2`
+  acharam outros antes. Três relatos privados de um revisor externo (2026-10-27), assistidos por IA e
+  triados pelo revisor, que escolheu onde olhar, reproduziu cada defeito e escreveu ou conferiu a
+  correção, acharam o `QUERY2`
   nomeando arquivos sob um diretório só de busca (F15, [GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6)),
   registros de domínio e de arquivo respondidos para um número de inode reutilizado
   ([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm)) e um bit set-user-ID mantido depois de uma escrita
   (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), corrigidos na `main` nos diários
   [0215](docs/history/0215-search-only-directories.md),
   [0216](docs/history/0216-domain-record-generation.md) e
-  [0218](docs/history/0218-write-credentials-fsetid.md); a correção do F16 é do revisor. A `v0.5.0-experimental` tem essas correções; as tags até a `v0.4.1-experimental`
+  [0218](docs/history/0218-write-credentials-fsetid.md); a correção do F16 é do revisor. São defeitos reais, cada um reproduzido, corrigido e com
+  teste de regressão. A `v0.5.0-experimental` tem essas correções; as tags até a `v0.4.1-experimental`
   carregam defeitos corrigidos depois ([changelog](CHANGELOG.md)).
 - **As medições são de nível piloto**, de uma máquina; o relatório que as reúne é o
   [diário 0088](docs/history/0088-m4-report.md). Não são uma afirmação geral de velocidade.
@@ -206,9 +211,9 @@ recomendação ([when-not-to-use.md](docs/when-not-to-use.md)). A lista completa
 
 ## Como ajudar
 
-O projeto tem um mantenedor e ainda nenhuma revisão humana independente de todo o código do
-kernel; um revisor externo relatou em privado três defeitos do kernel e escreveu a correção de um
-deles (F16), e um colaborador de fora revisou scripts, ferramentas e a biblioteca Python (pull
+O projeto tem um mantenedor e ainda nenhuma revisão humana independente do código do
+kernel; os relatos privados de um revisor externo, assistidos por IA, acharam três defeitos do
+kernel, e o revisor escreveu a correção de um deles (F16), e um colaborador de fora revisou scripts, ferramentas e a biblioteca Python (pull
 requests 161 a 163). O que mais ajudaria, organizado por
 quanto conhecimento de kernel exige, está em **[docs/help-wanted.md](docs/help-wanted.md)**: uma
 revisão do modelo de credenciais ou das travas do índice, se você conhece o VFS; uma verificação
@@ -541,9 +546,9 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   condições descritas em [O que foi medido](#o-que-foi-medido) pode ser feita a partir deles; não
   existe comparação com FUSE, e a comparação com o sistema de arquivos de baixo puro no módulo atual
   está pendente.
-- Sem revisão humana independente de todo o código do kernel. Duas revisões independentes do código, feitas por assistentes de IA
+- Sem revisão humana independente do código do kernel. Duas revisões do código, feitas por assistentes de IA
   (diários [0111](docs/history/0111-review-5582e06.md) e [0114](docs/history/0114-second-inspection-of-5582e06.md)),
-  relatos privados de um revisor externo (diários 0215, 0216, 0218; a correção do F16 é dele) e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
+  relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele (diários 0215, 0216, 0218; a correção do F16 é dele) e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
   segurança; os achados estão no [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)
   (F1 a F17), e os defeitos anteriores nos diários [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),

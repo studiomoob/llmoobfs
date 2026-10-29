@@ -1,7 +1,7 @@
 # How to help
 
-MoobFS is an experimental kernel module with one maintainer and no independent human review of the whole kernel code yet (two
-source reviews by AI assistants, journals 0111 and 0114; an external reviewer privately reported three kernel defects and wrote the fix of one,
+MoobFS is an experimental kernel module with one maintainer and no independent human review of the kernel code yet, only automated tools and AI-assisted reviews (two
+source reviews by AI assistants, journals 0111 and 0114; an external reviewer's AI-assisted private reports found three kernel defects, and the reviewer wrote the fix of one,
 F16, journals 0215, 0216 and 0218; an outside contributor reviewed the scripts, tools and Python library, pull requests
 161 to 163). This
 page says what would help most, by how much kernel knowledge it takes. Read the status block at
@@ -15,7 +15,7 @@ project's journal with credit, if the person wants it.
 
 | What | Where |
 | --- | --- |
-| Review the credential model: name operations with the caller's credentials, data operations on an open file with the mounter's, checked against a table. Not the overlayfs model, which checks both and runs every real operation as the mounter ([journal 0099](history/0099-credential-model-corrected.md)). Partly answered: an external reviewer found that the write credentials kept the mounter's `CAP_FSETID` (F16, [journal 0218](history/0218-write-credentials-fsetid.md)) | [issue 16](https://github.com/studiomoob/llmoobfs/issues/16) |
+| Review the credential model: name operations with the caller's credentials, data operations on an open file with the mounter's, checked against a table. Not the overlayfs model, which checks both and runs every real operation as the mounter ([journal 0099](history/0099-credential-model-corrected.md)). Not yet answered by a human reviewer; this and the `QUERY2` authorization are the hand-read review stage 3 needs ([ADR-0030](decisions/0030-stage-2-review-criterion.md)). An external reviewer's AI-assisted report found that the write credentials kept the mounter's `CAP_FSETID` (F16, [journal 0218](history/0218-write-credentials-fsetid.md)) | [issue 16](https://github.com/studiomoob/llmoobfs/issues/16) |
 | Review the locking of the attribute index against rename, unlink, eviction and memory reclaim. Since [journal 0223](history/0223-index-lock-instantiation-eviction.md) instantiation and eviction of an inode without an index record take no index lock; the lockless test rests on the ordering argument there | [issue 17](https://github.com/studiomoob/llmoobfs/issues/17) |
 | Tell us what a stacked filesystem usually gets wrong that our tests have not caught. What was found so far is in [ADR-0011](decisions/0011-threat-and-credential-model.md) (findings F1 to F17) and journals [0082](history/0082-index-lock-and-reclaim.md), [0083](history/0083-index-inspection-fixes.md), [0112](history/0112-mount-leak-and-sql-omit.md), [0120](history/0120-review-medium-and-low-items.md), [0144](history/0144-independent-review.md), [0151](history/0151-review-d110d4e.md), [0156](history/0156-round-2-review-batch.md), [0215](history/0215-search-only-directories.md), [0216](history/0216-domain-record-generation.md) and [0218](history/0218-write-credentials-fsetid.md) | open an issue |
 | Run the suite under AppArmor or Smack (SELinux enforcing was exercised once, journal [0104](history/0104-selinux-investigation.md)) | [testing.md](testing.md) |

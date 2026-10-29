@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Review categories and the stage-2 review criterion (journal 0240, ADR-0030; documentation
+  only). The external reviewer's private reports (F15, F16, GHSA-756j-cgwq-gvwm, and in user space
+  GHSA-4gr9-rvgr-44qj, GHSA-3wx4-fh9w-2v66 and the pointer behind GHSA-f769-xjf5-54wc) were
+  AI-assisted: the reviewer chose where to look, reproduced the defects and wrote or checked the
+  fixes. Documents now use three categories: automated tools, AI-assisted reviews (those reports
+  and the source reviews of journals 0111 and 0114) and independent human review, of which there
+  has been none; wordings that presented the reports as partial human review are retired.
+  ADR-0030: stage 2 (technical preview) requires strong automated coverage, every AI-assisted
+  finding reproduced with a regression test, and S14 to S21 done, with no human review; stage 3
+  (public release) requires a hand-read human review of the credential paths and the `QUERY2`
+  authorization by a volunteer who knows the VFS.
 - `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
   They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
   another writer of the tree who swapped a directory for a symbolic link while root ran them
