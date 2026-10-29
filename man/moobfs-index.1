@@ -1,5 +1,5 @@
 .\" SPDX-License-Identifier: GPL-2.0-only
-.Dd October 27, 2026
+.Dd October 29, 2026
 .Dt MOOBFS-INDEX 1
 .Os
 .Sh NAME
@@ -78,6 +78,15 @@ sorted by value and inode number; terms may then be empty
 keep the first
 .Ar N
 .El
+.Pp
+Below
+.Ar directory
+no symbolic link is followed, not even one put in place of a directory while the walk runs:
+each entry is opened relative to its directory's descriptor and judged and read through that
+descriptor, so the tool can be run as root over a tree that other users can write.
+A symbolic link given as
+.Ar directory
+is not walked, and entries on other filesystems are skipped.
 .Sh EXIT STATUS
 0 on success, non-zero on a usage error or a failed walk.
 .Sh EXAMPLES

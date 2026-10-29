@@ -1,5 +1,5 @@
 .\" SPDX-License-Identifier: GPL-2.0-only
-.Dd October 18, 2026
+.Dd October 29, 2026
 .Dt MOOBFS-CHECK 1
 .Os
 .Sh NAME
@@ -58,6 +58,15 @@ plus a
 array of path and reason strings.
 The full schema and example are in docs/tools.md.
 The JSON shape is experimental and may change.
+.Pp
+Below
+.Ar directory
+no symbolic link is followed, not even one put in place of a directory while the walk runs:
+each entry is opened relative to its directory's descriptor and judged and read through that
+descriptor, so the tool can be run as root over a tree that other users can write.
+A symbolic link given as
+.Ar directory
+is not walked, and entries on other filesystems are skipped.
 .Sh EXIT STATUS
 .Bl -tag -width 2n -compact
 .It 0

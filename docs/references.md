@@ -853,3 +853,32 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   a directory descriptor since 3.7 (entries then carry names only, and `DirEntry.is_dir()` and
   `is_file()` with `follow_symlinks=False` use the directory's descriptor), and the `dir_fd`
   parameters of `os.open` and `os.access` ([paths relative to directory descriptors](https://docs.python.org/3/library/os.html#dir-fd)).
+
+## 30. moobfs-check and moobfs-index walked by directory descriptor (journal 0232)
+
+- glibc's `nftw()`, `io/ftw.c` at glibc 2.41 (the C library of the dedicated host, Debian
+  `2.41-12+deb13u4`; [source](https://sourceware.org/git/?p=glibc.git;a=blob;f=io/ftw.c;hb=refs/tags/glibc-2.41)):
+  what the new walk keeps for a tree that does not change. The trailing slashes of the root are
+  stripped before the first `lstat` (`:660`), so a link written `link/` is reported as `FTW_SL`;
+  an entry that cannot be stat'ed for `EACCES` or `ENOENT` is `FTW_NS`, another error stops the
+  walk (`:428`); with `FTW_MOUNT` an entry on another device is skipped, not reported (`:461`); a
+  directory that cannot be opened for `EACCES` is `FTW_DNR` before any `FTW_D` (`:501`); and a
+  child's path is the parent's with one `/` (`:541`). Its subdirectories are opened by the full
+  path, which is where a directory swapped for a link is followed.
+- `fgetxattr` and `flistxattr`, `fs/xattr.c:809` and `:883`, Linux 6.12.112
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/xattr.c)): they take the file
+  with `CLASS(fd)`, which is `fdget()`, and `fdget()` refuses an `O_PATH` file
+  (`__fget_light(fd, FMODE_PATH)`, `fs/file.c:1135`), hence `EBADF`. `xattr_permission()`
+  (`fs/xattr.c:147`) answers `ENODATA` for a `user.` attribute of a FIFO, socket or device, so
+  such entries carry no typed attribute.
+- `proc_fd_permission()` and `proc_fd_link()`, `fs/proc/fd.c:331` and `:175`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/proc/fd.c)): `/proc/self/fd/N`
+  resolves to the open file's own path (a magic link, no lookup of the names above it), and the
+  process may always reach its own descriptors, also after `setuid()` (checked on the dedicated
+  host: `getxattr` on `/proc/self/fd/N` after dropping from root to uid 1001 answered
+  `ENODATA`, not `EACCES`). The walk reads an `O_PATH` entry's attributes this way.
+- [`renameat2(2)`](https://man7.org/linux/man-pages/man2/rename.2.html) with `RENAME_EXCHANGE`:
+  the atomic exchange of a directory and a symbolic link that `hostile swap` runs against the
+  tools, as the Python tests of journals 0227 and 0231 do.
+- The same `O_NOFOLLOW`, `ELOOP` and `ENOTDIR` behaviour of `do_open()` and `may_open()` as §29,
+  and `O_NONBLOCK` for a FIFO swapped in (`fifo_open()`, §24).
