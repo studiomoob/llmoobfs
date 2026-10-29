@@ -46,12 +46,4 @@ static inline int moob_ext_acl_bytes(const unsigned char *buf, ssize_t n, int er
 	return not_equiv || bits != (mode & 0777);
 }
 
-/* The same decision by path, without following a final symbolic link (bench/userspace/udx.h). */
-static inline int moob_ext_acl_path(const char *path, mode_t mode)
-{
-	static unsigned char buf[65536];	/* XATTR_SIZE_MAX: getxattr cannot return ERANGE */
-	ssize_t n = lgetxattr(path, "system.posix_acl_access", buf, sizeof buf);
-
-	return moob_ext_acl_bytes(buf, n, n < 0 ? errno : 0, mode);
-}
 #endif

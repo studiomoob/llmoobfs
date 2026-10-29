@@ -93,6 +93,9 @@ for i in 1 2 3 4 5 6 7 8; do : > "$x/f$i"; done
 "$A" set "$x/f7" kind string note; chmod 600 "$x/f7"                # not readable by the domain's group
 "$A" set "$x/f8" kind string note; ln -s f8 "$x/f8.symlink"
 mkdir "$x/closed"; : > "$x/closed/g"; "$A" set "$x/closed/g" kind string note; chmod 700 "$x/closed"
+# search-only, and listable by others alone: the rule of ADR-0025 leaves both out (journal 0232)
+mkdir "$x/searchonly"; : > "$x/searchonly/g"; "$A" set "$x/searchonly/g" kind string note; chmod 711 "$x/searchonly"
+mkdir "$x/othersonly"; : > "$x/othersonly/g"; "$A" set "$x/othersonly/g" kind string note; chmod 705 "$x/othersonly"
 mkfifo "$x/fifo"
 chown -R 1001:1001 "$T/ns1"                            # a domain that belongs to an ordinary user
 
