@@ -8,6 +8,7 @@ BUILD ?= build/host
 
 
 .PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test deb pylib-test repro-test
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
@@ -35,6 +36,7 @@ help:
 	@echo '  make deb           experimental moobfs-dkms and moobfs-tools packages into build/deb (Debian; not published)'
 	@echo '  make package-test  the packages under Secure Boot in a disposable Debian 13 VM; needs only Docker'
 	@echo '  make repro-test    build the module and the packages twice in clean containers; byte-identical or fail (Docker)'
+	@echo '  make bench-test    the on-demand index benchmark (issue #68) in that VM; MOOB_BENCH_FS=ext4|btrfs|xfs'
 	@echo 'Details: docs/development.md and docs/testing.md'
 tools: $(BUILD)/mkfs.moobfs $(BUILD)/fsck.moobfs $(BUILD)/attr_test
 # SQL over a domain, no database (ADR-0013, journal 0108): load with .load or load_extension
@@ -60,11 +62,15 @@ $(BUILD)/moobfs-index: tools/moobfs-index.c tools/query-common.h tools/walk.h to
 $(BUILD)/moobfs: tools/moobfs.c tools/query-common.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs.c common/attr.c $(LDFLAGS) -o $@
 # M4 benchmark harness (docs/benchmark-harness.md). gen is portable; load is Linux-only.
-bench-tools: $(BUILD)/bench-gen $(BUILD)/bench-load $(BUILD)/bench-sqlclient $(BUILD)/bench-aimem-latency $(BUILD)/bench-readcost
+bench-tools: $(BUILD)/bench-gen $(BUILD)/bench-load $(BUILD)/bench-sqlclient $(BUILD)/bench-aimem-latency $(BUILD)/bench-readcost $(BUILD)/query
 $(BUILD)/bench-gen: bench/gen.c bench/common.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) bench/gen.c -lm $(LDFLAGS) -o $@
 $(BUILD)/bench-load: bench/load.c bench/common.h tools/query-common.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude -Itools bench/load.c common/attr.c -lm $(LDFLAGS) -o $@
+# the ioctl test client that bench/ondemand.sh and the other bench scripts call as $BIN/query;
+# the flags of vm/build-tests.sh, which builds the same program for the VM suite (journal 0238)
+$(BUILD)/query: tests/query.c tools/query-common.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -Wextra -Werror -Iinclude tests/query.c common/attr.c $(LDFLAGS) -o $@
 # the SQLite client needs libsqlite3-dev; SQLITE_LIBS adds what a static link requires
 SQLITE_LIBS ?= -lsqlite3
 $(BUILD)/bench-sqlclient: bench/sqlclient.c bench/common.h | $(BUILD)
@@ -152,6 +158,9 @@ package-test:
 # Security roadmap S10 (journal 0236): reproducible module and packages, two clean containers.
 repro-test:
 	sh scripts/repro-ko.sh
+# bench/ondemand.sh in the same VM under KVM, a trend monitor (journal 0238, .github/workflows/bench.yml)
+bench-test:
+	MOOB_TEST=bench sh vm/install-test/run.sh
 # Roadmap item C5: the Python library installed with pip in a clean venv, its build backend
 # pinned by hash, built from a copy so the source tree gets no build output; the tests then
 # import the installed package, not python/src.
