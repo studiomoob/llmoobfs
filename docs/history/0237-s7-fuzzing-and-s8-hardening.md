@@ -212,3 +212,35 @@ own Actions, at the price of a third-party action; `fuzz.yml` does the long run 
   summary in a journal.
 - A KMSAN kernel and job, like `kcsan.yml`, to close S8.
 - An MSan configuration in `fuzz.yml` if the local MemorySanitizer runs stay clean.
+
+## Batch note: one pull request for batches 7 to 9
+
+*Note, 2026-10-29, by the coordinator of the batches.*
+
+**Exception to the one-pull-request-per-batch rule.** Batch 7 (journals 0232–0234, issue #168)
+and batch 8 (journals 0235–0237, S9, S10, S7 and S8) were ready within the same hour, and later
+the weekly benchmark workflow of journal 0238 was ready too. The maintainer authorized merging
+them in one pull request, an exception to AGENTS.md's one pull request per batch. Separate pull
+requests would have repeated the full suites on the same tree for no added assurance. None of
+the six fronts changes the module's C code. Each front keeps its own commits and journal.
+
+**Full runs, once, on the combined tree** (`claudiofp/BATCH7-8` at the S7/S8 merge; logs outside
+the repository):
+- `make vm-test` under QEMU TCG: `MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS` and
+  `MOOBFS_ACCEPTANCE_PASS`. These steps passed among others:
+  - `OVERBUDGET_RACE_PASS` on the three lowers;
+  - `LIMITS_BUDGET_PASS` and `LIMITS_MEMCG_PASS`;
+  - `LANDLOCK_PASS`;
+  - `PERMMATRIX_STEP_PASS` and `ROOTPATH_PASS` on ext4, btrfs and XFS;
+  - the set-user-ID checks with `splice` and `sendfile`.
+- `sh vm/kasan-local.sh` with the new `vm/kasan.config` (`CONFIG_KFENCE=y` and the other options
+  of this journal in the built `.config`): `MOOBFS_KASAN_PASS` with no kernel diagnostics.
+  - Also `PERMMATRIX_STEP_PASS` and `ROOTPATH_PASS` on the three lowers, `LIMITS_BUDGET_PASS` and
+    `MOOBFS_PYLIB_PASS`.
+  - `LANDLOCK_SKIPPED`, because that kernel has no Landlock.
+
+**A first `make vm-test` attempt failed for load, not for the code.** It stopped at
+`OVERBUDGET_RACE_FAIL: only 22 queries before the time cap` (btrfs), while the new KASAN kernel
+was being compiled on every core of the same host. That step counts queries done within a time
+cap, so it measures throughput. It passed on the three lowers in the rerun above, when the host
+was otherwise idle.
