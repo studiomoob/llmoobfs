@@ -78,3 +78,8 @@ store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://
 *Update, 2026-10-28 ([journal 0226](history/0226-sixth-prerelease-tag.md)):* `v0.5.0-experimental`
 is tagged on `main` after the third batch and these two fixes and carries every correction above; its source archive
 is signed with Sigstore and has SLSA provenance.
+*Update, 2026-10-28 ([journal 0228](history/0228-security-batch-5-fair-shares.md)):* finding F2
+is fixed on `main`: a uid above its share of the index budget lends its room back to a uid below
+its own, and a uid within its share keeps its domains
+([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md)). G2's latency ceiling (protocol
+§14) was registered and met on the dedicated host in three runs. Not in `v0.5.0-experimental`.

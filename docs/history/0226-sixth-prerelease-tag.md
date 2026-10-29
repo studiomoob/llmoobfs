@@ -64,3 +64,12 @@ The tag goes on the merge commit of this branch, whose code is that of `e5b6591`
 Same as journal 0142: one kernel series (6.12), x86-64 tested in a VM, arm64 only under
 emulation; no independent human review of the whole kernel code. Open: fair shares of the index
 budget (S9, F2) and G2's latency ceiling, issue 117 for inodes with an index record.
+
+*Note, 2026-10-29 (journal 0228).* Tagged as planned: pull request 174 merged as `dfd779c`, the
+tag pushed on that commit, and `release.yml` (run 40787248753) attached the archive, its SHA-256,
+the Sigstore bundle and the SLSA provenance. Checked from the downloaded assets: the SHA-256
+matches, `sigstore verify github` with the repository and tag identity passed, `slsa-verifier
+verify-artifact` (v2.7.1) passed, and the archive lists the tag's 2005 files. The release notes
+are the changelog section's summary; the eight advisories fixed since `v0.4.1-experimental` name
+`v0.5.0-experimental` as patched. The status line above ("in progress") stands as written.
+

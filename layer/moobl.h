@@ -59,6 +59,7 @@ struct moobl_domain {
 	unsigned long used_at;		/* jiffies of the last query that used it */
 	u32 built_uid;			/* init-ns fsuid of the last successful build */
 	u8 has_builder;			/* built_uid is set while the domain is built */
+	u64 used;			/* bytes charged to its partition (ADR-0027; index lock) */
 };
 
 struct moobl_index {

@@ -167,13 +167,48 @@ static int entry_cmp(const struct moobl_ix_entry *e, u8 type, const u8 *v, u16 l
 
 /* ---- accounting and lookup --------------------------------------------- */
 
-static int charge(struct moobl_index *ix, size_t bytes)
+/*
+ * The record that counts a partition's bytes (ADR-0027): the domain's, or the outside part's for
+ * key 0. Everything charged to a partition exists only while its domain is being built or is
+ * built (domain_live()), and a record is not erased before that, so a missing one is a bug.
+ */
+static struct moobl_domain *part_rec(struct moobl_index *ix, u64 domain)
+{
+	struct moobl_domain *dom = domain ? xa_load(&ix->domains, (unsigned long)domain)
+					  : &ix->outside;
+
+	lockdep_assert_held_write(&ix->lock);
+	WARN_ON_ONCE(!dom);
+	return dom;
+}
+
+static void part_add(struct moobl_index *ix, u64 domain, size_t bytes)
+{
+	struct moobl_domain *dom = part_rec(ix, domain);
+
+	if (dom)
+		WRITE_ONCE(dom->used, dom->used + bytes);
+}
+
+static void part_sub(struct moobl_index *ix, u64 domain, size_t bytes)
+{
+	struct moobl_domain *dom = part_rec(ix, domain);
+
+	if (dom) {
+		WARN_ON_ONCE(dom->used < bytes);
+		WRITE_ONCE(dom->used, dom->used - min_t(u64, dom->used, bytes));
+	}
+}
+
+/* Bytes for the partition domain: the mount's budget, and the partition's own count. */
+static int charge(struct moobl_index *ix, u64 domain, size_t bytes)
 {
 	if (ix->used + bytes > ix->budget) {
 		ix->refusals++;	/* never reset: concurrent builds compare samples (issue #111) */
 		return -ENOMEM;
 	}
 	ix->used += bytes;
+	part_add(ix, domain, bytes);
 	return 0;
 }
 
@@ -201,9 +236,16 @@ static void domain_lost(struct moobl_index *ix, u64 domain, int err)
 		WRITE_ONCE(dom->lost, true);
 }
 
-static void uncharge(struct moobl_index *ix, size_t bytes)
+static void uncharge(struct moobl_index *ix, u64 domain, size_t bytes)
 {
 	ix->used -= min_t(u64, ix->used, bytes);
+	part_sub(ix, domain, bytes);
+}
+
+/* What an inode record costs besides its entries: the record and its recorded path. */
+static size_t rec_bytes(const struct moobl_ix_inode *rec)
+{
+	return sizeof(*rec) + (rec->path ? strlen(rec->path) + 1 : 0);
 }
 
 static int part_cmp(const char *name, u64 domain, bool hetero, const struct moobl_ix_name *nm)
@@ -271,11 +313,11 @@ static struct moobl_ix_name *name_get(struct moobl_index *ix, const char *name, 
 			return nm;
 		p = c < 0 ? &parent->rb_left : &parent->rb_right;
 	}
-	if (charge(ix, sizeof(*nm)))
+	if (charge(ix, domain, sizeof(*nm)))
 		return ERR_PTR(-ENOMEM);
 	nm = kzalloc(sizeof(*nm), GFP_KERNEL_ACCOUNT);
 	if (!nm) {
-		uncharge(ix, sizeof(*nm));
+		uncharge(ix, domain, sizeof(*nm));
 		return ERR_PTR(-ENOMEM);
 	}
 	strscpy(nm->name, name, sizeof(nm->name));
@@ -292,8 +334,8 @@ static void name_put_if_empty(struct moobl_index *ix, struct moobl_ix_name *nm)
 	if (nm->count)
 		return;
 	rb_erase(&nm->node, &ix->names);
+	uncharge(ix, nm->domain, sizeof(*nm));
 	kfree(nm);
-	uncharge(ix, sizeof(*nm));
 }
 
 static void rec_drop(struct moobl_index *ix, struct moobl_ix_inode *rec);
@@ -313,11 +355,12 @@ static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino, u32
 		return rec;
 	if (rec)
 		rec_drop(ix, rec);
-	if (charge(ix, sizeof(*rec)))
+	/* a new record is in the outside part (domain 0) until rec_set_partition() moves it */
+	if (charge(ix, 0, sizeof(*rec)))
 		return ERR_PTR(-ENOMEM);
 	rec = kzalloc(sizeof(*rec), GFP_KERNEL_ACCOUNT);
 	if (!rec) {
-		uncharge(ix, sizeof(*rec));
+		uncharge(ix, 0, sizeof(*rec));
 		return ERR_PTR(-ENOMEM);
 	}
 	rec->ino = ino;
@@ -325,7 +368,7 @@ static struct moobl_ix_inode *inode_rec_get(struct moobl_index *ix, u64 ino, u32
 	INIT_LIST_HEAD(&rec->entries);
 	if (xa_err(xa_store(&ix->inodes, ino, rec, GFP_KERNEL_ACCOUNT))) {
 		kfree(rec);
-		uncharge(ix, sizeof(*rec));
+		uncharge(ix, 0, sizeof(*rec));
 		return ERR_PTR(-ENOMEM);
 	}
 	ix->inode_count++;
@@ -339,11 +382,9 @@ static void inode_rec_put_if_empty(struct moobl_index *ix, struct moobl_ix_inode
 	if (rec->hetero)
 		ix->hetero_count--;
 	xa_erase(&ix->inodes, rec->ino);
-	if (rec->path)
-		uncharge(ix, strlen(rec->path) + 1);
+	uncharge(ix, rec->domain, rec_bytes(rec));
 	kfree(rec->path);
 	kfree(rec);
-	uncharge(ix, sizeof(*rec));
 	ix->inode_count--;
 }
 
@@ -354,7 +395,7 @@ static void entry_free(struct moobl_index *ix, struct moobl_ix_entry *e)
 	list_del(&e->by_ino);
 	e->name->count--;
 	ix->entries--;
-	uncharge(ix, sizeof(*e) + e->len);
+	uncharge(ix, e->name->domain, sizeof(*e) + e->len);
 	name_put_if_empty(ix, e->name);
 	kfree(e);
 }
@@ -435,11 +476,15 @@ static int rec_set_partition(struct moobl_index *ix, struct moobl_ix_inode *rec,
 		if (IS_ERR(nm)) {
 			list_del(&e->by_ino);
 			ix->entries--;
-			uncharge(ix, sizeof(*e) + e->len);
+			uncharge(ix, old->domain, sizeof(*e) + e->len);
 			kfree(e);
 			name_put_if_empty(ix, old);
 			err = -ENOMEM;
 			continue;
+		}
+		if (old->domain != nm->domain) {	/* its bytes go with it (ADR-0027) */
+			part_sub(ix, old->domain, sizeof(*e) + e->len);
+			part_add(ix, nm->domain, sizeof(*e) + e->len);
 		}
 		e->name = nm;
 		entry_link(nm, e, rec->ino);
@@ -451,6 +496,10 @@ static int rec_set_partition(struct moobl_index *ix, struct moobl_ix_inode *rec,
 			ix->hetero_count++;
 		else
 			ix->hetero_count--;
+	}
+	if (rec->domain != pl->domain) {
+		part_sub(ix, rec->domain, rec_bytes(rec));
+		part_add(ix, pl->domain, rec_bytes(rec));
 	}
 	rec->domain = pl->domain;
 	rec->hetero = pl->hetero;
@@ -492,14 +541,14 @@ static int index_put(struct moobl_index *ix, u64 ino, u32 gen, const struct moob
 		rec_drop(ix, rec);	/* the old value is gone, the new one not stored */
 		return PTR_ERR(nm);
 	}
-	if (charge(ix, sizeof(*e) + len)) {
+	if (charge(ix, nm->domain, sizeof(*e) + len)) {
 		name_put_if_empty(ix, nm);
 		rec_drop(ix, rec);
 		return -ENOMEM;
 	}
 	e = kmalloc(sizeof(*e) + len, GFP_KERNEL_ACCOUNT);
 	if (!e) {
-		uncharge(ix, sizeof(*e) + len);
+		uncharge(ix, nm->domain, sizeof(*e) + len);
 		name_put_if_empty(ix, nm);
 		rec_drop(ix, rec);
 		return -ENOMEM;
@@ -523,15 +572,15 @@ static int index_set_path(struct moobl_index *ix, struct moobl_ix_inode *rec, co
 
 	if (rec->path && !strcmp(rec->path, path))
 		return 0;
-	if (charge(ix, len))
+	if (charge(ix, rec->domain, len))
 		return -ENOMEM;	/* the old name is kept; QUERY will fall back to the dentry cache */
 	copy = kmemdup(path, len, GFP_KERNEL_ACCOUNT);
 	if (!copy) {
-		uncharge(ix, len);
+		uncharge(ix, rec->domain, len);
 		return -ENOMEM;
 	}
 	if (rec->path)
-		uncharge(ix, strlen(rec->path) + 1);
+		uncharge(ix, rec->domain, strlen(rec->path) + 1);
 	kfree(rec->path);
 	rec->path = copy;
 	return 0;
@@ -1093,6 +1142,7 @@ static struct moobl_domain *domain_get(struct moobl_index *ix, u64 domain)
 /* Removes everything the index holds for one domain. Caller holds the write lock. */
 static void domain_drop(struct moobl_index *ix, u64 domain)
 {
+	struct moobl_domain *dom;
 	struct rb_node *n, *next;
 
 	lockdep_assert_held_write(&ix->lock);
@@ -1120,6 +1170,8 @@ static void domain_drop(struct moobl_index *ix, u64 domain)
 			inode_rec_put_if_empty(ix, rec);
 		}
 	}
+	dom = domain ? xa_load(&ix->domains, (unsigned long)domain) : &ix->outside;
+	WARN_ON_ONCE(dom && dom->used);		/* every byte of a partition is in it (ADR-0027) */
 }
 
 /*
@@ -1146,10 +1198,90 @@ static unsigned long reclaim_idle(const struct moobl_index *ix)
 }
 
 /* A budget release may drop only a domain last built by this uid (ADR-0021). */
-static bool builder_matches(const struct moobl_domain *dom, bool same_builder, u32 uid)
+/*
+ * Which built domains a release may take (ADR-0021, ADR-0027): any idle one for the shrinker; for
+ * a build over the budget, the builder's own first and then, while the builder holds less than
+ * its share, one of a uid holding more than its share.
+ */
+enum moobl_release { MOOBL_REL_ANY, MOOBL_REL_OWN, MOOBL_REL_LEND };
+
+/*
+ * The bytes each filesystem uid's built domains hold, and the share: index_budget over the
+ * number of uids with a built domain, the builder counted once even without one (ADR-0027).
+ * The table holds MOOBL_SHARE_UIDS uids; past that the share stays larger than the exact one,
+ * so fewer domains qualify and a release fails toward ENOMEM.
+ */
+#define MOOBL_SHARE_UIDS 32
+
+struct moobl_shares {
+	u64 share;
+	u32 n;				/* uids in the table, the builder first */
+	u32 uid[MOOBL_SHARE_UIDS];
+	u64 bytes[MOOBL_SHARE_UIDS];
+};
+
+static void shares_add(struct moobl_shares *sh, u32 uid, u64 bytes)
 {
-	return !same_builder || (READ_ONCE(dom->has_builder) &&
-				 READ_ONCE(dom->built_uid) == uid);
+	u32 i;
+
+	for (i = 0; i < sh->n; i++) {
+		if (sh->uid[i] == uid) {
+			sh->bytes[i] += bytes;
+			return;
+		}
+	}
+	if (sh->n < MOOBL_SHARE_UIDS) {
+		sh->uid[sh->n] = uid;
+		sh->bytes[sh->n++] = bytes;
+	}
+}
+
+static void shares_count_one(struct moobl_shares *sh, const struct moobl_domain *dom,
+			     const struct moobl_domain *building)
+{
+	if (dom != building && READ_ONCE(dom->state) == MOOBL_DOM_BUILT &&
+	    READ_ONCE(dom->has_builder))
+		shares_add(sh, READ_ONCE(dom->built_uid), READ_ONCE(dom->used));
+}
+
+/* Under rcu_read_lock() for a candidate, or under the index lock for the check. */
+static void shares_compute(struct moobl_index *ix, const struct moobl_domain *building, u32 uid,
+			   struct moobl_shares *sh)
+{
+	struct moobl_domain *dom;
+	unsigned long idx;
+
+	sh->n = 0;
+	shares_add(sh, uid, 0);
+	shares_count_one(sh, &ix->outside, building);
+	xa_for_each(&ix->domains, idx, dom)
+		shares_count_one(sh, dom, building);
+	sh->share = div_u64(ix->budget, sh->n);
+}
+
+/* The builder (entry 0) is below its share and uid, another one, above its. */
+static bool shares_lend(const struct moobl_shares *sh, u32 uid)
+{
+	u32 i;
+
+	if (sh->bytes[0] >= sh->share)
+		return false;
+	for (i = 1; i < sh->n; i++)
+		if (sh->uid[i] == uid)
+			return sh->bytes[i] > sh->share;
+	return false;
+}
+
+static bool builder_matches(const struct moobl_domain *dom, enum moobl_release mode, u32 uid,
+			    const struct moobl_shares *sh)
+{
+	if (mode == MOOBL_REL_ANY)
+		return true;
+	if (!READ_ONCE(dom->has_builder))
+		return false;
+	if (mode == MOOBL_REL_OWN)
+		return READ_ONCE(dom->built_uid) == uid;
+	return READ_ONCE(dom->built_uid) != uid && shares_lend(sh, READ_ONCE(dom->built_uid));
 }
 
 /*
@@ -1160,12 +1292,13 @@ static bool builder_matches(const struct moobl_domain *dom, bool same_builder, u
  * the caller drops with domain_unpin(); the state is checked again under domain_release()'s locks.
  * A plain walk rather than a list_lru: the domains of one mount are few, and the index memory
  * is not charged to a memory cgroup, so a per-cgroup, per-node list would buy nothing.
- * same_builder restricts the choice to domains last built by uid.
+ * mode restricts the choice as builder_matches() says.
  */
 static struct moobl_domain *domain_lru(struct moobl_index *ix, struct moobl_domain *except,
 				       unsigned long idle, bool after, unsigned long after_used,
 				       u64 after_key, u64 *key, unsigned long *selected_used,
-				       bool same_builder, u32 uid)
+				       enum moobl_release mode, u32 uid,
+				       const struct moobl_shares *sh)
 {
 	struct moobl_domain *dom, *best = NULL;
 	unsigned long idx, used, best_used = 0;
@@ -1173,7 +1306,7 @@ static struct moobl_domain *domain_lru(struct moobl_index *ix, struct moobl_doma
 	rcu_read_lock();
 	used = READ_ONCE(ix->outside.used_at);
 	if (READ_ONCE(ix->outside.state) == MOOBL_DOM_BUILT && &ix->outside != except &&
-	    builder_matches(&ix->outside, same_builder, uid) &&
+	    builder_matches(&ix->outside, mode, uid, sh) &&
 	    time_after_eq(jiffies, used + idle) &&
 	    (!after || time_after(used, after_used))) {
 		best = &ix->outside;
@@ -1183,7 +1316,7 @@ static struct moobl_domain *domain_lru(struct moobl_index *ix, struct moobl_doma
 	xa_for_each(&ix->domains, idx, dom) {
 		used = READ_ONCE(dom->used_at);
 		if (dom == except || READ_ONCE(dom->state) != MOOBL_DOM_BUILT ||
-		    !builder_matches(dom, same_builder, uid) ||
+		    !builder_matches(dom, mode, uid, sh) ||
 		    time_before(jiffies, used + idle) ||
 		    (after && !time_after(used, after_used) &&
 		     !(used == after_used && (u64)idx > after_key)))
@@ -1209,14 +1342,17 @@ static struct moobl_domain *domain_lru(struct moobl_index *ix, struct moobl_doma
  * update of this very mount. From a build over the budget the caller holds except->build, so
  * the other domain's build mutex is only tried (two builds could otherwise wait for each
  * other) and the rest is taken in the order of domain_ensure(). A busy candidate does not hide
- * later candidates that can be released. A budget release (same_builder) skips a domain
- * last built by another uid. The shrinker passes same_builder false and may drop any
- * idle domain. Returns whether one was released.
+ * later candidates that can be released. A budget release takes the builder uid's own domains
+ * (MOOBL_REL_OWN) or, lending, another uid's over its share (MOOBL_REL_LEND, ADR-0027); the
+ * shares are computed again under the index lock, and a candidate that no longer qualifies is
+ * skipped. The shrinker passes MOOBL_REL_ANY and may drop any idle domain. Returns whether one
+ * was released.
  */
 static bool domain_release(struct moobl_index *ix, struct moobl_domain *except, bool reclaim,
-			   bool same_builder, u32 uid)
+			   enum moobl_release mode, u32 uid)
 {
 	unsigned long idle = reclaim ? reclaim_idle(ix) : 0;
+	struct moobl_shares sh;
 	struct moobl_domain *dom;
 	unsigned int nofs, attempts, limit;
 	u64 key = 0;
@@ -1229,8 +1365,13 @@ static bool domain_release(struct moobl_index *ix, struct moobl_domain *except, 
 	for (attempts = 0; attempts < limit; attempts++) {
 		bool owned;
 
+		if (mode == MOOBL_REL_LEND) {
+			rcu_read_lock();
+			shares_compute(ix, except, uid, &sh);
+			rcu_read_unlock();
+		}
 		dom = domain_lru(ix, except, idle, after, after_used, after_key,
-				 &key, &selected_used, same_builder, uid);
+				 &key, &selected_used, mode, uid, &sh);
 		if (!dom)
 			return false;
 		if (!mutex_trylock(&dom->build)) {
@@ -1258,8 +1399,9 @@ static bool domain_release(struct moobl_index *ix, struct moobl_domain *except, 
 			down_write(&ix->query_sem);
 			nofs = ix_write_lock(ix);
 		}
-		owned = dom->state == MOOBL_DOM_BUILT &&
-			(!same_builder || (dom->has_builder && dom->built_uid == uid));
+		if (mode == MOOBL_REL_LEND)
+			shares_compute(ix, except, uid, &sh);
+		owned = dom->state == MOOBL_DOM_BUILT && builder_matches(dom, mode, uid, &sh);
 		if (owned) {
 			u64 before = ix->used;
 
@@ -2067,13 +2209,18 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 			ix->domains_built++;
 			ix->builds++;
 		}
-		/* over the budget: release this uid's least recently queried domain */
+		/*
+		 * over the budget: release this uid's least recently queried domain, or else one of a
+		 * uid over its share while this one is under its (ADR-0027)
+		 */
 		if (err == -ENOMEM && ix->refusals != refused && may_release &&
 		    released < MOOBL_BUDGET_RELEASES) {
+			u32 uid = from_kuid(&init_user_ns, builder);
+
 			ix_write_unlock(ix, nofs);
 			moved_list_free(&todo);
-			if (domain_release(ix, dom, false, true,
-					   from_kuid(&init_user_ns, builder))) {
+			if (domain_release(ix, dom, false, MOOBL_REL_OWN, uid) ||
+			    domain_release(ix, dom, false, MOOBL_REL_LEND, uid)) {
 				released++;
 				tries--;
 				continue;
@@ -2238,7 +2385,7 @@ static unsigned long moobl_shrink_scan(struct shrinker *s, struct shrink_control
 	while (freed < sc->nr_to_scan) {
 		u64 before = READ_ONCE(ix->used), after;
 
-		if (!domain_release(ix, NULL, true, false, 0))
+		if (!domain_release(ix, NULL, true, MOOBL_REL_ANY, 0))
 			break;
 		after = READ_ONCE(ix->used);
 		freed += max_t(unsigned long, 1, div_u64(before > after ? before - after : 0, PAGE_SIZE));
@@ -2305,7 +2452,7 @@ static void record_dentry_path(struct moobl_index *ix, struct moobl_ix_inode *re
 	if (IS_ERR(p) || index_set_path(ix, rec, *p == '/' ? p + 1 : p)) {
 		/* no name rather than the old one: QUERY then takes the dentry cache or none (0156) */
 		if (rec->path)
-			uncharge(ix, strlen(rec->path) + 1);
+			uncharge(ix, rec->domain, strlen(rec->path) + 1);
 		kfree(rec->path);
 		rec->path = NULL;
 	}

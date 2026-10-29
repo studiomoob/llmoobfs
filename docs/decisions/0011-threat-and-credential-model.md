@@ -151,6 +151,10 @@ and S7 (fuzzing).
   One uid can still fill the whole budget by releasing that uid's own domains.
   A reserved fraction is not implemented, so F2 stays open under S9. Journal
   0192 records the host regression. The shrinker can still drop any idle domain.
+  *Note, 2026-10-28 ([ADR-0027](0027-fair-shares-of-the-index-budget.md), journal 0228):* each
+  domain counts its own bytes, and a build of a uid below its share may release the domains of a
+  uid above it (the share is the budget divided by the uids with a built domain); a uid within
+  its share keeps its domains against every other uid's build. F2 is fixed.
 
 Added on 2026-10-12, from the review of journal 0066 (`docs/research-stacked-fs-kernel-rules.md`):
 

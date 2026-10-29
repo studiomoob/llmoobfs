@@ -229,3 +229,9 @@ A última tag, `v0.4.1-experimental`
 fixes after `v0.4.1-experimental` land on `main`
 as correções posteriores à `v0.4.1-experimental` entram na `main`
 fixes after v0.4.1-experimental land on
+of which part of F2 (fair shares of the index budget) is open
+all but the fairness
+fair shares are not implemented
+There is no reserved per-user fraction
+Não há fração reservada por usuário
+fixed except fair sharing of the index budget

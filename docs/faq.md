@@ -152,8 +152,8 @@ APIs change between versions; compatibility with other kernels is not promised.
 It is not production-ready. It is a research project with source pre-release tags only, the last of which,
 `v0.5.0-experimental` (2026-10-28), is a source snapshot with every correction up to that date. A module bug can cause a
 kernel panic or data loss; the project's tests, two source reviews by AI assistants and private
-reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011, all but the fairness
-part of F2 fixed). Run it only in a disposable VM with synthetic data.
+reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011, all fixed on `main`; the fair shares of F2 came after
+`v0.5.0-experimental`). Run it only in a disposable VM with synthetic data.
 
 The [review of 2026-10-20](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0144-independent-review.md)
 found stale backing-file flags after `F_SETFL` and silently skipped lower `getxattr` errors.

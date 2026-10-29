@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Fair shares of the index budget (journal 0228, ADR-0027; security roadmap S9, the rest of
+  finding F2). Each domain counts the bytes of its partition, and a build that does not fit
+  releases the builder's own domains first and then, while the builder holds less than its
+  share (`index_budget` over the uids with a built domain), the least recently queried domain of
+  a uid holding more. A uid within its share keeps its domains against every other uid's build;
+  one uid alone may still use the whole budget. **Behaviour change:** where ADR-0021 returned
+  `ENOMEM` to a second uid while the first held the budget, that second uid now gets the room
+  back if the first is above its share. New suite step `fairshare`; `buildcostevict` and
+  `bench/client/g2_share.py` follow the amended property of protocol §9. Both failed on the
+  module before the change.
+- G2 latency ceiling (journal 0228, protocol §14, registered before measuring): beside a noisy
+  neighbour a warm query's p99 at most twice its p99 alone, the neighbour's building queries'
+  p99 at most 10 s, no partial answer. `bench/client/g2_contention.py` met it in 3 of 3 runs on
+  the dedicated host (ratios 1.07 to 1.11).
+- Dependencies (Dependabot): setuptools 84.2.1 for `python/`, virtme-ng 1.42 and certifi
+  2026.10.23 for `vm/`.
+
 ## v0.5.0-experimental — 2026-10-28
 
 Sixth source pre-release, the one to use instead of `v0.4.1-experimental`, which carries every

@@ -100,14 +100,15 @@ These limits update the cases discussed in the value assessment, §9.6.
   ([ADR-0016](decisions/0016-failed-index-update-rebuilds-its-domain.md)). This recovery does not
   by itself cover lower-read errors; R2 separately corrects that path in the local batch above. A domain larger than
   the budget fails with `ENOMEM`. Users still compete for the shared budget and can force
-  repeated releases and scans; fair shares are not implemented. A query buffer can additionally
+  repeated releases and scans above their shares (ADR-0027). A query buffer can additionally
   retain about 1.1 MB per open file until close (journal 0139), outside the index budget.
 - **Untrusted users share a mount.** An authorized `QUERY2` can scan its
   entire domain on first use and after directory renames. The memory budget
   does not limit that scan's CPU or lower I/O. A budget release no longer
   drops a domain last built by another filesystem uid; the query returns
-  `ENOMEM` when the remainder is too small. The same uid can still release
-  its own domains and occupy the whole budget. There is no reserved fraction.
+  `ENOMEM` when the remainder is too small, unless that uid is above its
+  share and the builder below its own, in which case the builder takes the
+  room back (ADR-0027). One uid alone may still occupy the whole budget.
   Bounded native-KVM examples of the scan cost are in
   [journal 0182](history/0182-query-build-resource-cost-investigation.md);
   the host regression of the release rule is
