@@ -89,7 +89,12 @@
   not a reference measurement; issue #68, a run on other physical hardware, stays open. amd64
   only: arm64 runners have no KVM. `make bench-tools` now also builds `build/host/query`, which
   `bench/ondemand.sh` and the other bench scripts call as `$BIN/query`; the steps of issue #68
-  had no line that built it.
+  had no line that built it. `bench/ondemand.sh` predates the build limits of ADR-0019 and
+  ADR-0020: its mount-wide `QUERY` of 60 000 memories is now refused (`E2BIG` or `ETIMEDOUT`)
+  and stopped the script; the refusal is now recorded in `times.txt` and the script goes on.
+  In the VM the lower's disk image stays in the host's page cache (`MOOB_BENCH_CACHE=host`), so
+  its "cold" rows are cold in the guest only: with O_DIRECT the cold first `QUERY2` of a
+  7 459-file domain exceeded the ten-second build deadline and was refused with `ETIMEDOUT`.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and
