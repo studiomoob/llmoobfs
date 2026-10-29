@@ -34,4 +34,12 @@ if [ "$expected" -eq 1 ]; then
     python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); bad=[x for x in d["problems"] if x["path"] == "a\"b"]; assert [x["attribute"] for x in bad] == ["a\"}, {\"path\": \"forged\\"], bad; assert not any(x["path"] == "forged" for x in d["problems"])' "$tmp/check.json"
     python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); r=[x["reason"] for x in d["left_out"] if x["path"] == "dom/p\"q\\r/f"]; assert r == ["directory dom/p\"q\\r: more private than the domain directory"], r' "$tmp/depth.json"
 fi
-echo "TOOLS_JSON_PASS: index and check JSON parsed and typed (xattr fixture=$expected)"
+# moobfs diagnose (journal 0243) without a layer: usage and the no-layer status; what it reports
+# on a mounted layer is checked in the VM (vm/suite.sh step diag)
+"$build/moobfs" --help | grep -q 'moobfs diagnose \[--json\] <path>'
+rc=0; "$build/moobfs" diagnose > /dev/null 2>&1 || rc=$?
+[ "$rc" -eq 64 ] || { echo "TOOLS_JSON_FAIL: diagnose without a path: exit $rc" >&2; exit 1; }
+rc=0; "$build/moobfs" diagnose --json "$tmp/lower" > "$tmp/diag.out" 2> "$tmp/diag.err" || rc=$?
+[ "$rc" -eq 69 ] && [ ! -s "$tmp/diag.out" ] && grep -q 'not on a moobfs_layer mount\|module is not loaded' "$tmp/diag.err" ||
+    { echo "TOOLS_JSON_FAIL: diagnose off a layer: exit $rc" >&2; cat "$tmp/diag.err" >&2; exit 1; }
+echo "TOOLS_JSON_PASS: index and check JSON parsed and typed (xattr fixture=$expected); diagnose usage and no-layer status"

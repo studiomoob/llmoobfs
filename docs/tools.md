@@ -12,6 +12,7 @@ rest of the project.
 moobfs info [--json] <path>
 moobfs query [--json] [--ino] [--order NAME TYPE asc|desc] [--limit N] [--page N] <dir> [terms...]
 moobfs check [moobfs-check arguments]
+moobfs diagnose [--json] <path>
 moobfs --help
 ```
 
@@ -34,10 +35,35 @@ adds no kernel interface. Errors start with `moobfs:` and say what to do.
   `EAGAIN` is retried three times.
 - `check` runs `moobfs-check` from the same directory, else from `PATH`, with its arguments
   and exit status.
+- `diagnose` (roadmap item G2, journal 0243) reports, without changing anything, what bounds a
+  query on `<path>` by this caller: whether `<path>` is a domain directory, above the domains
+  or inside one; the index (on or off, budget, build work); the memory cgroup of the process
+  and the smallest `memory.max` above it, with its usage and how often it was reached
+  (`memory.events.local`: `max`, `oom`; `memory.events`: `oom_kill`); `RLIMIT_NOFILE`; the
+  test-only module parameters (`scan_delay_us`, `scan_hold_us`, `scan_getxattr_errno_once`) when
+  set; and for root the index's use of its budget and whether the `moobfs` tracepoints are on.
+  Each finding is a `warning` or a `note` with a stable `code`: `no-memory-limit`,
+  `oom-killed`, `near-limit`, `test-parameter` and `budget-near-full` are warnings;
+  `limit-reached`, `index-off`, `not-a-domain`, `info-unknown`, `cgroup-unknown`,
+  `tracepoints` and `administrator-only` are notes. `--json` prints one object (`path`,
+  `mount`, `role`, `uid`, `index`, `memory_cgroup` with `limit` and `levels`, `nofile`,
+  `module_parameters`, `tracepoints`, `warnings`, `findings`). Exit 0, or 2 when a warning was
+  printed. Run it as the user and in the session that queries: the memory cgroup is the
+  process's own, and `sudo -u` keeps the caller's.
+- When a query fails with `ENOMEM`, `query` reads the caller's memory cgroups again and says
+  which bound refused it: a cgroup whose own limit was reached during the query (its local
+  `max` or `oom` count grew; on a systemd host usually `user-<uid>.slice`, above the session
+  scope), or else the index budget or this uid's share of it, with the budget's size. Another
+  process of the same cgroup reaching the limit at the same moment would be counted too. The
+  exit status stays 75.
 
 What it reads (issue #167, journal 0230): `<path>` or `<dir>` itself (`realpath`, `stat`,
 `statfs`, and `open` of the directory for the ioctl), and `/proc/self/mountinfo` for the mount
-record; `/proc/filesystems` only to say that the module is not loaded. Under a sandbox that
+record; `/proc/filesystems` only to say that the module is not loaded; `/proc/self/cgroup` and
+the `memory.*` files of the caller's cgroups under `/sys/fs/cgroup` (`query` after an `ENOMEM`,
+and `diagnose`); `/sys/module/moobfs_layer/parameters/` and, as root,
+`/sys/kernel/tracing/events/moobfs/enable` (`diagnose`). A denied read makes that part
+unknown, never an error. Under a sandbox that
 denies reading `/proc` (for example Landlock without `READ_FILE` there), the commands go on
 without the mount record: the layer is recognised by `statfs` (type `0x4d4f4f42`), `query`
 issues `QUERY2` as before and, when the directory is the mount root, learns the domain depth
@@ -53,11 +79,12 @@ directory listing (`READ_DIR` under Landlock) on `<dir>`, `info` on the mount ro
 | --- | --- |
 | 0 | success |
 | 1 | a system call failed (the reason is printed) |
+| 2 | `diagnose`: at least one warning was printed |
 | 3 | `query`: the mount-wide `QUERY` had more than 4096 results and cannot return the rest; those returned were printed |
 | 64 | usage |
 | 65 | invalid terms, or a query the kernel refused as invalid (`EINVAL`) |
 | 69 | no layer there: the module is not loaded, `<path>` is on another filesystem, `<dir>` is not a domain directory (`ENOTTY`), or the index is off (`noindex`) |
-| 75 | temporary: the domain does not fit `index_budget` (`ENOMEM`), too many first queries in a minute (`EDQUOT`), the build needs more than `index_build_work` (`E2BIG`) or took longer than its deadline (`ETIMEDOUT`), or the domain kept changing (`EAGAIN`) |
+| 75 | temporary: the domain does not fit `index_budget`, or the caller's memory cgroup reached its `memory.max` (`ENOMEM`; the message says which), too many first queries in a minute (`EDQUOT`), the build needs more than `index_build_work` (`E2BIG`) or took longer than its deadline (`ETIMEDOUT`), or the domain kept changing (`EAGAIN`) |
 | 77 | permission denied (`EACCES`, or `EPERM` for the mount-wide `QUERY` of a user when domains are on) |
 
 ## moobfs-attr
