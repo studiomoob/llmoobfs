@@ -8,13 +8,16 @@ import shutil
 import stat
 import sys
 import tempfile
+import threading
 import unittest
+from unittest import mock
 
 if not os.environ.get("MOOBFS_TEST_INSTALLED"):   # else test the installed package
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 import moobfs  # noqa: E402
 from moobfs import Domain, Order, Term  # noqa: E402
+from moobfs import scan  # noqa: E402
 
 NOBODY = 65534
 
@@ -139,6 +142,102 @@ class Plain(unittest.TestCase):
             os.chmod(p, 0o644)
         got = sorted(m.path for m in Domain(self.dom, backend="scan").query(Term("k", "==", 1)))
         self.assertEqual(got, ["open/f"])
+
+    # ---- the walk by descriptor (journal 0231): a name swapped for a link mid-walk --------
+    def _outside(self):
+        """A private directory outside the domain with a file the domain's owner may read."""
+        outside = tempfile.mkdtemp(prefix="moobfs-pylib-out-")
+        self.addCleanup(shutil.rmtree, outside)
+        os.chmod(outside, 0o700)
+        moobfs.publish(outside, "secret", b"private", {"k": 2})
+        return outside
+
+    def _paths(self):
+        return sorted(p for p, _, _ in scan.candidates(self.dom))
+
+    def test_scan_keeps_a_directory_swapped_for_a_link(self):
+        """The directory the walk judged is the one it lists, even when someone swaps its
+        name for a link to a directory outside between the two steps."""
+        outside = self._outside()
+        sub = os.path.join(self.dom, "sub")
+        os.mkdir(sub, 0o700)
+        moobfs.publish(sub, "deep", b"", {"k": 1}, domain=self.dom)
+        real, calls = os.scandir, []
+
+        def swapping(target):
+            calls.append(target)
+            if len(calls) == 2:               # about to list sub: swap it
+                os.rename(sub, sub + ".moved")
+                os.symlink(outside, sub)
+            return real(target)
+        with mock.patch.object(scan.os, "scandir", swapping):
+            got = self._paths()
+        self.assertEqual(len(calls), 2)
+        self.assertNotIn("sub/secret", got)
+        self.assertEqual(got, ["sub/deep"])     # the directory itself has no attributes
+
+    def test_scan_reads_the_file_it_judged(self):
+        """The attributes reported for a file are the ones of the inode the rule judged, not
+        of a link someone put in its place before they were read."""
+        outside = self._outside()
+        f = moobfs.publish(self.dom, "f", b"", {"k": 1})
+        real = scan.get_attrs
+
+        def swapping(target, *args, **kwargs):
+            if os.path.lexists(f) and not os.path.islink(f):
+                os.rename(f, f + ".moved")
+                os.symlink(os.path.join(outside, "secret"), f)
+            return real(target, *args, **kwargs)
+        with mock.patch.object(scan, "get_attrs", swapping):
+            got = {p: {k: v.python() for k, v in a.items()} for p, _, a in scan.candidates(self.dom)}
+        self.assertEqual(got, {"f": {"k": 1}})
+
+    def test_scan_never_follows_links(self):
+        """Links planted below the domain, to a directory and to a file outside it, are left
+        out (the walk only ever opens with O_NOFOLLOW)."""
+        outside = self._outside()
+        moobfs.publish(self.dom, "own", b"", {"k": 1})
+        os.symlink(outside, os.path.join(self.dom, "dirlink"))
+        os.symlink(os.path.join(outside, "secret"), os.path.join(self.dom, "filelink"))
+        os.mkfifo(os.path.join(self.dom, "pipe"))
+        self.assertEqual(self._paths(), ["own"])
+
+    def test_scan_under_a_racing_swap(self):
+        """Someone sharing the domain exchanges a directory and a link to a private one over
+        and over (renameat2 RENAME_EXCHANGE) while the walk runs: no answer ever names a file
+        of the private directory."""
+        import ctypes
+        outside = self._outside()
+        real = os.path.join(self.dom, "notes")
+        os.mkdir(real, 0o700)
+        moobfs.publish(real, "x", b"", {"k": 1}, domain=self.dom)
+        link = os.path.join(self.dom, "notes.link")
+        os.symlink(outside, link)
+        try:
+            exchange = ctypes.CDLL(None, use_errno=True).renameat2
+        except AttributeError:
+            self.skipTest("no renameat2 in the C library")
+        stop, swaps, errors = threading.Event(), [0], []
+
+        def swap():
+            while not stop.is_set():
+                if exchange(-100, os.fsencode(real), -100, os.fsencode(link), 2):
+                    errors.append(ctypes.get_errno())
+                    return
+                swaps[0] += 1
+        t = threading.Thread(target=swap)
+        t.start()
+        seen = set()
+        try:
+            for _ in range(2000):
+                seen.update(self._paths())
+        finally:
+            stop.set()
+            t.join()
+        self.assertEqual(errors, [])
+        self.assertGreater(swaps[0], 100)
+        self.assertFalse({p for p in seen if p.endswith("secret")}, sorted(seen))
+        self.assertTrue({"notes/x", "notes.link/x"} & seen, "no walk went through")
 
     @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0, "needs root")
     def test_group_domain_and_other_caller(self):
