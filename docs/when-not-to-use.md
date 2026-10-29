@@ -92,8 +92,33 @@ These limits update the cases discussed in the value assessment, §9.6.
   the first test agreed with direct access; every `QUERY2` result is then checked for the
   caller, at a cost not measured ([journal 0104](history/0104-selinux-investigation.md)). One
   run, one kernel; Smack and AppArmor were not exercised.
-- **Your kernel is outside the tested matrix.** Only Debian 6.12.111 (QEMU) and upstream
-  6.12.112 (KASAN) have run the module; other kernels are not promised to compile or behave.
+- **Your kernel is outside the tested matrix.** Only Debian 6.12.111 and 6.12.113 (QEMU) and
+  upstream 6.12.112 (KASAN; on arm64 too, under emulation, as an exploratory job) have run the
+  module; other kernels are not promised to compile or behave
+  ([compatibility.md](compatibility.md) §1).
+- **The lower filesystem does not keep an inode generation, or a user can set it there.** Domain
+  and file records are keyed by the lower inode number and also keep its `i_generation`; a
+  record whose generation differs from the inode's is rebuilt or dropped, so a number the lower
+  hands to a new inode after a removal behind the layer is not answered from the removed
+  inode's entries (GHSA-756j-cgwq-gvwm, [journal 0216](history/0216-domain-record-generation.md)).
+  The check needs a lower that sets the generation. In the build's kernel (6.12.112) ext4 and
+  tmpfs give each new inode a random 32-bit one, XFS a random one (v5 without `ikeep`) or one
+  bumped on free, and btrfs the creating transaction. The VFS starts every inode at 0
+  (`inode_init_always_gfp()`, `fs/inode.c`) and the NFS client never changes it; FUSE takes it
+  from the server (`fuse_iget()`, `fs/fuse/inode.c`), and libfuse sends 0 unless the filesystem
+  fills it. Over such a lower a reused number is not detected, and a query may answer the new
+  inode, and its owner, from the removed inode's entries; NFS and FUSE are not supported lowers
+  ([compatibility.md](compatibility.md) §1, rule 4). On ext4 two narrower gaps remain: one reuse
+  in 2^32 draws the same generation; and the owner of an inode may set its generation with
+  `EXT4_IOC_SETVERSION` or `FS_IOC_SETVERSION` on the lower (`fs/ext4/ioctl.c`), so a user with
+  direct access to the lower who read the removed inode's generation beforehand (any user who
+  could open it can, with `EXT4_IOC_GETVERSION`) can give it to the inode that reuses the number
+  and make the stale records current again. The layer does not pass that ioctl through, and ext4
+  refuses it (`ENOTTY`) on a filesystem with `metadata_csum`, which `mke2fs` enables by default;
+  on ext4 without `metadata_csum` it works. A lower directory out of ordinary users' reach (mode
+  0700, owned by the mounter, as [adoption-risks.md](adoption-risks.md) risk 3 recommends) closes
+  the ioctl's way; it does not help a lower without generations, where an administrator's removal
+  behind the layer is enough.
 - **The corpus is large.** The index is non-pageable RAM, bounded by `index_budget`
   (default 128 MiB). A failed update marks its domain for rebuilding; its next query returns
   a rebuilt answer or an explicit error
@@ -116,7 +141,7 @@ These limits update the cases discussed in the value assessment, §9.6.
   ([ADR-0021](decisions/0021-budget-release-keeps-the-builders-domain.md)).
   `main` includes experimental work and frequency limits
   ([ADR-0019](decisions/0019-bound-query-build-work-and-frequency.md)),
-  but not a strict CPU/I/O cap or fair memory shares. The 32,768-unit
+  but not a strict CPU/I/O cap (fair memory shares came later, ADR-0027). The 32,768-unit
   default denies the measured valid 17,000-file domain; an administrator
   can opt into up to 65,536 units per mount under the merged ADR-0020
   policy, which admitted that fixture in a dedicated VM. Issue 118 remains

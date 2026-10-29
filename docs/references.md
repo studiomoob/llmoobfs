@@ -897,3 +897,17 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   `file_remove_privs()` on the layer's file (`:312`), then writes to the lower file under the
   credentials the layer passes (`override_creds()`, `:316`); the lower's own removal of
   set-user-ID then runs under those credentials, which is what journal 0218 changed.
+## 32. Lowers without inode generations and `EXT4_IOC_SETVERSION` (issue #168, journal 0234)
+
+- `ext4_ioctl()`, `fs/ext4/ioctl.c:1250` to `:1295`, Linux 6.12.112 (the tree the KASAN harness
+  builds; [source](https://github.com/gregkh/linux/blob/v6.12.112/fs/ext4/ioctl.c)):
+  `EXT4_IOC_GETVERSION` returns `i_generation` to any caller with an open descriptor;
+  `EXT4_IOC_SETVERSION` and `EXT4_IOC_SETVERSION_OLD` (= `FS_IOC_SETVERSION`,
+  `include/uapi/linux/fs.h:226`; numbers in `include/uapi/linux/ext4.h:13` to `:16`) set it
+  after `inode_owner_or_capable()` and return `ENOTTY` when the filesystem has `metadata_csum`
+  (`:1263`).
+- `inode_init_always_gfp()`, `fs/inode.c:184`, same tree: every new VFS inode starts with
+  `i_generation` 0; `fs/nfs/inode.c` never assigns it.
+- `fuse_iget()`, `fs/fuse/inode.c:500`, same tree: the generation is the one the FUSE server sent.
+- `__shmem_get_inode()`, `mm/shmem.c:2898`, same tree: tmpfs gives a new inode a random
+  generation (`get_random_u32()`), as ext4 does (§17).
