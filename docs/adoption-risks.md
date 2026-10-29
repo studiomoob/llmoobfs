@@ -2,6 +2,8 @@
 
 *Note, 2026-10-18: an analysis as of 2026-10-12, kept as written. The project's current status is in the README ("Status" and "Limitations") and `docs/security-roadmap.md`; several gaps named below have been closed since (syzkaller, fstests, the threat model, the index built on demand).*
 
+*Note, 2026-10-29 (journal 0234):* the section "Where each risk stands", after the summary, gives the current state of each risk.
+
 Date: 2026-10-12. Status: **proposal**, written for the maintainer's review (journal
 [0067](history/0067-adoption-risks.md)). It lists the risks any agent-memory system takes by
 putting MoobFS under its data, the evidence for each, what already exists, and a proposed answer.
@@ -37,6 +39,36 @@ list to shrink.
 | 13 | Slower than SQLite on some operations | build + accept | Profile the per-call floor; publish where it loses | M4 |
 | 14 | One maintainer, no independent review of the whole kernel code | build | Review requests, the KASAN check enforced, a second reviewer | actions 15 and 18 |
 | 15 | The design is fitted to one client | build + contain | A client contract, a second and a third client, client quirks kept out of the layer | proposed here |
+
+*Note, 2026-10-29 (journal 0234):* the table above and the sections below are the analysis of
+2026-10-12. Row 7's "rebuilt after every mount" and its "release under memory pressure next"
+were already out of date: nothing is built at mount since journal 0098, and built domains are
+released under memory pressure since journal 0101. The section below states where each risk
+stands now; `scripts/check-retired-claims.sh` checks it.
+
+## Where each risk stands (2026-10-29)
+
+<!-- current-state -->
+State on `main` at `7ac52cd`. The project-wide status is in [status.md](status.md).
+
+| # | State |
+| --- | --- |
+| 1 | The set-user-ID crash (R-CRED-3) is fixed (journal 0069). fstests `quick` passes on ext4, btrfs and XFS with a justified exclusion list (journal 0091); syzkaller ran five six-hour rounds (journal 0143); KASAN, UBSAN and lockdep are a required check of `main`. An external reviewer reported kernel defects privately, all fixed; there is still no independent human review of the whole kernel code, and a module defect still takes the host down. |
+| 2 | fstests `quick` and `fsx` as above; the `auto` group has not run. |
+| 3 | Done for its scope (S4, journal 0073): hostile lower trees in the suite on three lowers, also under KASAN, and through the tools under sanitizers in CI. |
+| 4 | R-CRED-2 and F4 are fixed (journals 0069 and 0132). The layer never enters a btrfs subvolume or another device (journal 0216). An inode number reused after a removal behind the layer is detected by its generation (journal 0216), except on a lower that leaves `i_generation` at 0 and through ext4's `EXT4_IOC_SETVERSION` on the lower ([when-not-to-use.md](when-not-to-use.md) §3). |
+| 5 | Accepted, unchanged. The Python library (roadmap C5, ADR-0023) applies the kernel's rules in a scan where the layer is not mounted. |
+| 6 | Three kernels, all 6.12: Debian 6.12.111 and 6.12.113 and upstream 6.12.112 under KASAN ([compatibility.md](compatibility.md) §1); `make install` refuses an unlisted kernel (journal 0197). DKMS and Debian packages that refuse an unlisted kernel and sign the module with the host's key were tested in one VM under Secure Boot and are not published (journal 0229, ADR-0028). |
+| 7 | Nothing is built at mount: a domain is built at its first query (journal 0098), and built domains are released under memory pressure or to make room within the budget (journal 0101, ADR-0012). The first query on a domain after a mount still scans it, and the mount-wide `QUERY` scans every domain. |
+| 8 | Index allocations are charged to the caller's memory cgroup (ADR-0018) and a uid over its share of the budget lends room back to one below its own (ADR-0027, journal 0228); F2 is fixed. One uid alone may still occupy the whole budget. |
+| 9 | The compatibility policy is written and accepted ([compatibility.md](compatibility.md) §3); the UAPI is still experimental, and its last change was the reserved byte of a query term (ADR-0026, `v0.5.0-experimental`). |
+| 10 | Accepted. A SQLite virtual table (prototype, ADR-0013) and the Python library with a LangGraph store (C5) build on `QUERY2`; the kernel's query language is unchanged. |
+| 11 | `moobfs-check --domain-depth N` names the files left out and why (journal 0090); the per-domain flag in the `QUERY2` reply proposed above does not exist, so a client confined to its domain still cannot ask. |
+| 12 | The write sequence is part of the client contract ([client-contract.md](client-contract.md)); the suite's `powerloss` step replays crashes of the lower ext4 with `dm-log-writes`. |
+| 13 | The M4 report lists where the layer loses (journal 0088). |
+| 14 | Still one maintainer. The external reviewer's private reports are recorded in ADR-0011; no second reviewer of `layer/` yet. |
+| 15 | A client contract exists ([client-contract.md](client-contract.md)); a second client, the LangGraph store, ran with answers equal to its own storage (journal 0089); an MCP adapter (C7) exists. A third system has not run. |
+<!-- /current-state -->
 
 ## 1. A module defect takes the host down
 
@@ -163,6 +195,10 @@ list only with a green run. State the support window in `SECURITY.md`.
 ceiling (risk 14). Upstream submission would remove this risk and is not planned.
 
 ## 7. Index in RAM, rebuilt at every mount
+
+*Note, 2026-10-29 (journal 0234):* the title states the risk as of 2026-10-12. Since journal 0098
+nothing is built at mount, and since journal 0101 built domains can be released; see the notes
+at the end of this section and "Where each risk stands".
 
 **Risk.** After a reboot or a remount, queries wait for a scan of every extended attribute, and the
 index is unpageable kernel memory.

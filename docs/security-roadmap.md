@@ -1,6 +1,9 @@
 # Security and robustness roadmap for the layer
 
 Status: **proposal** (2026-10-10). No item below marked "to do" has been implemented.
+*Note, 2026-10-29 (journal 0234):* that status line is the one of 2026-10-10. Most items have
+progressed or closed since, each with dated notes below; "Where each item stands" gives the
+current state in one place.
 Origin: the survey recorded in [docs/history/0017](history/0017-macos-and-security-posture.md),
 which compares MoobFS with the kernel documentation for new filesystems, with the filesystem
 fuzzing literature (Janus, Hydra, LFUZZ) and with the CVE history of overlayfs, eCryptfs,
@@ -14,7 +17,34 @@ edge, detectors in CI, continuous fuzzing, a minimal surface and a written threa
 crash triggerable by an ordinary user is a vulnerability (denial of service), even without an
 exploit, as the XFS and ext4 maintainers treat it.
 
+## Where each item stands (2026-10-29)
+
+<!-- current-state -->
+State on `main` at `7ac52cd`, summarised from the dated notes of each item below.
+
+| Item | State |
+| --- | --- |
+| S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer reported kernel defects privately; there is no independent human review of the whole kernel code. |
+| S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091); the `auto` group has not run. |
+| S3 syzkaller | Five six-hour runs; the handlers at 88.7 % of their PCs, above the threshold (journal 0143). Open: the per-function criterion, until a run's report shows `moobl_xattr_get()` covered (journal 0154). |
+| S4 hostile lower | Done for its scope (journal 0073). |
+| S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job; `sparse`, `smatch`, `W=1` and `kernel-doc` do not run in CI. |
+| S6 disclosure and versions | Done: `SECURITY.md` and [compatibility.md](compatibility.md); the KASAN/lockdep job is a required check of `main`. Open: a build-time refusal of an unlisted kernel (`make install` and the DKMS package refuse one, `make layer` does not). |
+| S7 continuous fuzzing | Not started: libFuzzer runs 30 s per push; no scheduled fuzzing workflow. |
+| S8 runtime hardening | KCSAN over the stress steps `buildrace` and `release`, weekly and on demand in CI (journal 0127), with no race reported in the module. The other options of the item and the `WARN_ON`/`pr_*` review are open. |
+| S9 resource limits | Memory-cgroup charges (ADR-0018), bounded build work and rebuild frequency (ADR-0019, ADR-0020) and fair shares of the index budget (ADR-0027, journal 0228) are on `main`; F2 is fixed. Open: a per-mount and per-user cap on `QUERY` results. Nothing is scanned at mount since journal 0098, so the mount-time scan named in the item no longer exists; its cost moved to the first query on each domain. |
+| S10 signing and distribution | The done criterion is met in a VM (journal 0229, ADR-0028). Open: a reproducible `.ko` with its hash, real firmware and hardware, no published package. |
+| S11 M3 and M4 surfaces | Nothing recorded yet. |
+| S12 SELinux | One run with SELinux enforcing (journal 0104): F6 and the labels read with the caller's credentials fixed; the rule `fs_use_xattr moobfs_layer` is needed. Open: mmap, attribute writes, rename and link under a policy, MLS/MCS, a distribution booted with SELinux, the per-result check over a lower labelled by SELinux (journal 0215), Smack; AppArmor is outside the item. |
+| S13 tracepoints | Done (journal 0102). |
+| S14 to S21 | Planned, not started; journal 0172 added bounded tests that do not complete S14 or S15. |
+| S22 security operations | Documented (journal 0205). Open: the subscriptions, which are the maintainer's action, and the re-read of the access table before each tag. |
+<!-- /current-state -->
+
 ## Current state (verified on 2026-10-10)
+
+*Note, 2026-10-29 (journal 0234):* this table is kept as verified on 2026-10-10; "Where each
+item stands" above is the current state.
 
 | Technique | Where | Status |
 | --- | --- | --- |
@@ -331,6 +361,9 @@ of this change was not run. G2 remains open.
   by `index_budget`; test the behavior when the cap is hit.
 - Cost of the mount-time scan with a large lower layer; `index=off` and a lazy index option
   as the escape hatch.
+  *Note, 2026-10-29 (journal 0234):* the lazy index exists since journal 0098 (ADR-0012):
+  nothing is scanned at mount, and the scan cost is paid by the first query on each domain, which
+  ADR-0019 and ADR-0020 bound.
 - Done when: limit tests in the suite and the numbers recorded.
 
 ### S10. Module signing and distribution
@@ -365,6 +398,9 @@ test is replaced (decision in journal 0097).
   the module does not work there (denials), or a confined process reaches through the layer a
   file that the policy would deny it directly. The second would be a security defect and
   belongs to the threat model (ADR-0011).
+  *Note, 2026-10-29 (journal 0234):* that sentence describes 2026-10-13, when the item was added.
+  Since journal 0104 (2026-10-14) the module has been loaded and tested with SELinux enforcing,
+  in a Debian 6.12.111 guest with the Debian reference policy (status line of this item).
 - One run of the suite on a distribution with SELinux enforcing, plus a test with a confined
   process and a file it may not read. Result in a journal.
 - Before designing anything: read how overlayfs handles labels and what the SELinux test suite
