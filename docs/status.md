@@ -80,7 +80,7 @@ library's scan fallback walked the domain by path, the class of defect fixed in 
 above, as the external reviewer pointed out: a member of a shared domain who swapped a directory
 or a file for a symbolic link during the walk could make it report a file outside the domain.
 It now walks through directory descriptors and never follows a link; `v0.5.0-experimental` has
-the defect.
+the defect ([GHSA-f769-xjf5-54wc](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-f769-xjf5-54wc)).
 *Update, 2026-10-28 ([journal 0226](history/0226-sixth-prerelease-tag.md)):* `v0.5.0-experimental`
 is tagged on `main` after the third batch and these two fixes and carries every correction above; its source archive
 is signed with Sigstore and has SLSA provenance.

@@ -29,7 +29,8 @@
   its directory with `O_NOFOLLOW` (`O_NONBLOCK` for files) and judged and read through that
   descriptor; a directory reopened to descend must still be the inode that was judged. Answers
   for a tree that does not change during the walk are unchanged. Three new Linux tests fail on
-  the old walk. `v0.5.0-experimental` and earlier tags have the defect.
+  the old walk. `v0.5.0-experimental` has the defect; earlier tags have no scan fallback
+  ([GHSA-f769-xjf5-54wc](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-f769-xjf5-54wc), severity low).
 - Fair shares of the index budget (journal 0228, ADR-0027; security roadmap S9, the rest of
   finding F2). Each domain counts the bytes of its partition, and a build that does not fit
   releases the builder's own domains first and then, while the builder holds less than its

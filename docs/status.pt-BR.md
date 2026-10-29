@@ -84,7 +84,7 @@ de reserva da biblioteca Python percorria o domínio por caminho, a mesma classe
 corrigida no adaptador MCP acima, como o revisor externo apontou: um membro de um domínio
 compartilhado que trocasse um diretório ou um arquivo por um link simbólico durante a varredura
 podia fazê-la relatar um arquivo de fora do domínio. Agora ela percorre por descritores de
-diretório e nunca segue um link; a `v0.5.0-experimental` tem o defeito.
+diretório e nunca segue um link; a `v0.5.0-experimental` tem o defeito ([GHSA-f769-xjf5-54wc](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-f769-xjf5-54wc)).
 *Atualização, 28/10/2026 ([diário 0226](history/0226-sixth-prerelease-tag.md)):* a `v0.5.0-experimental`
 foi marcada na `main` depois do terceiro lote e dessas duas correções e tem todas as correções acima; o arquivo de
 código-fonte é assinado com Sigstore e tem proveniência SLSA.

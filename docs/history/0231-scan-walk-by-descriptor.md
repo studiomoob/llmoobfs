@@ -125,8 +125,10 @@ not run in CI yet. The MCP and LangGraph tests still run only where those SDKs a
   from the state it sees. No tree that changes during the walk has a defined answer.
 - Each entry is now opened for reading. Opening does not change access time; an `fanotify`
   permission watcher on the domain would see the opens.
-- `v0.5.0-experimental` and earlier tags have the defect. No advisory was opened for it here;
-  that, and whether one is wanted, is the maintainer's call.
+- `v0.5.0-experimental` has the defect; earlier tags do not have the scan fallback (it arrived in
+  d96e48d, 2026-10-26). *Note, 2026-10-29, by the coordinator of the batch:* the maintainer asked
+  for an advisory; [GHSA-f769-xjf5-54wc](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-f769-xjf5-54wc), severity low, credits the external reviewer and is published
+  after the batch is merged.
 
 ## Next step
 
