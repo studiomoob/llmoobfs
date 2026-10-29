@@ -338,6 +338,14 @@ of this change was not run. G2 remains open.
 - Reproducible build of the `.ko` with the hash recorded.
 - Done when: a signed module loads in a VM with lockdown active.
 
+*Status, 2026-10-29 ([journal 0229](history/0229-dkms-and-debian-packages.md), [ADR-0028](decisions/0028-dkms-and-debian-packages.md)).*
+The done criterion is met in a VM: under UEFI Secure Boot with lockdown `integrity`, the module
+built and signed by DKMS from `moobfs-dkms` was refused before its key was enrolled and loaded
+after; an unsigned build of the same sources was refused (`make package-test`). Signing uses the
+host's own DKMS key, not a project key. Open: the reproducible build of the `.ko` with its hash
+recorded, real firmware and hardware, and MokManager's enrolment screen itself (the test writes
+the key into the firmware's `MokList`).
+
 ### S11. M3 and M4 surfaces
 
 To be recorded when they arrive: `open_by_handle_at` handles returned by `QUERY` (they

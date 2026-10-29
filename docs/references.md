@@ -792,3 +792,30 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   Sharing", NSDI 2016 ([paper](https://www.usenix.org/conference/nsdi16/technical-sessions/presentation/pu)):
   the isolation guarantee of a shared cache. Both evict per item; the index releases whole
   domains, so ADR-0027's guarantee is per domain.
+
+## 27. DKMS, Debian packages and module signing (ADR-0028, journal 0229)
+
+- `dkms` 3.2.2-1~deb13u1 (Debian 13; [upstream](https://github.com/dkms-project/dkms)):
+  `read_conf()` in `/usr/sbin/dkms` (line 815) sets `build_exclude` when `uname -r` does not match
+  `BUILD_EXCLUSIVE_KERNEL`, and the build exits 77 before any header is looked for;
+  `/usr/lib/dkms/common.postinst` (line 248) treats 77 as "not built". `prepare_mok()` (line 1185)
+  signs with `/var/lib/dkms/mok.key` and `mok.pub` and generates the pair once when missing.
+- `dh_dkms` from `dh-dkms` 3.2.2 and `debhelper` 13.24.2: installs `debian/<package>.dkms` as
+  `dkms.conf`, replaces `#MODULE_VERSION#` (`-V`), and adds the `postinst-dkms` and `prerm-dkms`
+  autoscripts of `/usr/share/debhelper/autoscripts/`.
+- `Documentation/admin-guide/module-signing.rst`, Linux 6.12: signature verification of modules,
+  `CONFIG_MODULE_SIG`, and the refusal (`EKEYREJECTED`, "Key was rejected by service") of a module
+  whose signature is missing or made by a key the kernel does not trust under enforcement.
+- `Documentation/admin-guide/LSM/lockdown.rst` (kernel_lockdown(7)), Linux 6.12: the integrity
+  mode, which a Debian kernel enables when it boots under UEFI Secure Boot, requires signed
+  modules.
+- shim 16.1 (`shim-signed` 1.51~1+deb13u1; [upstream](https://github.com/rhboot/shim)): MOK
+  enrolment through `mokutil --import` and MokManager; enrolled keys live in the `MokList`
+  variable with owner `SHIM_LOCK_GUID` 605dab50-e046-4300-abb6-3dd810dd8b23, and are passed to
+  the kernel's machine keyring.
+- `virt-fw-vars` from `python3-virt-firmware` 24.11-2
+  ([upstream](https://gitlab.com/kraxel/virt-firmware)): `--add-mok GUID FILE` adds a certificate
+  to the `MokList` of an edk2 variable store; how `make package-test` enrols the guest's key
+  without MokManager's console.
+- OVMF 2025.02-8+deb13u1 (`ovmf`): `OVMF_CODE_4M.secboot.fd` with `OVMF_VARS_4M.ms.fd`, the
+  variable store with the Microsoft keys enrolled, which accept Debian's signed shim.

@@ -83,3 +83,7 @@ is fixed on `main`: a uid above its share of the index budget lends its room bac
 its own, and a uid within its share keeps its domains
 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md)). G2's latency ceiling (protocol
 §14) was registered and met on the dedicated host in three runs. Not in `v0.5.0-experimental`.
+*Update, 2026-10-29 ([journal 0229](history/0229-dkms-and-debian-packages.md)):* roadmap item C6:
+`moobfs-dkms` and `moobfs-tools` Debian packages, built with `make deb`, DKMS limited to the listed
+kernels and the module signed by the host's own DKMS key. Tested in a disposable Debian 13 VM
+under Secure Boot (`make package-test`); not published.

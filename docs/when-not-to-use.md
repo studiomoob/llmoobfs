@@ -132,7 +132,8 @@ These limits update the cases discussed in the value assessment, §9.6.
   independent human review of the whole kernel code (the external reviewer's reports and the fix of F16 aside); fstests ran as its `quick` group only and syzkaller for five six-hour
   rounds. A module bug can mean a kernel panic or data loss.
 - **The team cannot maintain an out-of-tree kernel module** across kernel updates, signing
-  and DKMS; none of that tooling exists in the project.
+  and DKMS; the project has DKMS packages tested in one VM only (journal 0229), no published
+  package, and one supported kernel series.
 - **Programs or device nodes live in the store.** The layer marks its superblock `SB_I_NOEXEC`
   and `SB_I_NODEV` (overlayfs does not; binfmt_misc and pidfs do): nothing runs from it
   (`execve` fails with `EACCES`, `mmap` with `PROT_EXEC` with `EPERM`, `access(X_OK)` with

@@ -87,3 +87,7 @@ F2 está corrigido na `main`: um uid acima da sua cota do orçamento do índice 
 uid abaixo da dele, e um uid dentro da cota mantém os seus domínios
 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md)). O teto de latência do G2 (seção
 14 do protocolo) foi registrado e cumprido no host dedicado em três rodadas. Não está na `v0.5.0-experimental`.
+*Atualização, 29/10/2026 ([diário 0229](history/0229-dkms-and-debian-packages.md)):* item C6 do
+roadmap: pacotes Debian `moobfs-dkms` e `moobfs-tools`, gerados com `make deb`, com o DKMS restrito
+aos kernels da lista e o módulo assinado pela chave DKMS do próprio host. Testados numa VM
+descartável Debian 13 com Secure Boot (`make package-test`); não publicados.

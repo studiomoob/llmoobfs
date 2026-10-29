@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
+  `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
+  sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and
+  `moobfs-tools`, the four tools with their manual pages in `/usr/bin`. DKMS signs the module with
+  the host's own key (`/var/lib/dkms/mok.key`); the project has no signing key. `moobfs-dkms`
+  refuses to install next to a `make install` copy. `make package-test` installs them in a
+  disposable Debian 13 VM under UEFI Secure Boot: an unlisted kernel is refused (DKMS exit 77), the
+  module is refused until its key is in the MokList and loads after, an unsigned build is refused,
+  and upgrade and roll back keep the query and `moobfs-check` equal to the oracle. The VM harness
+  runs QEMU under KVM inside its container when the host has `/dev/kvm`. Not published.
 - Fair shares of the index budget (journal 0228, ADR-0027; security roadmap S9, the rest of
   finding F2). Each domain counts the bytes of its partition, and a build that does not fit
   releases the builder's own domains first and then, while the builder holds less than its

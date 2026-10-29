@@ -17,6 +17,14 @@ description is [architecture-overview.md](architecture-overview.md) and
 recipes are now [operations.md](operations.md). DKMS, packages, signing and the `moobfs` CLI
 remain FUTURE (roadmap items C4 and C6).
 
+*Note, 2026-10-29 (journal 0229, [ADR-0028](decisions/0028-dkms-and-debian-packages.md)).* Item C6
+prepared the DKMS tree and the `moobfs-dkms` and `moobfs-tools` packages and tested them in a
+disposable Debian 13 VM under Secure Boot (`make package-test`): stage 2 acceptance 1, 2 and 4 of
+section 8 pass there. They are not published. Signing differs from the proposal of section 6: the
+host's own DKMS key signs the module, and there is no project key (ADR-0028, decision 3). The rows
+below marked FUTURE for DKMS, packages and signing are now EXISTS in a VM; the `moobfs` CLI is
+item C4 (journal 0198).
+
 Legend:
 
 - **EXISTS**: it is in the repository and was exercised by the suite described in `docs/testing.md`.
@@ -52,7 +60,7 @@ Core         moobfs_layer module: installation, kernel compatibility, mount, dia
 | Item | Status | Detail |
 | --- | --- | --- |
 | Compile (`make layer KDIR=...`), `insmod`/`mount -t moobfs_layer` (only in a test VM; `MODULE_ALIAS_FS` allows `modprobe`) | EXISTS | |
-| DKMS, module signing and Secure Boot | FUTURE | section 6 (S10) |
+| DKMS, module signing and Secure Boot | EXISTS in a VM, not published (ADR-0028) | section 6 (S10) |
 | Diagnostics via `GET_INFO` (caps, flags, index budget and usage, lower type) | EXISTS | ioctl; no general-purpose command-line tool |
 | Offline diagnostics of the lower (`moobfs-check`, `moobfs-index` as oracle) | EXISTS | `moobfs-check` exits with 0 clean, 2 problems, 1 error |
 
@@ -215,8 +223,8 @@ Container in a mapped userns: not tested.
 
 | Aspect | Proposal | Status |
 | --- | --- | --- |
-| DKMS | sources of `layer/`, `include/`, `common/attr.c` in `/usr/src/moobfs-<v>/`; `dkms.conf` with module `moobfs_layer`, `AUTOINSTALL=yes` | FUTURE |
-| Kernel policy | install only if `uname -r` is in the matrix (section 6); outside it, `BUILD_EXCLUSIVE_KERNEL` and a message. The VFS API changes between series (the module uses `backing_file_*`, `fs_context`, `mnt_idmap` from 6.12) | FUTURE |
+| DKMS | sources of `layer/`, `include/`, `common/attr.c` in `/usr/src/moobfs-<v>/`; `dkms.conf` with module `moobfs_layer`, `AUTOINSTALL=yes` | EXISTS in a VM (ADR-0028) |
+| Kernel policy | install only if `uname -r` is in the matrix (section 6); outside it, `BUILD_EXCLUSIVE_KERNEL` and a message. The VFS API changes between series (the module uses `backing_file_*`, `fs_context`, `mnt_idmap` from 6.12) | EXISTS in a VM: `BUILD_EXCLUSIVE_KERNEL` from `scripts/supported-kernels` (ADR-0028) |
 
 ### 2.7 Upgrading, unmounting, backing up and recovering without loss
 
@@ -267,7 +275,7 @@ A client's first call (ioctl on the root, EXISTS; no command-line tool).
 | POSIX passthrough, typed attributes, ACLs | yes | client library | — |
 | `QUERY` authorized by the caller | yes (Debian VM) | KASAN on the branch; concurrent `chmod`/`rename` | per-candidate cost (W3) |
 | `moobfs-check` with identity | yes | check modes and ACLs | — |
-| DKMS, packages, signing, `moobfs` CLI | no | yes | — |
+| DKMS, packages, signing, `moobfs` CLI | yes, in a VM (C4, C6; not published) | publishing, other distributions | — |
 | `QUERY` in a container with a subdirectory; index persistence | no | `ro` root or helper | persistence: M4 |
 | `QUERY_BATCH`, `READ_BATCH`, cursor; supported scale | no; no numbers | — | M4 (decision) |
 
@@ -293,7 +301,7 @@ Principles: `--json` output, exit codes like those of `moobfs-check` (0 clean, 2
 ## 4. Complete flow (target; today only steps 2 and 3, manual in a VM, are EXISTS)
 
 Scenario: Debian host with a kernel from the matrix, ext4 lower on `/dev/vdb`.
-1. **Install (FUTURE):** `apt install moobfs-dkms moobfs-tools`; DKMS compiles for the running kernel
+1. **Install (prepared in a VM, not published; ADR-0028):** `apt install moobfs-dkms moobfs-tools`; DKMS compiles for the running kernel
    and refuses a kernel outside the matrix; with Secure Boot, sign with MOK. Today: `make layer KDIR=...`, `insmod`.
 2. **Lower (EXISTS, POSIX):** `mkfs.ext4 /dev/vdb`, mount at `/var/lib/moobfs/store`, `chmod 0700`.
 3. **Mount (EXISTS; `moobfs mount` FUTURE):**
@@ -336,10 +344,10 @@ with `EPERM`. Pending: KASAN on the branch and `chmod`/`rename`/`unlink` concurr
 
 | Topic | Proposal | Status |
 | --- | --- | --- |
-| DKMS | `dkms.conf` with name `moobfs`, repository version, `PRE_BUILD` that refuses a kernel outside the matrix, `POST_INSTALL` that runs `depmod`; source tree: `layer/*.c`, `layer/moobl.h`, `include/*.h`, `common/attr.c` | FUTURE |
-| Packages | `moobfs-dkms` (sources + `dkms.conf`), `moobfs-tools` (`moobfs-attr`, `moobfs-check`, `moobfs-index`, future `moobfs`). Do not package `mkfs.moobfs`/`fsck.moobfs` (M1 frozen) by default | FUTURE |
+| DKMS | `dkms.conf` with name `moobfs`, repository version, `PRE_BUILD` that refuses a kernel outside the matrix, `POST_INSTALL` that runs `depmod`; source tree: `layer/*.c`, `layer/moobl.h`, `include/*.h`, `common/attr.c` | EXISTS in a VM: `BUILD_EXCLUSIVE_KERNEL` instead of `PRE_BUILD`; DKMS runs `depmod` itself (ADR-0028) |
+| Packages | `moobfs-dkms` (sources + `dkms.conf`), `moobfs-tools` (`moobfs-attr`, `moobfs-check`, `moobfs-index`, future `moobfs`). Do not package `mkfs.moobfs`/`fsck.moobfs` (M1 frozen) by default | EXISTS in a VM, not published (ADR-0028) |
 | Kernel matrix | see table below | EXISTS (two rows) |
-| Signing | generate a project key for release builds; users with Secure Boot sign the DKMS `.ko` with their own MOK; `CONFIG_MODULE_SIG_FORCE` rejects unsigned modules | FUTURE (S10) |
+| Signing | generate a project key for release builds; users with Secure Boot sign the DKMS `.ko` with their own MOK; `CONFIG_MODULE_SIG_FORCE` rejects unsigned modules | EXISTS in a VM with the host's own DKMS key, no project key (ADR-0028, decision 3; S10) |
 
 Kernel matrix (what was actually run):
 
@@ -357,7 +365,7 @@ Kernel matrix (what was actually run):
 | --- | --- | --- | --- |
 | The module is ring 0 code | a bug becomes a failure of the whole kernel, including DoS by an ordinary user | disposable VM for development; S1 to S9; do not install on critical production hosts before the technical preview and stages S1 to S4 | EXISTS (VM); S1-S9 FUTURE |
 | No KASAN/lockdep on distro kernels | memory corruption can go undiagnosed | suite under KASAN before each release; debug kernel in staging | EXISTS (workflow); no continuous coverage of the current branch |
-| Secure Boot/lockdown, production hosts, absence of syzkaller and fstests | module does not load without a signature; ioctl and xattr surface not fuzzed in the kernel | MOK signing; S2, S3, S10; do not use in production before the preview | FUTURE |
+| Secure Boot/lockdown, production hosts, absence of syzkaller and fstests | module does not load without a signature; ioctl and xattr surface not fuzzed in the kernel | MOK signing; S2, S3, S10; do not use in production before the preview | MOK signing by the host's DKMS key EXISTS in a VM (ADR-0028); the rest FUTURE |
 | Root bypasses the layer | unrestricted read and write on the lower | document; dm-crypt/fscrypt; auditing | structural limit |
 | Lower modified with the layer mounted | stale index and paths; undefined behavior (overlayfs rule) | 0700 permissions; do not back up by writing; `moobfs-check` afterwards | EXISTS (rule); real-time detection does not exist |
 | Index memory | `index_budget` of up to 4 GiB per mount; several mounts add up; not verified whether the memory is accounted to a cgroup | per-mount budget; `GET_INFO` monitored; `MOOB_FLAG_INDEX_INCOMPLETE` | EXISTS (budget); per-user ceiling FUTURE (S9) |
