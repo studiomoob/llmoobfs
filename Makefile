@@ -7,8 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test deb pylib-test repro-test
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test deb pylib-test
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test deb pylib-test repro-test
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
