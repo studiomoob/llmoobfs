@@ -1,0 +1,7 @@
+mkdir(&(0x7f0000000000)='./file0\x00', 0x1ff)
+mkdir(&(0x7f0000000040)='./file1\x00', 0x1ff)
+mount$moobfs_layer(0x0, &(0x7f0000000080)='./file1\x00', &(0x7f00000000c0), 0x0, &(0x7f0000000100)={'lower=./file0,', {[], [], 0x0}})
+r0 = openat$moobfs_file(0xffffffffffffff9c, &(0x7f0000001000)='./file1/file3\x00', 0x42, 0x1a4)
+fsetxattr$moob(r0, &(0x7f0000001100)='user.moob.kind\x00', &(0x7f0000001200)=@strv={0x1, 'note'}, 0x5, 0x0)
+fgetxattr$moob(r0, &(0x7f0000001300)='security.capability\x00', &(0x7f0000001400)=""/16, 0x10)
+getxattr$moob(&(0x7f0000001500)='./file1/file3\x00', &(0x7f0000001600)='security.capability\x00', &(0x7f0000001700)=""/16, 0x10)

@@ -9,7 +9,9 @@
 # Debian image from syzkaller's tools/create-image.sh, prepared by vm/syzkaller/image-setup.sh;
 # needs sudo and debootstrap), descriptions (vm/syzkaller/moobfs.txt into the checkout, constants
 # extracted, syzkaller rebuilt), run (syz-manager for <seconds>, then a summary). Results in
-# build/syzkaller/: manager.log, crashes/, summary.txt. Run from the repository root.
+# build/syzkaller/: manager.log, crashes/, summary.txt. SYZ_VMS sets the number of fuzzing VMs
+# (default 3, two vCPUs each), to leave room on a shared host; SYZ_CACHE replaces
+# ~/.cache/moobfs-syz, so a run can keep its kernel and image apart. Run from the repository root.
 set -eu
 DUR=${1:?seconds}
 shift
@@ -20,7 +22,7 @@ GO=${GO:?directory of the go binary}
 PATH=$GO:$PATH:/usr/sbin:/sbin; export PATH
 KERNEL_VERSION=$(sed -n 's/^ *KERNEL_VERSION: *//p' .github/workflows/kasan.yml)
 KERNEL_SHA256=$(sed -n 's/^ *KERNEL_SHA256: *//p' .github/workflows/kasan.yml)
-C=$HOME/.cache/moobfs-syz
+C=${SYZ_CACHE:-$HOME/.cache/moobfs-syz}
 K=$C/linux-$KERNEL_VERSION
 IMG=$C/image
 B=$R/build/syzkaller
@@ -89,7 +91,7 @@ if want run; then
 	"procs": 4,
 	"sandbox": "none",
 	"type": "qemu",
-	"vm": { "count": 3, "kernel": "$K/arch/x86/boot/bzImage", "cpu": 2, "mem": 2048 },
+	"vm": { "count": ${SYZ_VMS:-3}, "kernel": "$K/arch/x86/boot/bzImage", "cpu": 2, "mem": 2048 },
 	"enable_syscalls": [
 		"openat\$moobfs_root", "openat\$moobfs_dom", "openat\$moobfs_file",
 		"mount\$moobfs_layer", "umount2\$moobfs", "ioctl\$MOOB_IOC_QUERY", "ioctl\$MOOB_IOC_GET_INFO",

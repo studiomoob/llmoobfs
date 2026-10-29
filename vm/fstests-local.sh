@@ -11,7 +11,9 @@
 # LOWERFS is ext4 (default), btrfs or xfs; the check arguments default to "-g quick".
 # Run from the repository root as a user in the kvm group, with vng in PATH and the headers of
 # the running kernel installed. MOOB_KVER names another installed kernel (image in /boot,
-# modules and headers under /lib/modules) to boot in the guest instead. The console goes to
+# modules and headers under /lib/modules) to boot in the guest instead. MOOB_FSTESTS_CPUS and
+# MOOB_FSTESTS_MEM size the guest (default 4 and 4G), so that runs on several lowers can share
+# a host. The console goes to
 # build/fstests/console-LOWERFS.log and the results stay in build/fstests/tree/results. Exit
 # status 0 when ./check ran to the end, whatever the tests said: the verdict per test is
 # vm/fstests/README.md's business.
@@ -44,7 +46,7 @@ done
 printf 'R=%s\nFST=%s\nLOWERFS=%s\nARGS="%s"\n' "$R" "$R/build/fstests/tree" "$LOWERFS" "$ARGS" > build/fstests/env.sh
 if [ "$KVER" = "$(uname -r)" ]; then KIMG=; else KIMG=/boot/vmlinuz-$KVER; fi
 # shellcheck disable=SC2086  # an empty KIMG boots the running kernel
-vng -r $KIMG --user root --cpus 4 --memory 4G --verbose \
+vng -r $KIMG --user root --cpus "${MOOB_FSTESTS_CPUS:-4}" --memory "${MOOB_FSTESTS_MEM:-4G}" --verbose \
     --rwdir "$R/build" --overlay-rwdir /etc --overlay-rwdir /home --overlay-rwdir /var/tmp \
     --disk "$R/build/fstests/base-test.img" --disk "$R/build/fstests/base-scratch.img" \
     --exec "sh $R/vm/fstests-guest.sh" > "build/fstests/console-$LOWERFS.log" 2>&1 || true
