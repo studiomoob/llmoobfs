@@ -33,6 +33,25 @@
   `buildlimit`, `buildwork` and `buildmoved` passed under KASAN/UBSAN/lockdep. Journal 0238's
   case (`O_DIRECT` lower on the host's rotating disk, other guests running) still refused the
   cold first `QUERY2` of `ns3`, now at the 120 s backstop; the query after it completed.
+- Kernel static analysis (security roadmap S5 and S19, journal 0242; tests and CI only, no
+  kernel, UAPI or format change). `make static` runs `W=1` with gcc and with clang, `sparse`,
+  `smatch`, Coccinelle (`coccicheck`), the clang analyzer (`clang-analyzer`) and `kernel-doc` on
+  `layer/`, `kernel/` and `include/` in a pinned image (`tests/static/Dockerfile`), and the new
+  `.github/workflows/static.yml` runs the same command on every push and pull request (not yet
+  run on GitHub; not a required check). Findings are compared with `tests/static/baseline.txt`,
+  where the six current ones (four of the clang analyzer, two of Coccinelle, all in
+  `layer/index.c`) are justified as not defects; a new finding, a stale entry or a checker that
+  misses the known defect of the canary module `tests/static/canary` fails the run. sparse,
+  smatch, `W=1` and kernel-doc report nothing.
+- Mutants of the homogeneity rule (security roadmap S14, journal 0242).
+  `tests/mutation/homogeneity.mut` lists 23 mutants of `reach_ok()`, `target_ok()`, `ext_acl()`,
+  `place_dentry_above()`, `index_load()` and the scan's and the rename's `inner_ok`, each with
+  the suite steps expected to fail it; `make mutants-check` proves that each applies, builds and
+  changes the object code (no equivalent mutant). `python3 scripts/mutants.py run` runs them in
+  the VM; it has not been run yet.
+- `docs/security-roadmap.md` gives S14 to S21 a plan, an effort and a done check each, and
+  `CONTRIBUTING.md` the S20 checklist item for changes to the permission rule or the index
+  protocol (journal 0242).
 - `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
   They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
   another writer of the tree who swapped a directory for a symbolic link while root ran them

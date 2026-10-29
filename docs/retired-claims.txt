@@ -291,3 +291,7 @@ a construção para no prazo
 Not yet run in a VM for ADR-0031
 its VM run is pending
 the VM step, its negative round and KASAN/lockdep are pending
+
+`kernel-doc` do not run in CI
+S14 to S21 | Planned, not started
+sparse and `W=1` in CI |
