@@ -2,7 +2,7 @@
 
 Date: 2026-10-29. Status: on the branch `claudiofp/b7-vm-gaps` (from `main` at `7ac52cd`), for
 the coordinator of batch 7 to merge; not pushed. Work started about 12:25 UTC and ended about
-12:58 UTC. Wall-clock time, with the test-host runs, not an engineering-effort measurement.
+13:32 UTC. Wall-clock time, with the test-host runs, not an engineering-effort measurement.
 Estimated effort: S; actual: S.
 
 ## Goal
@@ -96,6 +96,7 @@ the branch in `~/b7b/src`; times UTC.
 | KVM ×3, 12:42–12:46 | `MOOB_VM_KVM=1 MOOB_ONLY=rootpath`, three runs | exit 0 each; `ROOTPATH_PASS` on ext4, btrfs and XFS, all at 10 000 files, attempt 1. btrfs: A started 0–1 ms after B, rename at 0.014, 0.016 and 0.021 s, B's build 0.096, 0.113 and 0.119 s. ext4: A started after 120 to 320 ms (the cold outside part), rename at 0.153 to 0.389 s, B 0.282 to 0.526 s. XFS: rename at 0.012–0.013 s, B 0.184 to 0.400 s. 4 builds during each race; no kernel diagnostic |
 | TCG, 12:46–12:50 | `MOOB_ONLY="permmatrix rootpath"` (no `MOOB_VM_KVM`) | exit 0, `MOOBFS_ONLY_PASS`; `PERMMATRIX_STEP_PASS` on ext4, btrfs and XFS; `ROOTPATH_PASS` on the three at 10 000 files, attempt 1 (B 1.56 to 1.85 s, rename at 0.040 to 0.238 s) |
 | doubling, 12:51–12:52 | `MOOB_VM_KVM=1 MOOB_ONLY=rootpath` with the starting size lowered to 300 files (copy only) | the fallback path: ext4 inconclusive at 300, 600 and 1 200 files, `ROOTPATH_PASS: ext4 (2400 files, attempt 4)`; btrfs and XFS inconclusive at 300 and 600, pass at 1 200 (attempt 3); exit 0 |
+| final tree, 13:10–13:29 | `MOOB_VM_KVM=1 MOOB_ONLY="ext4 btrfs xfs"` on the committed code (with the messages naming the call) | exit 0, `MOOBFS_ONLY_PASS`; `LAYER_PASSTHROUGH_TESTS_PASS` six times, `LAYER_LOWER_PASS` on ext4 (`reflink=no`), btrfs and XFS (`reflink=yes`); slower than the 12:32 run because other guests shared the host |
 
 The negative rounds' changes were made with `sed` in the host copy only and never committed;
 the copy was then replaced by a fresh one of the branch. `make lint` on the host (`shellcheck`
