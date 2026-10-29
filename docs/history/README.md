@@ -251,3 +251,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0229 — DKMS and Debian packages, tested under Secure Boot (C6, S10)](0229-dkms-and-debian-packages.md)
 - [0230 — The moobfs CLI without /proc/self/mountinfo (issue #167)](0230-cli-without-mountinfo.md)
 - [0231 — Python scan fallback walked by directory descriptor](0231-scan-walk-by-descriptor.md)
+- [0232 — moobfs-check and moobfs-index walk by directory descriptor; udx follows ADR-0025](0232-tools-walk-by-descriptor.md)

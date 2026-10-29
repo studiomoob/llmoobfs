@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
+  They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
+  another writer of the tree who swapped a directory for a symbolic link while root ran them
+  could make them list a directory outside the root and report its files, with their
+  attributes, under names inside it. `tools/walk.h` now opens every entry relative to its
+  directory's descriptor with `O_NOFOLLOW` and judges and reads it through that descriptor
+  (`fstat`, `fgetxattr`, `flistxattr`); entries the caller cannot open for reading, and FIFOs,
+  sockets and devices, are read through an `O_PATH` descriptor and `/proc/self/fd/N`. At most 32
+  directories are held open; deeper ones are reopened by name with an identity check. Output is
+  byte for byte the old one on unchanging trees (5 229 comparisons as a user and 5 249 as root
+  on hostile trees). New `tests/tools-walk.sh` in `make hostile-test`, with `hostile swap`
+  (`renameat2(RENAME_EXCHANGE)`): the old tools answered from outside the root in about 78% of
+  rounds, the new ones in none. `docs/tools.md` states the guarantee and its limits.
+- `bench/userspace/udx.h` applies the homogeneity rule of ADR-0025 (journal 0232, issue #168):
+  an intermediate directory needs read and search for every class the domain lets traverse,
+  every class is judged (it looked at the others' bits only), and only an extended ACL counts
+  (`tools/ext-acl.h`, as the oracle; an ACL read that fails because the path was just renamed is
+  judged on the `lstat` already taken). `bench/userspace/test.sh` gained a `0711` and a `0705`
+  directory, on which the old rule differed from the oracle (6 of 296 comparisons).
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and
