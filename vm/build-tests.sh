@@ -41,6 +41,7 @@ t permission-gaps -Iinclude tests/permission-gaps.c
 t fusestall  tests/fusestall.c
 t sqlq       -Iinclude -DSQLITE_CORE tests/sqlq.c sqlite/moobfs_vtab.c common/attr.c -lsqlite3 -lm -ldl -lpthread
 t idmap      tests/idmap.c
+t landlock_run tests/landlock_run.c
 # third-party programs keep their own warnings, so they are built without -Wall -Werror
 $cc -static -O2 -Itests/third_party/fsx tests/third_party/fsx/fsx.c -o "$out/fsx"
 $cc -static -O2 tests/third_party/log-writes/replay-log.c tests/third_party/log-writes/log-writes.c -o "$out/replay-log"

@@ -46,6 +46,8 @@
 #                       waiting for the index lock held by a build (issue #117)
 #   fairshare           a uid over its share of index_budget lends room to a uid under its own,
 #                       and a uid within its share keeps its domain (ADR-0027)
+#   landlock            the moobfs CLI under a Landlock sandbox that cannot read
+#                       /proc/self/mountinfo answers as without it (issue #167)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
@@ -66,7 +68,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -2366,6 +2368,63 @@ echo 0 > "$il_hold" || fail il-hold-off
 "$BIN/query" "$LAYER" info | grep -q 'domain_builds=2' || fail il-build-count
 umount "$LAYER" && rm -rf "$LOWER/il" && umount "$LOWER" || fail il-cleanup
 echo "IXLOCK_PASS: 8 inodes without a record instantiated in $il_stat ms and evicted (drop_caches) in $il_drop ms while builds held the index lock"
+fi
+if want landlock; then
+# Issue #167 (journal 0230): the moobfs CLI read /proc/self/mountinfo before every query and
+# info, so a Landlock sandbox without READ_FILE on /proc stopped it although QUERY2 would have
+# answered. Under tests/landlock_run.c (directory listing beneath one tree, file reads beneath a
+# subdirectory and the directory of the command), as uid 1001, the CLI must give the answers it
+# gives without the sandbox: QUERY2 on a domain, the mount-wide QUERY on the root of a mount
+# without domains, and info on the mount root, whose build work and idle options (shown only in
+# the mount record) are then unknown. The programs are copied to a directory uid 1001 can reach
+# (the KASAN harness keeps BIN under the runner's home, journal 0198).
+ll_bin=/tmp/ll-bin
+rm -rf "$ll_bin" && mkdir -m 755 "$ll_bin" && cp "$BIN/moobfs" "$BIN/query" "$BIN/landlock_run" "$ll_bin/" || fail ll-bin
+ll() { "$BIN/asuid" 1001 "$ll_bin/landlock_run" "$@"; }
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail ll-lower-mount
+rm -rf "$LOWER/ll" && mkdir -p "$LOWER/ll/d1/dom/a" "$LOWER/ll/d1/dom/b" "$LOWER/ll/d0/r" || fail ll-mkdir
+for f in d1/dom/a/m1 d1/dom/a/m2 d1/dom/b/m1 d0/m1 d0/r/m2; do
+    echo "$f" > "$LOWER/ll/$f" && "$BIN/moobfs-attr" set "$LOWER/ll/$f" kind string note > /dev/null || fail "ll-file-$f"
+done
+chown -R 1001:1001 "$LOWER/ll" || fail ll-chown
+mount -t moobfs_layer -o lower="$LOWER/ll/d1",domain_depth=1 none "$LAYER" || fail ll-mount
+ll "$LAYER/dom" "$LAYER/dom/a" "$ll_bin/query" /proc/self open mountinfo > /tmp/ll.txt 2> /tmp/ll-e.txt; rc=$?
+if [ $rc -eq 2 ] && grep -q 'landlock unavailable' /tmp/ll-e.txt; then
+    umount "$LAYER" && rm -rf "$LOWER/ll" && umount "$LOWER" || fail ll-cleanup
+    echo "LANDLOCK_SKIPPED: this kernel has no Landlock"
+else
+[ $rc -eq 3 ] && grep -q 'open mountinfo: Permission denied' /tmp/ll.txt || { cat /tmp/ll.txt /tmp/ll-e.txt; fail "ll-sandbox (mountinfo readable under landlock_run)"; }
+# QUERY2 on a domain: the same answer as without the sandbox and as the oracle
+"$BIN/asuid" 1001 "$ll_bin/moobfs" query --ino "$LAYER/dom" kind eq string note > /tmp/ll-o.txt || fail ll-query-free
+ll "$LAYER/dom" "$LAYER/dom/a" "$ll_bin/moobfs" query --ino "$LAYER/dom" kind eq string note > /tmp/ll-k.txt 2> /tmp/ll-e.txt || { cat /tmp/ll-e.txt; fail ll-query; }
+cmp -s /tmp/ll-k.txt /tmp/ll-o.txt && [ "$(wc -l < /tmp/ll-k.txt)" -eq 3 ] || { cat /tmp/ll-k.txt /tmp/ll-o.txt; fail ll-query-mismatch; }
+"$BIN/moobfs-index" --domain "$LOWER/ll/d1/dom" kind eq string note > /tmp/ll-r.txt || fail ll-oracle
+cmp -s /tmp/ll-k.txt /tmp/ll-r.txt || { cat /tmp/ll-k.txt /tmp/ll-r.txt; fail ll-oracle-mismatch; }
+ll "$LAYER/dom" "$LAYER/dom/a" "$ll_bin/moobfs" query --json "$LAYER/dom" kind eq string note > /tmp/ll-k.json 2> /dev/null || fail ll-json
+grep -q '"ioctl": "QUERY2", "complete": true, "count": 3,' /tmp/ll-k.json || { cat /tmp/ll-k.json; fail ll-json-content; }
+# a directory that is not a domain and a path that is not on a layer: the same exit status
+ll "$LAYER/dom" "$LAYER/dom/a" "$ll_bin/moobfs" query "$LAYER/dom/a" kind eq string note > /dev/null 2> /tmp/ll-e.txt; [ $? -eq 69 ] || { cat /tmp/ll-e.txt; fail ll-notdomain-status; }
+grep -q 'domain depth is unknown' /tmp/ll-e.txt || { cat /tmp/ll-e.txt; fail ll-notdomain-message; }
+ll "$LAYER/dom" "$LAYER/dom/a" "$ll_bin/moobfs" query /tmp kind eq string note > /dev/null 2> /tmp/ll-e.txt; [ $? -eq 69 ] || { cat /tmp/ll-e.txt; fail ll-nolayer-status; }
+grep -q 'is not on a moobfs_layer mount' /tmp/ll-e.txt || { cat /tmp/ll-e.txt; fail ll-nolayer-message; }
+# info on the mount root, and from a domain directory below it
+"$BIN/asuid" 1001 "$ll_bin/moobfs" info --json "$LAYER" > /tmp/ll-o.json || fail ll-info-free
+ll "$LAYER" "$LAYER/dom/a" "$ll_bin/moobfs" info --json "$LAYER" > /tmp/ll-k.json 2> /tmp/ll-e.txt || { cat /tmp/ll-e.txt; fail ll-info; }
+sed 's/"index_build_work": [0-9]*, "index_idle": [0-9]*,/"index_build_work": null, "index_idle": null,/' /tmp/ll-o.json | cmp -s - /tmp/ll-k.json || { cat /tmp/ll-o.json /tmp/ll-k.json; fail ll-info-mismatch; }
+ll "$LAYER" "$LAYER/dom/a" "$ll_bin/moobfs" info "$LAYER/dom" > /tmp/ll-k.txt 2> /tmp/ll-e.txt || { cat /tmp/ll-e.txt; fail ll-info-domain; }
+grep -q "^mount: *$LAYER\$" /tmp/ll-k.txt && grep -q 'directories 1 level below' /tmp/ll-k.txt && grep -q 'build work: *unknown' /tmp/ll-k.txt || { cat /tmp/ll-k.txt; fail ll-info-domain-content; }
+umount "$LAYER" || fail ll-umount
+# no domains: the mount root still answers the mount-wide QUERY; GET_INFO gives the depth
+mount -t moobfs_layer -o lower="$LOWER/ll/d0",domain_depth=0 none "$LAYER" || fail ll-mount0
+"$BIN/asuid" 1001 "$ll_bin/moobfs" query --ino "$LAYER" kind eq string note > /tmp/ll-o.txt || fail ll-v1-free
+ll "$LAYER" "$LAYER" "$ll_bin/moobfs" query --ino "$LAYER" kind eq string note > /tmp/ll-k.txt 2> /tmp/ll-e.txt || { cat /tmp/ll-e.txt; fail ll-v1; }
+cmp -s /tmp/ll-k.txt /tmp/ll-o.txt && [ "$(wc -l < /tmp/ll-k.txt)" -eq 2 ] || { cat /tmp/ll-k.txt /tmp/ll-o.txt; fail ll-v1-mismatch; }
+ll "$LAYER" "$LAYER" "$ll_bin/moobfs" query --json "$LAYER" kind eq string note 2> /dev/null | grep -q '"ioctl": "QUERY", "complete": true, "count": 2,' || fail ll-v1-ioctl
+ll "$LAYER" "$LAYER" "$ll_bin/moobfs" query "$LAYER/r" kind eq string note > /dev/null 2>&1; [ $? -eq 69 ] || fail ll-v1-subdir-status
+umount "$LAYER" && rm -rf "$LOWER/ll" && umount "$LOWER" || fail ll-cleanup
+echo "LANDLOCK_PASS: under Landlock without /proc/self/mountinfo the moobfs CLI gave the same QUERY2 and mount-wide QUERY answers and the same info as without it"
+fi
+rm -rf "$ll_bin"
 fi
 if want pylib && ! command -v python3 > /dev/null 2>&1; then
     echo "PYLIB_SKIPPED: no python3 in this guest (the KASAN harness boots the host's root)"
