@@ -998,3 +998,21 @@ runs 6.12.111.
   6.12.113)` job: the hardening it enables, compared option by option in the journal.
 - Kernel Self Protection Project, [recommended settings](https://kspp.github.io/Recommended_Settings)
   (the list the S8 options come from).
+## 36. The weekly benchmark workflow (journal 0238)
+
+- thumbor's release workflow, `.github/workflows/release.yml`
+  ([source](https://github.com/thumbor/thumbor/blob/master/.github/workflows/release.yml),
+  MIT): one job definition with a `strategy.matrix` over the variants (operating system, Python
+  version, platform). Suggested by the external reviewer as the pattern; `bench.yml` uses one
+  axis, the lower filesystem, with `fail-fast: false`.
+- GitHub, [GitHub-hosted runners reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners):
+  the standard `ubuntu-24.04` runner of a public repository has 4 CPUs, 16 GB of RAM and 14 GB
+  of SSD (read on 2026-10-29); the machine behind it is not fixed, which is why the workflow
+  records it on every run.
+- GitHub changelog, [hardware-accelerated Android virtualization on Linux runners](https://github.blog/changelog/2024-04-02-github-actions-hardware-accelerated-android-virtualization-now-available/)
+  (2024-04-02): the Linux runners expose KVM, and the udev rule
+  `KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"` lets an unprivileged
+  QEMU use it, as `interop.yml` already does. GitHub's arm64 runners exposed no `/dev/kvm`
+  (journal 0124), so arm64 is not in the matrix.
+- [actionlint](https://github.com/rhysd/actionlint) 1.7.7 (MIT), run locally from the
+  `rhysd/actionlint` image pinned by digest, to check the workflow; not part of CI.

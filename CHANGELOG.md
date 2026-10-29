@@ -77,6 +77,19 @@
   adds `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, `SLAB_FREELIST_HARDENED`/`_RANDOM`,
   `BUG_ON_DATA_CORRUPTION`, KFENCE, `SCHED_STACK_END_CHECK` and `DEBUG_OBJECTS` (`_FREE`,
   `_RCU_HEAD`); the full local KASAN suite passed with them (`MOOBFS_KASAN_PASS`).
+- Weekly benchmark workflow (journal 0238; suggested by the external reviewer).
+  `.github/workflows/bench.yml` runs the on-demand index benchmark of issue #68
+  (`bench/ondemand.sh`, 60 000 memories of profile 8) every Monday, on demand and on pull
+  requests touching its harness, in the disposable Debian 13 VM of `make install-test` under KVM
+  on GitHub's `ubuntu-24.04` runner, one matrix job per lower filesystem (ext4, btrfs, XFS),
+  and writes a table against the Mac mini reference to the job summary
+  (`bench/ondemand-summary.py`). It fails on a harness failure or on counts different from the
+  reference's, never on a timing. `make bench-test` (`MOOB_TEST=bench`, `MOOB_BENCH_FS`,
+  `vm/bench-test/guest.sh`) runs the same locally. A trend monitor on shared virtual hardware,
+  not a reference measurement; issue #68, a run on other physical hardware, stays open. amd64
+  only: arm64 runners have no KVM. `make bench-tools` now also builds `build/host/query`, which
+  `bench/ondemand.sh` and the other bench scripts call as `$BIN/query`; the steps of issue #68
+  had no line that built it.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and

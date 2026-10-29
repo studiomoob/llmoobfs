@@ -130,6 +130,18 @@ conflict:
   versions. MoobFS has no production deployment; the staged test of the first client
   (`bench/client/`) is the closest.
 
+*Addition, 2026-10-29 (journal 0238).* A weekly trend monitor: `.github/workflows/bench.yml`
+runs `bench/ondemand.sh` (issue #68's steps, 60 000 memories of profile 8) in a disposable
+Debian 13 VM under KVM on GitHub's `ubuntu-24.04` amd64 runner, once each on an ext4, a btrfs
+and an XFS lower, and shows the run beside the Mac mini reference
+(`bench/results/2026-10-13-macmini-ondemand/new/`). Reproduce it locally with
+`MOOB_BENCH_FS=ext4 make bench-test` (Docker and `/dev/kvm`). Its numbers come from one run, on
+a shared virtual machine whose hardware may change between runs, with the CPU frequency out of
+reach: they show a trend or a large regression, they are not M4 results and they do not count
+as the "more than one machine" above. A run on other physical hardware (issue #68) is still
+wanted. No arm64 variant: arm64 runners have no KVM (journal 0124) and emulated timings mean
+nothing (the item "Dedicated VM with KVM" above).
+
 ## Tools
 
 Detailed design of the programs, the dataset, the SQLite schema of the baselines and the tests of the
