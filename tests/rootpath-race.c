@@ -172,8 +172,19 @@ static int run(const char *mnt, const char *old, const char *new, unsigned int e
 	b = fork();
 	if (!b)
 		_exit(v1_query(root, &q) ? 10 + errno % 100 : 0);
-	/* B builds the outside part first, then <old>, the domain with the many files */
-	usleep(100000);
+	/*
+	 * B builds the outside part first, then <old>, the domain with the many files. A starts
+	 * once the build counter shows the outside part done, so that B is in <old>'s build (or
+	 * about to take its mutex, microseconds later) and not past it on a fast guest; a fixed
+	 * 100 ms wait was longer than the whole build of B under KVM (journals 0225, 0228). The
+	 * counter is read every millisecond for at most 2 s, then A starts anyway; 2 ms more let
+	 * B take that mutex before A asks for it.
+	 */
+	for (i = 0; i < 2000 && builds(root) == b0 && alive(b); i++)
+		usleep(1000);
+	usleep(2000);
+	printf("rootpath-race: A starts after %u ms, outside part %s\n", i,
+	       builds(root) != b0 ? "built" : "not seen built");
 	a = fork();
 	if (!a)
 		_exit(q2_query(dom) ? 10 + errno % 100 : 0);

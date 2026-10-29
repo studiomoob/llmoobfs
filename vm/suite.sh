@@ -1608,30 +1608,39 @@ if want rootpath; then
 # meanwhile; the mount-wide QUERY after that must find every attributed file under the new
 # name. The files are planted on the lower and the caches dropped, so that the build is slow
 # and the layer has no inode of them: the answer comes from the names the build recorded.
-rp_files=${ROOTPATH_FILES:-10000}; rp_every=200
-rp_expect=$(( (rp_files + rp_every - 1) / rp_every ))
+rp_files0=${ROOTPATH_FILES:-10000}; rp_every=200
+# Journal 0233 (issue #168): a fast guest (KVM) could finish B's build before the interleaving
+# was reached in all three attempts. tests/rootpath-race.c now starts A when the outside part is
+# built rather than after a fixed wait, and each attempt that does not reach the interleaving
+# plants twice the files for the next one where the lower has the inodes, up to four attempts
+# (10 000 to 80 000 files). What makes a run conclusive is unchanged; four inconclusive attempts
+# still fail the step.
 for fs in ext4 btrfs xfs; do
     case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
     mount -t "$fs" "$dev" "$LOWER" || fail "rp-lower-$fs"
-    rm -rf "$LOWER/rp" && mkdir -p "$LOWER/rp/d" || fail "rp-directory-$fs"
-    "$BIN/rootpath-race" plant "$LOWER/rp/d" "$rp_files" "$rp_every" || fail "rp-plant-$fs"
-    sync && echo 3 > /proc/sys/vm/drop_caches
-    mount -t moobfs_layer -o lower="$LOWER/rp",domain_depth=1 none "$LAYER" || fail "rp-mount-$fs"
     rp_ok=0
-    for attempt in 1 2 3; do
+    rp_files=$rp_files0
+    for attempt in 1 2 3 4; do
+        rp_expect=$(( (rp_files + rp_every - 1) / rp_every ))
+        rm -rf "$LOWER/rp" && mkdir -p "$LOWER/rp/d" || fail "rp-directory-$fs"
+        "$BIN/rootpath-race" plant "$LOWER/rp/d" "$rp_files" "$rp_every" || fail "rp-plant-$fs"
+        sync && echo 3 > /proc/sys/vm/drop_caches
+        mount -t moobfs_layer -o lower="$LOWER/rp",domain_depth=1 none "$LAYER" || fail "rp-mount-$fs"
         run_logged /tmp/rp.txt "$BIN/rootpath-race" run "$LAYER" d e "$rp_expect"; rc=$?
         [ $rc -eq 0 ] && { rp_ok=1; break; }
         [ $rc -eq 3 ] || fail "rootpath-race-$fs"
-        echo "rootpath: $fs attempt $attempt did not reach the interleaving"
-        # the interleaving was not reached: put the name back and start from a cold mount
+        echo "rootpath: $fs attempt $attempt with $rp_files files did not reach the interleaving"
+        # start again from a cold mount over a fresh tree twice as large, when the lower has
+        # the inodes for it (the 64 MiB ext4 image does not hold 20 000; btrfs reports none)
         umount "$LAYER" || fail "rp-unmount-$fs"
-        [ -d "$LOWER/rp/e" ] && { mv "$LOWER/rp/e" "$LOWER/rp/d" || fail "rp-rename-back-$fs"; }
-        sync && echo 3 > /proc/sys/vm/drop_caches
-        mount -t moobfs_layer -o lower="$LOWER/rp",domain_depth=1 none "$LAYER" || fail "rp-remount-$fs"
+        rp_free=$(stat -f -c %d "$LOWER") || fail "rp-statfs-$fs"
+        if [ "$rp_free" -eq 0 ] || [ "$rp_free" -gt $((rp_files + 1000)) ]; then
+            rp_files=$((rp_files * 2))
+        fi
     done
     [ $rp_ok -eq 1 ] || fail "rootpath-race-inconclusive-$fs"
     umount "$LAYER" && rm -rf "$LOWER/rp" && umount "$LOWER" || fail "rp-cleanup-$fs"
-    echo "ROOTPATH_PASS: $fs"
+    echo "ROOTPATH_PASS: $fs ($rp_files files, attempt $attempt)"
 done
 fi
 if want overbudget; then
