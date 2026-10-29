@@ -26,7 +26,8 @@
 #   buildcostlarge      optional 7500-file scale of the same probe (not in the full suite)
 #   builddenial         optional 17000-file cold QUERY2 cost with/without work cap
 #   buildclient         optional 6000-file, six-attribute domain shape from client scale
-#   buildcostevict      optional two-uid budget probe: the second uid gets ENOMEM (ADR-0021)
+#   buildcostevict      optional two-uid budget probe: the second uid lends the first one's room
+#                       back, since that domain is over its share (ADR-0021, ADR-0027)
 #   buildlimit          optional QUERY2 work and admission limit regression (#118)
 #   buildwork           optional per-mount query-build work policy regression (#118)
 #   buildtime           optional cooperative scan-deadline regression (#118)
@@ -43,6 +44,8 @@
 #                       moobfs-check and the Python scan agree on which ones are extended (0222)
 #   ixlock              inodes without an index record are instantiated and evicted without
 #                       waiting for the index lock held by a build (issue #117)
+#   fairshare           a uid over its share of index_budget lends room to a uid under its own,
+#                       and a uid within its share keeps its domain (ADR-0027)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
@@ -63,7 +66,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -1811,9 +1814,9 @@ echo "BUILD_COST_OBSERVED: files=$bc_files one first build, seven rename rebuild
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildcostevict; then
 # Two private domains belong to different users. Size the shared budget from
-# one measured domain so either fits alone but not together. uid 1002's QUERY2
-# must fail with ENOMEM and must not release uid 1001's domain (ADR-0021).
-# uid 1001's following query must not rebuild.
+# one measured domain so either fits alone but not together. Under ADR-0021 uid 1002's QUERY2
+# failed with ENOMEM; since ADR-0027 uid 1001's domain is over its share (half the budget) and
+# uid 1002, under its own, releases it and builds. The fairshare step checks the rest.
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail bce-lower-mount
 mkdir -p "$LOWER/bce/a/s" "$LOWER/bce/b/s" || fail bce-directories
 "$BIN/overbudget-race" plant "$LOWER/bce/a/s" 1000 || fail bce-plant-a
@@ -1834,16 +1837,54 @@ bce_releases() { "$BIN/query" "$LAYER" info | sed -n 's/.*domain_releases=\([0-9
 bce_before=$(bce_builds)
 "$BIN/query-build-cost" "$LAYER/a" 1001 first-user || fail bce-first-user
 [ "$(bce_builds)" -eq $((bce_before + 1)) ] || fail bce-first-build
-"$BIN/query-build-cost" "$LAYER/b" 1002 second-user expect-enomem || fail bce-second-user
-[ "$(bce_builds)" -eq $((bce_before + 1)) ] || fail bce-second-built
-[ "$(bce_releases)" -eq 0 ] || fail bce-cross-user-release
-"$BIN/query-build-cost" "$LAYER/a" 1001 first-user-again || fail bce-first-user-again
-[ "$(bce_builds)" -eq $((bce_before + 1)) ] || fail bce-rebuilt-a
-[ "$(bce_releases)" -eq 0 ] || fail bce-still-released
-[ "$(grep ' moobfs_domain_release: ' "$TR/trace" | grep -c ' by=budget ')" -eq 0 ] || fail bce-budget-trace
+"$BIN/query-build-cost" "$LAYER/b" 1002 second-user || fail bce-second-user
+[ "$(bce_builds)" -eq $((bce_before + 2)) ] || fail bce-second-not-built
+[ "$(bce_releases)" -eq 1 ] || fail bce-no-lend
+[ "$(grep ' moobfs_domain_release: ' "$TR/trace" | grep -c ' by=budget ')" -eq 1 ] || fail bce-budget-trace
 tr_off moobfs_domain_build moobfs_domain_release
 umount "$LAYER" && rm -rf "$LOWER/bce" && umount "$LOWER" || fail bce-cleanup
-echo "BUILD_COST_CROSS_USER_HELD: uid 1002 got ENOMEM; uid 1001 stayed built; budget=$bce_budget"
+echo "BUILD_COST_CROSS_USER_LENT: uid 1001's domain was over its share; uid 1002 released it and built; budget=$bce_budget"
+fi
+if want fairshare; then
+# ADR-0027. On ext4, uid 1002 owns a private 2000-file domain b and uid 1001 a 600-file domain a.
+# The budget is b's bytes plus half of a's: either fits alone, both do not, and the share (half
+# the budget) is above a's bytes and below b's. 1002 builds b alone (one uid may use the whole
+# budget); 1001's a then does not fit, 1001 holds nothing and 1002 is over its share, so 1001
+# releases b and builds. 1002's next query does not fit: 1001 holds less than its share, so b is
+# refused with ENOMEM and a stays built. 1001's next query does not build again.
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail fs-lower-mount
+mkdir -p "$LOWER/fs/a/s" "$LOWER/fs/b/s" || fail fs-directories
+"$BIN/overbudget-race" plant "$LOWER/fs/a/s" 600 || fail fs-plant-a
+"$BIN/overbudget-race" plant "$LOWER/fs/b/s" 2000 || fail fs-plant-b
+chown -R 1001:1001 "$LOWER/fs/a" && chown -R 1002:1002 "$LOWER/fs/b" &&
+    chmod 700 "$LOWER/fs/a" "$LOWER/fs/b" || fail fs-private-domains
+fs_used() { "$BIN/query" "$LAYER" info | sed -n 's/.* used=\([0-9]*\).*/\1/p'; }
+fs_builds() { "$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p'; }
+fs_releases() { "$BIN/query" "$LAYER" info | sed -n 's/.*domain_releases=\([0-9]*\).*/\1/p'; }
+mount -t moobfs_layer -o lower="$LOWER/fs",domain_depth=1 none "$LAYER" || fail fs-measure-mount
+"$BIN/query-build-cost" "$LAYER/a" 1001 measure-a > /dev/null || fail fs-measure-a
+fs_a=$(fs_used)
+"$BIN/query-build-cost" "$LAYER/b" 1002 measure-b > /dev/null || fail fs-measure-b
+fs_b=$(($(fs_used) - fs_a))
+umount "$LAYER" || fail fs-measure-unmount
+fs_budget=$((fs_b + fs_a / 2))
+[ "$fs_budget" -ge 1048576 ] && [ $((fs_budget / 2)) -gt "$fs_a" ] && [ $((fs_budget / 2)) -lt "$fs_b" ] ||
+    fail "fs-shape a=$fs_a b=$fs_b budget=$fs_budget"
+mount -t moobfs_layer -o "lower=$LOWER/fs,domain_depth=1,index_budget=$fs_budget" none "$LAYER" || fail fs-budget-mount
+tr_on moobfs_domain_release || fail fs-trace-on
+fs_before=$(fs_builds)
+"$BIN/query-build-cost" "$LAYER/b" 1002 b-alone > /dev/null || fail fs-b-alone
+[ "$(fs_builds)" -eq $((fs_before + 1)) ] && [ "$(fs_releases)" -eq 0 ] || fail fs-b-alone-counters
+"$BIN/query-build-cost" "$LAYER/a" 1001 a-lent > /dev/null || fail fs-a-not-lent
+[ "$(fs_builds)" -eq $((fs_before + 2)) ] && [ "$(fs_releases)" -eq 1 ] || fail fs-a-lent-counters
+"$BIN/query-build-cost" "$LAYER/b" 1002 b-refused expect-enomem > /dev/null || fail fs-b-not-refused
+[ "$(fs_builds)" -eq $((fs_before + 2)) ] && [ "$(fs_releases)" -eq 1 ] || fail fs-a-released
+"$BIN/query-build-cost" "$LAYER/a" 1001 a-kept > /dev/null || fail fs-a-again
+[ "$(fs_builds)" -eq $((fs_before + 2)) ] || fail fs-a-rebuilt
+[ "$(grep ' moobfs_domain_release: ' "$TR/trace" | grep -c ' by=budget ')" -eq 1 ] || fail fs-budget-trace
+tr_off moobfs_domain_release
+umount "$LAYER" && rm -rf "$LOWER/fs" && umount "$LOWER" || fail fs-cleanup
+echo "FAIRSHARE_PASS: a=$fs_a b=$fs_b budget=$fs_budget; b alone, a lent b's room, b refused while a within its share"
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want builddenial; then
 # Compare the same cold 17,000-file QUERY2 with the pre-limit and limited
