@@ -28,7 +28,7 @@ jobs:
           make test CC=clang BUILD=build/asan
           CFLAGS='-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer'
           LDFLAGS='-fsanitize=address,undefined'
-      - name: Fuzz the attribute encoding (libFuzzer, bounded time)
+      - name: Fuzz the attribute encoding, the image parser and the tool parsers (libFuzzer, 30 s each; fuzz.yml runs them longer)
         run: make fuzz FUZZ_TIME=30
       - name: Benchmark harness smoke test (correctness only, no numbers)
         run: |
