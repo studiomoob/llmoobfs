@@ -33,7 +33,7 @@
 #                       back, since that domain is over its share (ADR-0021, ADR-0027)
 #   buildlimit          optional QUERY2 work and admission limit regression (#118)
 #   buildwork           optional per-mount query-build work policy regression (#118)
-#   buildtime           optional cooperative scan-deadline regression (#118)
+#   buildtime           optional build CPU-time budget and elapsed backstop (#118, ADR-0031)
 #   buildmoved          optional cumulative work across a moved-directory rescan (#118)
 #   stall               a FUSE mount that never answers, inside a checked domain (journal 0116)
 #   lowerro             a read-only, frozen or idmapped lower mount (journal 0117)
@@ -2219,19 +2219,37 @@ umount "$LAYER" && rm -rf "$LOWER/bw" && umount "$LOWER" || fail bw-cleanup
 echo 'BUILD_WORK_OPTION_PASS: invalid values refused; default and minimum denied; 65536 completed 17000 attributed files; remount contract preserved'
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildtime; then
-# Existing test-only scan delay makes the cooperative ten-second deadline
-# reachable without relying on a particular lower device's speed.
+# ADR-0031: the ten-second build budget counts the builder's CPU time; a 120 s elapsed
+# backstop remains. Test-only knobs make each bound reachable without relying on a
+# particular lower device's speed: scan_delay_us sleeps per file (as a slow disk does),
+# scan_spin_us busy-waits per file. Sixty files at 200 ms is 12 s; at 2.1 s, 126 s.
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail bt-lower-mount
 mkdir -p "$LOWER/bt/d/s" || fail bt-mkdir
 "$BIN/overbudget-race" plant "$LOWER/bt/d/s" 60 || fail bt-plant
+bt_info() { "$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p'; }
+bt_param=/sys/module/moobfs_layer/parameters
 mount -t moobfs_layer -o lower="$LOWER/bt",domain_depth=1 none "$LAYER" || fail bt-mount
-echo 200000 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bt-delay-on
-"$BIN/query-build-limit" "$LAYER/d" 1001 timeout || fail bt-timeout-errno-or-output
-echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bt-delay-off
-"$BIN/query-build-limit" "$LAYER/d" 1001 ok || fail bt-recovery
-[ "$("$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')" -eq 1 ] || fail bt-build-count
+echo 200000 > "$bt_param/scan_delay_us" || fail bt-sleep-on
+"$BIN/query-build-limit" "$LAYER/d" 1001 ok || fail bt-sleep-refused
+echo 0 > "$bt_param/scan_delay_us" || fail bt-sleep-off
+[ "$(bt_info)" -eq 1 ] || fail bt-sleep-build-count
+umount "$LAYER" || fail bt-sleep-unmount
+mount -t moobfs_layer -o lower="$LOWER/bt",domain_depth=1 none "$LAYER" || fail bt-cpu-mount
+echo 200000 > "$bt_param/scan_spin_us" || fail bt-spin-on
+"$BIN/query-build-limit" "$LAYER/d" 1001 timeout || fail bt-cpu-errno-or-output
+echo 0 > "$bt_param/scan_spin_us" || fail bt-spin-off
+[ "$(bt_info)" -eq 0 ] || fail bt-cpu-partial-build
+"$BIN/query-build-limit" "$LAYER/d" 1001 ok || fail bt-cpu-recovery
+[ "$(bt_info)" -eq 1 ] || fail bt-cpu-build-count
+umount "$LAYER" || fail bt-cpu-unmount
+mount -t moobfs_layer -o lower="$LOWER/bt",domain_depth=1 none "$LAYER" || fail bt-wall-mount
+echo 2100000 > "$bt_param/scan_delay_us" || fail bt-wall-on
+"$BIN/query-build-limit" "$LAYER/d" 1001 timeout || fail bt-wall-errno-or-output
+echo 0 > "$bt_param/scan_delay_us" || fail bt-wall-off
+[ "$(bt_info)" -eq 0 ] || fail bt-wall-partial-build
+"$BIN/query-build-limit" "$LAYER/d" 1001 ok || fail bt-wall-recovery
 umount "$LAYER" && rm -rf "$LOWER/bt" && umount "$LOWER" || fail bt-cleanup
-echo "BUILD_TIME_PASS: timed-out scan did not publish results and the next query rebuilt"
+echo "BUILD_TIME_PASS: 12 s asleep built; 12 s on the CPU and 126 s asleep timed out with no results; the next query rebuilt"
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildmoved; then
 # Function tracing synchronizes a same-domain directory rename with the
