@@ -81,6 +81,8 @@ the deadline) and journal 0235 (S9's limits list it) were read for what depends 
 - `sh scripts/check-retired-claims.sh`: `RETIRED_CLAIMS_OK`, with the new claims.
 - `python3 scripts/site-journey.py .`, `python3 scripts/site-faq.py` and
   `python3 scripts/site-faq.py --check`: pages regenerated, FAQ page matches.
+- `python3 scripts/check-site.py` (links, accessibility checks) and `sh scripts/check-pins.sh`:
+  passed.
 - `sh -n` on `vm/suite.sh` and `bench/ondemand.sh`; `py_compile` on the two Python scripts.
 - The module was **not compiled** here (no Linux kernel headers on macOS); the first build is
   the VM round.
