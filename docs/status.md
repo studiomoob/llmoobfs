@@ -75,6 +75,12 @@ of these defects.
 reports from the same external reviewer, in user space, are fixed: the MCP adapter followed a
 directory swapped for a symbolic link by a member of a shared domain ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), and the LangGraph
 store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). `v0.5.0-experimental` has both fixes; no earlier tag has the defects.
+*Update, 2026-10-29 ([journal 0231](history/0231-scan-walk-by-descriptor.md)):* the Python
+library's scan fallback walked the domain by path, the class of defect fixed in the MCP adapter
+above, as the external reviewer pointed out: a member of a shared domain who swapped a directory
+or a file for a symbolic link during the walk could make it report a file outside the domain.
+It now walks through directory descriptors and never follows a link; `v0.5.0-experimental` has
+the defect.
 *Update, 2026-10-28 ([journal 0226](history/0226-sixth-prerelease-tag.md)):* `v0.5.0-experimental`
 is tagged on `main` after the third batch and these two fixes and carries every correction above; its source archive
 is signed with Sigstore and has SLSA provenance.

@@ -21,6 +21,15 @@
   one error message are then unknown. `docs/tools.md` states what the CLI reads.
   `tests/landlock_run.c` is now built by `vm/build-tests.sh`; new suite step `landlock`, which
   failed with the CLI before the change.
+- The Python library's scan fallback walks through directory descriptors (journal 0231,
+  ADR-0023 note; pointed out by the external reviewer after journal 0227). It listed, stat'ed
+  and read every entry by path, so a member of a shared domain who swapped a directory or a
+  file for a symbolic link during the walk could make it list a directory outside the domain or
+  report a file outside it with that file's attributes. Every entry is now opened relative to
+  its directory with `O_NOFOLLOW` (`O_NONBLOCK` for files) and judged and read through that
+  descriptor; a directory reopened to descend must still be the inode that was judged. Answers
+  for a tree that does not change during the walk are unchanged. Three new Linux tests fail on
+  the old walk. `v0.5.0-experimental` and earlier tags have the defect.
 - Fair shares of the index budget (journal 0228, ADR-0027; security roadmap S9, the rest of
   finding F2). Each domain counts the bytes of its partition, and a build that does not fit
   releases the builder's own domains first and then, while the builder holds less than its

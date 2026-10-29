@@ -33,6 +33,10 @@ Python 3.9 or later, no dependency outside the standard library (LangGraph only 
 `moobfs.langgraph`, the MCP SDK only for `moobfs.mcp`). Linux for anything that
 touches files; the encoding and matching code runs anywhere. Not on PyPI.
 
-Without the module the walk costs one `stat`, one `listxattr` and a `getxattr` per typed
-attribute of every file in the domain, for every query; `QUERY2` is the fast path. Full-text
+Without the module the walk costs one `open`, one `fstat`, one `listxattr` and a `getxattr` per
+typed attribute of every file in the domain, for every query; `QUERY2` is the fast path. Below
+the domain it never resolves a path and never follows a symbolic link: every entry is opened
+relative to its directory's descriptor with `O_NOFOLLOW` and read through it, so a member of a
+shared domain who swaps a name for a link during the walk cannot make it report a file outside
+the domain (journal 0231). Full-text
 and vector search stay in the client (contract section 8).

@@ -832,3 +832,24 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   `LANDLOCK_ACCESS_FS_IOCTL_DEV` (ABI 5) covers ioctls on device files only; `statfs` was seen
   to work under the sandbox of `tests/landlock_run.c` (journal 0230). A sandbox that may list a
   domain directory can therefore still recognise the layer and issue `QUERY2` on it.
+
+## 29. The scan fallback walked by directory descriptor (journal 0231)
+
+- `may_open()` and `do_open()`, `fs/namei.c:3391` and `:3793`, Linux 6.12.112 (the tree the
+  KASAN harness builds; [source](https://github.com/gregkh/linux/blob/v6.12.112/fs/namei.c)): the
+  same `O_NOFOLLOW` behaviour as §24, `ELOOP` for a link (`:3403`) and `ENOTDIR` with
+  `O_DIRECTORY`; the errors on which the walk leaves an entry out.
+- `xattr_permission()`, `fs/xattr.c:113`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/xattr.c)): reading a `user.`
+  attribute needs `MAY_READ` on the inode (`inode_permission()`, `:155`, from `vfs_getxattr()`
+  at `:434`). So an entry the caller cannot open for reading had no readable typed attribute in
+  the walk by path either, and opening every entry before reading it leaves the answers as
+  they were.
+- `do_faccessat()`, `fs/open.c:465`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/open.c)): `faccessat(fd, ".",
+  ..., AT_EACCESS)` checks the opened domain directory itself, in place of its path.
+- `fifo_open()`, `fs/pipe.c:1107`, same tree: why entries are opened with `O_NONBLOCK` (§24).
+- Python's [`os.scandir()`](https://docs.python.org/3/library/os.html#os.scandir), which takes
+  a directory descriptor since 3.7 (entries then carry names only, and `DirEntry.is_dir()` and
+  `is_file()` with `follow_symlinks=False` use the directory's descriptor), and the `dir_fd`
+  parameters of `os.open` and `os.access` ([paths relative to directory descriptors](https://docs.python.org/3/library/os.html#dir-fd)).

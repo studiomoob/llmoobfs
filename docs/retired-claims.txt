@@ -240,3 +240,4 @@ packaging (DKMS, `.deb`), a stable UAPI
 packaged signing is item C6
 so the guide starts by switching kernels
 `tests/landlock_run.c` and `tests/notify.c` are standalone investigation helpers
+the walk costs one `stat`

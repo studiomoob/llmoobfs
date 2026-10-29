@@ -36,6 +36,16 @@ into the client's process, so its licence decides who can use it.
    share with everyone who can enter it, even when the caller could open it, and its answers
    equal the kernel's. The caller must be able to read and search the domain directory, as for
    `QUERY2`.
+   *Note, 2026-10-29 (journal 0231):* the walk listed, stat'ed and read every entry by path
+   after opening the domain, so a member of a shared domain who swapped a directory or a file
+   for a symbolic link between two steps could make it list a directory outside the domain or
+   report a file outside it with its attributes (the external reviewer, after journal 0227).
+   Below the domain the walk now goes through directory descriptors only: each entry is opened
+   relative to its directory with `O_NOFOLLOW` (`O_NONBLOCK` for files), judged with `fstat`
+   and its ACL and read through that descriptor, and a directory reopened to descend must still
+   be the inode that was judged. The domain itself is still opened by the caller's path (a link
+   to it is followed, as before). The answers for a tree that does not change during the walk
+   are unchanged.
 4. **A resource refusal is not hidden.** `ENOMEM`, `E2BIG`, `ETIMEDOUT` and `EDQUOT` raise
    `QueryRefused` with no partial list; `on_refusal="scan"` answers from the walk instead, as
    contract section 7 step 2 suggests for `ENOMEM`. `ENOTTY`, `ENODEV` and `EOPNOTSUPP` mean the
@@ -93,6 +103,8 @@ into the client's process, so its licence decides who can use it.
 - One place mirrors the UAPI for Python clients; the bench clients keep their own copies.
 - The walk costs one `stat`, one `listxattr` and the `getxattr` calls of every file in the
   domain per query; it is the fallback, not a replacement for `QUERY2`.
+  *Note, 2026-10-29 (journal 0231):* since the walk goes through descriptors, an `open` and an
+  `fstat` per entry in place of the `stat`, and a second `open` per directory it descends into.
 - Edges where the walk and the kernel can differ are listed in `moobfs/scan.py`: an attribute
   list over 64 KiB (the kernel leaves the file out), more than 64 levels below the mount root,
   and a domain the kernel answers in fallback mode after a directory's permissions changed.
