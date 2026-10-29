@@ -32,14 +32,27 @@ for mode in cold warm cold warm; do
     t=$(now); "$BIN/query" "$LAYER/$DOM" q2 kind eq string note > /dev/null; q2=$(ms $t)
     echo "$mode mount_ms=$m after_mount[$u0] first_query_ms=$q1 results=$n after_first_query[$u1] domains_built=${b1:-n/a} second_query_ms=$q2" | tee -a "$OUT/times.txt"
 done
-# the mount-wide QUERY, which needs every domain
+# the mount-wide QUERY, which needs every domain. This script predates the build limits of
+# ADR-0019 and ADR-0020 (index_build_work, a ten-second deadline): a build that exceeds them is
+# refused with E2BIG or ETIMEDOUT, and that refusal is recorded instead of a time (journal 0238).
+wide() {
+    t=$(now)
+    if err=$("$BIN/query" "$LAYER" build 2>&1 >/dev/null); then a="mount_wide_query_ms=$(ms "$t")"
+    else
+        e=$(ms "$t")
+        case $err in
+            *"Argument list too long"*) a="mount_wide_query=refused(E2BIG) after_ms=$e" ;;
+            *"Connection timed out"*) a="mount_wide_query=refused(ETIMEDOUT) after_ms=$e" ;;
+            *) echo "ondemand.sh: mount-wide QUERY: $err" >&2; exit 1 ;;
+        esac
+    fi
+    echo "$1 $a after[$(used)] domains_built=$(built)" | tee -a "$OUT/times.txt"
+}
 umount "$LAYER"; sync; echo 3 > /proc/sys/vm/drop_caches
 mount -t moobfs_layer -o "$opts" none "$LAYER"
-t=$(now); "$BIN/query" "$LAYER" build; a=$(ms $t)
-echo "cold mount_wide_query_ms=$a after[$(used)] domains_built=$(built)" | tee -a "$OUT/times.txt"
+wide cold
 umount "$LAYER"; mount -t moobfs_layer -o "$opts" none "$LAYER"
-t=$(now); "$BIN/query" "$LAYER" build; a=$(ms $t)
-echo "warm mount_wide_query_ms=$a after[$(used)] domains_built=$(built)" | tee -a "$OUT/times.txt"
+wide warm
 
 # steady state, one domain built and nothing else (the mount is fresh again)
 umount "$LAYER"; mount -t moobfs_layer -o "$opts" none "$LAYER"

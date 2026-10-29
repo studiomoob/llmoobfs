@@ -19,6 +19,7 @@ import sys
 
 LINE = re.compile(r"^(cold|warm) (.*)$")
 FIELD = re.compile(r"(\w+)=([0-9]+)")
+REFUSED = re.compile(r"mount_wide_query=refused\((\w+)\)")
 
 
 def parse(path):
@@ -32,7 +33,10 @@ def parse(path):
             fields = {}
             for k, v in FIELD.findall(m.group(2)):
                 fields.setdefault(k, []).append(int(v))
-            if "mount_wide_query_ms" in fields:
+            if "mount_wide_query" in m.group(2):
+                # refused by the build limits of ADR-0019/ADR-0020 (bench/ondemand.sh, journal 0238)
+                r = REFUSED.search(m.group(2))
+                fields["refused"] = r.group(1) if r else None
                 runs["wide_" + m.group(1)] = fields
             else:
                 runs[m.group(1)].append(fields)
@@ -49,6 +53,17 @@ def first(runs, mode, key, index=0):
     return [r[key][index] for r in runs[mode]]
 
 
+def wide(runs, mode):
+    w = runs["wide_" + mode]
+    if w["refused"]:
+        return f"refused ({w['refused']}) after {ms(w['after_ms'])}"
+    return ms(w["mount_wide_query_ms"])
+
+
+def refused(runs):
+    return bool(runs["wide_cold"]["refused"] or runs["wide_warm"]["refused"])
+
+
 def mb(b):
     return f"{b / 1e6:.1f} MB"
 
@@ -63,11 +78,12 @@ def rows(runs):
         ("first `QUERY2` on `ns3`, warm", ms(first(runs, "warm", "first_query_ms"))),
         ("second `QUERY2`", ms(first(runs, "cold", "second_query_ms") + first(runs, "warm", "second_query_ms"))),
         ("index memory, one domain built", mb(runs["cold"][0]["used"][1])),
-        ("mount-wide `QUERY`, cold", ms(runs["wide_cold"]["mount_wide_query_ms"])),
-        ("mount-wide `QUERY`, warm", ms(runs["wide_warm"]["mount_wide_query_ms"])),
-        ("index memory, every domain built", mb(runs["wide_warm"]["used"][0])),
-        ("results of the query; inodes indexed (one domain, all)",
-         f"{runs['cold'][0]['results'][0]}; {runs['cold'][0]['inodes'][1]}, {runs['wide_warm']['inodes'][0]}"),
+        ("mount-wide `QUERY`, cold", wide(runs, "cold")),
+        ("mount-wide `QUERY`, warm", wide(runs, "warm")),
+        ("index memory after the mount-wide `QUERY`", mb(runs["wide_warm"]["used"][0])),
+        ("results of the query; inodes indexed (one domain)",
+         f"{runs['cold'][0]['results'][0]}; {runs['cold'][0]['inodes'][1]}"),
+        ("inodes indexed after the mount-wide `QUERY`", str(runs["wide_warm"]["inodes"][0])),
     ]
 
 
@@ -85,8 +101,16 @@ def main(argv):
         with open(argv[3], encoding="utf-8") as f:
             print(f.read().rstrip())
         print("```")
-    same = (rows(ref)[-1][1] == rows(run)[-1][1])
+    # the per-domain counts always; the mount-wide one only when neither side was refused
+    same = rows(ref)[-2][1] == rows(run)[-2][1]
+    if not refused(ref) and not refused(run):
+        same = same and rows(ref)[-1][1] == rows(run)[-1][1]
     print()
+    if refused(run):
+        print("The mount-wide `QUERY` was refused by the build limits of ADR-0019 and ADR-0020 "
+              "(`index_build_work`, the ten-second deadline), which postdate the reference; its "
+              "inode count is not compared.")
+        print()
     if same:
         print("Counts equal to the reference's (same data set, `bench-gen --seed 1`).")
         return 0
