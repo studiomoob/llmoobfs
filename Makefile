@@ -7,7 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test deb pylib-test
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test deb pylib-test repro-test
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
@@ -34,6 +34,7 @@ help:
 	@echo '  make container-test  docs/container-integration.md with Docker and Podman in a disposable VM'
 	@echo '  make deb           experimental moobfs-dkms and moobfs-tools packages into build/deb (Debian; not published)'
 	@echo '  make package-test  the packages under Secure Boot in a disposable Debian 13 VM; needs only Docker'
+	@echo '  make repro-test    build the module and the packages twice in clean containers; byte-identical or fail (Docker)'
 	@echo 'Details: docs/development.md and docs/testing.md'
 tools: $(BUILD)/mkfs.moobfs $(BUILD)/fsck.moobfs $(BUILD)/attr_test
 # SQL over a domain, no database (ADR-0013, journal 0108): load with .load or load_extension
@@ -110,8 +111,11 @@ checkpatch:
 	sh scripts/checkpatch.sh
 module:
 	$(MAKE) -C $(KDIR) M=$(CURDIR)/kernel modules
+# The source root maps to the empty prefix, so neither __FILE__ nor the debug information
+# records where the tree was built (security roadmap S10, journal 0236). KCFLAGS, not
+# layer/Makefile, because scripts/Makefile.modfinal compiles moobfs_layer.mod.c without it.
 layer:
-	$(MAKE) -C $(KDIR) M=$(CURDIR)/layer modules
+	$(MAKE) -C $(KDIR) M=$(CURDIR)/layer KCFLAGS="$(KCFLAGS) -ffile-prefix-map=$(CURDIR)/=" modules
 vm-test:
 	sh vm/run.sh
 # Roadmap item C2: install and remove on the host's running kernel (scripts/supported-kernels).
@@ -130,6 +134,9 @@ deb:
 	sh scripts/build-debs.sh
 package-test:
 	MOOB_TEST=package sh vm/install-test/run.sh
+# Security roadmap S10 (journal 0236): reproducible module and packages, two clean containers.
+repro-test:
+	sh scripts/repro-ko.sh
 # Roadmap item C5: the Python library installed with pip in a clean venv, its build backend
 # pinned by hash, built from a copy so the source tree gets no build output; the tests then
 # import the installed package, not python/src.

@@ -8,7 +8,8 @@
 # VERSION defaults to MODULE_VERSION of layer/main.c; OUTDIR to build/deb. The sources are
 # copied to a temporary directory, so the tree gets no build output. Existing packages in
 # OUTDIR are not replaced without FORCE=1 (AGENTS.md). MOOB_COMMIT names the commit in the
-# changelog where git is missing (the VM test's container).
+# changelog where git is missing (the VM test's container); SOURCE_DATE_EPOCH, when set, dates
+# the changelog, and so the packages, there (scripts/repro-ko.sh, journal 0236).
 set -eu
 cd "$(dirname "$0")/.."
 die() { echo "build-debs: $*" >&2; exit 1; }
@@ -28,7 +29,11 @@ mkdir -p "$src"
 tar -cf - Makefile LICENSE common include layer/*.c layer/*.h layer/Makefile tools man \
 	scripts/supported-kernels | tar -xf - -C "$src"
 cp -R packaging/debian "$src/debian"
-when=$(git log -1 --format=%cD 2>/dev/null || date -R)
+if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
+	when=$(date -u -R -d "@$SOURCE_DATE_EPOCH")
+else
+	when=$(git log -1 --format=%cD 2>/dev/null || date -R)
+fi
 commit=${MOOB_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}
 cat >"$src/debian/changelog" <<CHANGES
 moobfs ($VERSION) unstable; urgency=medium
