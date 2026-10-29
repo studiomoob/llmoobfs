@@ -1,7 +1,7 @@
 # 0231 — Python scan fallback walked by directory descriptor
 
-Date: 2026-10-29. Status: branch `claudiofp/scan-toctou`, local, for the coordinator to merge
-into the batch. Work started: about 2026-10-29 09:00 UTC; ended about 09:45 UTC. Wall-clock time,
+Date: 2026-10-29. Status: merged into batch 6 with journal 0229 (C6), whose
+evidence lists the batch's full `make vm-test` and KASAN runs. Work started: about 2026-10-29 09:00 UTC; ended about 09:45 UTC. Wall-clock time,
 with the test-host runs, not an engineering-effort measurement. Estimated effort: S; actual: S.
 
 ## Goal

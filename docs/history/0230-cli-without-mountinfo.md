@@ -1,7 +1,7 @@
 # 0230 — The moobfs CLI without /proc/self/mountinfo (issue #167)
 
-Date: 2026-10-29. Status: branch `claudiofp/issue167`, local, for the coordinator to merge into
-the batch. Work started: 2026-10-29 09:29 UTC; ended 09:45 UTC. Wall-clock time, with the VM
+Date: 2026-10-29. Status: merged into batch 6 with journal 0229 (C6), whose
+evidence lists the batch's full `make vm-test` and KASAN runs. Work started: 2026-10-29 09:29 UTC; ended 09:45 UTC. Wall-clock time, with the VM
 runs, not an engineering-effort measurement. Estimated effort: S; actual: S.
 
 ## Goal
@@ -91,6 +91,9 @@ Debian 6.12.111 guest kernel (Landlock ABI 6).
   `info` may then report the bind mount's root and refuse it.
 - The path-based LSM limit on `QUERY2` results (`docs/faq.md`; journal 0030) is unchanged and
   separate.
+
+- The KASAN kernel of `vm/kasan.config` has no Landlock, so the step prints `LANDLOCK_SKIPPED`
+  there (batch run of journal 0229); it runs on the Debian kernels of `make vm-test` and CI.
 
 ## Next step
 
