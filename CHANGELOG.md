@@ -30,6 +30,17 @@
   built instead of after a fixed 100 ms, and an inconclusive attempt plants twice the files for
   the next (up to four attempts), so it concludes under KVM, where it stopped twice at
   `rootpath-race-inconclusive-btrfs`.
+- Documentation and manual workflows of issue #168 (journal 0234). `docs/when-not-to-use.md` and
+  `docs/compatibility.md` state that the inode-generation check of journal 0216 needs a lower that
+  sets `i_generation` (the NFS client leaves it 0, FUSE takes the server's) and that on ext4
+  without `metadata_csum` an inode's owner can set it with `EXT4_IOC_SETVERSION` on the lower.
+  `docs/security-roadmap.md` and `docs/adoption-risks.md` gain a marked current-state section that
+  `scripts/check-retired-claims.sh` now reads (and fails without), with dated notes on S12's
+  SELinux sentence, S9's mount-time scan and risk 7. The manual KCSAN and arm64 KASAN workflows
+  ran on `main`: KCSAN passed (run 40873505079, no race in the module); arm64 KASAN failed once
+  when the guest's own `wc`, run from virtio-fs under emulation, died with SIGSEGV and no kernel
+  report (run 40873509652, the fault class of journal 0137), and passed on a second dispatch (run
+  40877439822).
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and
