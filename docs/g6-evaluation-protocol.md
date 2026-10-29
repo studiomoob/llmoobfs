@@ -368,6 +368,17 @@ UBSAN and lockdep. The complete KASAN, UBSAN and lockdep suite of this
 change then exited 0 (`MOOBFS_KASAN_PASS`). The complete native-KVM suite
 of this change was not run.
 
+Amendment, 2026-10-28 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md),
+journal [0228](history/0228-security-batch-5-fair-shares.md)), accepted by the maintainer before
+the mechanism was built. The first bullet above becomes: a build charged to uid B does not
+release a domain of uid A while A's usage, the bytes of A's built domains, is at or below the
+share, `index_budget` divided by the number of uids with a built domain (B counted once). When
+A is above the share and B below it, B's build may release A's least recently queried domains
+until A is not above it; if the build still does not fit, the search returns a resource errno
+with no list. The other bullets stand: one uid alone may use the whole budget, and release by
+the same uid is not disabled. `bench/client/g2_share.py` checks the amended property; the
+latency ceiling is section 14.
+
 ## 10. Still unbound
 
 Note, 2026-10-25: section 12 proposes G4's freshness and inventory bounds.
@@ -765,3 +776,57 @@ need.
 
 Still unbound after this amendment: any approximate mode and its recall
 threshold, the G2 latency ceiling, and the G6 final evaluation.
+*Note, 2026-10-28:* the G2 latency ceiling is section 14.
+
+## 14. G2 latency ceiling, 2026-10-28 — accepted by the maintainer
+
+Registered before any measurement of the module with ADR-0027, with the maintainer's choice of
+relative bounds, so that no number depends on one host's speed.
+
+### 14.1 Shape
+
+The dedicated Debian host of section 9, ext4 lower, `domain_depth=1`, two unprivileged uids:
+alice (uid 1001) with one private domain of 600 memories, and bob (uid 1002), the noisy
+neighbour, with four private domains of 2 000 memories each, planted through the store as in
+`g2_share.py`. `index_budget` is alice's measured bytes plus one and a half times those of one of
+bob's domains: alice's domain and one of bob's fit together, a second of bob's does not, so each
+of bob's builds releases another of his, and alice stays within her share.
+
+### 14.2 Phases
+
+1. **Uncontended.** Alice's domain is built once; then 200 warm searches of alice's selective
+   query (`kind = decision`, limit 100), each timed around the store's `search()`.
+2. **Contended.** A process of bob's queries his four domains in turn without pause, so that
+   every query builds a domain and releases another of his (ADR-0021), for the whole phase.
+   Alice runs the same 200 warm searches meanwhile. Each of bob's queries is timed.
+
+### 14.3 Bounds, in each of 3 runs
+
+- **Warm contention bound.** Alice's p99 in phase 2 is at most 2 times her p99 in phase 1.
+- **Build bound.** The p99 of bob's queries in phase 2, each of which builds a domain, is at
+  most 10 s, the cooperative deadline of ADR-0019.
+- **No partial answer.** Every one of alice's searches returns the same items as her first;
+  every one of bob's returns all 2 000 items of the domain or fails with `ENOMEM`, `E2BIG`,
+  `ETIMEDOUT` or `EDQUOT` and no list.
+- **Fairness.** Alice's domain is not rebuilt during phase 2 (`domain_builds` grows only by
+  bob's builds; no release of alice's domain in the `moobfs_domain_release` trace).
+
+A run that misses a bound is published as a failure of G2 on this module, with its numbers.
+
+### 14.4 Recorded and not bounded
+
+p50 and p95 of both phases, `index_used`, `domains_built`, `domain_builds` and
+`domain_releases` before and after each phase, bob's error counts, and the peak RSS of both
+processes. Section 7's method (30 repetitions, frequency held, bootstrap) is not claimed: the
+bound is a ratio within one run, and no comparison with another module or engine is made.
+
+### 14.5 Result, 2026-10-28 (journal 0228)
+
+Dedicated host, kernel `6.12.111+deb13-amd64`, the module of ADR-0027, `g2_contention.py`:
+alice 257 400 bytes, one of bob's domains 854 600, budget 1 539 300. In each of 3 runs alice's
+p99 was 33.8, 33.8 and 35.6 ms alone and 36.8, 37.4 and 38.0 ms beside bob (ratios 1.09, 1.11,
+1.07); bob's p99 0.154, 0.145 and 0.145 s; no partial answer; alice's domain never released;
+`G2_CONTENTION_PASS`. Of bob's 219 to 223 queries per run, 66 or 67 built a domain and the rest
+were refused with `EDQUOT` by ADR-0019's per-uid build admission, so the neighbour measured is
+the one that limit leaves. The bounds of 14.3 are met on this host; G2's other acceptance items
+(user-visible diagnostics, a deployment recipe) are not part of this section.
