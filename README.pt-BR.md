@@ -68,7 +68,7 @@ ou arquivos comuns são a melhor escolha ([when-not-to-use.md](docs/when-not-to-
 | Caminho | Precisa de | Onde |
 | --- | --- | --- |
 | Ver funcionando numa VM descartável; nada é instalado na sua máquina | Docker; 7 a 8 minutos num runner x86-64, mais no Apple Silicon | [Experimente numa VM](#experimente-numa-vm) |
-| Instalar num host de teste dedicado, montar no boot, dar diretórios aos usuários | Debian 13 com kernel `6.12.113+deb13-amd64` (instalação nova) ou `6.12.111+deb13-amd64`, root, Secure Boot desligado | [docs/operations.md](docs/operations.md) (em inglês) |
+| Instalar num host de teste dedicado, montar no boot, dar diretórios aos usuários | Debian 13 com kernel `6.12.113+deb13-amd64` (instalação nova) ou `6.12.111+deb13-amd64`, root, Secure Boot desligado (ou os pacotes DKMS experimentais, assinados por uma chave que você cadastra) | [docs/operations.md](docs/operations.md) (em inglês) |
 | Dar a cada agente num container Docker ou Podman a sua própria memória | Uma montagem no host; o container recebe o seu diretório de domínio com o uid do dono | [docs/container-integration.md](docs/container-integration.md) (em inglês) |
 | Consultar pelo terminal ou por um script | O comando `moobfs`, instalado pelo guia do host de teste: `moobfs query <domínio> kind eq string decision` | [docs/tools.md](docs/tools.md#moobfs) (em inglês) |
 | Usar a partir do seu programa | Arquivos, `setxattr` e um ioctl, ou a biblioteca Python experimental `moobfs` (`pip install ./python`), que dá as mesmas respostas sem o módulo | [python/README.md](python/README.md) (em inglês), [client-contract.md](docs/client-contract.md) |

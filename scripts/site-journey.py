@@ -69,6 +69,8 @@ MILESTONES = [
   'v0.5.0-experimental publicada, com todas as correções até essa data: F1 a F17, exceto as cotas justas do F2. O arquivo de código-fonte é o primeiro assinado (Sigstore) e com proveniência SLSA.', ['0226']),
  ('2026-10-28', 'Fair shares of the index budget: a uid above its share lends its room back to a uid below its own, which closes finding F2; G2\'s latency ceiling is registered first and then met beside a noisy neighbour in three runs.',
   'Cotas justas do orçamento do índice: um uid acima da sua cota devolve o espaço a um uid abaixo da dele, o que fecha o achado F2; o teto de latência do G2 é registrado antes e cumprido ao lado de um vizinho barulhento em três rodadas.', ['0228']),
+ ('2026-10-29', 'Experimental Debian packages: DKMS builds the module only for the listed kernels and signs it with the host\'s own key; under Secure Boot in a VM it loads once that key is enrolled, and an unsigned build is refused. Not published.',
+  'Pacotes Debian experimentais: o DKMS compila o módulo só para os kernels da lista e o assina com uma chave do próprio host; com Secure Boot numa VM ele carrega depois que essa chave é cadastrada, e uma versão sem assinatura é recusada. Não publicados.', ['0229']),
 ]
 
 T = {

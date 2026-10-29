@@ -35,6 +35,20 @@ adds no kernel interface. Errors start with `moobfs:` and say what to do.
 - `check` runs `moobfs-check` from the same directory, else from `PATH`, with its arguments
   and exit status.
 
+What it reads (issue #167, journal 0230): `<path>` or `<dir>` itself (`realpath`, `stat`,
+`statfs`, and `open` of the directory for the ioctl), and `/proc/self/mountinfo` for the mount
+record; `/proc/filesystems` only to say that the module is not loaded. Under a sandbox that
+denies reading `/proc` (for example Landlock without `READ_FILE` there), the commands go on
+without the mount record: the layer is recognised by `statfs` (type `0x4d4f4f42`), `query`
+issues `QUERY2` as before and, when the directory is the mount root, learns the domain depth
+from `GET_INFO`, so the mount-wide `QUERY` of a mount without domains still answers; `info`
+takes the highest directory above `<path>` on the same device as the mount root. What is then
+lost: `info` cannot show the build work and idle options (`index_build_work` and `index_idle`
+are `null` in `--json`) and cannot tell a bind mount of a subdirectory from the mount root
+except by `GET_INFO` refusing it; an `ENOTTY` from a directory that is not a domain does not
+say the domain depth; a missing module is reported as a path not on a layer. `query` needs
+directory listing (`READ_DIR` under Landlock) on `<dir>`, `info` on the mount root.
+
 | Exit | Meaning |
 | --- | --- |
 | 0 | success |

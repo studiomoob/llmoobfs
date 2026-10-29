@@ -79,6 +79,12 @@ contém todos esses defeitos.
 privados do mesmo revisor externo, em espaço de usuário, estão corrigidos: o adaptador MCP seguia
 um diretório trocado por um link simbólico por um membro de um domínio compartilhado ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), e o
 `batch()` do store do LangGraph deixava rótulos `..` saírem da raiz ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). A `v0.5.0-experimental` tem as duas correções; nenhuma tag anterior tem os defeitos.
+*Atualização, 29/10/2026 ([diário 0231](history/0231-scan-walk-by-descriptor.md)):* a varredura
+de reserva da biblioteca Python percorria o domínio por caminho, a mesma classe de defeito
+corrigida no adaptador MCP acima, como o revisor externo apontou: um membro de um domínio
+compartilhado que trocasse um diretório ou um arquivo por um link simbólico durante a varredura
+podia fazê-la relatar um arquivo de fora do domínio. Agora ela percorre por descritores de
+diretório e nunca segue um link; a `v0.5.0-experimental` tem o defeito ([GHSA-f769-xjf5-54wc](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-f769-xjf5-54wc)).
 *Atualização, 28/10/2026 ([diário 0226](history/0226-sixth-prerelease-tag.md)):* a `v0.5.0-experimental`
 foi marcada na `main` depois do terceiro lote e dessas duas correções e tem todas as correções acima; o arquivo de
 código-fonte é assinado com Sigstore e tem proveniência SLSA.
@@ -87,3 +93,7 @@ F2 está corrigido na `main`: um uid acima da sua cota do orçamento do índice 
 uid abaixo da dele, e um uid dentro da cota mantém os seus domínios
 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md)). O teto de latência do G2 (seção
 14 do protocolo) foi registrado e cumprido no host dedicado em três rodadas. Não está na `v0.5.0-experimental`.
+*Atualização, 29/10/2026 ([diário 0229](history/0229-dkms-and-debian-packages.md)):* item C6 do
+roadmap: pacotes Debian `moobfs-dkms` e `moobfs-tools`, gerados com `make deb`, com o DKMS restrito
+aos kernels da lista e o módulo assinado pela chave DKMS do próprio host. Testados numa VM
+descartável Debian 13 com Secure Boot (`make package-test`); não publicados.

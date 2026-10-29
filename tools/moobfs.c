@@ -21,6 +21,12 @@
  * filesystem, or a directory that cannot be queried); 75 temporary (the domain does not fit the
  * index budget, a build limit, or the domain kept changing); 77 permission denied; 3 the answer
  * is incomplete (the mount-wide QUERY had more results than it can return).
+ *
+ * /proc/self/mountinfo is optional (issue #167): a sandbox such as Landlock may deny reading it.
+ * Without it the layer is recognised by statfs, query still issues QUERY2 and learns the domain
+ * depth from GET_INFO when <dir> is the mount root, and info takes the highest directory above
+ * <path> on the same device as the mount root; only the build work and idle options (shown in
+ * the mount record alone) and the domain depth in some error messages are then unknown.
  */
 #define _GNU_SOURCE
 #include <fcntl.h>
@@ -28,6 +34,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
+#include <sys/vfs.h>
 #include <time.h>
 #include <unistd.h>
 #include "query-common.h"
@@ -38,6 +45,9 @@
 #define EX_UNAVAILABLE 69
 #define EX_TEMPFAIL 75
 #define EX_NOPERM 77
+
+/* statfs f_type of a moobfs_layer mount (docs/client-contract.md, section 7) */
+#define LAYER_FS_TYPE 0x4d4f4f42
 
 static const char synopsis[] =
 	"usage: moobfs info [--json] <path>\n"
@@ -60,6 +70,8 @@ struct mnt {
 	char point[PATH_MAX];	/* mount point */
 	char root[PATH_MAX];	/* directory of the filesystem mounted there; "/" for the whole */
 	char opts[1024];	/* superblock options: lower=, domain_depth=, ... */
+	int record;		/* 0: mountinfo was not readable; point is a guess, root and opts
+				 * are unknown (see top_of_device) */
 };
 
 /* mountinfo escapes space, tab, newline and backslash as \ooo */
@@ -94,8 +106,33 @@ static int module_loaded(void)
 }
 
 /*
+ * The highest directory of real (a real path, shortened in place) on the device dev: the mount
+ * point of the layer when real is inside it, unless a bind mount of a directory of the same
+ * layer is above it. Only stat is used, which Landlock does not restrict.
+ */
+static void top_of_device(char *real, dev_t dev)
+{
+	struct stat st;
+	char *slash;
+
+	while ((slash = strrchr(real, '/')) && slash != real) {
+		*slash = 0;
+		if (stat(real, &st) || st.st_dev != dev) {
+			*slash = '/';
+			return;
+		}
+	}
+	if (slash == real && real[1]) {	/* the parent is "/" */
+		if (!stat("/", &st) && st.st_dev == dev)
+			real[1] = 0;
+	}
+}
+
+/*
  * Fills m with the moobfs_layer mount whose device is that of path and whose mount point is the
- * longest prefix of its real path. Returns 0, or an exit status after printing why.
+ * longest prefix of its real path. When /proc/self/mountinfo cannot be read (a sandbox, issue
+ * #167), recognises the layer by statfs and leaves m->record 0. Returns 0, or an exit status
+ * after printing why.
  */
 static int find_mount(const char *path, struct mnt *m)
 {
@@ -103,6 +140,8 @@ static int find_mount(const char *path, struct mnt *m)
 	struct stat st;
 	size_t best = 0;
 	FILE *f;
+
+	memset(m, 0, sizeof *m);
 
 	if (!realpath(path, real) || stat(real, &st)) {
 		int err = errno;
@@ -113,10 +152,19 @@ static int find_mount(const char *path, struct mnt *m)
 	}
 	f = fopen("/proc/self/mountinfo", "r");
 	if (!f) {
-		perror("moobfs: /proc/self/mountinfo");
-		return 1;
+		struct statfs sf;
+
+		if (statfs(real, &sf)) {
+			fprintf(stderr, "moobfs: %s: %s\n", path, strerror(errno));
+			return 1;
+		}
+		if (sf.f_type == LAYER_FS_TYPE) {
+			top_of_device(real, st.st_dev);
+			snprintf(m->point, sizeof m->point, "%s", real);
+			return 0;
+		}
 	}
-	while (fgets(line, sizeof line, f)) {
+	while (f && fgets(line, sizeof line, f)) {
 		char point[PATH_MAX], root[PATH_MAX], fstype[64], src[PATH_MAX], opts[1024];
 		unsigned int maj, min;
 		char *sep = strstr(line, " - ");
@@ -134,12 +182,14 @@ static int find_mount(const char *path, struct mnt *m)
 			continue;
 		if (plen >= best) {
 			best = plen + 1;
+			m->record = 1;
 			snprintf(m->point, sizeof m->point, "%s", point);
 			snprintf(m->root, sizeof m->root, "%s", root);
 			snprintf(m->opts, sizeof m->opts, "%s", opts);
 		}
 	}
-	fclose(f);
+	if (f)
+		fclose(f);
 	if (best)
 		return 0;
 	if (!module_loaded())
@@ -185,6 +235,8 @@ static int cmd_info(int argc, char **argv)
 	struct mnt m;
 	int json = 0, fd, rc;
 	unsigned int f;
+	/* only the mount record shows these two options; without it they are unknown */
+	char work[16] = "null", idle[16] = "null";
 
 	if (argc >= 2 && !strcmp(argv[1], "--json")) {
 		json = 1;
@@ -196,7 +248,7 @@ static int cmd_info(int argc, char **argv)
 	rc = find_mount(argv[1], &m);
 	if (rc)
 		return rc;
-	if (strcmp(m.root, "/")) {
+	if (m.record && strcmp(m.root, "/")) {
 		fprintf(stderr, "moobfs: %s is a bind mount of %s inside a layer; GET_INFO needs the "
 			"mount root, which is not reachable through it (docs/client-contract.md, 7)\n",
 			m.point, m.root);
@@ -209,12 +261,23 @@ static int cmd_info(int argc, char **argv)
 	}
 	memset(&info, 0, sizeof info);
 	if (ioctl(fd, MOOB_IOC_GET_INFO, &info)) {
+		if (!m.record && errno == ENOTTY) {
+			fprintf(stderr, "moobfs: %s is not the root of its layer mount (a bind mount of a "
+				"directory inside a layer?); /proc/self/mountinfo, which would tell, is not "
+				"readable, and GET_INFO needs the mount root\n", m.point);
+			close(fd);
+			return EX_UNAVAILABLE;
+		}
 		fprintf(stderr, "moobfs: GET_INFO on %s: %s\n", m.point, strerror(errno));
 		close(fd);
 		return 1;
 	}
 	close(fd);
 	f = info.flags;
+	if (m.record) {
+		snprintf(work, sizeof work, "%u", opt_uint(m.opts, "index_build_work", 32768));
+		snprintf(idle, sizeof idle, "%u", opt_uint(m.opts, "index_idle", 60));
+	}
 	if (json) {
 		printf("{\"mount\": ");
 		json_str(m.point);
@@ -222,15 +285,14 @@ static int cmd_info(int argc, char **argv)
 		json_str(info.lower_fs);
 		printf(", \"uapi_version\": %u, \"format_version\": %u, \"domain_depth\": %u,"
 		       " \"index\": %s, \"nolinks\": %s, \"on_demand\": %s, \"paths_stale\": %s,"
-		       " \"index_budget\": %" PRIu64 ", \"index_build_work\": %u, \"index_idle\": %u,"
+		       " \"index_budget\": %" PRIu64 ", \"index_build_work\": %s, \"index_idle\": %s,"
 		       " \"attr_name_max\": %u, \"attr_string_max\": %u, \"attr_max_per_file\": %u",
 		       info.uapi_version, info.format_version, info.domain_depth,
 		       (f & MOOB_FLAG_INDEX_OFF) ? "false" : "true",
 		       (f & MOOB_FLAG_NOLINKS) ? "true" : "false",
 		       (f & MOOB_FLAG_ON_DEMAND) ? "true" : "false",
 		       (f & MOOB_FLAG_PATHS_STALE) ? "true" : "false",
-		       (uint64_t)info.index_budget, opt_uint(m.opts, "index_build_work", 32768),
-		       opt_uint(m.opts, "index_idle", 60), info.attr_name_max, info.attr_string_max,
+		       (uint64_t)info.index_budget, work, idle, info.attr_name_max, info.attr_string_max,
 		       info.attr_max_per_file);
 		if (f & MOOB_FLAG_COUNTERS)
 			printf(", \"counters\": {\"index_used\": %" PRIu64 ", \"index_entries\": %u,"
@@ -257,8 +319,10 @@ static int cmd_info(int argc, char **argv)
 		printf("domains:          off; the mount-wide query is the only one\n");
 	printf("links:            %s\n", (f & MOOB_FLAG_NOLINKS) ? "refused (nolinks)" : "allowed");
 	printf("index budget:     %" PRIu64 " MiB\n", (uint64_t)info.index_budget >> 20);
-	printf("build work:       %u units per first query of a domain\n",
-	       opt_uint(m.opts, "index_build_work", 32768));
+	if (m.record)
+		printf("build work:       %s units per first query of a domain\n", work);
+	else
+		printf("build work:       unknown (/proc/self/mountinfo is not readable)\n");
 	printf("attributes:       up to %u per file, names up to %u bytes, strings up to %u bytes\n",
 	       info.attr_max_per_file, info.attr_name_max, info.attr_string_max);
 	if (f & MOOB_FLAG_COUNTERS)
@@ -280,7 +344,7 @@ static int by_ino(const void *a, const void *b)
 }
 
 /* An errno from QUERY or QUERY2 as a sentence and an exit status. */
-static int query_error(int err, const char *dir, const char *op, unsigned int depth)
+static int query_error(int err, const char *dir, const char *op, int depth)
 {
 	switch (err) {
 	case EACCES:
@@ -292,8 +356,11 @@ static int query_error(int err, const char *dir, const char *op, unsigned int de
 			"are on; query a domain directory\n", dir);
 		return EX_NOPERM;
 	case ENOTTY:
-		if (depth)
-			fprintf(stderr, "moobfs: %s cannot be queried: give a domain directory (%u "
+		if (depth < 0)
+			fprintf(stderr, "moobfs: %s cannot be queried: give a domain directory (the "
+				"domain depth is unknown: /proc/self/mountinfo is not readable)\n", dir);
+		else if (depth)
+			fprintf(stderr, "moobfs: %s cannot be queried: give a domain directory (%d "
 				"level%s below the mount root)\n", dir, depth, depth == 1 ? "" : "s");
 		else
 			fprintf(stderr, "moobfs: %s cannot be queried: domains are off on this mount, "
@@ -427,7 +494,7 @@ static int cmd_query(int argc, char **argv)
 	struct mnt m;
 	int json = 0, ino = 0, n, k = 1, fd, rc, truncated = 0, v1 = 0;
 	unsigned long max = 0, page = MOOB_QUERY_MAX_LIMIT;
-	unsigned int depth;
+	int depth;
 	size_t i;
 	char *end;
 
@@ -476,7 +543,8 @@ static int cmd_query(int argc, char **argv)
 	rc = find_mount(argv[k], &m);
 	if (rc)
 		return rc;
-	depth = opt_uint(m.opts, "domain_depth", 1);
+	/* -1: unknown without the mount record; GET_INFO tells it below if <dir> is the root */
+	depth = m.record ? (int)opt_uint(m.opts, "domain_depth", 1) : -1;
 	fd = open(argv[k], O_RDONLY | O_DIRECTORY);
 	if (fd < 0 && errno == EACCES)
 		return query_error(EACCES, argv[k], "open", depth);
@@ -490,6 +558,13 @@ static int cmd_query(int argc, char **argv)
 	q2.version = MOOB_QUERY2_VERSION;
 	q2.nterms = (__u32)n;
 	rc = run_query2(fd, &q2, max, (__u32)page, buf, &res);
+	if ((rc == ENOTTY || rc == EOPNOTSUPP) && depth < 0) {
+		struct moob_info info;
+
+		memset(&info, 0, sizeof info);
+		if (!ioctl(fd, MOOB_IOC_GET_INFO, &info))	/* only the mount root answers it */
+			depth = (int)info.domain_depth;
+	}
 	if ((rc == ENOTTY || rc == EOPNOTSUPP) && !depth && !q2.order_by[0]) {
 		/* no domains: the mount root answers the mount-wide QUERY, without a cursor */
 		struct moob_query q;

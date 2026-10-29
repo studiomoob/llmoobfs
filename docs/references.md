@@ -792,3 +792,64 @@ Read on 2026-10-28 in the Linux 6.12.112 tree the KASAN harness builds
   Sharing", NSDI 2016 ([paper](https://www.usenix.org/conference/nsdi16/technical-sessions/presentation/pu)):
   the isolation guarantee of a shared cache. Both evict per item; the index releases whole
   domains, so ADR-0027's guarantee is per domain.
+
+## 27. DKMS, Debian packages and module signing (ADR-0028, journal 0229)
+
+- `dkms` 3.2.2-1~deb13u1 (Debian 13; [upstream](https://github.com/dkms-project/dkms)):
+  `read_conf()` in `/usr/sbin/dkms` (line 815) sets `build_exclude` when `uname -r` does not match
+  `BUILD_EXCLUSIVE_KERNEL`, and the build exits 77 before any header is looked for;
+  `/usr/lib/dkms/common.postinst` (line 248) treats 77 as "not built". `prepare_mok()` (line 1185)
+  signs with `/var/lib/dkms/mok.key` and `mok.pub` and generates the pair once when missing.
+- `dh_dkms` from `dh-dkms` 3.2.2 and `debhelper` 13.24.2: installs `debian/<package>.dkms` as
+  `dkms.conf`, replaces `#MODULE_VERSION#` (`-V`), and adds the `postinst-dkms` and `prerm-dkms`
+  autoscripts of `/usr/share/debhelper/autoscripts/`.
+- `Documentation/admin-guide/module-signing.rst`, Linux 6.12: signature verification of modules,
+  `CONFIG_MODULE_SIG`, and the refusal (`EKEYREJECTED`, "Key was rejected by service") of a module
+  whose signature is missing or made by a key the kernel does not trust under enforcement.
+- `Documentation/admin-guide/LSM/lockdown.rst` (kernel_lockdown(7)), Linux 6.12: the integrity
+  mode, which a Debian kernel enables when it boots under UEFI Secure Boot, requires signed
+  modules.
+- shim 16.1 (`shim-signed` 1.51~1+deb13u1; [upstream](https://github.com/rhboot/shim)): MOK
+  enrolment through `mokutil --import` and MokManager; enrolled keys live in the `MokList`
+  variable with owner `SHIM_LOCK_GUID` 605dab50-e046-4300-abb6-3dd810dd8b23, and are passed to
+  the kernel's machine keyring.
+- `virt-fw-vars` from `python3-virt-firmware` 24.11-2
+  ([upstream](https://gitlab.com/kraxel/virt-firmware)): `--add-mok GUID FILE` adds a certificate
+  to the `MokList` of an edk2 variable store; how `make package-test` enrols the guest's key
+  without MokManager's console.
+- OVMF 2025.02-8+deb13u1 (`ovmf`): `OVMF_CODE_4M.secboot.fd` with `OVMF_VARS_4M.ms.fd`, the
+  variable store with the Microsoft keys enrolled, which accept Debian's signed shim.
+
+## 28. The moobfs CLI without the mount record (issue #167, journal 0230)
+
+- `find_mount_point()`, `src/find-mount-point.c`, GNU coreutils v9.5
+  ([source](https://github.com/coreutils/coreutils/blob/v9.5/src/find-mount-point.c), GPL-3.0):
+  the mount point of a file is found without the mount table by walking up `..` while `st_dev`
+  stays the same; `moobfs info` does the same on the real path when `/proc/self/mountinfo`
+  cannot be read.
+- [Landlock documentation](https://docs.kernel.org/userspace-api/landlock.html), already listed
+  in §19: `stat` is among the actions Landlock cannot restrict yet, and
+  `LANDLOCK_ACCESS_FS_IOCTL_DEV` (ABI 5) covers ioctls on device files only; `statfs` was seen
+  to work under the sandbox of `tests/landlock_run.c` (journal 0230). A sandbox that may list a
+  domain directory can therefore still recognise the layer and issue `QUERY2` on it.
+
+## 29. The scan fallback walked by directory descriptor (journal 0231)
+
+- `may_open()` and `do_open()`, `fs/namei.c:3391` and `:3793`, Linux 6.12.112 (the tree the
+  KASAN harness builds; [source](https://github.com/gregkh/linux/blob/v6.12.112/fs/namei.c)): the
+  same `O_NOFOLLOW` behaviour as §24, `ELOOP` for a link (`:3403`) and `ENOTDIR` with
+  `O_DIRECTORY`; the errors on which the walk leaves an entry out.
+- `xattr_permission()`, `fs/xattr.c:113`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/xattr.c)): reading a `user.`
+  attribute needs `MAY_READ` on the inode (`inode_permission()`, `:155`, from `vfs_getxattr()`
+  at `:434`). So an entry the caller cannot open for reading had no readable typed attribute in
+  the walk by path either, and opening every entry before reading it leaves the answers as
+  they were.
+- `do_faccessat()`, `fs/open.c:465`, same tree
+  ([source](https://github.com/gregkh/linux/blob/v6.12.112/fs/open.c)): `faccessat(fd, ".",
+  ..., AT_EACCESS)` checks the opened domain directory itself, in place of its path.
+- `fifo_open()`, `fs/pipe.c:1107`, same tree: why entries are opened with `O_NONBLOCK` (§24).
+- Python's [`os.scandir()`](https://docs.python.org/3/library/os.html#os.scandir), which takes
+  a directory descriptor since 3.7 (entries then carry names only, and `DirEntry.is_dir()` and
+  `is_file()` with `follow_symlinks=False` use the directory's descriptor), and the `dir_fd`
+  parameters of `os.open` and `os.access` ([paths relative to directory descriptors](https://docs.python.org/3/library/os.html#dir-fd)).

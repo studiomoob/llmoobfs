@@ -235,3 +235,9 @@ fair shares are not implemented
 There is no reserved per-user fraction
 Não há fração reservada por usuário
 fixed except fair sharing of the index budget
+none of that tooling exists in the project
+packaging (DKMS, `.deb`), a stable UAPI
+packaged signing is item C6
+so the guide starts by switching kernels
+`tests/landlock_run.c` and `tests/notify.c` are standalone investigation helpers
+the walk costs one `stat`

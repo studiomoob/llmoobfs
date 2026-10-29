@@ -1,5 +1,5 @@
 .\" SPDX-License-Identifier: GPL-2.0-only
-.Dd October 25, 2026
+.Dd October 29, 2026
 .Dt MOOBFS 1
 .Os
 .Sh NAME
@@ -48,6 +48,19 @@ runs
 .Xr moobfs-check 1
 with the remaining arguments.
 .El
+.Pp
+.Nm
+reads the mount record from
+.Pa /proc/self/mountinfo .
+When a sandbox denies that read, it recognises the layer by
+.Xr statfs 2 ,
+.Cm query
+still asks QUERY2, and
+.Cm info
+takes the highest directory above
+.Ar path
+on the same device as the mount root; the build work and idle options are then unknown.
+See docs/tools.md.
 .Pp
 A
 .Ar term

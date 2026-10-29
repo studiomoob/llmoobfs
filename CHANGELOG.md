@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
+  `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
+  sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and
+  `moobfs-tools`, the four tools with their manual pages in `/usr/bin`. DKMS signs the module with
+  the host's own key (`/var/lib/dkms/mok.key`); the project has no signing key. `moobfs-dkms`
+  refuses to install next to a `make install` copy. `make package-test` installs them in a
+  disposable Debian 13 VM under UEFI Secure Boot: an unlisted kernel is refused (DKMS exit 77), the
+  module is refused until its key is in the MokList and loads after, an unsigned build is refused,
+  and upgrade and roll back keep the query and `moobfs-check` equal to the oracle. The VM harness
+  runs QEMU under KVM inside its container when the host has `/dev/kvm`. Not published.
+- `moobfs query` and `moobfs info` work without `/proc/self/mountinfo` (issue #167, journal
+  0230). Under a sandbox that denies reading it (Landlock without `READ_FILE` on `/proc`) the CLI
+  stopped with exit 1 before issuing `QUERY2`. It now recognises the layer by `statfs`, issues
+  `QUERY2`, learns the domain depth from `GET_INFO` when the directory is the mount root (so the
+  mount-wide `QUERY` fallback is kept), and `info` finds the mount root by walking up the device;
+  only `index_build_work` and `index_idle` (`null` in `info --json`) and the domain depth in
+  one error message are then unknown. `docs/tools.md` states what the CLI reads.
+  `tests/landlock_run.c` is now built by `vm/build-tests.sh`; new suite step `landlock`, which
+  failed with the CLI before the change.
+- The Python library's scan fallback walks through directory descriptors (journal 0231,
+  ADR-0023 note; pointed out by the external reviewer after journal 0227). It listed, stat'ed
+  and read every entry by path, so a member of a shared domain who swapped a directory or a
+  file for a symbolic link during the walk could make it list a directory outside the domain or
+  report a file outside it with that file's attributes. Every entry is now opened relative to
+  its directory with `O_NOFOLLOW` (`O_NONBLOCK` for files) and judged and read through that
+  descriptor; a directory reopened to descend must still be the inode that was judged. Answers
+  for a tree that does not change during the walk are unchanged. Three new Linux tests fail on
+  the old walk. `v0.5.0-experimental` has the defect; earlier tags have no scan fallback
+  ([GHSA-f769-xjf5-54wc](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-f769-xjf5-54wc), severity low).
 - Fair shares of the index budget (journal 0228, ADR-0027; security roadmap S9, the rest of
   finding F2). Each domain counts the bytes of its partition, and a build that does not fit
   releases the builder's own domains first and then, while the builder holds less than its

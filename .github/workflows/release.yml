@@ -5,7 +5,8 @@ name: Release
 # the tag's GitHub pre-release. Source snapshots only: no module binary or package is published
 # (ADR-0022, docs/distribution-strategy.md §8). How to verify: docs/security-operations.md §4.
 # The SLSA generator is a reusable workflow that must be referenced by its release tag, not a
-# commit (slsa-github-generator's own requirement; Scorecard accepts it).
+# commit (slsa-github-generator's own requirement). Scorecard counts it as the one unpinned
+# dependency (Pinned-Dependencies 9 of 10); pinning it by hash would stop the provenance.
 on:
   push:
     tags: ['v*-experimental']

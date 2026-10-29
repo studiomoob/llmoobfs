@@ -20,7 +20,7 @@ users their directories, and removes it again. To try MoobFS without installing 
 | x86-64, Debian 13, kernel **`6.12.113+deb13-amd64`** or **`6.12.111+deb13-amd64`** exactly | The distribution kernels the suite and fstests run on ([compatibility.md](compatibility.md)). `make install` refuses any other kernel. |
 | Root (`sudo`) | Loading a module and mounting need `CAP_SYS_ADMIN` in the initial user namespace. |
 | A directory on ext4, btrfs or XFS, on a local disk | The lower tree that holds the files. Network and FUSE filesystems are unsupported. |
-| Secure Boot off, or your own MOK to sign the module | The module is not signed; with Secure Boot on, the kernel refuses to load it. |
+| Secure Boot off, or your own MOK to sign the module | `make install` does not sign the module; with Secure Boot on, the kernel refuses to load it. The packages below sign it with a DKMS key you enrol once. |
 
 **Check the kernel first.** A Debian 13 system installed from the 2026-10-21 cloud image runs
 `6.12.113+deb13-amd64`, which is supported (journal 0206); nothing to change:
@@ -70,6 +70,48 @@ It refuses to replace anything already at a destination, a symbolic link include
 replaces a file or link (see Upgrade), never a directory. `make uninstall` removes only regular
 files.
 `PREFIX` changes `/usr/local`; `DESTDIR` stages everything in another root without `depmod`.
+
+### Or: the experimental packages (item C6)
+
+`moobfs-dkms` and `moobfs-tools` ([ADR-0028](decisions/0028-dkms-and-debian-packages.md)) do
+the same through DKMS. They are **not published**: build them yourself on Debian 13 and install
+them on the test host. Use one path, not both: the package refuses to install while a copy from
+`make install` is present (`sudo make uninstall` first).
+
+```sh
+sudo apt install build-essential debhelper dh-dkms git
+git clone https://github.com/studiomoob/llmoobfs.git && cd llmoobfs
+make deb                                    # build/deb/moobfs-dkms_*_all.deb, moobfs-tools_*_amd64.deb
+sudo apt install linux-headers-$(uname -r) mokutil ./build/deb/moobfs-dkms_*_all.deb ./build/deb/moobfs-tools_*_amd64.deb
+dkms status moobfs                          # moobfs/<version>, <kernel>, x86_64: installed
+```
+
+| What | Where |
+| --- | --- |
+| Module sources and `dkms.conf` | `/usr/src/moobfs-<version>/` |
+| `moobfs_layer.ko`, built and signed by DKMS | `/lib/modules/$(uname -r)/updates/dkms/` |
+| `moobfs`, `moobfs-attr`, `moobfs-check`, `moobfs-index` and their manual pages | `/usr/bin/`, `/usr/share/man/man1/` |
+
+DKMS builds only for the releases of `scripts/supported-kernels`, the list `make install` reads.
+On any other kernel it prints a warning that the module is excluded by `BUILD_EXCLUSIVE` and
+builds nothing; the package still installs.
+
+**Secure Boot.** DKMS signs the module with a key it creates once on this host,
+`/var/lib/dkms/mok.key`; the key never leaves the host and the project has none. Until the
+firmware trusts it, `modprobe` fails with `Key was rejected by service`. Enrol the certificate
+once:
+
+```sh
+sudo mokutil --import /var/lib/dkms/mok.pub   # choose a one-time password
+sudo reboot                                   # MokManager: Enroll MOK, Continue, the password
+mokutil --test-key /var/lib/dkms/mok.pub      # /var/lib/dkms/mok.pub is already enrolled
+```
+
+Every later DKMS build, upgrades included, is signed with the same key. Upgrade and roll back as
+in section 6, with `sudo apt install ./moobfs-dkms_<version>_all.deb
+./moobfs-tools_<version>_amd64.deb` (and `--allow-downgrades` to go back) in place of
+`make install FORCE=1`; remove with `sudo apt purge moobfs-dkms moobfs-tools` in place of
+`make uninstall`. The lower tree is untouched either way.
 
 Load it and check that the kernel knows the filesystem type:
 
@@ -215,7 +257,8 @@ sudo getfattr -d -m '^user\.moob\.' /srv/moobfs/lower/alice/note.md
 | --- | --- |
 | `kernel ... is not supported` from `make install` | The running kernel is not in `scripts/supported-kernels`; see section 1. |
 | `no kernel headers at ...` | `sudo apt install linux-headers-$(uname -r)`. |
-| `modprobe: ERROR: could not insert 'moobfs_layer': Key was rejected by service` | Secure Boot refuses the unsigned module. Turn Secure Boot off on the test host, or sign the module with your own MOK (`Documentation/admin-guide/module-signing.rst`); packaged signing is item C6. |
+| `modprobe: ERROR: could not insert 'moobfs_layer': Key was rejected by service` | Secure Boot refuses a module not signed by a key it trusts. From `make install` the module is unsigned: turn Secure Boot off on the test host, sign it with your own MOK (`Documentation/admin-guide/module-signing.rst`), or use the packages of section 2. From the packages, the DKMS key is not enrolled yet: `mokutil --import /var/lib/dkms/mok.pub` and reboot (section 2). |
+| `Warning: ... includes a BUILD_EXCLUSIVE directive which does not match this kernel` | DKMS did not build the module: the kernel is not in `scripts/supported-kernels`; see section 1. |
 | `mount: ... unknown filesystem type 'moobfs_layer'` | The module is not installed for this kernel: `ls /lib/modules/$(uname -r)/updates/moobfs/`, then `sudo depmod -a`. |
 | `mount` fails with `EPERM` inside a container or user namespace | Deliberate: mount on the host and bind-mount into the container (ADR-0011). |
 | `lower= is required`, or `... must be between ...` in `dmesg` | A missing or out-of-range mount option; see the table in section 3. |

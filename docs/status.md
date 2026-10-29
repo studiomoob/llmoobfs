@@ -75,6 +75,12 @@ of these defects.
 reports from the same external reviewer, in user space, are fixed: the MCP adapter followed a
 directory swapped for a symbolic link by a member of a shared domain ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), and the LangGraph
 store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). `v0.5.0-experimental` has both fixes; no earlier tag has the defects.
+*Update, 2026-10-29 ([journal 0231](history/0231-scan-walk-by-descriptor.md)):* the Python
+library's scan fallback walked the domain by path, the class of defect fixed in the MCP adapter
+above, as the external reviewer pointed out: a member of a shared domain who swapped a directory
+or a file for a symbolic link during the walk could make it report a file outside the domain.
+It now walks through directory descriptors and never follows a link; `v0.5.0-experimental` has
+the defect ([GHSA-f769-xjf5-54wc](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-f769-xjf5-54wc)).
 *Update, 2026-10-28 ([journal 0226](history/0226-sixth-prerelease-tag.md)):* `v0.5.0-experimental`
 is tagged on `main` after the third batch and these two fixes and carries every correction above; its source archive
 is signed with Sigstore and has SLSA provenance.
@@ -83,3 +89,7 @@ is fixed on `main`: a uid above its share of the index budget lends its room bac
 its own, and a uid within its share keeps its domains
 ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md)). G2's latency ceiling (protocol
 §14) was registered and met on the dedicated host in three runs. Not in `v0.5.0-experimental`.
+*Update, 2026-10-29 ([journal 0229](history/0229-dkms-and-debian-packages.md)):* roadmap item C6:
+`moobfs-dkms` and `moobfs-tools` Debian packages, built with `make deb`, DKMS limited to the listed
+kernels and the module signed by the host's own DKMS key. Tested in a disposable Debian 13 VM
+under Secure Boot (`make package-test`); not published.

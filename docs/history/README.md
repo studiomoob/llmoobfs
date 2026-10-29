@@ -248,3 +248,6 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0226 — Sixth pre-release tag: v0.5.0-experimental](0226-sixth-prerelease-tag.md)
 - [0227 — MCP adapter and LangGraph store confinement (two private reports)](0227-mcp-and-store-confinement.md)
 - [0228 — Security batch 5: fair shares of the index budget (S9, F2) and the G2 latency ceiling](0228-security-batch-5-fair-shares.md)
+- [0229 — DKMS and Debian packages, tested under Secure Boot (C6, S10)](0229-dkms-and-debian-packages.md)
+- [0230 — The moobfs CLI without /proc/self/mountinfo (issue #167)](0230-cli-without-mountinfo.md)
+- [0231 — Python scan fallback walked by directory descriptor](0231-scan-walk-by-descriptor.md)

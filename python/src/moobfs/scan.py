@@ -12,6 +12,11 @@ returns on a mounted layer, never a file the domain does not share with all who 
 even when the caller could open it. The caller must be able to read and search the domain
 directory, as QUERY2 requires.
 
+Below the domain the walk never resolves a path: each entry is opened relative to its
+directory's descriptor without following a symbolic link, and is judged and read through that
+descriptor (journal 0231). Someone who shares the domain and swaps a directory or a file for a
+link while the walk runs cannot make it list, judge or read anything outside the domain.
+
 Known differences from the kernel, all at the edges: a file whose attribute list exceeds 64 KiB
 is left out by the kernel and read here; the kernel stops at 64 levels below the mount root; a
 domain the kernel answers in fallback mode after a directory's permissions changed, until the
@@ -77,47 +82,64 @@ def _reach_ok(st, ext, dom, dom_ext, want_read):
     return True
 
 
-def candidates(domain_dir):
-    """(path relative to the domain, inode, {name: Value}) of every file and directory below
-    the domain that the kernel would index, with its indexed attributes."""
-    domain_dir = os.path.abspath(domain_dir)
-    fd = os.open(domain_dir, os.O_RDONLY | os.O_DIRECTORY)
+# Every name below the domain is opened relative to its directory's descriptor and never
+# through a symbolic link (journal 0231), as moobfs.mcp walks a path (journal 0227).
+# O_NONBLOCK: an entry swapped for a FIFO after it was listed must not hold the walk.
+_DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+_ENTRY_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC
+# an entry gone, swapped for a link or another type, or closed to the caller is left out, as a
+# path the old walk could not list or read was
+_SKIP = frozenset((errno.ENOENT, errno.ENOTDIR, errno.ELOOP, errno.EACCES, errno.EPERM,
+                   errno.ENXIO, errno.EWOULDBLOCK, errno.EAGAIN))
+
+
+def _open_entry(name, dir_fd, flags):
+    """A descriptor of name under dir_fd, or None when the walk leaves it out."""
     try:
-        dom = os.fstat(fd)          # the directory QUERY2 would be issued on, not a link to it
-        dom_ext = _ext_acl(fd, dom.st_mode)
-    finally:
-        os.close(fd)
-    effective = os.access in os.supports_effective_ids
-    if not os.access(domain_dir, os.R_OK | os.X_OK, effective_ids=effective):
-        raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), domain_dir)
-    out = []
-    stack = [""]
-    while stack:
-        rel = stack.pop()
-        here = os.path.join(domain_dir, rel) if rel else domain_dir
+        return os.open(name, flags, dir_fd=dir_fd)
+    except OSError as err:
+        if err.errno in _SKIP:
+            return None
+        raise
+
+
+def _visit(dir_fd, rel, dom, dom_ext, out):
+    """Add the candidates listed in dir_fd to out; return (name, (dev, ino)) of the
+    directories under it the kernel would descend into. Each entry is opened without
+    following a link and every decision is taken on what the descriptor holds (fstat, the
+    ACL and the attributes read through it), so a name swapped between two steps cannot make
+    the walk judge one inode and report another."""
+    try:
+        entries = list(os.scandir(dir_fd))
+    except OSError as err:
+        if err.errno in _SKIP:
+            return []
+        raise
+    subdirs = []
+    for e in entries:
         try:
-            entries = list(os.scandir(here))
-        except (FileNotFoundError, NotADirectoryError, PermissionError):
-            continue
-        for e in entries:
-            path = e.path
-            try:
-                st = os.lstat(path)
-            except FileNotFoundError:
+            if not (e.is_dir(follow_symlinks=False) or e.is_file(follow_symlinks=False)):
                 continue
-            sub = os.path.join(rel, e.name) if rel else e.name
+        except OSError:
+            continue
+        fd = _open_entry(e.name, dir_fd, _ENTRY_FLAGS)
+        if fd is None:
+            continue
+        try:
+            st = os.fstat(fd)
             is_dir, is_reg = stat.S_ISDIR(st.st_mode), stat.S_ISREG(st.st_mode)
             if not (is_dir or is_reg):
                 continue
-            ext = _ext_acl(path, st.st_mode)
+            sub = os.path.join(rel, e.name) if rel else e.name
+            ext = _ext_acl(fd, st.st_mode)
             if is_dir and _reach_ok(st, ext, dom, dom_ext, False):
-                stack.append(sub)
+                subdirs.append((e.name, (st.st_dev, st.st_ino)))
             if is_reg and st.st_nlink > 1:
                 continue
             if not _reach_ok(st, ext, dom, dom_ext, True):
                 continue
             try:
-                attrs = get_attrs(path)
+                attrs = get_attrs(fd)
             except (FileNotFoundError, PermissionError):
                 continue
             except OSError as err:
@@ -126,7 +148,59 @@ def candidates(domain_dir):
                 raise
             if attrs:
                 out.append((sub, st.st_ino, attrs))
-    return out
+        finally:
+            os.close(fd)
+    return subdirs
+
+
+def candidates(domain_dir):
+    """(path relative to the domain, inode, {name: Value}) of every file and directory below
+    the domain that the kernel would index, with its indexed attributes.
+
+    The domain is opened once by its path (a link to it is followed: it is the caller's
+    name for the directory QUERY2 would be issued on); everything below it is reached through
+    directory descriptors, never by path and never through a symbolic link. A directory is
+    opened again by name when the walk descends into it and must still be the inode that was
+    judged, and still pass the rule; otherwise it is left out."""
+    domain_dir = os.path.abspath(domain_dir)
+    top = os.open(domain_dir, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    frames = []
+    try:
+        dom = os.fstat(top)         # the directory QUERY2 would be issued on, not a link to it
+        dom_ext = _ext_acl(top, dom.st_mode)
+        effective = os.access in os.supports_effective_ids
+        if os.access in os.supports_dir_fd:
+            ok = os.access(".", os.R_OK | os.X_OK, dir_fd=top, effective_ids=effective)
+        else:
+            ok = os.access(domain_dir, os.R_OK | os.X_OK, effective_ids=effective)
+        if not ok:
+            raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), domain_dir)
+        out = []
+        frames.append((top, "", _visit(top, "", dom, dom_ext, out)))
+        while frames:
+            fd, rel, pending = frames[-1]
+            if not pending:
+                frames.pop()
+                if fd != top:
+                    os.close(fd)
+                continue
+            name, ident = pending.pop()
+            child = _open_entry(name, fd, _DIR_FLAGS)
+            if child is None:
+                continue
+            sub = os.path.join(rel, name) if rel else name
+            frames.append((child, sub, []))     # closed by the loop or by finally
+            cst = os.fstat(child)
+            # still the inode that was judged, and still one to descend into
+            if ((cst.st_dev, cst.st_ino) == ident
+                    and _reach_ok(cst, _ext_acl(child, cst.st_mode), dom, dom_ext, False)):
+                frames[-1] = (child, sub, _visit(child, sub, dom, dom_ext, out))
+        return out
+    finally:
+        for fd, _, _ in frames:
+            if fd != top:
+                os.close(fd)
+        os.close(top)
 
 
 def run(cands, terms, order=None):
