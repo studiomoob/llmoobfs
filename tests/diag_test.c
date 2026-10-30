@@ -6,8 +6,10 @@
  * make test on macOS and Linux.
  *   diag_test [TMPDIR]
  */
-#define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 700	/* nftw() */
 #define _DARWIN_C_SOURCE	/* mkdtemp() on macOS */
+#include <fcntl.h>
+#include <ftw.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,13 +27,23 @@ static void put(const char *rel, const char *text)
 {
 	char file[2048];
 	FILE *f;
+	int fd;
 
 	snprintf(file, sizeof file, "%s/%s", top, rel);
-	f = fopen(file, "w");
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0600);
+	f = fd < 0 ? NULL : fdopen(fd, "w");
+	if (fd >= 0 && !f)
+		close(fd);
 	if (!f || fputs(text, f) < 0 || fclose(f)) {
 		perror(file);
 		exit(1);
 	}
+}
+
+static int rm_one(const char *p, const struct stat *st, int type, struct FTW *ftw)
+{
+	(void)st; (void)type; (void)ftw;
+	return remove(p);
 }
 
 static void dir(const char *rel)
@@ -39,7 +51,7 @@ static void dir(const char *rel)
 	char d[2048];
 
 	snprintf(d, sizeof d, "%s/%s", top, rel);
-	if (mkdir(d, 0755)) {
+	if (mkdir(d, 0700)) {
 		perror(d);
 		exit(1);
 	}
@@ -192,13 +204,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "DIAG_TEST_FAIL: %d (tree left in %s)\n", failures, top);
 		return 1;
 	}
-	{
-		char cmd[1100];
-
-		snprintf(cmd, sizeof cmd, "rm -rf '%s'", top);
-		if (system(cmd))
-			fprintf(stderr, "diag_test: could not remove %s\n", top);
-	}
+	/* removed by walking it, without a shell: top comes from TMPDIR or argv */
+	if (nftw(top, rm_one, 16, FTW_DEPTH | FTW_PHYS))
+		fprintf(stderr, "diag_test: could not remove %s\n", top);
 	printf("DIAG_TEST_PASS\n");
 	return 0;
 }

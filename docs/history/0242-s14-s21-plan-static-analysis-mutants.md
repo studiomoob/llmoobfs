@@ -153,6 +153,13 @@ image, as `make lint` runs it; shellcheck is not installed on the host), `script
 1.7.7 (`rhysd/actionlint` image) reports nothing on `static.yml` (its two notes are on the
 existing `fuzz.yml`).
 
+*Added 2026-10-30, on PR 179:* the first run of `static.yml` on GitHub (amd64) failed before
+any triage: the x86-64 defconfig sets `CONFIG_WERROR=y` (`arch/x86/configs/x86_64_defconfig`,
+Linux 6.12.112) and arm64's does not, so on amd64 the clang W=1 build of the canary stopped at
+its first warning (`STATIC_FAIL: clang-w1 on canary did not complete`). The image now turns
+`WERROR` off with `scripts/config` and `olddefconfig` after `defconfig`; the baseline, produced
+on arm64, is checked by the next amd64 run.
+
 ## Limitations
 
 - The baseline was produced on arm64. The CI run is on amd64, where the clang analyzer or

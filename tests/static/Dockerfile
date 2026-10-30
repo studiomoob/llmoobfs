@@ -27,8 +27,12 @@ RUN mkdir -p /opt/linux && cd /opt && \
     curl -fsSL -o linux.tar.xz "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KERNEL_VERSION.tar.xz" && \
     echo "$KERNEL_SHA256  linux.tar.xz" | sha256sum -c - && \
     tar -xJf linux.tar.xz -C linux --strip-components=1 && rm linux.tar.xz && \
-    cd linux && make -s LLVM=1 defconfig && make -s LLVM=1 -j"$(nproc)" modules_prepare && \
+    cd linux && make -s LLVM=1 defconfig && \
+    scripts/config --disable WERROR && make -s LLVM=1 olddefconfig && \
+    make -s LLVM=1 -j"$(nproc)" modules_prepare && \
     chmod a+w /opt/linux
+# CONFIG_WERROR off: the x86-64 defconfig turns it on, which makes every W=1 warning (the canary's
+# and the module's) an error that stops the build before the triage reads it; arm64's does not.
 # (spatch run in parallel by coccicheck writes its per-job output files in the tree's top
 # directory; the image runs as the caller's user)
 ENV KGCC=/opt/kgcc KCLANG=/opt/linux SMATCH=/opt/smatch/smatch

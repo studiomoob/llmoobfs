@@ -144,6 +144,14 @@ stayed on host CPUs 2 and 3 while another run used CPUs 4 and 5. The base cloud 
 `DIAG_MEMCG_SKIPPED` did not appear: the memory controller was available in the guest. The full
 `make vm-test` (step `diag` is in it) remains for the batch, before publication.
 
+*Added 2026-10-30, on PR 179:* CodeQL flagged two alerts in `tests/diag_test.c`: files created
+with `fopen()` (mode 0666 before the umask) and the temporary tree removed with `system("rm -rf
+...")` on a path taken from `TMPDIR` or `argv`. The test now creates its files with `open()`
+mode 0600 and `O_NOFOLLOW`, its directories with mode 0700, and removes the tree with
+`nftw(FTW_DEPTH | FTW_PHYS)` and `remove()`, without a shell. `make test` passes on macOS, and
+the test passes built with gcc and with clang under ASan and UBSan with `-Wall -Wextra -Werror`
+in a Debian 13 container.
+
 ## Limitations
 
 - The messages, roles and JSON of `diagnose` on a mounted layer are checked by the step `diag`
