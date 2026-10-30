@@ -16,7 +16,9 @@ of that organization; the project changes only what belongs to its own repositor
 | --- | --- |
 | Admin on the repository | The three owners of the hosting organization, by inheritance from the organization role; one of them is the maintainer. No direct collaborators on the repository. The external reviewer who reported GHSA-95h9-j7c2-gcw6, GHSA-756j-cgwq-gvwm and GHSA-6xf4-r246-92r6 (2026-10-27) is a collaborator on those three advisories and on their temporary private forks until publication; the forks are to be deleted after publication. |
 | Review routing | `CODEOWNERS` routes every path to the maintainer; no approval count is required (`GOVERNANCE.md`). |
-| `main` branch | Pull requests and the checks `Tools and sanitizers`, `Native Linux VM` and `Layer suite under KASAN/lockdep` are required. Force pushes and deletion are disabled. Administrators can bypass the classic protection; signed commits are not required. Since 2026-10-28 a repository ruleset `main` repeats these rules with no bypass and allows only merge commits (journal 0217), so that OpenSSF Scorecard can read the protection with the default token (journal 0225). |
+| `main` branch | Pull requests and the checks `Tools and sanitizers`, `Native Linux VM` and `Layer suite under KASAN/lockdep` are required. Force pushes and deletion are disabled. Administrators can bypass the classic protection; signed commits are not required. Since 2026-10-28 a repository ruleset `main` repeats these rules with no bypass and allows only merge commits (journal 0217), so that OpenSSF Scorecard can read the protection with the default token (journal 0225). Since 2026-10-30 the ruleset also blocks a merge that adds a CodeQL alert of high or critical security severity or of error severity (journal 0240). |
+| Releases | Immutable since 2026-10-30: a published release's assets cannot be changed and its tag cannot be moved or deleted (journal 0240). |
+| Web commits | Commits made in the GitHub web interface must carry a `Signed-off-by` line since 2026-10-30 (journal 0240), as the DCO requires of every commit. |
 | Actions secrets | None. Workflows use the job's `GITHUB_TOKEN` only. |
 | Deploy keys | None. |
 | Site | The `github-pages` environment, deployed from `main` by `.github/workflows/pages.yml` with an OIDC token (`id-token: write`). |
@@ -27,7 +29,8 @@ of that organization; the project changes only what belongs to its own repositor
 
 Re-read this table when an owner, a collaborator, a secret, a key or a protection rule changes,
 and in any case before a tag. Read it again with `gh api repos/studiomoob/llmoobfs/collaborators`,
-`.../actions/secrets`, `.../keys` and `.../branches/main/protection`.
+`.../actions/secrets`, `.../keys`, `.../branches/main/protection`, `.../rulesets` and
+`.../immutable-releases`.
 
 ## 2. Incidents
 

@@ -73,6 +73,15 @@ made stage 2 wait for S1.
 - `docs/references.md` §38: OSTIF's audit page and the AWS–OSTIF program post.
 - `CHANGELOG.md` under Unreleased; this journal and its index row.
 
+*Added 2026-10-30:* three repository settings, applied by the maintainer's decision while the
+batch tests ran. None of them is specific to the hosting organization's enterprise plan; every
+public repository can use them. Releases are immutable (`PUT .../immutable-releases`); web
+commits require a sign-off (`web_commit_signoff_required`); the `main` ruleset gained a
+`code_scanning` rule for CodeQL with `security_alerts_threshold: high_or_higher` and
+`alerts_threshold: errors`. Checked afterwards with `gh api` on the same endpoints. Not taken:
+extended secret scanning (no credentials are kept in the repository) and larger hosted runners
+(billed). Making the S19 static check required waits for its first green runs on GitHub.
+
 ## Evidence
 
 - `python3 scripts/site-journey.py .` regenerated `site/journey.html`, `site/status.html`,
