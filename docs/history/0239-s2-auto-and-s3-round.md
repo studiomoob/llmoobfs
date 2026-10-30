@@ -182,6 +182,14 @@ Raw logs (consoles, fstests `results/` directories, `manager.log`, `funccover.cs
 the maintainer's local folder for this review (`revisao/2026-10-29-s2s3-logs/`), as for journals
 0091 and 0154. The test host's working directory was removed after the copy.
 
+
+*Added 2026-10-30, on PR 179:* the ext4 job of `bench.yml` failed at "Let QEMU use KVM" with
+"no KVM": `udevadm trigger` is asynchronous and the step checked `/dev/kvm` before udev applied
+the new mode; the btrfs and XFS jobs of the same run passed the step. The step now runs
+`udevadm settle --timeout=30` before the check, and so do the same steps of `kasan.yml`,
+`kasan-arm64.yml`, `kcsan.yml` and `interop.yml`, where the race did not fail the job but could
+leave QEMU on TCG. A race of the workflow, not of the layer.
+
 ## Limitations
 
 - One run per lower, on one kernel, without KASAN in the fstests guest; 406 to 549 tests per lower

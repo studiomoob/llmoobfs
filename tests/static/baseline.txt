@@ -2,7 +2,8 @@
 # One finding per line, as scripts/static-triage.py prints it: tool|path|message|source line.
 # Every block of entries follows a comment that says why the finding is not a defect; a finding
 # that is a defect is fixed instead (kernel changes follow ADR-0022). Regenerate the keys from
-# build/static/findings.txt after a run.
+# build/static/findings.txt after a run. An entry prefixed '@amd64 ' or '@arm64 ' is reported on
+# that architecture only; it is stale only there.
 
 # The analyzer does not keep the invariant of a circular list (head->next->prev == head): after
 # list_del(&cur->list) of the first entry it still takes head->next for the freed entry, on the
@@ -18,8 +19,9 @@ clang|layer/index.c|Use of memory after it is freed [clang-analyzer-unix.Malloc]
 # attr_buf_add(): b->data is NULL only while b->cap is 0 (attr_buf_init() clears both), and
 # need is at least 3 (two size bytes and a name's NUL), so the first call always takes the
 # allocation branch. The analyzer does not carry cap == 0 into attr_buf_add() on this path and
-# assumes need <= cap with data NULL. Not a defect (journal 0242).
-clang|layer/index.c|Null pointer passed as 1st argument to memory copy function [clang-analyzer-unix.cstring.NullArg]|memcpy(b->data + b->len, &size, sizeof(size));
+# assumes need <= cap with data NULL. Not a defect (journal 0242). Reported on arm64 only: the
+# amd64 run of 2026-10-30 (PR 179) does not report it.
+@arm64 clang|layer/index.c|Null pointer passed as 1st argument to memory copy function [clang-analyzer-unix.cstring.NullArg]|memcpy(b->data + b->len, &size, sizeof(size));
 
 # result_path() hands the reference d_find_alias() took to its caller through *held
 # (c->held), and the query drops it with dput(cand[i].held) once the index lock is released;

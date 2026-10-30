@@ -15,6 +15,7 @@ canary findings. Every finding is written to <out>/findings.txt, the input for a
 """
 import argparse
 import os
+import platform
 import re
 import sys
 
@@ -133,6 +134,15 @@ def findings(tool, log, loc):
 def main():
     a = parse_args()
     baseline, problems = read_entries(a.baseline)
+    # an entry prefixed '@ARCH ' (amd64 or arm64) is reported on that architecture only: it is
+    # accepted on every architecture, and stale only where it is expected
+    arch = {'x86_64': 'amd64', 'aarch64': 'arm64'}.get(platform.machine(), platform.machine())
+    only = {}
+    for i, e in enumerate(baseline):
+        m = re.match(r'@(\S+) (.*)$', e)
+        if m:
+            baseline[i] = m.group(2)
+            only[m.group(2)] = m.group(1)
     expected, p2 = read_entries(a.expected)
     problems += p2
     seen, canary = set(), {}
@@ -157,7 +167,8 @@ def main():
         for key in sorted(seen) + sorted(k for t in canary.values() for k in t):
             f.write(key + '\n')
     new = sorted(seen - set(baseline))
-    stale = sorted(k for k in set(baseline) - seen if k.split('|')[0] in ran)
+    stale = sorted(k for k in set(baseline) - seen
+                   if k.split('|')[0] in ran and only.get(k, arch) == arch)
     missing = []
     for e in expected:
         tool, _, needle = e.partition('|')
