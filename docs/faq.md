@@ -174,7 +174,7 @@ Since that tag, `main` also bounds an unprivileged domain build.
 1,024–65,536 ([ADR-0020](https://github.com/studiomoob/llmoobfs/blob/main/docs/decisions/0020-configurable-query-build-work-per-mount.md),
 [PR 138](https://github.com/studiomoob/llmoobfs/pull/138)). The default denies the measured
 17,000-file domain. The build's deadline is ten seconds of the builder's CPU time with a 120 s
-elapsed backstop (ADR-0031, proposed): the earlier elapsed deadline refused builds over a slow
+elapsed backstop (ADR-0031, accepted): the earlier elapsed deadline refused builds over a slow
 lower, at 400 ms per I/O (journal 0210) and on an `O_DIRECT` disk (journal 0238). It is not a
 strict CPU or I/O cap.
 See [R1 validation](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0149-sync-backing-file-flags.md)

@@ -55,7 +55,7 @@ de cerca de 25 mil memórias reais do G5 se construíram com `index_build_work=6
 (registros de domínio mantidos até o umount) foi corrigida no mesmo lote.
 *Atualização, 29/10/2026 ([diário 0241](history/0241-build-deadline-cpu-time.md)):* aquele prazo
 contava tempo decorrido, então só um disco inferior lento já podia recusar um build que cabe em
-`index_build_work` (também diário 0238). O ADR-0031 (proposta) conta o tempo de CPU de quem
+`index_build_work` (também diário 0238). O ADR-0031 (aceito em 30/10/2026) conta o tempo de CPU de quem
 constrói contra os dez segundos, com um limite de 120 s de tempo decorrido; o passo na VM, a rodada
 negativa e a rodada sob KASAN/lockdep passaram em 30/10/2026, e o ADR aguarda o mantenedor.
 *Atualização, 28/10/2026 ([diário 0219](history/0219-security-batch-checks.md)):* um segundo lote

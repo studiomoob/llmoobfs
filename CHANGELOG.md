@@ -20,7 +20,7 @@
   finding reproduced with a regression test, and S14 to S21 done, with no human review; stage 3
   (public release) requires a hand-read human review of the credential paths and the `QUERY2`
   authorization by a volunteer who knows the VFS.
-- The `QUERY2` domain-build deadline counts the builder's CPU time (ADR-0031, proposed; journal
+- The `QUERY2` domain-build deadline counts the builder's CPU time (ADR-0031, accepted; journal
   0241). The ten-second deadline of ADR-0019 counted elapsed time, so a slow lower alone could
   refuse with `ETIMEDOUT` a build that fits `index_build_work`, and every retry with it: the cold
   first `QUERY2` of a 7,459-file domain on an `O_DIRECT` disk (journal 0238), a lower slowed to

@@ -92,7 +92,7 @@ mask.
 **Experimental limit decision, 2026-10-23 (ADR-0019).** A valid `QUERY2`
 or `QUERY2_BATCH` request may now fail with `EDQUOT` (unprivileged build
 admission), `E2BIG` (scan work) or `ETIMEDOUT` (cooperative build deadline;
-ten seconds of the builder's CPU time or 120 s elapsed since ADR-0031, proposed,
+ten seconds of the builder's CPU time or 120 s elapsed since ADR-0031, accepted,
 which only admits builds the elapsed deadline refused).
 Successful request and cursor meanings, structure layouts and command
 numbers do not change, so the request versions stay 2. This is a new

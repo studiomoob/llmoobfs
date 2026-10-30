@@ -327,3 +327,8 @@ G2 stays open until the maintainer accepts them
 closing waits for the maintainer
 G2 closes when the maintainer
 o G2 fecha quando o mantenedor as aceitar
+
+# Journal 0241, 2026-10-30: ADR-0031 accepted.
+ADR-0031 (proposed)
+ADR-0031, proposed
+ADR-0031 (proposta)

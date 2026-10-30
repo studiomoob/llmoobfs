@@ -1,7 +1,7 @@
 # 0241 — The domain-build deadline counts the builder's CPU time (ADR-0031, proposed)
 
 Date: 2026-10-29. Status: **implemented on branch `claudiofp/b11-deadline`; VM step, negative round
-and KASAN/lockdep run passed on 2026-10-30**. ADR-0031 is proposed and waits for the maintainer.
+and KASAN/lockdep run passed on 2026-10-30**. ADR-0031 was accepted by the maintainer on 2026-10-30, with the 120 s backstop unchanged.
 Work started: about 2026-10-29 23:05 UTC; ended about 23:50 UTC; VM rounds 2026-10-30 11:16 to
 12:05 UTC. Wall-clock time, not an engineering-effort measurement. Estimated effort: M (ADR-0031); actual so far: S (the code, documents and local
 checks), the VM rounds not counted.
@@ -134,6 +134,11 @@ ADR-0031's review. The bench was not rerun with the host idle.
 
 Item 5, the full `make vm-test` and the full KASAN/lockdep suite, stays for the batch, before
 its pull request.
+
+
+*Added 2026-10-30:* the maintainer accepted ADR-0031 as written: ten seconds of the builder's
+CPU time and a 120 s elapsed backstop. The O_DIRECT bench case above, a cold build refused at the
+backstop on a slow shared rotating disk and completed on the retry, stays a documented limit.
 
 ## Limitations
 

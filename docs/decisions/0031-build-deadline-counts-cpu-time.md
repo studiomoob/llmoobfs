@@ -1,6 +1,6 @@
 # ADR-0031 — The domain-build deadline counts the builder's CPU time; a 120 s elapsed backstop stays
 
-Date: 2026-10-29. Status: **proposed** (journal 0241), implemented on branch
+Date: 2026-10-29. Status: **accepted** by the maintainer on 2026-10-30 (journal 0241), implemented on branch
 `claudiofp/b11-deadline`; *update, 2026-10-30:* the dedicated-VM step, its negative round and the
 KASAN/lockdep run passed (journal 0241); journal 0238's case, on the host's rotating disk with
 other guests running, reached the 120 s backstop on the cold first build, and the query after it
@@ -83,7 +83,7 @@ consumes; slow but progressing I/O is not an error.
   `CONFIG_TASK_DELAY_ACCT` and the `delayacct` boot option or sysctl, off by default; not
   reliable on the supported kernels. Rejected.
 
-## Decision (proposed)
+## Decision
 
 1. `MOOBL_BUILD_CPU_NS` = 10 s, compared against the building task's
    `current->se.sum_exec_runtime` since the build started. It lags by at most one tick, so the

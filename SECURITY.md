@@ -204,7 +204,7 @@ Over a lower slowed by `dm-delay` the first build of a 5,000-file domain took
 9.8 s at 200 ms per I/O and stopped at the deadline with `ETIMEDOUT`, with no
 partial answer, at 400 ms; issue 118 was closed with that evidence
 ([journal 0210](docs/history/0210-security-batch-1-domain-records-and-slow-lower.md)).
-That deadline counted elapsed time; ADR-0031 (proposed, journal 0241) counts the builder's CPU
+That deadline counted elapsed time; ADR-0031 (accepted, journal 0241) counts the builder's CPU
 time against the ten seconds, with a 120 s elapsed backstop, so that a slow lower or a
 neighbour saturating it does not by itself refuse a build.
 A later change stops a budget release from dropping a domain
