@@ -157,8 +157,11 @@ existing `fuzz.yml`).
 any triage: the x86-64 defconfig sets `CONFIG_WERROR=y` (`arch/x86/configs/x86_64_defconfig`,
 Linux 6.12.112) and arm64's does not, so on amd64 the clang W=1 build of the canary stopped at
 its first warning (`STATIC_FAIL: clang-w1 on canary did not complete`). The image now turns
-`WERROR` off with `scripts/config` and `olddefconfig` after `defconfig`; the baseline, produced
-on arm64, is checked by the next amd64 run.
+`WERROR` off with `scripts/config` and `olddefconfig` after `defconfig`; the next amd64 run
+matched the baseline except one clang analyzer entry (the `attr_buf_add()` `memcpy` NullArg),
+reported on arm64 only. `scripts/static-triage.py` now reads an `@arm64 ` or `@amd64 ` prefix on a
+baseline entry: the entry is accepted everywhere and stale only on that architecture; checked
+offline with empty logs on both machine names.
 
 ## Limitations
 
