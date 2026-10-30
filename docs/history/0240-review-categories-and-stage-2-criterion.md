@@ -18,7 +18,8 @@ Two decisions of the maintainer of 2026-10-29:
 - **Three categories.** (a) *Automated tools*: the VM suite under KASAN, UBSAN and lockdep,
   KCSAN, syzkaller, fstests, fuzzing and fault injection. (b) *AI-assisted reviews*: the two
   source reviews by AI assistants (journals 0111 and 0114), the later review rounds made by
-  assistants, and the external reviewer's private reports: F15, F16 and GHSA-756j-cgwq-gvwm in
+  assistants (journals 0144, 0151 and 0155; the maintainer confirmed on 2026-10-30 that rounds
+  0151 and 0155 were AI-assisted), and the external reviewer's private reports: F15, F16 and GHSA-756j-cgwq-gvwm in
   the kernel; GHSA-4gr9-rvgr-44qj, GHSA-3wx4-fh9w-2v66 and the scan-walk pointer behind
   GHSA-f769-xjf5-54wc in user space. The reviewer chose where to look, reproduced the defects and
   wrote (F16) or checked the fixes; the analysis was AI-assisted. (c) *Independent human review*:
