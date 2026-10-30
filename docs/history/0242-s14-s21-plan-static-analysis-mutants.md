@@ -1,8 +1,11 @@
 # 0242 — Plan for S14 to S21; static analysis in CI (S5, S19); mutants of the homogeneity rule (S14)
 
 Date: 2026-10-29. Status: implemented on branch `claudiofp/b11-s14`, run locally on an arm64
-workstation with Docker; `.github/workflows/static.yml` has not run on GitHub, and no mutant has
-run in the VM. Work started: 2026-10-29 23:09 UTC; ended about 23:45 UTC. Wall-clock time,
+workstation with Docker; `.github/workflows/static.yml` has not run on GitHub. *Update,
+2026-10-30:* the mutants ran in a dedicated VM; tests were added for the five that survived, and
+a run of the whole catalogue killed all 23 (section "Mutants in the VM"). Work started:
+2026-10-29 23:09 UTC; ended about 23:45 UTC; VM runs and tests 2026-10-30 11:18 to 17:35 UTC,
+with a power cut of the test host from 14:27 to 15:58 UTC that interrupted none of them. Wall-clock time,
 mostly image builds and checker runs; not an engineering-effort measurement. Estimated effort:
 S19 M, S14 M (of which this journal does the offline half); actual: about 40 minutes of attended
 work for both, the rest of S14 still open.
@@ -163,6 +166,62 @@ reported on arm64 only. `scripts/static-triage.py` now reads an `@arm64 ` or `@a
 baseline entry: the entry is accepted everywhere and stale only on that architecture; checked
 offline with empty logs on both machine names.
 
+## Mutants in the VM (2026-10-30)
+
+Host: the dedicated test host (x86-64, Debian 13, KVM), Debian kernel 6.12.113 in the guest
+(`MOOB_DEBIAN_KERNEL=6.12.113 MOOB_VM_KVM=1`). The tree is copied without `.git`, so a local
+snapshot commit gives `mutants.py run` the `HEAD` it archives. One change on the host copies only,
+not committed: `vm/run.sh` passes `--cpuset-cpus=$MOOB_CPUSET` to `docker run`, so that each
+guest stayed on host CPUs not used by another run (pairs 0-1, 2-3 or 6-7; an unrelated run held
+4-5).
+
+1. Baseline, unmutated: `MOOB_ONLY="permmatrix minacl ext4 xattrread permgaps" make vm-test`:
+   `MOOBFS_ONLY_PASS`.
+2. First run, `python3 scripts/mutants.py run` (51 min, 08:23 to 09:14 BRT): **16 killed, 7
+   survived** (M02, M11, M16, M19, M21, M22, M23); each survivor's console ends in
+   `MOOBFS_ONLY_PASS`, so its steps ran and passed.
+3. Each survivor alone under the full default suite (`make vm-test` of the mutated tree):
+   - M21 was killed by `pm-mv-leak-ext4` (step `permmatrix`), and M02 by
+     `t3-acl-on-domain-directory-leaks-ext4` (step `ext4`, shown with `mutants.py run M02` and
+     the steps line `permmatrix ext4`): their steps lines were incomplete. Fixed in the catalogue.
+   - M19 and M22 passed the full suite (`MOOBFS_LAYER_PASS`). M11, M16 and M23 first reached the
+     3600 s guard of `vm/in-container.sh` in the btrfs release step while four guests shared the
+     host (no verdict); rerun with the guard at 7200 s on the host copy only, all three passed the
+     full suite (35, 38 and 26 min). Five real gaps.
+4. Tests added (commit "regression checks for the five mutants"), each run on the unmutated
+   module first (`MOOBFS_ONLY_PASS` for `ext4 minacl`, then for `permmatrix`, which passes on
+   ext4, btrfs and XFS):
+   - M19 (the scan files a directory's own attributes below a failing directory in the
+     partition): domain `ds14` with an attributed `pv/d` (0755) below `pv` (0700), read by the
+     build; 1001's answer must equal the oracle. Killed by `q2-mismatch-s14-build-ext4`.
+   - M16 (a path too deep to evaluate is not marked heterogeneous): a file 68 levels deep given an
+     attribute after a mount-wide `QUERY` built the outside part must raise `heterogeneous` by
+     one. A first version without the mount-wide `QUERY` failed on the unmutated module: a write
+     is recorded only when its part is built, and such a path is placed outside every domain.
+     The mutant changes no answer, only that count. Killed by `s14-deep-not-heterogeneous-ext4`.
+   - M11 (an ACL that cannot be read counts as permissive): in step `minacl`, debugfs writes
+     `x/bad`'s access ACL raw (`ea_set -r`) in ext4's on-disk format with version 2 instead of 1,
+     so `ext4_acl_from_disk()` refuses every read with `EINVAL` (checked: uid 1001's `open` fails
+     with `Invalid argument`); renamed into the built domain through the layer, a write path that
+     passes no error pointer, it must stay out of 1001's answer. A build that meets that ACL
+     fails instead, which the old steps already covered. Killed by `ma-unreadable-acl-answered`.
+   - M22 and M23 (a directory moved during the build below a failing directory, its content and
+     its own attributes): a rename after the build makes the next query build the domain again,
+     so the first test, in `ds14`, did not kill them; `dir_moved_prepare()` serves a move during
+     a build. In step `permmatrix`, `query-build-moved` (now with optional `OLD NEW` paths)
+     moves `a/s` (0755, an attribute, 600 files) to `pv/s` during the first build. Both killed by
+     `pm-mvp-leak-ext4`.
+5. Whole catalogue on the final tree, split in two runs (M01 to M11 on CPUs 2-3, M12 to M23 on
+   6-7, 14:10 to 14:30 BRT): `MUTANTS_RUN killed=11 survived_or_error=0 of 11` and
+   `MUTANTS_RUN killed=12 survived_or_error=0 of 12`. All 23 killed, each by a check of its
+   steps line.
+
+
+*Added 2026-10-30:* `fuzz.yml`'s first scheduled run on GitHub (run 40953229237, started
+2026-10-29 20:55 UTC) passed for its three targets (`attr`, `image`, `tools`), so S7's workflow
+has run (journal 0237 recorded it as not yet run). `static.yml` passed on PR 179 (run
+41093502826) after the two fixes above.
+
 ## Limitations
 
 - The baseline was produced on arm64. The CI run is on amd64, where the clang analyzer or
@@ -173,14 +232,16 @@ offline with empty logs on both machine names.
   few minutes on each CI run. Caching it is a later improvement.
 - Keys use the text of the reported line, so two findings with the same message on identical
   lines of one file count once.
-- No mutant has run in the VM. The `steps` of each mutant are the steps expected to kill it,
-  from reading the suite, not from a run; S14 is not done until a recorded run kills each one.
+- The mutants run on one kernel (Debian 6.12.113) and, for the steps that loop over them, on
+  ext4, btrfs and XFS; a mutant is killed by the first failing check, which is always on ext4.
+  The weekly CI job of S14 is not written.
 - S15 to S18 and S21 are planned only; S16 waits for a decision on the kernel freeze.
 
 ## Next steps
 
 1. Push the branch with its batch and read the first `static.yml` run on GitHub; update the
    baseline from its artifact if amd64 differs, then propose it as a required check.
-2. On the test host (KVM): `python3 scripts/mutants.py run`; record killed and surviving
-   mutants here; write a test for each survivor; then a weekly mutation job in CI.
+2. A weekly mutation job in CI with KVM (`scripts/mutants.py run`, about 40 to 50 minutes for the
+   catalogue on two vCPUs); the VM run, the tests for its survivors and a run killing all 23 are
+   done (2026-10-30).
 3. S15 on the existing `permmatrix` step; S17 as a CI job with KVM; S18 on the test host.

@@ -48,7 +48,12 @@
   `place_dentry_above()`, `index_load()` and the scan's and the rename's `inner_ok`, each with
   the suite steps expected to fail it; `make mutants-check` proves that each applies, builds and
   changes the object code (no equivalent mutant). `python3 scripts/mutants.py run` runs them in
-  the VM; it has not been run yet.
+  the VM. On the dedicated host (2026-10-30) the first run killed 16 of 23; M02 and M21 were
+  killed by a step their steps line left out (completed), and M11, M16, M19, M22 and M23
+  survived even the full default suite. New checks in the `ext4`/`btrfs`/`xfs`, `minacl` and
+  `permmatrix` steps (a directory with attributes below a private directory, read by the build
+  or moved there during it; an ACL the lower cannot read, in a rename; a path deeper than 64
+  levels) kill them, and a run of the whole catalogue killed all 23.
 - `docs/security-roadmap.md` gives S14 to S21 a plan, an effort and a done check each, and
   `CONTRIBUTING.md` the S20 checklist item for changes to the permission rule or the index
   protocol (journal 0242).

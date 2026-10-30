@@ -28,7 +28,7 @@ State on `main` at `7ac52cd`, with the rows of batch 10: S1 (journal 0240), S2 a
 | S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091). The `auto` group ran once on the three lowers on Debian 6.12.113 (journal 0239): 1, 4 and 1 failures of 779, none a layer defect, now in exclusion lists. Open: a repeat of `auto` with those lists, and a make target. |
 | S3 syzkaller | Six six-hour runs, no open report. The sixth (journal 0239), on the hardened KASAN kernel, reports `moobl_xattr_get()` covered, so every handler function is exercised. The handlers are at 84.5 % of their PCs there, below the 85 % threshold (88.7 % in the fifth run, on earlier code and kernel). Open: the aggregate on the current code. |
 | S4 hostile lower | Done for its scope (journal 0073). |
-| S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job. `make static` runs `W=1` (gcc and clang), `sparse`, `smatch`, Coccinelle, the clang analyzer and `kernel-doc` on both modules and the UAPI header, with six findings justified in `tests/static/baseline.txt` and none fixed (journal 0242); `.github/workflows/static.yml` runs it on every push and pull request, and has not yet run on GitHub. |
+| S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job. `make static` runs `W=1` (gcc and clang), `sparse`, `smatch`, Coccinelle, the clang analyzer and `kernel-doc` on both modules and the UAPI header, with six findings justified in `tests/static/baseline.txt` and none fixed (journal 0242); `.github/workflows/static.yml` runs it on every push and pull request; its first GitHub runs, on PR 179 on 2026-10-30, passed after two fixes (journal 0242); not yet a required check. |
 | S6 disclosure and versions | Done: `SECURITY.md` and [compatibility.md](compatibility.md); the KASAN/lockdep job is a required check of `main`. Open: a build-time refusal of an unlisted kernel (`make install` and the DKMS package refuse one, `make layer` does not). |
 | S7 continuous fuzzing | Three libFuzzer targets (attributes, the image parser, the tool parsers) run 30 s each per push, and `.github/workflows/fuzz.yml` runs them 45 min twice a week with a cached corpus (journal 0237); its first scheduled run is pending. Locally: 30–60 min per target, no crash. OSS-Fuzz is not applied for. |
 | S8 runtime hardening | KCSAN over `buildrace` and `release` in CI (journal 0127), with no race in the module; the KASAN kernel adds KFENCE, `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, freelist hardening, `BUG_ON_DATA_CORRUPTION` and `DEBUG_OBJECTS`, and the full suite passed under them (journal 0237); a read-only review found no defect. Open: KMSAN. |
@@ -37,7 +37,7 @@ State on `main` at `7ac52cd`, with the rows of batch 10: S1 (journal 0240), S2 a
 | S11 M3 and M4 surfaces | Nothing recorded yet. |
 | S12 SELinux | One run with SELinux enforcing (journal 0104): F6 and the labels read with the caller's credentials fixed; the rule `fs_use_xattr moobfs_layer` is needed. Open: mmap, attribute writes, rename and link under a policy, MLS/MCS, a distribution booted with SELinux, the per-result check over a lower labelled by SELinux (journal 0215), Smack; AppArmor is outside the item. |
 | S13 tracepoints | Done (journal 0102). |
-| S14 to S21 | Planned item by item below, with effort and done check (journal 0242). S14: 23 mutants of the homogeneity rule apply, build and change the object code (`make mutants-check`); none has run in the VM yet. S19: as S5, not yet run on GitHub. S20: the checklist item is in `CONTRIBUTING.md`; no change has gone through the procedure. S15 to S18 and S21 not started; journal 0172 added bounded tests that do not complete S14 or S15. A stage-2 gate since ADR-0030. |
+| S14 to S21 | Planned item by item below, with effort and done check (journal 0242). S14: 23 mutants of the homogeneity rule apply, build and change the object code (`make mutants-check`); on 2026-10-30 a recorded VM run of the whole catalogue killed all 23, after tests were added for the five that had survived the full suite; the weekly CI job is still to do. S19: as S5, green on GitHub since PR 179. S20: the checklist item is in `CONTRIBUTING.md`; no change has gone through the procedure. S15 to S18 and S21 not started; journal 0172 added bounded tests that do not complete S14 or S15. A stage-2 gate since ADR-0030. |
 | S22 security operations | Documented (journal 0205). Open: the subscriptions, which are the maintainer's action, and the re-read of the access table before each tag. |
 <!-- /current-state -->
 
@@ -278,7 +278,7 @@ and `.github/workflows/static.yml` runs the same command. `sparse`, `smatch`, `W
 `kernel-doc` report nothing on either module; the clang analyzer reports four findings and
 Coccinelle two, all in `layer/index.c`, each read and justified as not a defect in
 `tests/static/baseline.txt`. A canary module with one known defect per checker fails the run
-when a checker stops reporting. Run on arm64 locally; the workflow has not run on GitHub.
+when a checker stops reporting. Run on arm64 locally; on GitHub (amd64) since PR 179, 2026-10-30, after two fixes (journal 0242).
 
 - `checkpatch.pl`, `sparse` (`make C=1`) and `smatch` over `layer/`; `W=1` in the module
   build.
@@ -299,7 +299,7 @@ turning that rule on, and the build-time check of an unlisted kernel.
 
 ### S7. Continuous and larger fuzzing
 
-*Status, 2026-10-29 (journal 0237).* Workflow written, not yet run on GitHub: `fuzz.yml` runs
+*Status, 2026-10-29 (journal 0237); first run 2026-10-29 (journal 0242).* Workflow written; its first run on GitHub (run 40953229237) passed for the three targets: `fuzz.yml` runs
 each libFuzzer target 45 minutes (on demand 1 to 300) twice a week, keeps each corpus in the
 Actions cache from run to run and uploads it with any crash as an artifact; the job summary
 carries the exec count and coverage for the journal. Two targets were added, `image` (the image
@@ -573,12 +573,12 @@ runners) or the test host (KVM).
 
 | Item | Effort | Plan | Done check | Needs | State (2026-10-29) |
 | --- | --- | --- | --- | --- | --- |
-| S14 | M | A catalogue of mutants (`tests/mutation/homogeneity.mut`), each one check of the rule removed or weakened, with the suite steps expected to fail it; `make mutants-check` proves each applies once, builds and changes the object code (an unchanged object is an equivalent mutant, as in trivial compiler equivalence); `scripts/mutants.py run` runs each mutant's steps in the VM from a copy of `HEAD`; then a weekly CI job over the catalogue. | Every mutant killed by a suite marker in a recorded run; a test added for each survivor; the CI job green. | here (check), test host or CI with KVM (run) | 23 mutants pass `make mutants-check`; `run` has not been executed. |
+| S14 | M | A catalogue of mutants (`tests/mutation/homogeneity.mut`), each one check of the rule removed or weakened, with the suite steps expected to fail it; `make mutants-check` proves each applies once, builds and changes the object code (an unchanged object is an equivalent mutant, as in trivial compiler equivalence); `scripts/mutants.py run` runs each mutant's steps in the VM from a copy of `HEAD`; then a weekly CI job over the catalogue. | Every mutant killed by a suite marker in a recorded run; a test added for each survivor; the CI job green. | here (check), test host or CI with KVM (run) | 23 mutants pass `make mutants-check`; `run` killed all 23 on the test host on 2026-10-30 (journal 0242), after tests for five survivors; the CI job remains. |
 | S15 | M | Extend `tests/permmatrix.c` (seeded random trees and identities, journal 0172) with seeded sequences of chmod, chown, setfacl, rename, link and unlink between `QUERY2` calls, with and without `scan_delay_us`, comparing each answer with `open(2)` and `getxattr(2)` as that uid. | A suite step with a fixed seed set; a longer run in the nightly job of S18. | VM | Not started; `permmatrix` covers static trees only. |
 | S16 | M | A test-only module parameter that, after each update hook and build, re-reads the touched files from the lower and warns on a difference. A kernel change: it waits for a decision on ADR-0022's freeze. | The suite runs with it on and stays silent; a mutant of S14 makes it warn. | VM, a maintainer decision | Not started (frozen kernel). |
 | S17 | M | A gcov build of the upstream test kernel (`CONFIG_GCOV_KERNEL`) and of the layer (`GCOV_PROFILE` set only by that job), the suite in virtme-ng, `lcov` branch report of `layer/` as an artifact. | The report is produced in CI and linked from the batch's journal. | CI with KVM | Not started. |
 | S18 | S, then a week of calendar time | `vm/syzkaller-local.sh` each night on the test host with the descriptions and seeds of S3, the report kept. | Seven nightly reports recorded. | test host | Not started. |
-| S19 | M | `make static` and `.github/workflows/static.yml` (see S5). | Runs on every pull request with no finding outside the justified baseline. | here, CI | Implemented and run locally (arm64); first GitHub run pending. |
+| S19 | M | `make static` and `.github/workflows/static.yml` (see S5). | Runs on every pull request with no finding outside the justified baseline. | here, CI | Implemented; run locally (arm64) and on GitHub (amd64) since PR 179. |
 | S20 | S, then one change | The checklist item in `CONTRIBUTING.md`; for the next change of the rule or the protocol, a second model writes the test from `docs/spec-query-v2.md` without the diff. | The checklist is in place and one change went through the procedure, recorded in its journal. | here | Checklist added; no change has gone through it (kernel frozen). |
 | S21 | L | A TLA+ model of `index_load()`'s registration and retry against the update hooks, checked with TLC for every interleaving of a bounded configuration, TLC pinned and run in CI. | TLC finds no violation, and finds one when the retry is removed from the model (its negative control). | here, CI | Not started; after S14 to S16. |
 

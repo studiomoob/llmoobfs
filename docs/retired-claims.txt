@@ -308,3 +308,16 @@ estão pendentes, então o G2 segue aberto
 journal 0243, VM runs pending
 journal 0243, not run yet
 journal 0243; not run yet
+# Journal 0242, 2026-10-30: the mutants ran in the VM.
+none has run in the VM yet
+`run` has not been executed
+no mutant has run in the VM
+
+# Journal 0242, 2026-10-30: static.yml and fuzz.yml have run on GitHub.
+has not yet run on GitHub
+not yet run on GitHub
+first GitHub run pending
+the workflow has not run on GitHub
+
+# Journal 0242, 2026-10-30: fuzz.yml's first scheduled run passed.
+first scheduled run pending

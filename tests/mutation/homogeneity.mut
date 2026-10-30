@@ -11,9 +11,10 @@
 # ("+ " followed by the text). The "-" lines must occur exactly once in the file named by
 # "file:" (default layer/index.c), and a mutant keeps the number of lines, so that __LINE__ and
 # the line table do not change and only the check differs in the object.
-# The "steps" lines are the steps expected to fail each mutant; they are checked only by a VM
-# run of `scripts/mutants.py run` (journal 0242: first run 2026-10-30; M02 and M21 were
-# killed only by a step their first steps line left out, ext4 and permmatrix).
+# The "steps" lines are the steps that fail each mutant, checked by a VM run of
+# `scripts/mutants.py run` (journal 0242: on 2026-10-30 the first run killed 16 of 23; the steps
+# lines of M02 and M21 were completed, tests were added for M11, M16, M19, M22 and M23, and a
+# run of the whole catalogue then killed all 23).
 
 @ M01 reach_ok: an extended ACL on the inode no longer stops the shortcut for 0777-like bits
 steps: permmatrix minacl
