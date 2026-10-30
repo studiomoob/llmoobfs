@@ -20,7 +20,7 @@ exploit, as the XFS and ext4 maintainers treat it.
 ## Where each item stands (2026-10-30)
 
 <!-- current-state -->
-State on `main` at `7ac52cd`, with the rows of batch 10: S2 and S3 (journal 0239), S5 and S14 to S21 (journal 0242); summarised from the dated notes of each item below.
+State on `main` at `7ac52cd`, with the rows of batch 10: S1 (journal 0240), S2 and S3 (journal 0239), S5 and S14 to S21 (journal 0242), S9 (journal 0243); summarised from the dated notes of each item below.
 
 | Item | State |
 | --- | --- |
