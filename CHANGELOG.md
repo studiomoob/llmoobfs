@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Roadmap: a planned applicability track for corporate directory identities, D1 to D3 (journal
+  0244; planned, nothing run).
 - Repository settings (journal 0240; no code change): releases are immutable, commits made in
   the GitHub web interface must be signed off, and the `main` ruleset blocks a merge that adds a
   CodeQL alert of high or critical security severity or of error severity.

@@ -284,6 +284,21 @@ this path. C5 builds on G1's adapter package and is scheduled with that front.
 | **C6 — DKMS, packages and signing, prepared** | P2 / L, done 2026-10-29 in a VM, not published: `moobfs-dkms` and `moobfs-tools`, signed by the host's own DKMS key, `make package-test` under Secure Boot ([0229](docs/history/0229-dkms-and-debian-packages.md), [ADR-0028](docs/decisions/0028-dkms-and-debian-packages.md)) | `dkms.conf` that refuses kernels outside the matrix, `moobfs-dkms` and `moobfs-tools` `.deb` packages, MOK signing for Secure Boot, as proposed in distribution strategy §6. Built and tested in VMs only. Publishing stays behind stage 2 and the "Public release" row below. | Stage 2 acceptance 1, 2 and 4 of distribution strategy §8 in a VM: install on clean Debian, upgrade and roll back with `moobfs-check` and `QUERY2` equal to the oracle, kernel outside the matrix refused, signed module loads under lockdown and unsigned one is refused. |
 | **C7 — Agent adapter (optional)** | P2 / M, after C5; done 2026-10-27: `moobfs.mcp`, an MCP server over stdio as the agent's uid ([0208](docs/history/0208-mcp-agent-adapter.md), [ADR-0024](docs/decisions/0024-mcp-agent-adapter.md)) | One adapter that exposes the library to agents through a standard protocol (for example a Model Context Protocol server), as an adapter outside `layer/`, client-neutral. Chosen only if C5 is done and a second client is wanted. | Its answers equal the library's; it runs under the agent's own uid and cannot act with another identity (the confused-deputy risk of distribution strategy §2.5); the two-user isolation test passes through it. |
 
+## Applicability: corporate directory identities — planned, after the current batch
+
+Added on 2026-10-30 ([journal 0244](docs/history/0244-directory-identities-roadmap.md)). A query
+over the layer answers with the caller's own credentials, so on a host that resolves users and
+groups from a directory service (SSSD with Active Directory or FreeIPA, LDAP), results follow the
+directory's users and groups without a copy of permissions in an index. These items check that
+claim and its limits; they change no code in `layer/`, no UAPI and no format (ADR-0022), stay
+client-neutral, and each needs the maintainer's go-ahead. They start after the current batch.
+
+| Item | Priority / effort | Scope and dependencies | Validation required before completion |
+| --- | --- | --- | --- |
+| **D1 — Directory-service identities** | P2 / M | A dedicated VM joined to a directory (FreeIPA or Samba AD in a second VM) through SSSD; domain users and groups own trees on a local lower; queries by those users. Group membership changes take effect at the user's next login, as everywhere in Linux; the test states it. | Answers equal the oracle for each domain user; a user removed from a group stops receiving that group's files after a new login and still receives them in the old session (documented, not hidden); no result reaches a user who cannot open the file. |
+| **D2 — Network lower filesystems** | P2 / M, investigation | NFS and SMB (`cifs`) as the lower. [compatibility](docs/compatibility.md) item 4 already records that the NFS client leaves `i_generation` 0, so a reused inode number is not detected over it; SMB is unmeasured. The outcome may be a refusal or a documented limit, not support. | The VM suite's relevant steps run over each lower, or the lower is refused at mount with a clear message; the `i_generation` behaviour of `cifs` is measured; every result is recorded in compatibility, positive or negative. |
+| **D3 — Positioning page** | P3 / S, after D1 (and D2's outcome) | One page in both languages: queries that follow Linux permissions and directory-service groups without replicating ACLs, with D1's evidence and D2's limits, no claim about timing or count leaks. | Every sentence points to a journal; the public-surfaces walk and `check-retired-claims.sh` pass. |
+
 ## Depends on validation
 
 These are deliberately **not** scheduled: each is conditioned on M4 results or
