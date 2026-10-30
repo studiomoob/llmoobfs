@@ -121,8 +121,16 @@ cache, while other guests (an unrelated fstests run, the mutation runs of journa
 wrote the same disk. Before this change a refused build was refused again at
 every retry; now the retry, with the lower's blocks already in the guest's page cache, completes.
 The first build of `ns3` on that device needs more than 120 s of elapsed time, so the backstop,
-not the CPU bound, refuses it. Whether 120 s is the right backstop for such a disk is a question
-for ADR-0031's review; it was not rerun with the host idle.
+not the CPU bound, refuses it. Measured: the refused builds ran 120,056 ms and 120,107 ms (the
+backstop, so the time a full cold build needs on that disk is unknown, only above 120 s); the
+retry after each completed in 89,631 ms and 57,895 ms, with part of the lower already cached.
+
+In plain terms: ADR-0031 fixes the case of a build that is CPU-bound and the case of a moderately
+slow disk (`BUILD_TIME_PASS`: a build that spends 12 s asleep now completes; journal 0210's
+`dm-delay` case was not rerun), but not a disk as slow as this one under this load, where
+a cold build of a 7,459-file domain still exceeds the 120 s backstop and only the retry succeeds.
+The backstop value is unchanged; whether 120 s is right for such a disk is a question for
+ADR-0031's review. The bench was not rerun with the host idle.
 
 Item 5, the full `make vm-test` and the full KASAN/lockdep suite, stays for the batch, before
 its pull request.
