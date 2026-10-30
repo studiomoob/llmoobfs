@@ -288,3 +288,6 @@ ten-second cooperative deadline
 cooperative ten-second deadline
 o build para no prazo
 a construção para no prazo
+Not yet run in a VM for ADR-0031
+its VM run is pending
+the VM step, its negative round and KASAN/lockdep are pending

@@ -1,9 +1,9 @@
 # 0241 — The domain-build deadline counts the builder's CPU time (ADR-0031, proposed)
 
 Date: 2026-10-29. Status: **implemented on branch `claudiofp/b11-deadline`; VM step, negative round
-and KASAN/lockdep run pending**. ADR-0031 is proposed and waits for the maintainer. Work started:
-about 2026-10-29 23:05 UTC; ended about 23:50 UTC. Wall-clock time, not an engineering-effort
-measurement. Estimated effort: M (ADR-0031); actual so far: S (the code, documents and local
+and KASAN/lockdep run passed on 2026-10-30**. ADR-0031 is proposed and waits for the maintainer.
+Work started: about 2026-10-29 23:05 UTC; ended about 23:50 UTC; VM rounds 2026-10-30 11:16 to
+12:05 UTC. Wall-clock time, not an engineering-effort measurement. Estimated effort: M (ADR-0031); actual so far: S (the code, documents and local
 checks), the VM rounds not counted.
 
 ## Goal
@@ -87,9 +87,9 @@ the deadline) and journal 0235 (S9's limits list it) were read for what depends 
 - The module was **not compiled** here (no Linux kernel headers on macOS); the first build is
   the VM round.
 
-## Pending (not run; must not be read as passed)
+## Dedicated-VM rounds (2026-10-30)
 
-All on a dedicated VM, which was busy with a long syzkaller/fstests run during this session:
+Planned on 2026-10-29 (the VM was busy then):
 
 1. `MOOB_ONLY=buildtime make vm-test` on the Debian 6.12 kernel (the step is opt-in; it waits
    about two and a half minutes).
@@ -99,6 +99,33 @@ All on a dedicated VM, which was busy with a long syzkaller/fstests run during t
 4. Optionally journal 0238's case: `MOOB_TEST=bench MOOB_BENCH_CACHE=direct make bench-test`;
    the first `QUERY2` of `ns3` should now complete.
 5. Before the batch's pull request, the full `make vm-test` and the full KASAN/lockdep suite.
+
+Results. Host: the dedicated test host (x86-64, Debian 13, KVM), a copy of this branch's tree
+with a local snapshot commit (no `.git` is copied; `make checkpatch` needs `git ls-files`). One
+working-copy change on the host only, not committed: `vm/run.sh` and `vm/install-test/run.sh`
+pass `--cpuset-cpus=$MOOB_CPUSET` to `docker run`, so that each guest stayed on host CPUs that
+no other run of this session used (6 and 7 for every run below; an unrelated run held CPUs 4 and
+5).
+
+| Run | Command | Result |
+| --- | --- | --- |
+| First compile | `make -C /lib/modules/6.12.113+deb13-amd64/build M=$PWD W=1 modules` in a copy of `layer/` (built only, never loaded on the host) | no warning |
+| checkpatch | `make checkpatch` | exit 0, no warning |
+| 1. VM step | `MOOB_VM_KVM=1 MOOB_DEBIAN_KERNEL=6.12.113 MOOB_ONLY=buildtime make vm-test` | exit 0 (4 min 19 s with the build); `BUILD_TIME_PASS: 12 s asleep built; 12 s on the CPU and 126 s asleep timed out with no results; the next query rebuilt`, `MOOBFS_ONLY_PASS` |
+| 2. Negative | the same, with `layer/`, `include/` and `kernel/` of `main` (fac2d4b) and this branch's `vm/suite.sh` | exit 2; `MOOBFS_VM_FAIL: bt-sleep-refused` |
+| 3. KASAN/UBSAN/lockdep | `MOOB_ONLY="buildtime buildlimit buildwork buildmoved" sh vm/kasan-local.sh` (upstream 6.12.112 with `vm/kasan.config`, cached build) | exit 0 (8 min); `BUILD_TIME_PASS`, `QUERY_BUILD_LIMIT_PASS` (errno 0 and 110 cases), `BUILD_WORK_OPTION_PASS`, `QUERY_BUILD_MOVED_PASS`, `BUILD_MOVED_PASS`, `MOOBFS_KASAN_ONLY_PASS: ... with no kernel diagnostics` |
+| 4. Journal 0238's case | `MOOB_TEST=bench MOOB_BENCH_CACHE=direct make bench-test` (KVM in the container) | **failed**, exit 2, `MOOBFS_BENCH_FAIL: bench/ondemand.sh` (29 min): W1 loaded 60,000 memories in 563 s; the cold first `QUERY2` of `ns3` was refused with `ETIMEDOUT` after 120,056 ms and 120,107 ms (two rounds), now at the elapsed backstop instead of at 10 s; the query right after it completed in 89,631 ms and 57,895 ms; warm, 138 ms and 144 ms with 3,030 results and 7,459 inodes; the mount-wide `QUERY` was refused with `ETIMEDOUT` after about 120 s, cold and warm |
+Item 4 is not a regression of this change: the lower image sits on the host's rotating disk
+(`lsblk` reports it rotational, a 2.5-inch 7,200 rpm drive), opened `O_DIRECT` with no host
+cache, while other guests (an unrelated fstests run, the mutation runs of journal 0242) read and
+wrote the same disk. Before this change a refused build was refused again at
+every retry; now the retry, with the lower's blocks already in the guest's page cache, completes.
+The first build of `ns3` on that device needs more than 120 s of elapsed time, so the backstop,
+not the CPU bound, refuses it. Whether 120 s is the right backstop for such a disk is a question
+for ADR-0031's review; it was not rerun with the host idle.
+
+Item 5, the full `make vm-test` and the full KASAN/lockdep suite, stays for the batch, before
+its pull request.
 
 ## Limitations
 
@@ -115,5 +142,5 @@ All on a dedicated VM, which was busy with a long syzkaller/fstests run during t
 
 ## Next steps
 
-Run the pending VM steps on the Mac mini when it is free; record the results here; ask the
-maintainer to accept or reject ADR-0031; then this branch joins the next batch.
+Ask the maintainer to accept or reject ADR-0031; then this branch joins the next batch, whose full
+`make vm-test` and full KASAN/lockdep suite run before publication.

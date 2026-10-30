@@ -51,7 +51,8 @@ unmount) is fixed in the same batch.
 *Update, 2026-10-29 ([journal 0241](history/0241-build-deadline-cpu-time.md)):* that deadline
 counted elapsed time, so a slow lower alone could refuse a build that fits `index_build_work`
 (also journal 0238). ADR-0031 (proposed) counts the builder's CPU time against the ten seconds,
-with a 120 s elapsed backstop; its VM run is pending.
+with a 120 s elapsed backstop; its VM step, negative round and KASAN/lockdep run passed on
+2026-10-30, and the ADR waits for the maintainer.
 *Update, 2026-10-28 ([journal 0219](history/0219-security-batch-checks.md)):* a second security
 batch fixes three private reports from an external reviewer, each with a test and a negative
 round: `QUERY2` naming files under a search-only directory (F15 of ADR-0011,

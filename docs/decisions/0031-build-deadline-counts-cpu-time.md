@@ -1,8 +1,10 @@
 # ADR-0031 — The domain-build deadline counts the builder's CPU time; a 120 s elapsed backstop stays
 
 Date: 2026-10-29. Status: **proposed** (journal 0241), implemented on branch
-`claudiofp/b11-deadline`; the dedicated-VM step, its negative round and the KASAN/lockdep run are
-pending. Amends ADR-0019 only in what its ten-second deadline measures; its admission, cumulative
+`claudiofp/b11-deadline`; *update, 2026-10-30:* the dedicated-VM step, its negative round and the
+KASAN/lockdep run passed (journal 0241); journal 0238's case, on the host's rotating disk with
+other guests running, reached the 120 s backstop on the cold first build, and the query after it
+completed. Amends ADR-0019 only in what its ten-second deadline measures; its admission, cumulative
 work accounting, errnos and output-on-error contract stay. ADR-0020's `index_build_work` option is
 unchanged. A fix under ADR-0022: no new mount option, module parameter for users, ioctl structure
 or format change. Estimated effort: M (one to three days), of which the code is S (hours) and the

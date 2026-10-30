@@ -28,7 +28,11 @@
   refused before can now succeed. Test-only `scan_spin_us` module parameter; the opt-in
   `buildtime` step checks a 12 s sleeping build completes, a 12 s spinning build and a 126 s
   sleeping build are refused. `make checkpatch`, `make lint` and the retired-claims check ran
-  locally; the VM step, its negative round and KASAN/lockdep are pending.
+  locally. On the dedicated host (2026-10-30, journal 0241): `MOOB_ONLY=buildtime make vm-test`
+  passed (`BUILD_TIME_PASS`), main's module failed it at `bt-sleep-refused`, and `buildtime`,
+  `buildlimit`, `buildwork` and `buildmoved` passed under KASAN/UBSAN/lockdep. Journal 0238's
+  case (`O_DIRECT` lower on the host's rotating disk, other guests running) still refused the
+  cold first `QUERY2` of `ns3`, now at the 120 s backstop; the query after it completed.
 - `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
   They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
   another writer of the tree who swapped a directory for a symbolic link while root ran them

@@ -124,7 +124,8 @@ fail with `ETIMEDOUT` and untouched outputs, and a build that sleeps 126 s
 must fail the same way at the 120 s elapsed backstop; after each, the next
 query builds a complete domain. Its success marker is `BUILD_TIME_PASS`; it
 is not in the default suite because it deliberately waits about two and a
-half minutes. Not yet run in a VM for ADR-0031 (journal 0241).
+half minutes. Passed in a dedicated VM and under KASAN/UBSAN/lockdep for ADR-0031, and failed
+with main's module at `bt-sleep-refused` (journal 0241).
 `MOOB_ONLY=buildmoved` is a third opt-in regression. Function tracing waits
 until a first domain build enters the file scan, then renames the scanned
 subdirectory inside the same domain. The original and moved scans each fit
