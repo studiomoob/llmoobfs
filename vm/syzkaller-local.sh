@@ -116,7 +116,8 @@ EOF
     wait
     {
         echo "duration_s=$DUR"
-        grep -o 'corpus: [0-9]*\|coverage: [0-9]*\|exec total: [0-9]*\|crashes: [0-9]*' "$B/manager.log" | tail -4
+        # the manager's periodic line, "corpus=N coverage=N exec total=N" in the pinned revision
+        grep -o 'corpus=[0-9]* coverage=[0-9]* exec total=[0-9]*' "$B/manager.log" | tail -1
         find "$B/workdir/crashes" -mindepth 1 -maxdepth 1 2> /dev/null | wc -l | sed 's/^/crash_dirs=/'
         for d in "$B"/workdir/crashes/*/; do [ -f "$d/description" ] && sed 's/^/crash: /' "$d/description"; done
         [ -s "$B/funccover.csv" ] && grep -c 'layer/' "$B/funccover.csv" | sed 's/^/layer_functions_listed=/' 
