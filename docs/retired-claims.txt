@@ -299,3 +299,12 @@ sparse and `W=1` in CI |
 # Journal 0243: G2's diagnostics and deployment recipe are written (their VM runs pending).
 G2 stays open for its user-visible diagnostics and deployment recipe
 open for the user-visible diagnostics and the deployment recipe, which has to set
+# Journal 0243, 2026-10-30: G2's VM runs passed.
+its VM runs pending
+rodadas em VM pendentes
+these runs are still pending
+are pending, so G2 stays open
+estão pendentes, então o G2 segue aberto
+journal 0243, VM runs pending
+journal 0243, not run yet
+journal 0243; not run yet

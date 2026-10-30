@@ -1,9 +1,11 @@
-# 0243 — G2: user-visible diagnostics and the deployment recipe (in progress: VM runs pending)
+# 0243 — G2: user-visible diagnostics and the deployment recipe (VM runs passed)
 
-Date: 2026-10-29. Status: **in progress**. Implemented on branch `claudiofp/b11-g2` (from `main`
-at fac2d4b), local commits, not pushed; offline tests passed; the dedicated-VM runs that G2's
-acceptance needs are written and **not run** (the test host was busy). Work started 23:09 UTC;
-offline part ended about 23:35 UTC (wall-clock time, not an engineering-effort measurement).
+Date: 2026-10-29. Status: **implemented; dedicated-VM runs passed on 2026-10-30**. Implemented on
+branch `claudiofp/b11-g2` (from `main` at fac2d4b), local commits, not pushed; offline tests
+passed; the dedicated-VM runs that G2's acceptance needs and their negative rounds ran on
+2026-10-30 (section "Dedicated-VM runs"). G2 closes when the maintainer accepts them. Work
+started 23:09 UTC; offline part ended about 23:35 UTC; VM runs 2026-10-30 11:18 to 11:41 UTC
+(wall-clock time, not an engineering-effort measurement).
 Estimated effort: M (one to three days) for the item's remainder, including the VM runs;
 actual so far: S (hours), the VM runs and their fixes not counted.
 
@@ -110,9 +112,9 @@ about the caller (cgroup v2 files, rlimits).
   (`diag_hit(&a, &b) == 1`, line 140), and reading `memory.events` instead of
   `memory.events.local` fails it (lines 132, 133).
 
-## Pending: dedicated-VM runs (not run)
+## Dedicated-VM runs (2026-10-30)
 
-G2's acceptance asks for a dedicated VM. To run on the dedicated host, from this branch:
+G2's acceptance asks for a dedicated VM. The commands as planned on 2026-10-29:
 
 ```sh
 MOOB_ONLY="limits diag" make vm-test          # expect LIMITS_*_PASS, DIAG_BUDGET_PASS, DIAG_MEMCG_PASS, MOOBFS_ONLY_PASS
@@ -125,10 +127,27 @@ make `diag_hit()` in `tools/diag.h` return -1, then `MOOB_ONLY=diag make vm-test
 of the drop-in from `guest.sh` must stop at "the drop-in did not set MemoryMax on alice's
 slice". Once per batch, before publication, the full `make vm-test` (step `diag` is in it).
 
+Results. Host: the dedicated test host (x86-64, Debian 13, KVM), a copy of this branch's tree
+(no `.git` is copied, so a local snapshot commit gives `git rev-parse` and `git ls-files` what
+they need). Two working-copy changes on the host only, not committed: `vm/run.sh` and
+`vm/install-test/run.sh` pass `--cpuset-cpus=$MOOB_CPUSET` to `docker run`, so that the guests
+stayed on host CPUs 2 and 3 while another run used CPUs 4 and 5. The base cloud image of
+2026-10-21 was copied from an earlier run's cache instead of downloaded.
+
+| Run | Command | Result |
+| --- | --- | --- |
+| Suite steps | `MOOB_VM_KVM=1 MOOB_DEBIAN_KERNEL=6.12.113 MOOB_ONLY="limits diag" make vm-test` | exit 0 (2 min); `LIMITS_BUDGET_PASS`, `LIMITS_MEMCG_PASS`, `DIAG_BUDGET_PASS`, `DIAG_MEMCG_PASS` ("ENOMEM of a build in /moob-dg/leaf named the 4 MiB memory.max of /moob-dg; diagnose named the same limit, reached; built outside, equal to the oracle"), `MOOBFS_ONLY_PASS` |
+| Install recipe | `make install-test` (KVM in the container) | exit 0 (9 min); `MEMORY_LIMIT: user-.slice.d drop-in sets MemoryMax=2G on each user's slice; moobfs diagnose reads it there`, `MOOBFS_INSTALL_PASS` |
+| Negative, step `diag` | as above with `diag_hit()` returning -1 first, `MOOB_ONLY=diag` | exit 2; `DIAG_BUDGET_PASS`, then `MOOBFS_VM_FAIL: dg-memcg-not-named` |
+| Negative, `MEMORY_LIMIT` | `make install-test` with the `printf ... \| tee` line of the drop-in removed from `guest.sh` | exit 2; `MOOBFS_INSTALL_FAIL: the drop-in did not set MemoryMax on alice's slice` |
+
+`DIAG_MEMCG_SKIPPED` did not appear: the memory controller was available in the guest. The full
+`make vm-test` (step `diag` is in it) remains for the batch, before publication.
+
 ## Limitations
 
-- Nothing of the above ran against the module; the messages, roles and JSON of `diagnose` on a
-  mounted layer are checked only by the pending step `diag`.
+- The messages, roles and JSON of `diagnose` on a mounted layer are checked by the step `diag`
+  and by `MEMORY_LIMIT` on one kernel (Debian 6.12.113); other kernels were not run.
 - The `ENOMEM` attribution is a before/after comparison of counters shared by every process of a
   cgroup; a concurrent process at the same limit gives a false "memory cgroup" answer. The
   share of ADR-0027 is not visible to a user (the counters are root's), so the budget message
@@ -145,5 +164,5 @@ slice". Once per batch, before publication, the full `make vm-test` (step `diag`
 
 ## Next step
 
-Run the two VM commands and the negative round above on the dedicated host and record the
-markers here; then the maintainer decides whether G2 closes.
+The maintainer decides whether G2 closes; the batch's full `make vm-test` runs before
+publication.

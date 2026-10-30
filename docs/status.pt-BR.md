@@ -121,5 +121,5 @@ limite do cgroup de memória acima do processo e quantas vezes foi atingido, des
 parâmetros de módulo só de teste e, para o root, os contadores e os tracepoints), `moobfs query`
 diz se um `ENOMEM` veio do orçamento do índice ou do `memory.max` de um cgroup de memória, e
 `docs/operations.md` §5 define `MemoryMax=` para toda fatia de usuário com um drop-in do systemd.
-Testados em unidade fora da VM; as rodadas em VM (passo `diag` da suíte, `make install-test`)
-estão pendentes, então o G2 segue aberto.
+Testados em unidade fora da VM; as rodadas em VM (passo `diag` da suíte, `make install-test`) e
+suas rodadas negativas passaram em 30/10/2026; o G2 fecha quando o mantenedor as aceitar.

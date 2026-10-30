@@ -66,7 +66,9 @@
   OOM-kill rows and the tracepoints (`err=` of `moobfs_domain_build`). Tests: `tests/diag_test.c`
   in `make test` (portable; two negative variants fail it), `moobfs diagnose` usage and no-layer
   exit in `tests/tools-json.sh`, new VM suite step `diag` and a `MEMORY_LIMIT` check in
-  `make install-test`; the VM runs are pending, so G2 stays open.
+  `make install-test`. On the dedicated host (2026-10-30): `MOOB_ONLY="limits diag" make vm-test`
+  and `make install-test` passed, and both negative rounds failed where expected; G2 waits for
+  the maintainer.
 - `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
   They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
   another writer of the tree who swapped a directory for a symbolic link while root ran them

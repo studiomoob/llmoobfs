@@ -282,8 +282,8 @@ the memory cgroup ... did not reach its limit`.
 
 Over the limit a query fails with `ENOMEM` and other users keep their answers (suite step
 `limits`, journal 0235); the messages are checked in suite step `diag`, and the drop-in and
-`moobfs diagnose` under it in `make install-test` (journal 0243; see that journal for which of
-these runs are still pending).
+`moobfs diagnose` under it in `make install-test` (journal 0243; both passed in a
+dedicated VM on 2026-10-30).
 
 A directory shared by a group is `root:<group>` with mode `2770` and a default ACL; the recipe is
 in [distribution-strategy.md](distribution-strategy.md) §2.2. Containers: §2.5 of the same
