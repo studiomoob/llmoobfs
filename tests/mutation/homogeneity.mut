@@ -66,7 +66,7 @@ steps: ext4
 + 	if (S_ISREG(in->i_mode) && in->i_nlink > 1 && 0)
 
 @ M11 ext_acl: an ACL that could not be read counts as permissive
-steps: xattrread
+steps: xattrread minacl
 - 		return true;	/* unknown: treat as restrictive */
 + 		return false;	/* unknown: treat as restrictive */
 
@@ -106,7 +106,7 @@ steps: permmatrix permgaps
 + 		nd->inner_ok = 1 ||
 
 @ M19 scan: the attributes of a directory under a failing one go to the partition
-steps: permmatrix
+steps: permmatrix ext4
 - 		nd->self.hetero = !cur->inner_ok;	/* the directory itself: index_load() */
 + 		nd->self.hetero = false;	/* the directory itself: index_load() */
 
@@ -123,11 +123,11 @@ steps: permmatrix permgaps ext4
 + 						 MOOBL_REACH_DIR, NULL));
 
 @ M22 rename: a directory moved to a place whose directories fail is taken as passing
-steps: permgaps
+steps: permmatrix permgaps
 - 		md->inner_ok = above && reach_ok(moobl_lower_inode(d_inode(moved)), dom,
 + 		md->inner_ok = reach_ok(moobl_lower_inode(d_inode(moved)), dom,
 
 @ M23 rename: a directory moved under a failing one keeps its own attributes in the partition
-steps: permgaps
+steps: permmatrix permgaps
 - 			md->self.hetero = !above;
 + 			md->self.hetero = false;

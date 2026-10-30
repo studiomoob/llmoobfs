@@ -520,7 +520,40 @@ run_lower() {
     "$BIN/query" --uid 1001 "$LAYER/dshared" q2 kind eq string note > /tmp/k.txt || fail "t4-query-$fs"
     grep -q 'priv/' /tmp/k.txt && { cat /tmp/k.txt; fail "t4-private-directory-leaks-$fs"; }
     mv "$LAYER/dshared/priv/r.md" "$LAYER/dshared/m1.md" && rm -rf "$LAYER/dshared/priv" "$LAYER/dacl" || fail "t4-clean-$fs"
-    echo "HOMOGENEITY_GAPS_PASS: $fs, ACL on the domain directory (T3), writes under a private directory (T4)"
+    # S14 (journal 0242): directories that carry attributes below a private directory, which the
+    # first mutation run found untested (mutant M19; M22 and M23, a move during the build, are in
+    # step permmatrix). Domain ds14 (0755, root's) holds
+    # a private directory pv (0700): 1001 traverses the domain but not pv. Read by the build:
+    # pv/d (0755, with an attribute) must stay out of 1001's answers. Moved in by a rename after
+    # the build: s/m (0755, with an attribute, and its file m/f.md 0644 with one) to pv/m; m and
+    # f.md must stay out too. ok.md is the control that 1001 must receive.
+    mkdir -m 0755 "$LAYER/ds14" "$LAYER/ds14/s" "$LAYER/ds14/s/m" && mkdir -m 0700 "$LAYER/ds14/pv" &&
+        mkdir -m 0755 "$LAYER/ds14/pv/d" || fail "s14-mkdir-$fs"
+    echo ok > "$LAYER/ds14/ok.md" && echo f > "$LAYER/ds14/s/m/f.md" &&
+        chmod 0644 "$LAYER/ds14/ok.md" "$LAYER/ds14/s/m/f.md" || fail "s14-files-$fs"
+    for p in ok.md pv/d s/m s/m/f.md; do
+        "$BIN/moobfs-attr" set "$LAYER/ds14/$p" kind string note >/dev/null || fail "s14-attr-$fs"
+    done
+    # a remount, so that the build reads pv/d (as for T3)
+    umount "$LAYER" && mount -t moobfs_layer -o lower="$LOWER" none "$LAYER" || fail "s14-remount-$fs"
+    q2cmp 1001 ds14 3 s14-build
+    grep -q 'pv/' /tmp/k.txt && { cat /tmp/k.txt; fail "s14-dir-under-private-leaks-$fs"; }
+    mv "$LAYER/ds14/s/m" "$LAYER/ds14/pv/m" || fail "s14-rename-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || fail "s14-fallback-$fs"
+    q2cmp 1001 ds14 1 s14-moved
+    grep -q 'pv/' /tmp/k.txt && { cat /tmp/k.txt; fail "s14-moved-dir-under-private-leaks-$fs"; }
+    # mutant M16: a file deeper than the 64 levels the layer evaluates, given an attribute, is
+    # placed outside every domain and counted heterogeneous. Its write is recorded only when the
+    # outside part is built, which a mount-wide QUERY does.
+    deep=$LAYER/ds14; i=0
+    while [ $i -lt 66 ]; do deep=$deep/z; i=$((i + 1)); done
+    "$BIN/query" "$LAYER" kind eq string note > /dev/null || fail "s14-deep-mount-query-$fs"
+    h0=$(hetero)
+    mkdir -p "$deep" && echo z > "$deep/f.md" || fail "s14-deep-mkdir-$fs"
+    "$BIN/moobfs-attr" set "$deep/f.md" kind string note >/dev/null || fail "s14-deep-attr-$fs"
+    [ "$(hetero)" -eq $((h0 + 1)) ] || fail "s14-deep-not-heterogeneous-$fs"
+    rm -rf "$LAYER/ds14" || fail "s14-clean-$fs"
+    echo "HOMOGENEITY_GAPS_PASS: $fs, ACL on the domain directory (T3), writes under a private directory (T4), directories below a private directory by build and rename, a path too deep (S14)"
     # QUERY2 ordering and cursor (phase Q2b, spec test 7): 30 files in domain da with a time
     # attribute (ties included), two of them with an int64 under the same name, and string
     # titles, ten of them longer than the cursor's inline space
@@ -1591,6 +1624,22 @@ for fs in ext4 btrfs xfs; do
     grep -q 't/' /tmp/pm-mv.txt && fail "pm-mv-leak-$fs (a directory moved during the build answered)"
     [ "$(pm_hetero)" -ge 600 ] || fail "pm-mv-not-heterogeneous-$fs"
     umount "$LAYER" || fail "pm-mv-umount-$fs"
+    # S14 (journal 0242, mutants M22 and M23): a directory that passes the rule (a/s, 0755, with
+    # an attribute of its own and 600 files) moved during the build, at the same depth, below a
+    # private directory (pv, 0700): neither s nor its files may reach 1001's answer
+    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" "$LOWER/pmx/d/a" "$LOWER/pmx/d/a/s" &&
+        mkdir -m 700 "$LOWER/pmx/d/pv" || fail "pm-mvp-mkdir-$fs"
+    "$BIN/query-build-limit" plant6 "$LOWER/pmx/d/a/s" 600 || fail "pm-mvp-plant-$fs"
+    "$BIN/moobfs-attr" set "$LOWER/pmx/d/a/s" kind string dir > /dev/null || fail "pm-mvp-attr-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mvp-mount-$fs"
+    echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mvp-delay-on-$fs"
+    "$BIN/query-build-moved" "$LAYER/d" any a/s pv/s; pm_rc=$?
+    echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mvp-delay-off-$fs"
+    [ "$pm_rc" -eq 0 ] || fail "pm-mvp-no-move-during-build-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-mvp-fallback-$fs (the partition was not what answered)"; }
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-mvp.txt || fail "pm-mvp-query-$fs"
+    grep -q 'pv/s' /tmp/pm-mvp.txt && { head -3 /tmp/pm-mvp.txt; fail "pm-mvp-leak-$fs (a directory moved below a private one during the build answered)"; }
+    umount "$LAYER" || fail "pm-mvp-umount-$fs"
     rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup-$fs"
     echo "PERMMATRIX_STEP_PASS: $fs, 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
 done
@@ -2584,6 +2633,8 @@ for f in plain same other0 named; do
     "$BIN/moobfs-attr" set "$LOWER/d/$f" kind string note > /dev/null || fail "ma-attr-$f"
 done
 "$TOOLS/setfacl" -m u:1002:r "$LOWER/d/named" || fail ma-setfacl
+mkdir -m 755 "$LOWER/x" && echo bad > "$LOWER/x/bad" && chmod 644 "$LOWER/x/bad" || fail ma-bad-file
+"$BIN/moobfs-attr" set "$LOWER/x/bad" kind string note > /dev/null || fail ma-bad-attr
 umount "$LOWER" || fail ma-lower-umount
 ma_acl 6 4 4 > /tmp/ma-same.acl && ma_acl 6 4 0 > /tmp/ma-other0.acl || fail ma-acl-files
 for f in same other0; do
@@ -2617,6 +2668,21 @@ print(" ".join(sorted(p for p, _, _ in scan.candidates(sys.argv[2]))))' "${REPO:
     [ "$(cat /tmp/ma-py.txt)" = "plain same" ] || { cat /tmp/ma-py.txt; fail ma-python-mismatch; }
     ma_py=equal
 fi
+# S14 (journal 0242, mutant M11): an access ACL the lower cannot read counts as restrictive in
+# the write paths too. debugfs writes x/bad's ACL raw, in ext4's on-disk format with a wrong
+# version (ext4_acl_from_disk() refuses it with EINVAL), so every read of it fails. x/bad
+# (0644, with an attribute) is renamed into the built domain d by the layer; the rename's
+# placement must keep it out of 1001's answer, which stays "plain same".
+umount "$LAYER" && umount "$LOWER" || fail ma-bad-umount
+printf '\002\000\000\000\001\000\006\000\004\000\004\000\040\000\004\000' > /tmp/ma-bad.acl || fail ma-bad-acl
+"$TOOLS/debugfs" -w -R "ea_set -r -f /tmp/ma-bad.acl /x/bad system.posix_acl_access" "$DEV_SCRATCH" 2> /dev/null || fail ma-bad-plant
+mount -t ext4 "$DEV_SCRATCH" "$LOWER" || fail ma-bad-lower-mount
+"$BIN/query" --uid 1001 "$LOWER/x" open bad | grep -q 'Invalid argument' || fail "ma-bad-precondition (the planted ACL reads)"
+mount -t moobfs_layer -o lower="$LOWER",domain_depth=1 none "$LAYER" || fail ma-bad-mount
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind eq string note > /dev/null || fail ma-bad-build
+mv "$LAYER/x/bad" "$LAYER/d/bad" || fail ma-bad-rename
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind eq string note > /tmp/ma-k.txt || fail ma-bad-query
+[ "$(cut -f2 /tmp/ma-k.txt | sort | tr '\n' ' ')" = "plain same " ] || { cat /tmp/ma-k.txt; fail "ma-unreadable-acl-answered"; }
 umount "$LAYER" && umount "$LOWER" || fail ma-cleanup
 echo "MINACL_PASS: kernel answered plain and same, left out other0 (minimal ACL other than the mode) and named; moobfs-index and moobfs-check equal; python scan: $ma_py"
 fi
