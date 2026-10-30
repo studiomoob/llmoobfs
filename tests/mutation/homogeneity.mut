@@ -12,7 +12,8 @@
 # "file:" (default layer/index.c), and a mutant keeps the number of lines, so that __LINE__ and
 # the line table do not change and only the check differs in the object.
 # The "steps" lines are the steps expected to fail each mutant; they are checked only by a VM
-# run of `scripts/mutants.py run` (journal 0242: not yet run).
+# run of `scripts/mutants.py run` (journal 0242: first run 2026-10-30; M02 and M21 were
+# killed only by a step their first steps line left out, ext4 and permmatrix).
 
 @ M01 reach_ok: an extended ACL on the inode no longer stops the shortcut for 0777-like bits
 steps: permmatrix minacl
@@ -20,7 +21,7 @@ steps: permmatrix minacl
 + 	if ((in->i_mode & (u | g | o)) == (u | g | o))
 
 @ M02 reach_ok: an extended ACL on the domain directory is no longer looked at
-steps: permmatrix
+steps: permmatrix ext4
 - 	if (acl || ext_acl(dom, err))
 + 	if (acl)
 
@@ -115,7 +116,7 @@ steps: permmatrix ext4
 + 	struct moobl_place fpl = { .domain = cur->inner, .hetero = false };
 
 @ M21 rename: a directory moved under a failing one is taken as passing (its own reach)
-steps: permgaps ext4
+steps: permmatrix permgaps ext4
 - 		md->inner_ok = above && reach_ok(moobl_lower_inode(d_inode(moved)), dom,
 - 						 MOOBL_REACH_DIR, NULL);
 + 		md->inner_ok = above && (1 || reach_ok(moobl_lower_inode(d_inode(moved)), dom,
