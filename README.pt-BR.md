@@ -161,9 +161,10 @@ Fatos em 2026-10-25:
   s390x big-endian, com emulação. O módulo também roda em arm64 com emulação, sem KVM, num job
   exploratório: os passos de ext4, btrfs e XFS passaram sob KASAN ([diário 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
 - **Testado com** injeção de falhas dentro do módulo, o grupo `quick` do fstests nos três sistemas
-  de arquivos de baixo, syzkaller (cinco rodadas de seis horas; um defeito achado e corrigido), uma
-  primeira rodada do KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091,
-  0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143).
+  de arquivos de baixo e uma rodada do grupo `auto` (nenhuma das falhas é defeito da camada),
+  syzkaller (seis rodadas de seis horas; um defeito achado e corrigido), uma primeira rodada do
+  KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091, 0096, 0104, 0109,
+  0112, 0115, 0133, 0138, 0143, 0239).
 - **Ainda sem revisão humana independente de todo o código do kernel.** Foi pedida em 2026-10-13.
   Um revisor externo relatou em privado três defeitos do kernel e escreveu a correção de um deles
   (F16, abaixo). Um colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um
@@ -549,12 +550,13 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) e
   [0083](docs/history/0083-index-inspection-fixes.md). As tags até a `v0.4.1-experimental` carregam
-  defeitos corrigidos depois; a `v0.5.0-experimental` tem todas as correções até 2026-10-28, e as posteriores entram na `main`. O fstests rodou só com o grupo `quick`
-  ([vm/fstests/](vm/fstests/README.md)); o syzkaller rodou cinco rodadas de seis horas; a última
-  medição ficou acima do limiar agregado de PCs do item S3 do [roteiro de segurança](docs/security-roadmap.md),
-  e o `moobl_xattr_get` ficou com 0 PCs no relatório dessa rodada, porque o corpus quase não guardou
-  leituras de atributo dentro de uma camada montada; reexecutadas com cobertura por chamada, as
-  sementes chegam nela (diário 0154). O SELinux em
+  defeitos corrigidos depois; a `v0.5.0-experimental` tem todas as correções até 2026-10-28, e as posteriores entram na `main`. O grupo `quick` do fstests
+  passa com uma lista de exclusões, e o grupo `auto` rodou uma vez, com 1 a 4 falhas por sistema de
+  arquivos de baixo, nenhuma delas defeito da camada ([vm/fstests/](vm/fstests/README.md), diário
+  0239). O syzkaller rodou seis rodadas de seis horas, sem relato em aberto. A sexta cobre todas as
+  funções dos handlers, inclusive o `moobl_xattr_get`, mas fica em 84,5 % dos PCs dos handlers,
+  abaixo do limiar de 85 % do item S3 do [roteiro de segurança](docs/security-roadmap.md) (diário
+  0239). O SELinux em
   modo enforcing foi exercitado uma vez (diário 0104); AppArmor e Smack não foram.
 - A autorização do `QUERY` vale só no momento da consulta (contrato TOCTOU). Renomear um
   diretório pela camada torna o domínio desatualizado e a próxima consulta o reconstrói;
@@ -602,11 +604,11 @@ experimento M1 está congelado e roda como regressão na mesma VM.
 | Fase Q2b: `QUERY2` ordenado por um atributo, crescente ou decrescente, e paginado por um cursor autenticado; igual a `moobfs-index --domain --order`; "N mais recentes" medido e otimizado ([0048](docs/history/0048-recent-optimization.md)) | [0036](docs/history/0036-phase-q2b-order-cursor.md) | Debian 6.12.111; ext4, btrfs, XFS |
 | Fase Q2c: interseção leapfrog de termos de igualdade no `QUERY2`; igual ao oráculo, plano verificado pela ordem dos resultados, medido no [0044](docs/history/0044-q2-measured-equality-plan.md) | [0037](docs/history/0037-phase-q2c-leapfrog.md) | Debian 6.12.111; ext4, btrfs, XFS |
 | Fase Q2d: termos "ausente ou ..." e lotes de até 8 requisições `QUERY2` por chamada; igual ao oráculo | [0038](docs/history/0038-phase-q2d-missing-batch.md) | Debian 6.12.111; ext4, btrfs, XFS |
-| Testes sob o módulo: grupo `quick` do fstests com lista de exclusões, injeção sistemática de falhas de alocação dentro do módulo | [0091](docs/history/0091-s2-fstests-clean-with-exclusions.md), [0096](docs/history/0096-fault-injection.md) | Debian 6.12.111; KASAN 6.12.112; ext4, btrfs, XFS |
+| Testes sob o módulo: grupo `quick` do fstests com lista de exclusões, injeção sistemática de falhas de alocação dentro do módulo; uma rodada do grupo `auto` do fstests | [0091](docs/history/0091-s2-fstests-clean-with-exclusions.md), [0096](docs/history/0096-fault-injection.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | Debian 6.12.111 e 6.12.113; KASAN 6.12.112; ext4, btrfs, XFS |
 | Índice construído por domínio na primeira consulta, liberado sob pressão de memória ou acima do orçamento (shrinker); tracepoints | [0098](docs/history/0098-index-on-demand.md), [0101](docs/history/0101-domains-released.md), [0102](docs/history/0102-index-tracepoints.md), [ADR-0012](docs/decisions/0012-index-on-demand-and-reclaimable.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | SELinux em modo enforcing; checagem por resultado quando um LSM rotula os inodes da camada | [0104](docs/history/0104-selinux-investigation.md) | 6.12.112 com a política de referência do Debian |
 | SQL sobre um domínio por uma tabela virtual do SQLite (protótipo) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |
-| Descrições do syzkaller para a montagem, as ioctls e os atributos; cinco rodadas de seis horas | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md) | 6.12.112 upstream com KCOV |
+| Descrições do syzkaller para a montagem, as ioctls e os atributos; seis rodadas de seis horas | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | 6.12.112 upstream com KCOV |
 | Correções de segurança dos achados F9 a F12 (regra de homogeneidade, checagens sem o semáforo de consulta, acesso de escrita na montagem de baixo, lower idmapped recusado), cada uma com teste e rodada negativa | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | Correções de segurança de F15, GHSA-756j-cgwq-gvwm e F16 (diretórios só de busca, registros de um número de inode reutilizado, set-user-ID mantido numa escrita), cada uma com teste e rodada negativa | [0215](docs/history/0215-search-only-directories.md), [0216](docs/history/0216-domain-record-generation.md), [0218](docs/history/0218-write-credentials-fsetid.md) | Debian 6.12.111; KASAN 6.12.112 ([0219](docs/history/0219-security-batch-checks.md)); ext4, btrfs, XFS |
 | Lote 3: errnos do lookup para um diretório com casefold e um subvolume btrfs, o byte reservado de um termo de consulta (`EINVAL`), um só teste de privilégio, ACLs estendidas julgadas como o kernel julga (F17), sem trava do índice na criação ou despejo de inodes sem registro, e `fadvise`, `readahead`, campos de `statx`, `drop_inode` e `O_NOATIME` repassados ao sistema de baixo; passos `casefold`, `minacl` e `ixlock`, marcadores `LAYER_SUBVOLUME_PASS` e `PASSTHROUGH_PASS`, cada um com rodada negativa | [0221](docs/history/0221-lookup-errnos-and-m8.md), [0222](docs/history/0222-term-padding-admin-test-extended-acl.md), [0223](docs/history/0223-index-lock-instantiation-eviction.md), [0224](docs/history/0224-passthrough-gaps-issue-115.md), [ADR-0026](docs/decisions/0026-ioctl-magic-term-padding-and-admin-test.md) | Debian 6.12.111; KASAN 6.12.112, suíte completa ([0225](docs/history/0225-security-batch-3.md)); ext4, btrfs, XFS (`minacl` e `ixlock` em ext4) |

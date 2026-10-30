@@ -258,3 +258,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0236 — Reproducible build of the module and the packages (S10)](0236-reproducible-module-build.md)
 - [0237 — Longer fuzzing (S7) and runtime hardening in the KASAN kernel (S8)](0237-s7-fuzzing-and-s8-hardening.md)
 - [0238 — Weekly benchmark workflow: the on-demand index benchmark under KVM on GitHub's runner](0238-weekly-bench-workflow.md)
+- [0239 — S2: fstests `auto` on three lowers; S3: a sixth syzkaller round with `moobl_xattr_get` covered](0239-s2-auto-and-s3-round.md)

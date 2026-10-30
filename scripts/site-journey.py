@@ -71,6 +71,8 @@ MILESTONES = [
   'Cotas justas do orçamento do índice: um uid acima da sua cota devolve o espaço a um uid abaixo da dele, o que fecha o achado F2; o teto de latência do G2 é registrado antes e cumprido ao lado de um vizinho barulhento em três rodadas.', ['0228']),
  ('2026-10-29', 'Experimental Debian packages: DKMS builds the module only for the listed kernels and signs it with the host\'s own key; under Secure Boot in a VM it loads once that key is enrolled, and an unsigned build is refused. Not published.',
   'Pacotes Debian experimentais: o DKMS compila o módulo só para os kernels da lista e o assina com uma chave do próprio host; com Secure Boot numa VM ele carrega depois que essa chave é cadastrada, e uma versão sem assinatura é recusada. Não publicados.', ['0229']),
+('2026-10-30', 'fstests\' auto group runs once over ext4, btrfs and XFS below the layer, with no defect of the layer among its failures; a sixth six-hour syzkaller run, with no report, covers every handler function, xattr-get included, at 84.5% of the handlers\' PCs.',
+  'O grupo auto do fstests roda uma vez com ext4, btrfs e XFS embaixo da camada, sem nenhum defeito da camada entre as falhas; uma sexta rodada de seis horas do syzkaller, sem relatório, cobre todas as funções dos handlers, inclusive o xattr-get, com 84,5% dos PCs dos handlers.', ['0239']),
 ]
 
 T = {
@@ -112,11 +114,11 @@ STATUS = [
   'No on-disk format of its own. moobfs-check verifies the typed attributes of a tree and lists the files left out of query answers.',
   'Não há formato próprio em disco. O moobfs-check verifica os atributos tipados de uma árvore e lista os arquivos que ficam fora das respostas.'),
  ('fstests', 'fstests',
-  f'The generic quick group passes on ext4, btrfs and XFS below the layer, with a documented exclusion list ({j("0091")}).',
-  f'O grupo generic rápido passa com ext4, btrfs e XFS embaixo da camada, com uma lista de exclusões documentada ({j("0091")}).'),
+  f'The generic quick group passes on ext4, btrfs and XFS below the layer, with a documented exclusion list ({j("0091")}). The auto group ran once on the three: 1, 4 and 1 failures of 779 tests, none a defect of the layer, now in exclusion lists ({j("0239")}).',
+  f'O grupo generic rápido passa com ext4, btrfs e XFS embaixo da camada, com uma lista de exclusões documentada ({j("0091")}). O grupo auto rodou uma vez nos três: 1, 4 e 1 falhas em 779 testes, nenhuma defeito da camada, agora em listas de exclusão ({j("0239")}).'),
  ('Sanitizers and fuzzing', 'Sanitizers e fuzzing',
-  f'KASAN, UBSAN and lockdep on every pull request that touches the module (required before merge); allocation-failure injection inside the module ({j("0096")}); syzkaller, five six-hour runs, the second to fifth with no report ({j("0109")}, {j("0133")}, {j("0138")}, {j("0143")}); libFuzzer over the attribute encoding, the image parser and the tools\' parsers, 30 s per target on every pull request, and a workflow for 45 minutes per target twice a week, run so far only on the test host, with no crash ({j("0237")}).',
-  f'KASAN, UBSAN e lockdep em todo pull request que mexe no módulo (obrigatório antes do merge); injeção de falha de alocação dentro do módulo ({j("0096")}); syzkaller, cinco rodadas de seis horas, da segunda à quinta sem nenhum relatório ({j("0109")}, {j("0133")}, {j("0138")}, {j("0143")}); libFuzzer sobre a codificação de atributos, o leitor de imagens e os leitores das ferramentas, 30 s por alvo em todo pull request, e um workflow de 45 minutos por alvo duas vezes por semana, rodado até agora só na máquina de testes, sem nenhuma falha ({j("0237")}).'),
+  f'KASAN, UBSAN and lockdep on every pull request that touches the module (required before merge); allocation-failure injection inside the module ({j("0096")}); syzkaller, six six-hour runs, the second to sixth with no report ({j("0109")}, {j("0133")}, {j("0138")}, {j("0143")}, {j("0239")}); libFuzzer over the attribute encoding, the image parser and the tools\' parsers, 30 s per target on every pull request, and a workflow for 45 minutes per target twice a week, run so far only on the test host, with no crash ({j("0237")}).',
+  f'KASAN, UBSAN e lockdep em todo pull request que mexe no módulo (obrigatório antes do merge); injeção de falha de alocação dentro do módulo ({j("0096")}); syzkaller, seis rodadas de seis horas, da segunda à sexta sem nenhum relatório ({j("0109")}, {j("0133")}, {j("0138")}, {j("0143")}, {j("0239")}); libFuzzer sobre a codificação de atributos, o leitor de imagens e os leitores das ferramentas, 30 s por alvo em todo pull request, e um workflow de 45 minutos por alvo duas vezes por semana, rodado até agora só na máquina de testes, sem nenhuma falha ({j("0237")}).'),
  ('Maintainers', 'Mantenedores',
   'One. The kernel asks for two or more: this is the main reason we are looking for collaborators.',
   'Um. O kernel pede dois ou mais: é o principal motivo de estarmos procurando colaboradores.'),

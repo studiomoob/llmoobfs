@@ -17,16 +17,16 @@ edge, detectors in CI, continuous fuzzing, a minimal surface and a written threa
 crash triggerable by an ordinary user is a vulnerability (denial of service), even without an
 exploit, as the XFS and ext4 maintainers treat it.
 
-## Where each item stands (2026-10-29)
+## Where each item stands (2026-10-30)
 
 <!-- current-state -->
-State on `main` at `7ac52cd`, summarised from the dated notes of each item below.
+State on `main` at `7ac52cd`, with the S2 and S3 rows from batch 10 (journal 0239), summarised from the dated notes of each item below.
 
 | Item | State |
 | --- | --- |
 | S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer reported kernel defects privately; there is no independent human review of the whole kernel code. |
-| S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091); the `auto` group has not run. |
-| S3 syzkaller | Five six-hour runs; the handlers at 88.7 % of their PCs, above the threshold (journal 0143). Open: the per-function criterion, until a run's report shows `moobl_xattr_get()` covered (journal 0154). |
+| S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091). The `auto` group ran once on the three lowers on Debian 6.12.113 (journal 0239): 1, 4 and 1 failures of 779, none a layer defect, now in exclusion lists. Open: a repeat of `auto` with those lists, and a make target. |
+| S3 syzkaller | Six six-hour runs, no open report. The sixth (journal 0239), on the hardened KASAN kernel, reports `moobl_xattr_get()` covered, so every handler function is exercised. The handlers are at 84.5 % of their PCs there, below the 85 % threshold (88.7 % in the fifth run, on earlier code and kernel). Open: the aggregate on the current code. |
 | S4 hostile lower | Done for its scope (journal 0073). |
 | S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job; `sparse`, `smatch`, `W=1` and `kernel-doc` do not run in CI. |
 | S6 disclosure and versions | Done: `SECURITY.md` and [compatibility.md](compatibility.md); the KASAN/lockdep job is a required check of `main`. Open: a build-time refusal of an unlisted kernel (`make install` and the DKMS package refuse one, `make layer` does not). |
@@ -161,6 +161,14 @@ port (`vm/fstests/`). The `quick` group is recorded over ext4, btrfs and XFS; ev
 classified; the file-attribute gaps are closed; the exclusion list is written
 (`vm/fstests/exclude-quick.txt`). The complete run with that list passes on the three lowers
 (journal 0091), which meets "done when" for the `quick` group. Open: the `auto` group.
+*Update, 2026-10-30 (journal 0239):* the `auto` group ran once over ext4, btrfs and XFS on Debian
+6.12.113. Of 779 tests per lower, 229, 339 and 372 passed, 549, 436 and 406 were not run, and 1,
+4 and 1 failed, with no kernel diagnostic. generic/631 does not apply on any lower: overlayfs
+refuses the layer as its upper. generic/186, 187 and 301 fail only over btrfs: fstests skips
+them, or the failing check, by `FSTYP`, which the layer hides. A baseline on plain btrfs
+confirmed it, and they pass over the layer on XFS. None is a layer defect. They are listed in
+`vm/fstests/exclude-auto.txt` and `exclude-auto-btrfs.txt`. Open: a repeat of `auto` with the
+lists, and a target for it.
 
 Precedent: the kernel documentation "Adding New Filesystems" calls fstests standard
 infrastructure and its use strongly recommended; bcachefs reported fstests under lockdep and
@@ -208,6 +216,14 @@ by fuzzing image and syscalls together. The current libFuzzer covers only the en
   The fourth is the `security.*` branch, which the LSM answers itself for `security.selinux`.
   Three new seeds end in such a read. The per-function criterion is demonstrated when the next
   run's report shows the function covered.
+- **Update, 2026-10-30 (journal 0239):** a sixth six-hour run, with 2 VMs on the KASAN kernel that
+  now carries the S8 hardening options, and a seed reading `security.capability`. Result:
+  386 844 executions and no report. `moobl_xattr_get()` is covered in the report (3 of 18 PCs).
+  A replay of the read seeds reaches all four of its KCOV call sites, the mounter-credentials
+  branch included. Every function of the handler set is now exercised. The handlers stand at
+  684 of 809 PCs, **84.5 %**, below the 85 % threshold, on a denominator that grew with the
+  layer's fixes and the hardened kernel (743 in the fifth run). The per-function criterion is
+  met; on the current code the aggregate is not.
 - **Threshold, set on 2026-10-15** (journal 0109): the ioctl and attribute handlers (from
   `moobl_root_ioctl()` through `query_run()`, `results_to_user()`, `moobl_xattr_get/set()` and the
   validation in `common/attr.c`) at 85 % of their PCs or more, measured by the manager's

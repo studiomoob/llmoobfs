@@ -53,8 +53,8 @@ State on `main` at `7ac52cd`. The project-wide status is in [status.md](status.m
 
 | # | State |
 | --- | --- |
-| 1 | The set-user-ID crash (R-CRED-3) is fixed (journal 0069). fstests `quick` passes on ext4, btrfs and XFS with a justified exclusion list (journal 0091); syzkaller ran five six-hour rounds (journal 0143); KASAN, UBSAN and lockdep are a required check of `main`. An external reviewer reported kernel defects privately, all fixed; there is still no independent human review of the whole kernel code, and a module defect still takes the host down. |
-| 2 | fstests `quick` and `fsx` as above; the `auto` group has not run. |
+| 1 | The set-user-ID crash (R-CRED-3) is fixed (journal 0069). fstests `quick` passes on ext4, btrfs and XFS with a justified exclusion list (journal 0091), and `auto` ran once with no layer defect among its failures (journal 0239); syzkaller ran six six-hour rounds with no open report (journal 0239); KASAN, UBSAN and lockdep are a required check of `main`. An external reviewer reported kernel defects privately, all fixed; there is still no independent human review of the whole kernel code, and a module defect still takes the host down. |
+| 2 | fstests `quick` and `fsx` as above; fstests `auto` ran once on the three lowers (journal 0239): its 1, 4 and 1 failures of 779 are in exclusion lists, none a layer defect; the run with those lists has not been repeated. |
 | 3 | Done for its scope (S4, journal 0073): hostile lower trees in the suite on three lowers, also under KASAN, and through the tools under sanitizers in CI. |
 | 4 | R-CRED-2 and F4 are fixed (journals 0069 and 0132). The layer never enters a btrfs subvolume or another device (journal 0216). An inode number reused after a removal behind the layer is detected by its generation (journal 0216), except on a lower that leaves `i_generation` at 0 and through ext4's `EXT4_IOC_SETVERSION` on the lower ([when-not-to-use.md](when-not-to-use.md) §3). |
 | 5 | Accepted, unchanged. The Python library (roadmap C5, ADR-0023) applies the kernel's rules in a scan where the layer is not mounted. |

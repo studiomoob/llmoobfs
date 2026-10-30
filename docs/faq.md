@@ -80,7 +80,7 @@ this tracking and require remount for guaranteed resynchronization.
 [`docs/spec-m3.md` §3.1 and its dated note; `docs/decisions/0019-bound-query-build-work-and-frequency.md`; `layer/index.c`: `moobl_index_renamed`, `query2_pin`]
 
 ## 8. What is implemented today?
-A stacked pass-through layer over ext4, btrfs and XFS (`fsx`, fstests' `quick` group), typed
+A stacked pass-through layer over ext4, btrfs and XFS (`fsx`, fstests' `quick` group; one run of its `auto` group), typed
 attributes validated in the kernel, an index built per domain by the first query and released
 under memory pressure, experimental per-build work and unprivileged frequency
 limits, `QUERY2` with ordering, cursors and batches, the first `QUERY` for

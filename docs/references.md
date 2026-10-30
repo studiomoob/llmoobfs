@@ -1016,3 +1016,18 @@ runs 6.12.111.
   (journal 0124), so arm64 is not in the matrix.
 - [actionlint](https://github.com/rhysd/actionlint) 1.7.7 (MIT), run locally from the
   `rhysd/actionlint` image pinned by digest, to check the workflow; not part of CI.
+
+## 37. fstests `auto` and the sixth syzkaller round (security roadmap S2 and S3, journal 0239)
+
+- fstests, https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git, tag `v2026.09.22` (GPL-2.0):
+  `check` (repeated `-E` options add to one exclusion list), `tests/generic/631` (overlayfs over
+  the filesystem under test as upper), `tests/generic/186` and `187` (`_notrun` and
+  `_exclude_fs btrfs`: "can't fragment free space on btrfs"), `tests/generic/301` (the 2/3
+  fragmentation threshold skipped when `FSTYP` is btrfs). Read to classify the failures.
+- Linux 6.12, `fs/overlayfs/super.c` (`ovl_make_workdir()`: an upper without `O_TMPFILE` or
+  `RENAME_WHITEOUT` is refused, "upper fs missing required features") and
+  `security/commoncap.c` (`cap_inode_getsecurity()` reads `security.capability` through the
+  filesystem's handler), for the overlayfs refusal and the new seed.
+- syzkaller, https://github.com/google/syzkaller, main at `8fb0ae8` (Apache-2.0), as in §syzkaller
+  above: `syz-manager` (`/funccover`), `syz-execprog -cover -coverfile`, `syz-db unpack`.
+- virtme-ng and `taskset(1)` (util-linux) to pin each guest to its host CPUs.

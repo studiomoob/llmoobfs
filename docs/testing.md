@@ -48,7 +48,8 @@ Both Debian kernel image/header pairs are pinned (6.12.111-1 and 6.12.113-1). Th
 6.12.111 default and its required-check name; `Native Linux VM (Debian 6.12.113)`
 runs the same target on every pull request; it first passed in PR 148.
 fstests `quick` with the exclusion list passed on 6.12.113 for ext4, btrfs
-and XFS on the dedicated host (journal 0206), so 6.12.113 is supported and
+and XFS on the dedicated host (journal 0206), and the `auto` group ran once
+there on the same kernel (journal 0239), so 6.12.113 is supported and
 listed in `scripts/supported-kernels` ([compatibility.md](compatibility.md) §1,
 rule 3; journals 0203 and 0206).
 
@@ -220,7 +221,7 @@ Markers come from three places: `vm/init` and `tests/mounted.c` (M1),
 
 | Marker | Printed by | Proves | Does not prove |
 | --- | --- | --- | --- |
-| `LAYER_PASSTHROUGH_TESTS_PASS` | `tests/layer.c`, once per lower filesystem and once more with `nolinks` | Create, write, pread, append, truncate, shared and private mmap, mkdir/rmdir, readdir, chmod, unlink, rename, xattr, hard links and symlinks behave as on the lower tree, with the same inode numbers and bytes visible below; `FICLONE`/`FIDEDUPERANGE` share extents on btrfs and XFS and fail cleanly on ext4; a set-user-ID bit given on the lower behind the layer goes with the next write, `copy_file_range`, clone, `fallocate`, `splice` from a pipe or `sendfile` through it as uid 1001, also after an earlier write cached `S_NOSEC` (GHSA-6xf4-r246-92r6; splice and sendfile since journal 0233) | Full POSIX conformance (fstests ran as its `quick` group only, `vm/fstests/`); other lower filesystems |
+| `LAYER_PASSTHROUGH_TESTS_PASS` | `tests/layer.c`, once per lower filesystem and once more with `nolinks` | Create, write, pread, append, truncate, shared and private mmap, mkdir/rmdir, readdir, chmod, unlink, rename, xattr, hard links and symlinks behave as on the lower tree, with the same inode numbers and bytes visible below; `FICLONE`/`FIDEDUPERANGE` share extents on btrfs and XFS and fail cleanly on ext4; a set-user-ID bit given on the lower behind the layer goes with the next write, `copy_file_range`, clone, `fallocate`, `splice` from a pipe or `sendfile` through it as uid 1001, also after an earlier write cached `S_NOSEC` (GHSA-6xf4-r246-92r6; splice and sendfile since journal 0233) | Full POSIX conformance (fstests' `quick` group passes with an exclusion list and its `auto` group ran once, outside the suite, `vm/fstests/`, journal 0239); other lower filesystems |
 | `PASSTHROUGH_PASS` | `tests/passthrough.c`, once per lower filesystem (issue #115, journal 0224) | `posix_fadvise(DONTNEED)` on a layer descriptor empties the lower page cache (`PT_FADVISE_PASS`) and `readahead(2)` fills it (`PT_READAHEAD_PASS`), counted with `mincore` on the lower file; `statx` reports the lower's `STATX_DIOALIGN`, `STATX_SUBVOL`, `STATX_WRITE_ATOMIC` and encrypted, verity and DAX attributes (`PT_STATX_PASS`); a file removed behind the layer frees its blocks once a lookup through the layer drops the name (`PT_DROP_INODE_PASS`); `O_NOATIME` set with `F_SETFL` after open keeps the lower's access time and clearing it lets a read move it (`PT_NOATIME_PASS`) | `cachestat(2)` (no hook: it reads the layer's empty mapping); fields the three lowers of the suite do not report (atomic writes on 6.12 ext4 and XFS, encryption, verity, DAX); the space of a removed file whose layer name is never looked up again (it waits for dentry reclaim) |
 | `TYPED_LIMITS_PASS` | `tests/layer.c typed`, once per lower filesystem | Every refusal of a typed attribute write through the layer, with its errno, and the lower file unchanged after each (names and values): `user.moob.format` gives `EPERM`; empty, uppercase, non-ASCII, 65-byte, edge-dot, doubled-dot and out-of-alphabet names give `EINVAL` (also on removal); an empty value, unknown types, wrong lengths of int64, time, double and bool, NaN doubles, bools outside 0/1, strings with NUL, overlong, surrogate, above U+10FFFF or cut sequences, a 1 025-byte string and a 4 097-byte raw give `EINVAL`, also as a replacement; `XATTR_CREATE` on an existing and `XATTR_REPLACE` or removal on an absent typed name give `EEXIST` and `ENODATA`. The 65th distinct typed attribute gives `ENOSPC` while an opaque attribute of the same size still fits; replacing at the limit succeeds, `XATTR_CREATE` of an existing one gives `EEXIST`, a removal frees one slot; `user.moob.format` and opaque names (`user.moob`, `user.moobx.*`, `user.other.*`) do not count. The bounds themselves (1 024-byte string, 64-byte name, +infinity, four-byte UTF-8) are accepted | Which errno `XATTR_REPLACE` on an absent name gives at the limit (the code gives `ENOSPC`, not tested); ENOMEM paths; a lower whose own xattr space holds fewer than 64 entries |
 | `CLI_PASS` | `vm/suite.sh` with `tools/moobfs.c` and `tests/asuid.c`, once per lower filesystem (journal 0198) | `moobfs query` as uid 1001 and 1002 equals `moobfs-index --domain` on four domain answers, with one result per call (`--page 1`), ordered descending, limited to two, and in JSON; on a mount without domains the mount-wide `QUERY` equals the oracle; exit 77 and "permission denied" for another user's domain, 69 for the mount root, a non-domain directory, `noindex` and a path off the layer, 65 for invalid terms; `info` hides the counters from a user and shows them to root; `check` runs `moobfs-check` | Large answers across many pages under concurrent writes (the kernel's own `race2` covers the cursor), `ENOMEM`, `EDQUOT` and `ETIMEDOUT` messages (not provoked) |
@@ -544,9 +545,11 @@ kernel versions are unverified.
 
 - Linux security modules beyond the SELinux run above (AppArmor, Smack, and Landlock
   beyond the CLI run of the step `landlock`).
-- xfstests over the layer (only the vendored `fsx`), syzkaller over the ioctls
-  and `setxattr`, a hostile lower tree, KMSAN: see
-  [security-roadmap.md](security-roadmap.md) S2 to S4 and S7 to S8.
+- Inside `make vm-test`: fstests over the layer (only the vendored `fsx`; fstests
+  runs separately, `vm/fstests/`, with `quick` passing and one `auto` run, journal
+  0239), syzkaller over the ioctls and `setxattr` (run by hand, six six-hour rounds,
+  `vm/syzkaller-local.sh`), and KMSAN: see [security-roadmap.md](security-roadmap.md)
+  S2, S3 and S7 to S8.
 - Kernels other than Debian 6.12.111 and upstream 6.12.112; architectures other
   than x86-64.
 - Any performance, latency or memory measurement (M4, [benchmark-plan.md](benchmark-plan.md)).

@@ -260,3 +260,14 @@ KFENCE (not enabled)
 Fuzzing beyond 30 s per CI run
 KMSAN/KCSAN/KFENCE
 | KMSAN, KCSAN, KFENCE |
+
+# Journal 0239: fstests' auto group ran once on three lowers; syzkaller ran a sixth six-hour round.
+the `auto` group has not run
+fstests ran as its `quick` group only
+fstests ran as the `quick` group only
+O fstests rodou só com o grupo `quick`
+fstests as its <code>quick</code> group only
+five six-hour runs
+five six-hour rounds
+cinco rodadas de seis horas
+until a run's report shows `moobl_xattr_get()` covered

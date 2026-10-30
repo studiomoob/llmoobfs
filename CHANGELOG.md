@@ -95,6 +95,21 @@
   In the VM the lower's disk image stays in the host's page cache (`MOOB_BENCH_CACHE=host`), so
   its "cold" rows are cold in the guest only: with O_DIRECT the cold first `QUERY2` of a
   7 459-file domain exceeded the ten-second build deadline and was refused with `ETIMEDOUT`.
+- fstests `auto` group over the layer, once on ext4, btrfs and XFS, Debian 6.12.113 (journal
+  0239, security roadmap S2). Of 779 tests per lower, 229, 339 and 372 passed, 549, 436 and 406
+  were not run, and 1, 4 and 1 failed, with no kernel diagnostic. None is a layer defect:
+  generic/631 mounts overlayfs with the layer as upper, which overlayfs refuses (no `O_TMPFILE`,
+  no `RENAME_WHITEOUT`); generic/186, 187 and 301 are skipped by fstests on btrfs by `FSTYP`,
+  which the layer hides (baseline on plain btrfs; they pass over the layer on XFS). New
+  `vm/fstests/exclude-auto.txt` and `exclude-auto-btrfs.txt`, per-test results in
+  `vm/fstests/results-*-auto-6.12.113.txt`. The run with the lists has not been repeated.
+- syzkaller, a sixth six-hour round (journal 0239, S3): 386 844 executions, no report, on the KASAN
+  kernel with the S8 hardening options. `moobl_xattr_get()` is covered in the report (3 of 18 PCs),
+  and a replay of the read seeds reaches all four of its coverage call sites. Every handler
+  function is exercised; the handlers are at 684 of 809 PCs (84.5 %), below the 85 % threshold.
+  New seed `xattr-get-security`. Harness knobs with unchanged defaults: `MOOB_FSTESTS_CPUS`,
+  `MOOB_FSTESTS_MEM`, `SYZ_VMS`, `SYZ_CACHE`; the syzkaller summary now reads the manager's
+  counter line, which the earlier pattern never matched.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and

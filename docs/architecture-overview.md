@@ -236,7 +236,7 @@ mount or a release (ADR-0012).
 ## 9. What this page does not claim
 
 Only pilot-grade figures exist, from one host ([report](history/0088-m4-report.md)); no kernel
-beyond the two above has been tried; fstests ran as its `quick` group only; the code is mostly one
+beyond the two above has been tried; fstests' `quick` group passes with an exclusion list and its `auto` group ran once (journal 0239); the code is mostly one
 author's (the fix of F16 is the external reviewer's), with the defects found by its own tests, by two source reviews by AI assistants and by
 private reports from an external reviewer listed in
 [ADR-0011](decisions/0011-threat-and-credential-model.md) (F1 to F17), and no independent
