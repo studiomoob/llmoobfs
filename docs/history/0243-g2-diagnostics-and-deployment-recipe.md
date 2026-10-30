@@ -1,4 +1,4 @@
-# 0243 — G2: user-visible diagnostics and the deployment recipe (VM runs passed)
+# 0243 — G2: user-visible diagnostics and the deployment recipe (done)
 
 Date: 2026-10-29. Status: **implemented; dedicated-VM runs passed on 2026-10-30**. Implemented on
 branch `claudiofp/b11-g2` (from `main` at fac2d4b), local commits, not pushed; offline tests
@@ -151,6 +151,11 @@ mode 0600 and `O_NOFOLLOW`, its directories with mode 0700, and removes the tree
 `nftw(FTW_DEPTH | FTW_PHYS)` and `remove()`, without a shell. `make test` passes on macOS, and
 the test passes built with gcc and with clang under ASan and UBSan with `-Wall -Wextra -Werror`
 in a Debian 13 container.
+
+
+*Added 2026-10-30:* the maintainer accepted G2's diagnostics, deployment recipe and VM runs;
+G2 is done. The `ENOMEM` attribution's limit (another process of the same cgroup hitting the
+limit at the same time) stays documented.
 
 ## Limitations
 

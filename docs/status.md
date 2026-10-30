@@ -116,5 +116,5 @@ and how often it was reached, descriptors, test-only module parameters, and for 
 counters and tracepoints), `moobfs query` says whether an `ENOMEM` came from the index budget or
 from a memory cgroup's `memory.max`, and `docs/operations.md` §5 sets `MemoryMax=` for every user
 slice with a systemd drop-in. Unit-tested offline; the VM runs (suite step `diag`,
-`make install-test`) and their negative rounds passed on 2026-10-30; G2 closes when the maintainer
-accepts them.
+`make install-test`) and their negative rounds passed on 2026-10-30, and the maintainer accepted
+them the same day: G2 is done.

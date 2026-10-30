@@ -122,4 +122,4 @@ parâmetros de módulo só de teste e, para o root, os contadores e os tracepoin
 diz se um `ENOMEM` veio do orçamento do índice ou do `memory.max` de um cgroup de memória, e
 `docs/operations.md` §5 define `MemoryMax=` para toda fatia de usuário com um drop-in do systemd.
 Testados em unidade fora da VM; as rodadas em VM (passo `diag` da suíte, `make install-test`) e
-suas rodadas negativas passaram em 30/10/2026; o G2 fecha quando o mantenedor as aceitar.
+suas rodadas negativas passaram em 30/10/2026, e o mantenedor as aceitou no mesmo dia: o G2 está concluído.

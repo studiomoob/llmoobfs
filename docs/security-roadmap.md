@@ -419,7 +419,7 @@ on the dedicated host and failed on the pre-filter module. The steps
 `release`, `overbudget` and `buildcostevict` then passed under KASAN,
 UBSAN and lockdep. The complete KASAN, UBSAN and lockdep suite of this
 change then exited 0 (`MOOBFS_KASAN_PASS`). The complete native-KVM suite
-of this change was not run. G2 remains open.
+of this change was not run. G2 remained open then; it closed on 2026-10-30 (journal 0243).
 
 - Issue 116 / ADR-0018 accounts user-triggered query and index allocations to
   the allocating task's memory cgroup; journal 0180 records negative controls,

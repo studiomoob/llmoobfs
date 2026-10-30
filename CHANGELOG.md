@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- G2 (predictable shared operation) is done: the maintainer accepted its diagnostics, deployment
+  recipe and VM runs on 2026-10-30 (journal 0243).
 - Roadmap: a planned applicability track for corporate directory identities, D1 to D3 (journal
   0244; planned, nothing run).
 - Repository settings (journal 0240; no code change): releases are immutable, commits made in

@@ -321,3 +321,9 @@ the workflow has not run on GitHub
 
 # Journal 0242, 2026-10-30: fuzz.yml's first scheduled run passed.
 first scheduled run pending
+
+# Journal 0243, 2026-10-30: the maintainer accepted G2; done.
+G2 stays open until the maintainer accepts them
+closing waits for the maintainer
+G2 closes when the maintainer
+o G2 fecha quando o mantenedor as aceitar
