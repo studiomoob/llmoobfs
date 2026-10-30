@@ -1,0 +1,17 @@
+# fstests tests excluded from the group auto when the lower is btrfs, in addition to
+# exclude-quick.txt and exclude-auto.txt (journal 0239).
+# fstests skips each of them, or the failing check, when FSTYP is btrfs; over the layer FSTYP is
+# moobfs_layer, so the exclusion never fires. A baseline on plain btrfs (same kernel, same 8 GiB
+# devices) skipped 186 and 187 and passed 301 without its fragmentation check. All three pass
+# over the layer on XFS.
+
+# "Can't fragment free space on btrfs" (_notrun on btrfs). Over the layer the attempt to
+# fragment free space ends in ENOSPC on pwrite; file3 and its copy file3.chk then agree with each
+# other, but not with the checksum the test expects.
+generic/186
+# _exclude_fs btrfs ("btrfs can't fragment free space"); same ENOSPC as 186.
+generic/187
+# The 2/3 fragmentation threshold is skipped on btrfs ("btrfs CoW extent allocation depends on
+# transaction commit frequency"); over the layer it is applied, and file2 had 1 503 extents for
+# a threshold of 1 365 (1 133 on plain btrfs, where the check is not made).
+generic/301

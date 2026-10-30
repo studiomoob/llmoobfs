@@ -1,0 +1,781 @@
+# fstests v2026.09.22, ./check -g auto -E vm/fstests/exclude-quick.txt, FSTYP=moobfs_layer over xfs, Debian kernel 6.12.113+deb13-amd64, guest of 2 vCPUs and 4 GiB, module built from 662ba7a (journal 0239)
+# from the Ran, Not run and Failures lists of ./check and the .notrun files; one line per test, with the reason when not run; the 16 tests of exclude-quick.txt are not listed
+pass generic/001
+pass generic/002
+notrun generic/004 O_TMPFILE is not supported
+pass generic/005
+pass generic/006
+pass generic/007
+pass generic/008
+pass generic/009
+notrun generic/010 /home/debian/b10/f-xfs/build/fstests/tree/src/dbtest not built
+pass generic/011
+pass generic/012
+pass generic/013
+pass generic/014
+notrun generic/015 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/016
+pass generic/017
+notrun generic/018 defragmentation not supported for fstype "moobfs_layer"
+pass generic/020
+pass generic/021
+pass generic/022
+pass generic/023
+pass generic/024
+pass generic/025
+notrun generic/026 moobfs_layer does not define maximum ACL count
+notrun generic/027 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/028
+pass generic/029
+pass generic/030
+pass generic/031
+pass generic/032
+pass generic/033
+notrun generic/034 require moobscratch to be valid block disk
+pass generic/035
+pass generic/036
+pass generic/037
+notrun generic/038 This test requires at least 10GB free on /tmp/moob/scratch to run
+notrun generic/039 require moobscratch to be valid block disk
+notrun generic/040 require moobscratch to be valid block disk
+notrun generic/041 require moobscratch to be valid block disk
+notrun generic/042 moobfs_layer does not support shutdown
+notrun generic/043 moobfs_layer does not support shutdown
+notrun generic/044 moobfs_layer does not support shutdown
+notrun generic/045 moobfs_layer does not support shutdown
+notrun generic/046 moobfs_layer does not support shutdown
+notrun generic/047 moobfs_layer does not support shutdown
+notrun generic/048 moobfs_layer does not support shutdown
+notrun generic/049 moobfs_layer does not support shutdown
+notrun generic/050 moobfs_layer does not support shutdown
+notrun generic/051 moobfs_layer does not support shutdown
+notrun generic/052 moobfs_layer does not support shutdown
+pass generic/053
+notrun generic/054 moobfs_layer does not support shutdown
+notrun generic/055 moobfs_layer does not support shutdown
+notrun generic/056 require moobscratch to be valid block disk
+notrun generic/057 require moobscratch to be valid block disk
+pass generic/058
+notrun generic/059 require moobscratch to be valid block disk
+pass generic/060
+pass generic/061
+notrun generic/062 moobfs_layer does not support mknod/mkfifo
+pass generic/063
+pass generic/064
+notrun generic/065 require moobscratch to be valid block disk
+notrun generic/066 require moobscratch to be valid block disk
+notrun generic/067 require moobscratch to be valid block disk
+notrun generic/068 moobfs_layer does not support freezing
+pass generic/069
+pass generic/070
+pass generic/071
+pass generic/072
+notrun generic/073 require moobscratch to be valid block disk
+pass generic/074
+pass generic/075
+notrun generic/076 require moobscratch to be local device
+notrun generic/077 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/078 kernel doesn't support renameat2 syscall
+notrun generic/081 require moobscratch to be valid block disk
+notrun generic/082 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/083 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/084
+notrun generic/085 require moobscratch to be valid block disk
+pass generic/086
+pass generic/087
+pass generic/088
+pass generic/089
+notrun generic/090 require moobscratch to be valid block disk
+pass generic/091
+pass generic/092
+pass generic/093
+pass generic/094
+pass generic/095
+notrun generic/096 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/097
+pass generic/098
+pass generic/100
+notrun generic/101 require moobscratch to be valid block disk
+notrun generic/102 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/103
+notrun generic/104 require moobscratch to be valid block disk
+pass generic/105
+notrun generic/106 require moobscratch to be valid block disk
+notrun generic/107 require moobscratch to be valid block disk
+notrun generic/108 require moobscratch to be valid block disk
+pass generic/109
+pass generic/110
+pass generic/111
+pass generic/112
+pass generic/113
+notrun generic/114 device block size: 4096 greater than 512
+pass generic/115
+pass generic/116
+pass generic/117
+pass generic/118
+pass generic/119
+pass generic/121
+pass generic/122
+pass generic/123
+pass generic/124
+pass generic/125
+pass generic/127
+pass generic/128
+pass generic/129
+pass generic/130
+pass generic/131
+pass generic/132
+pass generic/133
+pass generic/134
+pass generic/135
+pass generic/136
+pass generic/137
+pass generic/138
+pass generic/139
+pass generic/140
+pass generic/142
+pass generic/143
+pass generic/144
+pass generic/145
+pass generic/146
+pass generic/147
+pass generic/148
+pass generic/149
+pass generic/150
+pass generic/151
+pass generic/152
+pass generic/153
+pass generic/154
+pass generic/155
+pass generic/156
+notrun generic/157 moobfs_layer does not support mknod/mkfifo
+notrun generic/158 moobfs_layer does not support mknod/mkfifo
+pass generic/159
+pass generic/160
+pass generic/161
+pass generic/162
+pass generic/163
+pass generic/164
+pass generic/165
+pass generic/166
+pass generic/167
+pass generic/168
+pass generic/169
+pass generic/170
+notrun generic/171 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/172 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/173 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/174 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/175
+pass generic/176
+notrun generic/177 require moobscratch to be valid block disk
+pass generic/178
+pass generic/179
+pass generic/180
+pass generic/181
+pass generic/182
+pass generic/183
+notrun generic/184 moobfs_layer does not support mknod/mkfifo
+pass generic/185
+pass generic/186
+pass generic/187
+pass generic/188
+pass generic/189
+pass generic/190
+pass generic/191
+pass generic/192
+pass generic/193
+pass generic/194
+pass generic/195
+pass generic/196
+pass generic/197
+pass generic/198
+pass generic/199
+pass generic/200
+pass generic/201
+pass generic/202
+pass generic/203
+notrun generic/204 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/205 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/206 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+pass generic/207
+pass generic/208
+pass generic/209
+pass generic/210
+notrun generic/211 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/212
+pass generic/213
+pass generic/214
+notrun generic/216 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/217 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/218 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/219 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/220 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+pass generic/221
+notrun generic/222 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/223 can't mkfs moobfs_layer with geometry
+notrun generic/224 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/225
+notrun generic/226 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/227 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+pass generic/228
+notrun generic/229 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/230 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/231 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/232 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/233 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/234 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/235 disk quotas not supported by this filesystem type: moobfs_layer
+pass generic/236
+pass generic/237
+notrun generic/238 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+pass generic/239
+notrun generic/240 fs block size must be larger than the device block size.  fs block size: 4096, device block size: 4096
+pass generic/241
+pass generic/242
+pass generic/243
+notrun generic/244 disk quotas not supported by this filesystem type: moobfs_layer
+pass generic/245
+pass generic/246
+pass generic/247
+pass generic/248
+pass generic/249
+notrun generic/250 require moobscratch to be valid block disk
+notrun generic/251 FITRIM not supported on /tmp/moob/scratch
+notrun generic/252 require moobscratch to be valid block disk
+pass generic/253
+pass generic/254
+pass generic/255
+notrun generic/256 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/257
+pass generic/258
+pass generic/259
+notrun generic/260 FITRIM not supported on /tmp/moob/scratch
+pass generic/261
+pass generic/262
+pass generic/263
+pass generic/264
+notrun generic/265 require moobscratch to be valid block disk
+notrun generic/266 require moobscratch to be valid block disk
+notrun generic/267 require moobscratch to be valid block disk
+notrun generic/268 require moobscratch to be valid block disk
+notrun generic/269 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/270 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/271 require moobscratch to be valid block disk
+notrun generic/272 require moobscratch to be valid block disk
+notrun generic/273 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/274 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/275 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/276 require moobscratch to be valid block disk
+pass generic/277
+notrun generic/278 require moobscratch to be valid block disk
+notrun generic/279 require moobscratch to be valid block disk
+notrun generic/280 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/281 require moobscratch to be valid block disk
+notrun generic/282 require moobscratch to be valid block disk
+notrun generic/283 require moobscratch to be valid block disk
+pass generic/284
+pass generic/285
+pass generic/286
+pass generic/287
+notrun generic/288 FITRIM not supported on /tmp/moob/scratch
+pass generic/289
+pass generic/290
+pass generic/291
+pass generic/292
+pass generic/293
+notrun generic/294 moobfs_layer does not support mknod/mkfifo
+pass generic/295
+pass generic/296
+pass generic/297
+pass generic/298
+notrun generic/299 require moobscratch to be valid block disk
+notrun generic/300 require moobscratch to be valid block disk
+pass generic/301
+pass generic/302
+pass generic/303
+pass generic/304
+notrun generic/305 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/306 moobfs_layer does not support mknod/mkfifo
+pass generic/307
+pass generic/308
+pass generic/309
+pass generic/310
+notrun generic/311 require moobscratch to be valid block disk
+notrun generic/312 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/313
+pass generic/314
+pass generic/315
+pass generic/316
+pass generic/317
+pass generic/318
+pass generic/319
+notrun generic/320 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/321 require moobscratch to be valid block disk
+notrun generic/322 require moobscratch to be valid block disk
+pass generic/323
+notrun generic/324 defragmentation not supported for fstype "moobfs_layer"
+notrun generic/325 require moobscratch to be valid block disk
+notrun generic/326 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/327 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/328 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/329 require moobscratch to be valid block disk
+pass generic/330
+notrun generic/331 require moobscratch to be valid block disk
+pass generic/332
+notrun generic/333 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/334 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/335 require moobscratch to be valid block disk
+notrun generic/336 require moobscratch to be valid block disk
+pass generic/337
+notrun generic/338 require moobscratch to be valid block disk
+pass generic/339
+pass generic/340
+notrun generic/341 require moobscratch to be valid block disk
+notrun generic/342 require moobscratch to be valid block disk
+notrun generic/343 require moobscratch to be valid block disk
+pass generic/344
+pass generic/345
+pass generic/346
+notrun generic/347 require moobscratch to be valid block disk
+notrun generic/348 require moobscratch to be valid block disk
+pass generic/352
+pass generic/353
+pass generic/354
+pass generic/355
+notrun generic/356 swapfiles are not supported
+notrun generic/357 swapfiles are not supported
+pass generic/358
+pass generic/359
+pass generic/360
+notrun generic/361 require moobscratch to be valid block disk
+pass generic/362
+pass generic/363
+pass generic/364
+notrun generic/365 xfs_io fsmap support is missing
+notrun generic/366 512 byte dio alignment required
+notrun generic/368 filesystem doesn't support -o inlinecrypt
+notrun generic/369 filesystem doesn't support -o inlinecrypt
+notrun generic/370 swapfiles are not supported
+notrun generic/371 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/372
+pass generic/373
+pass generic/374
+pass generic/375
+notrun generic/376 require moobscratch to be valid block disk
+pass generic/377
+pass generic/378
+notrun generic/379 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/380 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/381 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/382 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/383 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/384 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/385 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/386 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/387 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/388 require moobscratch to be local device
+notrun generic/389 O_TMPFILE is not supported
+notrun generic/390 moobfs_layer does not support freezing
+pass generic/391
+notrun generic/392 moobfs_layer does not support shutdown
+pass generic/393
+pass generic/394
+notrun generic/395 No encryption support for moobfs_layer
+notrun generic/396 No encryption support for moobfs_layer
+notrun generic/397 No encryption support for moobfs_layer
+notrun generic/398 No encryption support for moobfs_layer
+notrun generic/399 No encryption support for moobfs_layer
+notrun generic/400 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/401 moobfs_layer does not support mknod/mkfifo
+notrun generic/402 filesystem moobfs_layer timestamp bounds are unknown
+pass generic/403
+pass generic/404
+notrun generic/405 require moobscratch to be valid block disk
+pass generic/406
+pass generic/407
+pass generic/408
+notrun generic/409 require moobscratch to be local device
+notrun generic/410 require moobscratch to be local device
+notrun generic/411 require moobscratch to be local device
+pass generic/412
+notrun generic/413 mount moobscratch with dax failed
+pass generic/414
+pass generic/415
+notrun generic/416 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/417 moobfs_layer does not support shutdown
+notrun generic/418 require moobtest to be valid block disk
+notrun generic/419 No encryption support for moobfs_layer
+pass generic/420
+notrun generic/421 No encryption support for moobfs_layer
+pass generic/422
+notrun generic/423 moobfs_layer does not support mknod/mkfifo
+pass generic/424
+pass generic/425
+notrun generic/426 moobfs_layer does not support NFS export
+notrun generic/427 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/428
+notrun generic/429 No encryption support for moobfs_layer
+pass generic/430
+pass generic/431
+pass generic/432
+pass generic/433
+notrun generic/434 moobfs_layer does not support mknod/mkfifo
+notrun generic/435 No encryption support for moobfs_layer
+pass generic/436
+pass generic/437
+pass generic/438
+pass generic/439
+notrun generic/440 No encryption support for moobfs_layer
+notrun generic/441 require moobscratch to be valid block disk
+pass generic/443
+pass generic/444
+pass generic/445
+pass generic/447
+pass generic/448
+notrun generic/449 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/450 Only test on sector size < half of block size
+pass generic/451
+notrun generic/453 moobfs_layer does not allow unrestricted byte streams for names
+notrun generic/454 moobfs_layer does not allow unrestricted byte streams for names
+notrun generic/455 This test requires a valid $LOGWRITES_DEV
+notrun generic/456 require moobscratch to be valid block disk
+notrun generic/457 This test requires a valid $LOGWRITES_DEV
+pass generic/458
+notrun generic/459 require moobscratch to be valid block disk
+pass generic/460
+notrun generic/461 moobfs_layer does not support shutdown
+notrun generic/462 mount moobscratch with dax failed
+pass generic/463
+pass generic/464
+pass generic/465
+notrun generic/466 require moobscratch to be valid block disk
+notrun generic/467 moobfs_layer does not support NFS export
+notrun generic/468 moobfs_layer does not support shutdown
+pass generic/469
+notrun generic/470 This test requires a valid $LOGWRITES_DEV
+pass generic/471
+notrun generic/472 swapfiles are not supported
+notrun generic/474 moobfs_layer does not support shutdown
+notrun generic/475 require moobscratch to be valid block disk
+pass generic/476
+notrun generic/477 moobfs_layer does not support NFS export
+pass generic/478
+notrun generic/479 moobfs_layer does not support mknod/mkfifo
+notrun generic/480 require moobscratch to be valid block disk
+notrun generic/481 require moobscratch to be valid block disk
+notrun generic/482 This test requires a valid $LOGWRITES_DEV
+notrun generic/483 require moobscratch to be valid block disk
+notrun generic/484 require moobscratch to be valid block disk
+pass generic/485
+pass generic/486
+notrun generic/487 This test requires a valid $SCRATCH_LOGDEV
+notrun generic/488 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/489 require moobscratch to be valid block disk
+pass generic/490
+notrun generic/491 moobfs_layer does not support freezing
+notrun generic/492 xfs_io label  failed (old kernel/wrong fs?)
+notrun generic/493 swapfiles are not supported
+notrun generic/494 swapfiles are not supported
+notrun generic/495 swapfiles are not supported
+notrun generic/496 swapfiles are not supported
+notrun generic/497 swapfiles are not supported
+notrun generic/498 require moobscratch to be valid block disk
+pass generic/499
+notrun generic/500 require moobscratch to be valid block disk
+notrun generic/501 require moobscratch to be valid block disk
+notrun generic/502 require moobscratch to be valid block disk
+pass generic/504
+notrun generic/505 moobfs_layer does not support shutdown
+notrun generic/506 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/507 moobfs_layer does not support shutdown
+notrun generic/508 moobfs_layer does not support shutdown
+notrun generic/509 O_TMPFILE is not supported
+notrun generic/510 require moobscratch to be valid block disk
+notrun generic/511 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/512 require moobscratch to be valid block disk
+pass generic/513
+pass generic/514
+notrun generic/515 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/516
+pass generic/517
+pass generic/518
+notrun generic/519 FIBMAP not supported by this filesystem
+notrun generic/520 require moobscratch to be valid block disk
+pass generic/523
+pass generic/524
+pass generic/525
+notrun generic/526 require moobscratch to be valid block disk
+notrun generic/527 require moobscratch to be valid block disk
+pass generic/528
+pass generic/529
+notrun generic/530 moobfs_layer does not support shutdown
+notrun generic/531 O_TMPFILE is not supported
+pass generic/532
+pass generic/533
+notrun generic/534 require moobscratch to be valid block disk
+notrun generic/535 require moobscratch to be valid block disk
+notrun generic/536 moobfs_layer does not support shutdown
+notrun generic/537 FSTRIM not supported
+notrun generic/538 Need device logical block size(4096) < fs block size(4096)
+pass generic/539
+pass generic/540
+pass generic/541
+pass generic/542
+pass generic/543
+pass generic/544
+pass generic/545
+notrun generic/546 require moobscratch to be valid block disk
+notrun generic/547 require moobscratch to be valid block disk
+notrun generic/548 No encryption support for moobfs_layer
+notrun generic/549 No encryption support for moobfs_layer
+notrun generic/550 No encryption support for moobfs_layer
+pass generic/551
+notrun generic/552 require moobscratch to be valid block disk
+pass generic/553
+notrun generic/554 swapfiles are not supported
+pass generic/555
+notrun generic/556 moobfs_layer does not support casefold feature
+notrun generic/557 require moobscratch to be valid block disk
+notrun generic/558 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/559 duperemove does not support file system type: moobfs_layer
+notrun generic/560 duperemove does not support file system type: moobfs_layer
+notrun generic/561 duperemove does not support file system type: moobfs_layer
+notrun generic/562 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/563 require moobscratch to be valid block disk
+notrun generic/564 moobfs_layer does not support mknod/mkfifo
+notrun generic/565 moobfs_layer does not support cross-device copy_file_range
+notrun generic/566 disk quotas not supported by this filesystem type: moobfs_layer
+pass generic/567
+pass generic/568
+notrun generic/569 swapfiles are not supported
+notrun generic/570 require moobscratch to be valid block disk
+pass generic/571
+notrun generic/572 fsverity utility required, skipped this test
+notrun generic/573 fsverity utility required, skipped this test
+notrun generic/574 fsverity utility required, skipped this test
+notrun generic/575 fsverity utility required, skipped this test
+notrun generic/576 fsverity utility required, skipped this test
+notrun generic/577 fsverity utility required, skipped this test
+pass generic/578
+notrun generic/579 fsverity utility required, skipped this test
+notrun generic/580 No encryption support for moobfs_layer
+notrun generic/581 No encryption support for moobfs_layer
+notrun generic/582 No encryption support for moobfs_layer
+notrun generic/583 No encryption support for moobfs_layer
+notrun generic/584 No encryption support for moobfs_layer
+notrun generic/585 kernel doesn't support renameat2 syscall
+pass generic/586
+notrun generic/587 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/588 require moobscratch to be valid block disk
+notrun generic/589 require moobscratch to be local device
+notrun generic/590 This test requires at least 8GB free on /tmp/moob/scratch to run
+pass generic/591
+notrun generic/592 No encryption support for moobfs_layer
+notrun generic/593 No encryption support for moobfs_layer
+notrun generic/594 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/595 No encryption support for moobfs_layer
+notrun generic/596 accton utility required, skipped this test
+pass generic/597
+notrun generic/598 moobfs_layer does not support mknod/mkfifo
+notrun generic/599 moobfs_layer does not support shutdown
+notrun generic/600 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/601 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/602 No encryption support for moobfs_layer
+notrun generic/603 disk quotas not supported by this filesystem type: moobfs_layer
+pass generic/604
+notrun generic/605 mount moobscratch with dax=always failed
+notrun generic/606 mount moobscratch with dax=always failed
+notrun generic/608 mount moobscratch with dax=always failed
+pass generic/609
+pass generic/610
+pass generic/611
+pass generic/612
+notrun generic/613 No encryption support for moobfs_layer
+pass generic/614
+pass generic/615
+pass generic/616
+pass generic/617
+pass generic/618
+notrun generic/619 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+notrun generic/620 require moobscratch to be valid block disk
+notrun generic/621 No encryption support for moobfs_layer
+notrun generic/622 moobfs_layer does not support shutdown
+notrun generic/623 xfs_io shutdown  failed (old kernel/wrong fs?)
+notrun generic/624 fsverity utility required, skipped this test
+notrun generic/625 fsverity utility required, skipped this test
+notrun generic/626 kernel doesn't support renameat2 syscall
+notrun generic/627 require moobscratch to be valid block disk
+notrun generic/628 require moobscratch to be valid block disk
+notrun generic/629 require moobscratch to be valid block disk
+pass generic/630
+fail generic/631
+pass generic/632
+pass generic/634
+notrun generic/635 moobfs_layer does not support shutdown
+notrun generic/636 swapfiles are not supported
+pass generic/637
+pass generic/638
+pass generic/639
+notrun generic/640 require moobscratch to be valid block disk
+notrun generic/641 swapfiles are not supported
+pass generic/642
+notrun generic/643 swapfiles are not supported
+notrun generic/644 idmapped mounts not support by moobfs_layer
+notrun generic/645 idmapped mounts not support by moobfs_layer
+notrun generic/646 moobfs_layer does not support shutdown
+pass generic/647
+notrun generic/648 require moobscratch to be valid block disk
+pass generic/649
+pass generic/650
+notrun generic/651 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/652 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/653 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/654 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/655 Filesystem moobfs_layer not supported in _scratch_mkfs_blocksized
+notrun generic/656 idmapped mounts not support by moobfs_layer
+pass generic/657
+pass generic/658
+pass generic/659
+pass generic/660
+pass generic/661
+pass generic/662
+pass generic/663
+pass generic/664
+pass generic/665
+pass generic/666
+pass generic/667
+pass generic/668
+pass generic/669
+pass generic/670
+pass generic/671
+pass generic/672
+pass generic/673
+pass generic/674
+pass generic/675
+pass generic/676
+notrun generic/677 require moobscratch to be valid block disk
+pass generic/678
+notrun generic/679 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/680
+notrun generic/681 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/682 disk quotas not supported by this filesystem type: moobfs_layer
+pass generic/683
+pass generic/684
+pass generic/685
+pass generic/686
+pass generic/687
+pass generic/688
+notrun generic/689 idmapped mounts not support by moobfs_layer
+notrun generic/690 require moobscratch to be valid block disk
+notrun generic/691 disk quotas not supported by this filesystem type: moobfs_layer
+notrun generic/692 fsverity utility required, skipped this test
+notrun generic/693 No encryption support for moobfs_layer
+pass generic/694
+notrun generic/695 require moobscratch to be valid block disk
+notrun generic/698 idmapped mounts not support by moobfs_layer
+notrun generic/699 idmapped mounts not support by moobfs_layer
+notrun generic/700 kernel doesn't support renameat2 syscall
+pass generic/701
+pass generic/702
+notrun generic/703 require moobscratch to be valid block disk
+notrun generic/704 require moobtest to be valid block disk
+notrun generic/705 moobfs_layer does not support shutdown
+pass generic/706
+pass generic/707
+pass generic/708
+notrun generic/709 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/710 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/711 xfs_io swapext  not supported on moobfs_layer
+notrun generic/712 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/713 xfs_io exchangerange  -s 64k -l 64k not supported on moobfs_layer
+notrun generic/714 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/715 xfs_io exchangerange  -s 64k -l 64k not supported on moobfs_layer
+notrun generic/716 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/717 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/718 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/719 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/720 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/721 xfs_io startupdate  not supported on moobfs_layer
+notrun generic/722 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/723 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/724 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/725 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/726 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/727 xfs_io exchangerange  not supported on moobfs_layer
+pass generic/728
+pass generic/729
+notrun generic/730 require moobtest to be valid block disk
+notrun generic/731 require moobtest to be valid block disk
+pass generic/733
+pass generic/734
+notrun generic/735 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/736
+notrun generic/737 moobfs_layer does not support shutdown
+notrun generic/738 moobfs_layer does not support freezing
+notrun generic/739 No encryption support for moobfs_layer
+notrun generic/740 require moobscratch to be valid block disk
+notrun generic/741 require moobscratch to be valid block disk
+pass generic/742
+notrun generic/743 require moobscratch to be valid block disk
+notrun generic/744 moobfs_layer does not support duplicate fsid
+notrun generic/745 require moobscratch to be valid block disk
+notrun generic/746 Requires fs-specific way to check discard ranges
+notrun generic/747 Filesystem moobfs_layer not supported in _scratch_mkfs_sized
+pass generic/748
+pass generic/749
+pass generic/750
+pass generic/751
+notrun generic/752 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/753 require moobscratch to be valid block disk
+pass generic/754
+pass generic/755
+notrun generic/756 moobfs_layer does not support NFS export
+notrun generic/757 This test requires a valid $LOGWRITES_DEV
+pass generic/758
+pass generic/759
+pass generic/760
+pass generic/761
+notrun generic/762 disk quotas not supported by this filesystem type: moobfs_layer
+pass generic/763
+notrun generic/764 require moobscratch to be valid block disk
+notrun generic/765 write atomic not supported by this block device
+notrun generic/766 moobfs_layer does not support shutdown
+notrun generic/767 require moobscratch to be valid block disk
+notrun generic/768 require moobscratch to be valid block disk
+notrun generic/769 require moobscratch to be valid block disk
+notrun generic/770 require moobscratch to be valid block disk
+notrun generic/771 require moobscratch to be valid block disk
+notrun generic/772 /home/debian/b10/f-xfs/build/fstests/tree/src/file_attr not built
+notrun generic/773 write atomic not supported by this block device
+notrun generic/774 multi-block atomic writes not supported by this filesystem
+notrun generic/775 multi-block atomic writes not supported by this filesystem
+notrun generic/776 write atomic not supported by this block device
+notrun generic/777 moobfs_layer does not support connectable file handles
+notrun generic/778 multi-block atomic writes not supported by this filesystem
+notrun generic/779 require moobscratch to be valid block disk
+notrun generic/781 require moobscratch to be valid block disk
+notrun generic/782 require moobscratch to be valid block disk
+notrun generic/783 moobfs_layer does not support casefold feature
+notrun generic/784 require moobscratch to be valid block disk
+notrun generic/785 require moobscratch to be valid block disk
+notrun generic/786 Require fcntl setdeleg support
+notrun generic/787 Require fcntl setdeleg support
+notrun generic/788 fsverity utility required, skipped this test
+notrun generic/789 require moobscratch to be valid block disk
+notrun generic/790 require moobscratch to be valid block disk
+notrun generic/791 require moobscratch to be valid block disk
+notrun generic/792 require moobscratch to be valid block disk
+notrun generic/793 this test requires a zoned block device
+notrun generic/794 require moobscratch to be valid block disk
+pass generic/795
+pass generic/796
+pass generic/797
+notrun generic/798 xfs_io cachestat  support is missing
+pass generic/799
+pass generic/800
+notrun generic/801 xfs_io fwzero  support is missing
+notrun generic/802 xfs_io exchangerange  not supported on moobfs_layer
+notrun generic/803 require moobtest to be valid block disk
+notrun generic/804 require moobtest to be valid block disk
+notrun generic/805 require moobscratch to be valid block disk
