@@ -97,3 +97,8 @@ after the configured wait and, to avoid a deadlock, sometimes without invoking t
 This observation is compatible with documented lock contention; it does not establish a
 module defect. References and testing limits clarified; no executable change or running
 snapshot modification. The kernel build is linking, and the complete VM suite continues.
+
+The marker table's former wording also overstated the helper's return status as checking
+`integrity_check`. A dated correction now says that it checks the final row count and prints
+integrity/missing-row diagnostics for separate inspection; the old claim is retired. The
+actual six outputs in this run were all `integrity=ok` and `missing=[]`.

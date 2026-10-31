@@ -346,3 +346,6 @@ below the 85 % target (journal 0239)
 # Journal 0247, 2026-10-31: the S14 mutation job and the S17 coverage job are written.
 the weekly CI job is still to do
 S15 to S18 and S21 not started
+
+# 2026-10-31: SQLite helper status checks row count; integrity is reported separately (0253).
+each exit code is 0 when 200 of 200 rows survive with `integrity_check` ok
