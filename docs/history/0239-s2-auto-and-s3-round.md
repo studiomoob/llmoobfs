@@ -246,6 +246,23 @@ the new mode; the btrfs and XFS jobs of the same run passed the step. The step n
 `kasan-arm64.yml`, `kcsan.yml` and `interop.yml`, where the race did not fail the job but could
 leave QEMU on TCG. A race of the workflow, not of the layer.
 
+
+## Batch-level runs, 2026-10-31
+
+Commit tested: `b0491097718b364cb7a13c19c320a421124c7f52` (branch `claudiofp/BATCH10`, PR 179),
+on the dedicated host, both runs started at 09:47 UTC with nothing else on the host.
+
+- Full `make vm-test` (`MOOB_VM_KVM=1 MOOB_DEBIAN_KERNEL=6.12.113`, container pinned to CPUs
+  0-3): exit 0 after 23 minutes; `MOOBFS_LAYER_PASS: pass-through over ext4, btrfs and xfs; ...`,
+  `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_VM_PASS: shared`.
+- Full local KASAN/UBSAN/lockdep suite (`vm/kasan-local.sh`, CPUs 4-7): exit 0 after 68
+  minutes; `MOOBFS_KASAN_PASS`, no `BUG:`, `WARNING:`, KASAN, UBSAN or lockdep report in the
+  console.
+
+No step was rerun. A first attempt to run these overnight beside the seventh syzkaller round
+never started: the helper that waited for the replay guests to exit expired without starting
+them, so the runs moved to the morning.
+
 ## Limitations
 
 - One run per lower, on one kernel, without KASAN in the fstests guest; 406 to 549 tests per lower
