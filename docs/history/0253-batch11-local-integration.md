@@ -48,3 +48,28 @@ results, real replay smoke and nightly timer installation remain pending. The de
 host already has one-shot queues for replay then ext4, and btrfs after 05:15 on November 1
 and the XFS run. First GitHub mutation and gcov jobs require an authorized PR. Seven nightly
 reports remain necessary for S18; no night is counted from an offline control or schedule.
+
+## Complete-suite launch and scheduling preparation
+
+Frozen source: `569ec2a`, transferred by a Git bundle and cloned into two independent
+working copies on the dedicated host (`b11full/vm-src`, `b11full/kasan-src`). The bundle
+was verified from the cloned repository; the first verification outside a repository was
+rejected by Git, then rerun correctly. Both copies retain the exact branch head and tracked
+file manifests. No running worktree was overwritten.
+
+At 13:18:58 Brasília time, a detached driver began the full
+`MOOB_VM_KVM=1 MOOB_DEBIAN_KERNEL=6.12.113 make vm-test`. An external Docker wrapper adds
+`--cpuset-cpus=0-3` at container creation, leaving the tracked `vm/run.sh` unchanged; the
+container's CPU set was inspected. The full local `sh vm/kasan-local.sh` is queued after
+that run, also pinned to CPUs 0–3. The driver records separate exit codes, start/end times,
+and post-run checks of all tracked source hashes. No success is claimed until both finish.
+
+A host-only installer is queued behind those two successful suites and the real replay
+smoke. It uses an independent clean clone of `569ec2a` for nights, preserves the existing
+crontab in a private backup, and adds named 23:00/reboot entries only after validation.
+Every entry acquires both daytime slot locks; the wrapper sets America/Sao_Paulo and
+CPUs 4–7. Cron is active. At this checkpoint the installer is waiting, and the nightly
+schedule is still not installed. Host scripts passed shell syntax and ShellCheck.
+
+Actionlint 1.7.7 passed the two new CI workflows after consolidation. The complete `make lint`
+on the dedicated snapshot is being captured separately. No workflow has run on GitHub.
