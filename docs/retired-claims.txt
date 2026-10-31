@@ -352,3 +352,6 @@ each exit code is 0 when 200 of 200 rows survive with `integrity_check` ok
 
 # 2026-10-31: current vm/in-container.sh guard is 3600 seconds (0253).
 including the 2400-second timeout
+
+# 2026-10-31: ext4 rerun passed; make target implemented locally.
+Open: a repeat of `auto` with those lists, and a make target.

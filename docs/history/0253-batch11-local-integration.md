@@ -180,3 +180,34 @@ were informed; no workload was started on the separate corporate host. The notif
 first prompt was delivered and its receipt retained; it continues waiting for remaining
 events. No publication or remote repository change. Local validation took about 2 h 12 min
 of calendar time, dominated by serial complete suites; engineering effort was not measured.
+
+
+## ext4 auto rerun verified (2026-10-31)
+
+This verification round ran from about 18:40 to 18:41 Brasília time (calendar time).
+The ext4 exclusion-list rerun began at 14:05:41 and finished at 18:39:42, exit 0.
+The actual guest console contains MOOBFS_FSTESTS_CHECK_EXIT: 0 and the ext4 DONE marker.
+Of 778 selected cases, the per-test classifier reports 229 pass, 549 notrun, zero fail;
+"Passed all 778 tests" is fstests' summary and does not mean that skipped cases ran.
+The classifier was re-executed against the saved log, returned 0 and reproduced the saved
+classifications byte for byte. No .out.bad artifact was present. The saved console passed
+vm/kdiag.sh's diagnostic scan. No test or monitor was restarted for this verification.
+
+Post-run hashes of 1,803 tracked paths were compared with `e839590`: all executable code,
+module sources, harnesses and exclusion lists match; six documentation files differ
+(CHANGELOG, journal 0248, history index, references, security roadmap and testing guide).
+There is no pre-run source manifest for this inherited copy, so this is a post-run source
+comparison, not proof of unchanged files throughout the run. fstests HEAD is
+`22348afe338c0f6d540c0d7ef0db749eaa51b218`; its common/config and common/rc have the
+harness filesystem adaptation. Built module SHA256:
+`36dff256c0877a25301354dd86fc027aee1647412e552468fd5e18ccbdabbaa1`.
+Per-test results are retained in `vm/fstests/results-ext4-auto-exclusions-6.12.113.txt`.
+The local evidence archive `ext4-auto-final.tar.gz` and source verification JSON are in
+the batch-11 local review directory. Archive SHA256:
+`0fdc65b1d08356f2b0fc45bb790a85ba6f725766813f7457483371a763138762`.
+
+slotA (CPUs 4–5) is free, confirmed by a nonblocking lock probe. XFS remains running on
+CPUs 6–7, and the host disk remains reserved to S2. The existing nightly schedule takes
+both slots at 23:00; btrfs remains queued after 05:15 on November 1 and XFS completion.
+G6 and the corporate instance were notified. Public surfaces outside this local branch
+remain unchanged pending publication approval; no push, PR or merge to main occurred.
