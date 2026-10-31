@@ -30,6 +30,8 @@ area/tests-vm:
           - scripts/checkpatch.sh
           - .devcontainer/**
           - .github/workflows/ci.yml
+          - .github/workflows/mutation.yml
+          - .github/workflows/coverage.yml
 
 area/kasan:
   - changed-files:

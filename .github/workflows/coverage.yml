@@ -1,0 +1,157 @@
+# SPDX-License-Identifier: GPL-2.0-only
+name: Branch coverage
+# Branch coverage of layer/ under the layer suite (security roadmap S17, journal 0247). Builds the
+# pinned upstream kernel of kasan.yml with vm/kasan.config and vm/gcov.config (CONFIG_GCOV_KERNEL,
+# the kernel itself not profiled), builds the layer with GCOV_PROFILE=y (Kbuild's switch,
+# Documentation/dev-tools/gcov.rst; set on this job's command line only, never in layer/Kbuild),
+# runs vm/suite.sh in virtme-ng as the KASAN job does, copies the counters out of debugfs
+# (vm/gcov-guest.sh) and makes an lcov branch report of layer/, kept as an artifact, with the
+# totals in the job summary. The layer is built here without the Makefile's -ffile-prefix-map
+# (journal 0236), so the coverage notes name the sources by the paths lcov reads. A report, not
+# a gate: the job fails only when the suite fails or no counters are collected. Weekly, on
+# demand, and on pull requests that change this job's own files. Not a required check.
+on:
+  schedule:
+    - cron: '53 4 * * 3'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/coverage.yml
+      - vm/gcov.config
+      - vm/gcov-guest.sh
+permissions:
+  contents: read
+concurrency:
+  group: coverage-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+env:
+  KERNEL_VERSION: 6.12.112
+  KERNEL_SHA256: 164dc9d1f6c93c61a15e1f071c48379b467f2b17c469cce7223471968208ed03
+jobs:
+  coverage:
+    name: gcov branch coverage of layer/ under the suite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build, guest and report dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential flex bison libelf-dev libssl-dev bc cpio kmod \
+            qemu-system-x86 qemu-utils python3-pip python3-venv udev \
+            e2fsprogs btrfs-progs xfsprogs sqlite3 libsqlite3-dev git dmsetup acl lcov
+          python3 -m pip install --user --require-hashes -r vm/kasan-requirements.txt   # virtme-ng 1.41 and deps, by hash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Let QEMU use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          # the trigger is asynchronous: wait for udev before checking the node's mode
+          sudo udevadm settle --timeout=30
+          ls -la /dev/kvm
+          if [ -w /dev/kvm ]; then echo "KVM usable"; else echo "no KVM: QEMU will use TCG"; fi
+      # Cached as in kasan.yml (journal 0209), under its own key: the configuration differs.
+      - name: Key of the built kernel
+        id: kkey
+        env:
+          CONFIG_HASH: ${{ hashFiles('vm/kasan.config', 'vm/gcov.config', 'vm/kasan-requirements.txt') }}
+        run: echo "key=gcov-kernel-${KERNEL_VERSION}-gcc$(gcc -dumpfullversion)-${ImageOS}-${ImageVersion}-${CONFIG_HASH}" >> "$GITHUB_OUTPUT"
+      - name: Restore the built kernel
+        id: kcache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/linux
+          key: ${{ steps.kkey.outputs.key }}
+      - name: Fetch and verify the kernel source
+        if: steps.kcache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p build
+          curl -fsSL -o build/linux.tar.xz "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz"
+          echo "${KERNEL_SHA256}  build/linux.tar.xz" | sha256sum -c -
+          mkdir -p build/linux
+          tar -xJf build/linux.tar.xz -C build/linux --strip-components=1
+      - name: Configure and build the kernel with gcov support
+        if: steps.kcache.outputs.cache-hit != 'true'
+        run: |
+          # the later fragment wins where both set a symbol (Kconfig reads overrides in order)
+          cat vm/kasan.config vm/gcov.config > build/gcov.config
+          cd build/linux
+          vng --kconfig --config ../gcov.config
+          grep -E '^CONFIG_(GCOV_KERNEL|DEBUG_FS|KASAN|PROVE_LOCKING)=' .config
+          grep -q '^CONFIG_GCOV_KERNEL=y' .config
+          vng --build --verbose
+      - name: Build the layer with GCOV_PROFILE=y and the test binaries
+        run: |
+          # Kbuild directly, not `make layer`: no -ffile-prefix-map, so the notes keep absolute paths
+          make -C build/linux M="$PWD/layer" GCOV_PROFILE=y modules
+          ls layer/*.gcno
+          make attr-tools BUILD=build/vng CFLAGS="-O2 -g -static"
+          make bench-tools BUILD=build/vng CFLAGS="-O2 -g -static" SQLITE_LIBS="-lsqlite3 -ldl -lpthread" && cp bench/queries-w3.txt build/vng/bench-queries-w3.txt && cp bench/sqlbase.sh build/vng/bench-sqlbase.sh && cp bench/equiv.sh build/vng/bench-equiv.sh && cp bench/run.sh build/vng/bench-run.sh
+          sh vm/build-tests.sh build/vng
+          cp layer/moobfs_layer.ko build/vng/
+          truncate -s 64M build/vng/lower-ext4.img && mke2fs -q -F -t ext4 -b 4096 -L moob-lower build/vng/lower-ext4.img
+          truncate -s 256M build/vng/lower-btrfs.img && mkfs.btrfs -q -f -L moob-lower build/vng/lower-btrfs.img
+          truncate -s 300M build/vng/lower-xfs.img && mkfs.xfs -q -f -L moob-lower build/vng/lower-xfs.img
+          truncate -s 64M build/vng/scratch.img build/vng/log.img
+      - name: Run the layer suite inside the gcov kernel
+        run: |
+          cd build/linux
+          R="$GITHUB_WORKSPACE"
+          # one retry on a boot-time diagnostic of the debug kernel, as in kasan.yml
+          for attempt in 1 2; do
+            vng --user root --cpus 2 --memory 3G --verbose \
+              --rwdir "$R/build" \
+              --disk "$R/build/vng/lower-ext4.img" --disk "$R/build/vng/lower-btrfs.img" \
+              --disk "$R/build/vng/lower-xfs.img" --disk "$R/build/vng/scratch.img" --disk "$R/build/vng/log.img" \
+              --exec "sh $R/vm/gcov-guest.sh" 2>&1 | tee "$R/build/vng/console-$attempt.log"
+            cp "$R/build/vng/console-$attempt.log" "$R/build/vng/console.log"
+            grep -q '^MOOBFS_VM_ENV_FAIL:' "$R/build/vng/console.log" || break
+            echo "attempt $attempt: boot-time diagnostic of the debug kernel; retrying once"
+          done
+          grep -q '^MOOBFS_KASAN_PASS:' "$R/build/vng/console.log"
+          if grep -q '^MOOBFS_VM_FAIL:' "$R/build/vng/console.log"; then exit 1; fi
+          if grep -q '^MOOBFS_VM_ENV_FAIL:' "$R/build/vng/console.log"; then exit 1; fi
+      - name: Branch report of layer/ with lcov
+        if: always() && hashFiles('build/gcov/gcda/*.gcda') != ''
+        run: |
+          # the counters go beside the notes gcc wrote next to each object
+          cp build/gcov/gcda/*.gcda layer/
+          lcov --version
+          lcov --capture --directory layer --rc branch_coverage=1 \
+            --include "$PWD/layer/*" --output-file build/gcov/layer.info
+          lcov --summary build/gcov/layer.info --rc branch_coverage=1 2>&1 | tee build/gcov/summary.txt
+          lcov --list build/gcov/layer.info --rc branch_coverage=1 2>&1 | tee build/gcov/files.txt
+          genhtml --rc branch_coverage=1 --output-directory build/gcov/html build/gcov/layer.info > build/gcov/genhtml.log
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo '### Branch coverage of layer/ under the layer suite'
+            echo
+            echo "Kernel: upstream ${KERNEL_VERSION} with vm/kasan.config and vm/gcov.config; layer built with GCOV_PROFILE=y."
+            grep -E '^MOOBFS_(GCOV_COLLECTED|KASAN_PASS|VM_FAIL|VM_ENV_FAIL)' build/vng/console.log 2>/dev/null || echo 'no suite marker in the console'
+            echo
+            echo '```'
+            cat build/gcov/summary.txt 2>/dev/null || echo 'no report: no counters were collected'
+            echo
+            cat build/gcov/files.txt 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail when no counters were collected
+        run: test -s build/gcov/layer.info
+      - name: Preserve the report and the evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: layer-branch-coverage
+          path: |
+            build/gcov/
+            build/vng/console.log
+            build/vng/dmesg.txt
+            build/linux/.config
+          if-no-files-found: warn
+          retention-days: 90

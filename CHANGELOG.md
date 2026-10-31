@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- CI jobs for S14 and S17 (journal 0247; written, neither has run yet, on GitHub or locally):
+  `.github/workflows/mutation.yml` runs the mutant catalogue of the homogeneity rule
+  (`scripts/mutants.py run`, Debian 6.12.113 VM under KVM) in four shards plus a baseline job on
+  the unmutated tree, weekly, on demand and on pull requests touching the catalogue, the script
+  or `layer/index.c`, and fails when a mutant survives; `.github/workflows/coverage.yml` builds
+  the upstream test kernel with `vm/gcov.config` and the layer with `GCOV_PROFILE=y`, runs the
+  suite in virtme-ng (`vm/gcov-guest.sh`) and keeps an lcov branch report of `layer/` as an
+  artifact, weekly and on demand. Neither is a required check. Checked offline: actionlint,
+  shellcheck, `check-pins.sh --offline` (with a negative round), retired claims.
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be
   covered. The handlers reach 688 of 781 (88.1 %); the value stays 85 %. Documentation only.

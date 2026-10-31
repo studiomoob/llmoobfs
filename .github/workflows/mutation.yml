@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: GPL-2.0-only
+name: Mutation testing
+# The mutants of the homogeneity rule (security roadmap S14, journals 0242 and 0247): each mutant
+# of tests/mutation/homogeneity.mut is applied to a copy of HEAD and its MOOB_ONLY steps run in
+# the Debian 6.12.113 VM of `make vm-test` under KVM (`scripts/mutants.py run`, the command of the
+# recorded run on the test host). The job fails when a mutant survives or its run ends before a
+# suite marker. The catalogue is split round-robin into four shards, one job each, so that no
+# job comes near GitHub's six-hour limit (23 mutants took 51 minutes on two vCPUs of the test
+# host) and a slow mutant does not hold up the others. A baseline job runs the same steps on the
+# unmutated tree: a kill means something only if the baseline passes. amd64 only (KVM; journal
+# 0124). Weekly, on demand, and on pull requests that change the catalogue, the script, the
+# file the mutants change or this workflow. Not a required check.
+on:
+  schedule:
+    - cron: '41 3 * * 6'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/mutation.yml
+      - tests/mutation/**
+      - scripts/mutants.py
+      - layer/index.c
+permissions:
+  contents: read
+concurrency:
+  group: mutation-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+env:
+  MOOB_DEBIAN_KERNEL: 6.12.113
+  MOOB_VM_KVM: '1'
+  SHARDS: '4'
+jobs:
+  baseline:
+    name: unmutated tree, the catalogue's steps
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Let QEMU use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          # the trigger is asynchronous: wait for udev before checking the node's mode
+          sudo udevadm settle --timeout=30
+          if [ -w /dev/kvm ]; then echo "KVM usable"; else echo "no KVM: refusing to run the suite under TCG"; exit 1; fi
+      - name: Run every step named by the catalogue on the unmutated module
+        run: |
+          steps=$(python3 -I scripts/mutants.py list | sed -n 's/^M[0-9]* steps=\([^:]*\):.*/\1/p' | tr ',' '\n' | sort -u | tr '\n' ' ')
+          echo "steps: $steps"
+          [ -n "$steps" ]
+          MOOB_ONLY="$steps" make vm-test
+      - name: Preserve the console
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-baseline
+          path: |
+            build/vm/console.log
+            build/vm/environment.txt
+          if-no-files-found: warn
+          retention-days: 30
+  mutants:
+    name: mutants, shard ${{ matrix.shard }} of 4
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Let QEMU use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          # the trigger is asynchronous: wait for udev before checking the node's mode
+          sudo udevadm settle --timeout=30
+          if [ -w /dev/kvm ]; then echo "KVM usable"; else echo "no KVM: refusing to run the suite under TCG"; exit 1; fi
+      - name: Run this shard's mutants (scripts/mutants.py run)
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          # mutant n of the catalogue (from 1) goes to shard n mod SHARDS
+          ids=$(python3 -I scripts/mutants.py list | awk -v n="$SHARDS" -v k="$SHARD" 'NR % n == k { print $1 }' | tr '\n' ' ')
+          echo "mutants of shard $SHARD: $ids"
+          [ -n "$ids" ]
+          # shellcheck disable=SC2086  # one argument per mutant id
+          python3 -I scripts/mutants.py run $ids
+      - name: Job summary
+        if: always()
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          {
+            echo "### Mutants, shard $SHARD of $SHARDS"
+            echo '```'
+            cat build/mutation/report.txt 2>/dev/null || echo 'no report (the run stopped before its first verdict)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve the reports and consoles
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-shard-${{ matrix.shard }}
+          path: |
+            build/mutation/report.txt
+            build/mutation/*.log
+          if-no-files-found: warn
+          retention-days: 30
