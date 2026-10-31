@@ -80,3 +80,20 @@ The full Debian guest reached `QUERY2_PASS` and `ISOLATION_PASS` on ext4; it is 
 The existing XFS auto guest reached `generic/127`. No final complete-suite, fstests or replay
 verdict exists yet. The later integration commits update only this journal; executable code
 remains identical to the frozen source `569ec2a`.
+
+## SQLite observation during the complete Debian run
+
+At about 13:40 Brasília time the rollback-journal concurrent reader reported
+`database is locked (5)` once. All six final variants had 200 rows, `integrity=ok`,
+no missing rows and status 0; `SQLITE_CONCURRENT_OK` and `ACCEPTANCE_CLIENTS_PASS` followed.
+The helper configures `.timeout 10000`, prints reader errors without propagating them,
+and returns the final row-count test; rollback and unix-excl variant statuses are informational
+by the existing acceptance contract. No read-latency or zero-contention-error guarantee is
+claimed. The timeout duration of this individual read was not measured.
+
+SQLite's official `sqlite3_busy_timeout()` and `sqlite3_busy_handler()` documentation
+(Context7 `/websites/sqlite_docs`, two commands including resolution) permits SQLITE_BUSY
+after the configured wait and, to avoid a deadlock, sometimes without invoking the handler.
+This observation is compatible with documented lock contention; it does not establish a
+module defect. References and testing limits clarified; no executable change or running
+snapshot modification. The kernel build is linking, and the complete VM suite continues.

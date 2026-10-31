@@ -424,7 +424,10 @@ Expected noise that is **not** a failure:
 - unsigned/out-of-tree module taint messages;
 - `SQLITE_RESULT` lines for `layer-rollback` and `layer-wal-unix-excl` with a
   nonzero exit code are printed for information; the verdict uses `lower`,
-  `alone`, `layer` and `again` only.
+  `alone`, `layer` and `again` only. Concurrent `reader error` messages are also
+  informational in the current helper: its return status checks the final row count.
+  Inspect the printed integrity and missing-row fields separately; a passing suite does
+  not claim that every concurrent read completed without `SQLITE_BUSY` (journal 0253).
 
 A failure is: `MOOBFS_VM_FAIL:`, a missing required final marker, QEMU exiting
 nonzero (including the 2400-second timeout), or in KASAN any of the `dmesg`
