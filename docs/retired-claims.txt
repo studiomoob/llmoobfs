@@ -343,3 +343,6 @@ mas ficam em 84,5 % e 84,9 % dos PCs dos handlers
 Open: the aggregate on the current code.
 The aggregate on the current code is 84.9 %
 below the 85 % target (journal 0239)
+# Journal 0247, 2026-10-31: the S14 mutation job and the S17 coverage job are written.
+the weekly CI job is still to do
+S15 to S18 and S21 not started
