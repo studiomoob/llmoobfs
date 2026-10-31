@@ -102,3 +102,12 @@ classification in the output file. Three fixture controls passed on the workstat
 plus skip is successful; a failed test preserves `fail` and returns nonzero; an interrupted
 log without `Ran:` returns nonzero. ShellCheck of that final script passed on the host.
 The reboot example takes both slot locks just like the normal nightly entry.
+
+## Real replay smoke and ext4 start (2026-10-31)
+
+Build exit 0 at 14:02:29 Brasília time. Smoke exit 0 at 14:05:13: xattr-get-security,
+xattr-get-fd and query-long-path, one disposable guest pinned to CPUs 4–5. All three
+programs replayed, zero failed/unreached, nonempty coverage: 911 module-text PCs,
+341 of 781 handler call sites (43.7%). This is only a smoke; it does not measure the full
+corpus or replace S3's 688/781. ext4 auto started at 14:05:41 in its separate copy.
+Full Debian integration passed at 14:09; the nightly installer awaits full KASAN.

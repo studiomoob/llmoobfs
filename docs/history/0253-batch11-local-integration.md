@@ -112,3 +112,17 @@ markers, 6,912 QUERY2 checks per lower, `MOOBFS_KASAN_ONLY_PASS`, and no VM fail
 failure marker. These counts belong to the focused run, not to the still-running full suite.
 The full-suite timeout description in testing.md was also corrected from 2,400 to 3,600
 seconds to match the existing `vm/in-container.sh`; executable code is unchanged.
+
+## Full Debian suite passed; replay smoke passed (14:19 checkpoint)
+
+On 2026-10-31 the full Debian KVM run finished at 14:09:18 Brasília time, exit 0, after
+about 50 minutes including builds (guest time about 48 minutes). The console has all three
+required final markers: MOOBFS_VM_PASS, MOOBFS_ACCEPTANCE_PASS and MOOBFS_LAYER_PASS.
+All 1,810 tracked source hashes match snapshot `569ec2a` after execution. The full local
+KASAN run began at 14:09:19 and is still running; its result is not inferred from this run.
+
+The syzkaller build finished at 14:02:29 Brasília time, exit 0. Real replay smoke finished
+at 14:05:13, exit 0: all three seeds replayed, no failed/unreached program, 911 module-text
+PCs and 341/781 handler call sites (43.7%). This is a three-seed smoke, not a corpus-coverage
+measurement and not a change to the S3 result. ext4 auto started at 14:05:41; XFS auto had
+reached generic/166 at 14:17. The nightly installer still waits for the full KASAN result.
