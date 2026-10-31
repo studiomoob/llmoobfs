@@ -1,0 +1,13 @@
+# fstests tests excluded from the group auto, on every lower, in addition to exclude-quick.txt
+# (journal 0239). Use, from the repository root:
+#   sh vm/fstests-local.sh ~/fstests <lower> -g auto -E "$PWD/vm/fstests/exclude-quick.txt" \
+#       -E "$PWD/vm/fstests/exclude-auto.txt" [-E "$PWD/vm/fstests/exclude-auto-btrfs.txt"]
+# A test listed here is a statement about the layer, not about the test: remove it when the
+# reason stops being true.
+
+# Does not apply: the test mounts overlayfs with the layer as upperdir, and overlayfs refuses it
+# ("upper fs does not support tmpfile", "does not support RENAME_WHITEOUT"): the layer has no
+# O_TMPFILE and refuses RENAME_WHITEOUT, which would create a device node (no device nodes
+# through the layer, SB_I_NODEV). The test requires overlayfs but not a capable upper, so it
+# fails instead of skipping. Same result over ext4, btrfs and XFS.
+generic/631

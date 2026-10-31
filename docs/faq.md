@@ -64,8 +64,8 @@ restrict reading xattrs either (its documentation lists `stat` and xattr calls a
 cannot restrict yet; a metadata access right is in progress upstream, landlock-lsm/linux issue
 11), so a query reveals the names and values that `getxattr` already returns there, and the
 content stays protected (journals 0030 and 0220). Once Landlock restricts metadata, the layer
-should follow it. AppArmor was not tested. No independent human has reviewed the whole kernel code, though an external reviewer
-privately reported three kernel defects, one of them F15 in this rule (journal 0215).
+should follow it. AppArmor was not tested. No independent human has reviewed the kernel code; an external reviewer's AI-assisted
+private reports found three kernel defects, one of them F15 in this rule (journal 0215).
 [`docs/spec-query-v2.md` §3; `docs/decisions/0011-threat-and-credential-model.md`; journals 0104, 0116]
 
 ## 7. What is the TOCTOU contract?
@@ -80,7 +80,7 @@ this tracking and require remount for guaranteed resynchronization.
 [`docs/spec-m3.md` §3.1 and its dated note; `docs/decisions/0019-bound-query-build-work-and-frequency.md`; `layer/index.c`: `moobl_index_renamed`, `query2_pin`]
 
 ## 8. What is implemented today?
-A stacked pass-through layer over ext4, btrfs and XFS (`fsx`, fstests' `quick` group), typed
+A stacked pass-through layer over ext4, btrfs and XFS (`fsx`, fstests' `quick` group; one run of its `auto` group), typed
 attributes validated in the kernel, an index built per domain by the first query and released
 under memory pressure, experimental per-build work and unprivileged frequency
 limits, `QUERY2` with ordering, cursors and batches, the first `QUERY` for
@@ -151,7 +151,7 @@ APIs change between versions; compatibility with other kernels is not promised.
 ## 15. Is it production-ready? Is there a release?
 It is not production-ready. It is a research project with source pre-release tags only, the last of which,
 `v0.5.0-experimental` (2026-10-28), is a source snapshot with every correction up to that date. A module bug can cause a
-kernel panic or data loss; the project's tests, two source reviews by AI assistants and private
+kernel panic or data loss; the project's tests, two source reviews by AI assistants and AI-assisted private
 reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011, all fixed on `main`; the fair shares of F2 came after
 `v0.5.0-experimental`). Run it only in a disposable VM with synthetic data.
 
@@ -173,8 +173,10 @@ Since that tag, `main` also bounds an unprivileged domain build.
 `index_build_work` defaults to 32,768 cumulative units, and a mounter may choose
 1,024–65,536 ([ADR-0020](https://github.com/studiomoob/llmoobfs/blob/main/docs/decisions/0020-configurable-query-build-work-per-mount.md),
 [PR 138](https://github.com/studiomoob/llmoobfs/pull/138)). The default denies the measured
-17,000-file domain. Issue 118 is closed: over a lower slowed to 400 ms per I/O the build stops at
-its deadline with no partial answer (journal 0210); this is not a strict CPU or I/O cap.
+17,000-file domain. The build's deadline is ten seconds of the builder's CPU time with a 120 s
+elapsed backstop (ADR-0031, accepted): the earlier elapsed deadline refused builds over a slow
+lower, at 400 ms per I/O (journal 0210) and on an `O_DIRECT` disk (journal 0238). It is not a
+strict CPU or I/O cap.
 See [R1 validation](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0149-sync-backing-file-flags.md)
 and [R2 validation](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0150-propagate-index-xattr-read-errors.md).
 [`SECURITY.md`; `docs/decisions/0011-threat-and-credential-model.md`; `CHANGELOG.md`; journal 0144]

@@ -212,20 +212,78 @@ sudo -u bob moobfs query /srv/memory/alice kind eq string decision     # permiss
 moobfs info /srv/memory                                                # the mount's settings
 ```
 
-On a host where several users query a shared mount, cap each user's memory: the kernel memory a
-query keeps (about 2 MiB per open descriptor that asked for the largest page) and the index it
-builds are charged to the caller's memory cgroup, which has no limit on a default Debian user
-slice ([ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md)). A systemd drop-in for
-every user slice, with a value that fits the host:
+### Limits for a shared mount
+
+On a host where several users query one mount, three bounds apply to each query, and the
+deployment sets the third one (roadmap item G2, [journal 0243](history/0243-g2-diagnostics-and-deployment-recipe.md)):
+
+| Bound | Set by | Refusal (exit 75 of `moobfs query`) |
+| --- | --- | --- |
+| The index of the whole mount: `index_budget` (default 128 MiB), shared fairly between the uids that hold built domains ([ADR-0027](decisions/0027-fair-shares-of-the-index-budget.md)) | mount option, section 3 | `ENOMEM`: the domain does not fit the budget, or this uid's share of it while other users hold theirs |
+| The work and time of a first query of a domain: `index_build_work` (default 32,768) and a ten-second deadline; at most 16 first builds per uid and 64 per mount each minute ([ADR-0019](decisions/0019-bound-query-build-work-and-frequency.md), [ADR-0020](decisions/0020-configurable-query-build-work-per-mount.md)) | mount option; the deadline and the rates are fixed | `E2BIG`, `ETIMEDOUT`, `EDQUOT` |
+| The memory of one user's processes: the index their queries build and the buffer each descriptor that queried keeps (about 2 MiB at the largest page, until it is closed) are charged to the caller's memory cgroup ([ADR-0018](decisions/0018-account-user-triggered-index-and-query-memory.md), [ADR-0029](decisions/0029-s9-limits-met-by-existing-bounds.md)) | `MemoryMax=` of the user's slice, below | `ENOMEM` at that limit, or the process killed by the cgroup's OOM killer |
+
+A default Debian user slice has no `MemoryMax=`, so the third bound is then the machine's
+memory: an unprivileged user can pin about 2 MiB of kernel memory per open descriptor that
+queried, up to `RLIMIT_NOFILE` per process, and the global OOM killer does not count it to
+that user's processes. Set it for every user slice with a systemd drop-in for the truncated
+unit name `user-.slice` (`user@.service(5)`, "Controlling resources for logged-in users"), with
+a value that fits the host:
 
 ```sh
 sudo mkdir -p /etc/systemd/system/user-.slice.d
 printf '[Slice]\nMemoryMax=2G\n' | sudo tee /etc/systemd/system/user-.slice.d/50-moobfs.conf
-sudo systemctl daemon-reload                  # applies to sessions started afterwards
+sudo systemctl daemon-reload
+systemctl show -P MemoryMax user-$(id -u alice).slice      # 2147483648
 ```
 
+Slices started afterwards get it. Whether `daemon-reload` alone changes the slice of a user
+who is already logged in was not tested; `sudo systemctl stop user-<uid>.slice` ends that
+user's sessions, and the next login starts the slice with the limit. A larger or smaller limit
+for one user goes in `/etc/systemd/system/user-<uid>.slice.d/60-moobfs.conf`: drop-ins apply in
+the lexicographic order of their names, whatever their directory (`systemd.unit(5)`), so it is
+applied after the common one.
+
+Sizing: the limit has to hold the user's own programs, plus the index of the domains the user
+queries (at most the share of `index_budget`; `moobfs info` shows the budget), plus about 2 MiB
+for each descriptor kept open after a query at the largest page. A client that keeps one
+descriptor per domain needs 2 MiB per domain; one that closes it after each query needs none.
+
+What the drop-in does not cover:
+
+- **A client that runs as a system service** (an agent or an MCP server started by systemd) is in
+  `system.slice`, not in a user slice: give its unit `MemoryMax=` (`systemctl edit
+  <client>.service`, `[Service]` section).
+- **`sudo -u` and `runuser`** run the command in the caller's cgroup, not in the target user's
+  slice; only a login (`ssh`, the console, a `pam_systemd` session) or `systemd-run --uid=<user>
+  --slice=user-<uid>.slice` puts it there. The commands of this page that use `sudo -u` are run
+  in root's session and are not limited.
+
+**Check it as the user**, with `moobfs diagnose` (read-only; [tools.md](tools.md#moobfs)):
+
+```sh
+moobfs diagnose /srv/memory/alice
+# path:             /srv/memory/alice (a domain directory)
+# mount:            /srv/memory
+# index:            on, budget 128 MiB, build work 32768
+# memory cgroup:    /user.slice/user-1001.slice/session-3.scope
+# memory limit:     2048 MiB at /user.slice/user-1001.slice (12 MiB used)
+# descriptors:      up to 1024 per process
+# note:    the index counters and the tracepoints are shown to administrators only ...
+```
+
+Without a limit it prints `warning: no memory.max applies to this process ...` and exits 2. It
+also reports how many times the limit was reached and whether a process was killed there, a
+test-only module parameter left set, and, for root, the index's use of its budget and the
+tracepoints. When a query is refused with `ENOMEM`, `moobfs query` reads the caller's memory
+cgroups again and says which bound refused it: `the memory cgroup /user.slice/user-1001.slice
+reached its memory.max (2048 MiB)`, or `the domain does not fit the mount's index budget ...;
+the memory cgroup ... did not reach its limit`.
+
 Over the limit a query fails with `ENOMEM` and other users keep their answers (suite step
-`limits`, journal 0235). The drop-in itself has not been run in a test VM yet.
+`limits`, journal 0235); the messages are checked in suite step `diag`, and the drop-in and
+`moobfs diagnose` under it in `make install-test` (journal 0243; both passed in a
+dedicated VM on 2026-10-30).
 
 A directory shared by a group is `root:<group>` with mode `2770` and a default ACL; the recipe is
 in [distribution-strategy.md](distribution-strategy.md) §2.2. Containers: §2.5 of the same
@@ -277,7 +335,26 @@ sudo getfattr -d -m '^user\.moob\.' /srv/moobfs/lower/alice/note.md
 | `mount: ... unknown filesystem type 'moobfs_layer'` | The module is not installed for this kernel: `ls /lib/modules/$(uname -r)/updates/moobfs/`, then `sudo depmod -a`. |
 | `mount` fails with `EPERM` inside a container or user namespace | Deliberate: mount on the host and bind-mount into the container (ADR-0011). |
 | `lower= is required`, or `... must be between ...` in `dmesg` | A missing or out-of-range mount option; see the table in section 3. |
-| A query returns `ENOTTY` | `QUERY` needs the mount root, `QUERY2` a domain directory; a bind mount of a subdirectory cannot issue `QUERY` (distribution strategy §2.5). |
+| A query returns `ENOTTY` | `QUERY` needs the mount root, `QUERY2` a domain directory; a bind mount of a subdirectory cannot issue `QUERY` (distribution strategy §2.5). `moobfs diagnose <dir>` says whether `<dir>` is a domain directory, above the domains or inside one. |
+| `moobfs query` exits 75 | A bound of section 5 refused the query; the message names it. For `ENOMEM`, run `moobfs diagnose <dir>` as the same user, in the same session: it shows the memory limit that applies and whether it was reached. `E2BIG`: raise `index_build_work` or mount with a larger `domain_depth`. `EDQUOT`: retry after a minute. `ETIMEDOUT`: the lower filesystem was too slow for the ten-second deadline (a cold cache, a busy disk). |
+| A query process disappears (killed) | Its memory cgroup's OOM killer chose it at `MemoryMax=`; `moobfs diagnose` reports `oom-killed`, and `journalctl -k` shows `Memory cgroup out of memory`. Raise the limit or close idle descriptors. |
+
+**Tracepoints, for the administrator.** Each build of a domain, whatever its outcome, is one
+`moobfs_domain_build` event; a release is `moobfs_domain_release` ([ADR-0012](decisions/0012-index-on-demand-and-reclaimable.md),
+security roadmap S13). They are not a stable interface, and tracefs is readable by root only:
+
+```sh
+echo 1 | sudo tee /sys/kernel/tracing/events/moobfs/enable
+sudo cat /sys/kernel/tracing/trace_pipe
+# moobfs_domain_build: dev=0:52 domain=1835009 err=-12 tries=1 released=0 bytes=0 ns=48211
+echo 0 | sudo tee /sys/kernel/tracing/events/moobfs/enable
+```
+
+`domain` is the inode number of the domain directory on the lower (`stat -c %i`); `err` is the
+negative errno the query got (0 built, -12 `ENOMEM`, -7 `E2BIG`, -110 `ETIMEDOUT`, -11
+`EAGAIN`); `released` counts the domains released to make room; `by=budget` or `by=shrinker` on
+a release says why. A refusal by the build rate (`EDQUOT`) happens before the build and has no
+event. The event does not carry the uid: match it with the user's report by time and domain.
 
 ## What was tested
 

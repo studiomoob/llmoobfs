@@ -33,7 +33,7 @@
 #                       back, since that domain is over its share (ADR-0021, ADR-0027)
 #   buildlimit          optional QUERY2 work and admission limit regression (#118)
 #   buildwork           optional per-mount query-build work policy regression (#118)
-#   buildtime           optional cooperative scan-deadline regression (#118)
+#   buildtime           optional build CPU-time budget and elapsed backstop (#118, ADR-0031)
 #   buildmoved          optional cumulative work across a moved-directory rescan (#118)
 #   stall               a FUSE mount that never answers, inside a checked domain (journal 0116)
 #   lowerro             a read-only, frozen or idmapped lower mount (journal 0117)
@@ -52,6 +52,9 @@
 #   limits              S9 caps hit: a domain larger than index_budget, retained QUERY2 buffers
 #                       and a build in a limited memory cgroup refused with ENOMEM, another uid
 #                       answered meanwhile (journal 0235)
+#   diag                G2 diagnostics: moobfs query says whether an ENOMEM came from the index
+#                       budget or from the memory.max of an ancestor cgroup, and moobfs diagnose
+#                       reports the limits that apply, as a user and as root (journal 0243)
 #   landlock            the moobfs CLI under a Landlock sandbox that cannot read
 #                       /proc/self/mountinfo answers as without it (issue #167)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
@@ -74,7 +77,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -517,7 +520,40 @@ run_lower() {
     "$BIN/query" --uid 1001 "$LAYER/dshared" q2 kind eq string note > /tmp/k.txt || fail "t4-query-$fs"
     grep -q 'priv/' /tmp/k.txt && { cat /tmp/k.txt; fail "t4-private-directory-leaks-$fs"; }
     mv "$LAYER/dshared/priv/r.md" "$LAYER/dshared/m1.md" && rm -rf "$LAYER/dshared/priv" "$LAYER/dacl" || fail "t4-clean-$fs"
-    echo "HOMOGENEITY_GAPS_PASS: $fs, ACL on the domain directory (T3), writes under a private directory (T4)"
+    # S14 (journal 0242): directories that carry attributes below a private directory, which the
+    # first mutation run found untested (mutant M19; M22 and M23, a move during the build, are in
+    # step permmatrix). Domain ds14 (0755, root's) holds
+    # a private directory pv (0700): 1001 traverses the domain but not pv. Read by the build:
+    # pv/d (0755, with an attribute) must stay out of 1001's answers. Moved in by a rename after
+    # the build: s/m (0755, with an attribute, and its file m/f.md 0644 with one) to pv/m; m and
+    # f.md must stay out too. ok.md is the control that 1001 must receive.
+    mkdir -m 0755 "$LAYER/ds14" "$LAYER/ds14/s" "$LAYER/ds14/s/m" && mkdir -m 0700 "$LAYER/ds14/pv" &&
+        mkdir -m 0755 "$LAYER/ds14/pv/d" || fail "s14-mkdir-$fs"
+    echo ok > "$LAYER/ds14/ok.md" && echo f > "$LAYER/ds14/s/m/f.md" &&
+        chmod 0644 "$LAYER/ds14/ok.md" "$LAYER/ds14/s/m/f.md" || fail "s14-files-$fs"
+    for p in ok.md pv/d s/m s/m/f.md; do
+        "$BIN/moobfs-attr" set "$LAYER/ds14/$p" kind string note >/dev/null || fail "s14-attr-$fs"
+    done
+    # a remount, so that the build reads pv/d (as for T3)
+    umount "$LAYER" && mount -t moobfs_layer -o lower="$LOWER" none "$LAYER" || fail "s14-remount-$fs"
+    q2cmp 1001 ds14 3 s14-build
+    grep -q 'pv/' /tmp/k.txt && { cat /tmp/k.txt; fail "s14-dir-under-private-leaks-$fs"; }
+    mv "$LAYER/ds14/s/m" "$LAYER/ds14/pv/m" || fail "s14-rename-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || fail "s14-fallback-$fs"
+    q2cmp 1001 ds14 1 s14-moved
+    grep -q 'pv/' /tmp/k.txt && { cat /tmp/k.txt; fail "s14-moved-dir-under-private-leaks-$fs"; }
+    # mutant M16: a file deeper than the 64 levels the layer evaluates, given an attribute, is
+    # placed outside every domain and counted heterogeneous. Its write is recorded only when the
+    # outside part is built, which a mount-wide QUERY does.
+    deep=$LAYER/ds14; i=0
+    while [ $i -lt 66 ]; do deep=$deep/z; i=$((i + 1)); done
+    "$BIN/query" "$LAYER" kind eq string note > /dev/null || fail "s14-deep-mount-query-$fs"
+    h0=$(hetero)
+    mkdir -p "$deep" && echo z > "$deep/f.md" || fail "s14-deep-mkdir-$fs"
+    "$BIN/moobfs-attr" set "$deep/f.md" kind string note >/dev/null || fail "s14-deep-attr-$fs"
+    [ "$(hetero)" -eq $((h0 + 1)) ] || fail "s14-deep-not-heterogeneous-$fs"
+    rm -rf "$LAYER/ds14" || fail "s14-clean-$fs"
+    echo "HOMOGENEITY_GAPS_PASS: $fs, ACL on the domain directory (T3), writes under a private directory (T4), directories below a private directory by build and rename, a path too deep (S14)"
     # QUERY2 ordering and cursor (phase Q2b, spec test 7): 30 files in domain da with a time
     # attribute (ties included), two of them with an int64 under the same name, and string
     # titles, ten of them longer than the cursor's inline space
@@ -1588,6 +1624,22 @@ for fs in ext4 btrfs xfs; do
     grep -q 't/' /tmp/pm-mv.txt && fail "pm-mv-leak-$fs (a directory moved during the build answered)"
     [ "$(pm_hetero)" -ge 600 ] || fail "pm-mv-not-heterogeneous-$fs"
     umount "$LAYER" || fail "pm-mv-umount-$fs"
+    # S14 (journal 0242, mutants M22 and M23): a directory that passes the rule (a/s, 0755, with
+    # an attribute of its own and 600 files) moved during the build, at the same depth, below a
+    # private directory (pv, 0700): neither s nor its files may reach 1001's answer
+    rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" "$LOWER/pmx/d" "$LOWER/pmx/d/a" "$LOWER/pmx/d/a/s" &&
+        mkdir -m 700 "$LOWER/pmx/d/pv" || fail "pm-mvp-mkdir-$fs"
+    "$BIN/query-build-limit" plant6 "$LOWER/pmx/d/a/s" 600 || fail "pm-mvp-plant-$fs"
+    "$BIN/moobfs-attr" set "$LOWER/pmx/d/a/s" kind string dir > /dev/null || fail "pm-mvp-attr-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pmx",domain_depth=1 none "$LAYER" || fail "pm-mvp-mount-$fs"
+    echo 100 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mvp-delay-on-$fs"
+    "$BIN/query-build-moved" "$LAYER/d" any a/s pv/s; pm_rc=$?
+    echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pm-mvp-delay-off-$fs"
+    [ "$pm_rc" -eq 0 ] || fail "pm-mvp-no-move-during-build-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=0' || { "$BIN/query" "$LAYER" info; fail "pm-mvp-fallback-$fs (the partition was not what answered)"; }
+    "$BIN/query" --uid 1001 "$LAYER/d" q2 kind exists - - > /tmp/pm-mvp.txt || fail "pm-mvp-query-$fs"
+    grep -q 'pv/s' /tmp/pm-mvp.txt && { head -3 /tmp/pm-mvp.txt; fail "pm-mvp-leak-$fs (a directory moved below a private one during the build answered)"; }
+    umount "$LAYER" || fail "pm-mvp-umount-$fs"
     rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup-$fs"
     echo "PERMMATRIX_STEP_PASS: $fs, 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
 done
@@ -2003,6 +2055,93 @@ else
 fi
 rm -rf "$LOWER/lm" && umount "$LOWER" || fail lm-cleanup
 fi
+if want diag; then
+# G2 (journal 0243): the refusals of the limits step, as a user sees them through the moobfs
+# CLI. 1. On a 1 MiB index_budget, uid 1003's domain larger than the budget is refused with exit
+#    75 and a message naming the index budget, not a memory cgroup (the process is in the root
+#    cgroup, which has no memory.max); moobfs diagnose as a user warns that no memory.max
+#    applies, and as root also shows the index counters, the tracepoints and a test-only module
+#    parameter left set.
+# 2. In a cgroup /moob-dg/leaf whose parent /moob-dg holds a 4 MiB memory.max (the shape of a
+#    systemd session scope below user-UID.slice), uid 1001's build of a 6000-file domain is
+#    refused with exit 75 and a message naming /moob-dg and its memory.max; diagnose there names
+#    the same limit and that it was reached. The test process is made unkillable, as in limits,
+#    so the cap is seen as ENOMEM. The same uid outside the cgroup then gets the oracle's answer.
+dg_info() { "$BIN/query" "$LAYER" info | tr ' ' '\n' | sed -n "s/^$1=//p" | head -1; }
+dg_has() { grep -q "\"code\": \"$2\"" "$1"; }
+# the CLI reads the caller's cgroups under /sys/fs/cgroup, which the initramfs guest leaves empty
+dg_cg=/sys/fs/cgroup dg_mounted=0
+if [ ! -e "$dg_cg/cgroup.controllers" ]; then
+    mount -t cgroup2 none "$dg_cg" || fail dg-cgroup2-mount
+    dg_mounted=1
+fi
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail dg-lower-mount
+mkdir -p "$LOWER/dg/a" "$LOWER/dg/c" "$LOWER/dg/big" || fail dg-directories
+"$BIN/overbudget-race" plant "$LOWER/dg/a" 100 || fail dg-plant-a
+"$BIN/overbudget-race" plant "$LOWER/dg/c" 4000 || fail dg-plant-c
+"$BIN/overbudget-race" plant "$LOWER/dg/big" 6000 || fail dg-plant-big
+chown -R 1001:1001 "$LOWER/dg/a" "$LOWER/dg/big" && chown -R 1003:1003 "$LOWER/dg/c" &&
+    chmod 700 "$LOWER/dg/a" "$LOWER/dg/c" "$LOWER/dg/big" || fail dg-private-domains
+mount -t moobfs_layer -o "lower=$LOWER/dg,domain_depth=1,index_budget=1048576" none "$LAYER" ||
+    fail dg-budget-mount
+[ -e /sys/kernel/tracing/trace ] || mount -t tracefs nodev /sys/kernel/tracing || fail dg-tracefs
+"$BIN/asuid" 1001 "$BIN/moobfs" query "$LAYER/a" kind exists - - > /tmp/dg.k || fail dg-a
+[ "$(wc -l < /tmp/dg.k)" -eq 100 ] || fail "dg-a-count $(wc -l < /tmp/dg.k)"
+dg_builds=$(dg_info domain_builds)
+rc=0; "$BIN/asuid" 1003 "$BIN/moobfs" query "$LAYER/c" kind exists - - > /tmp/dg.k 2> /tmp/dg.e || rc=$?
+cat /tmp/dg.e
+[ "$rc" -eq 75 ] && [ ! -s /tmp/dg.k ] || fail "dg-budget-status $rc"
+grep -q 'refused (ENOMEM): the domain does not fit the mount.s index budget (index_budget, 1 MiB)' /tmp/dg.e &&
+    grep -q 'no memory cgroup limit applies' /tmp/dg.e && ! grep -q 'reached its memory.max' /tmp/dg.e ||
+    fail dg-budget-message
+[ "$(dg_info domain_builds)" -eq "$dg_builds" ] || fail dg-budget-built
+rc=0; "$BIN/asuid" 1001 "$BIN/moobfs" diagnose --json "$LAYER/a" > /tmp/dg.j 2> /tmp/dg.e || rc=$?
+cat /tmp/dg.j /tmp/dg.e
+[ "$rc" -eq 2 ] && dg_has /tmp/dg.j no-memory-limit && dg_has /tmp/dg.j administrator-only &&
+    grep -q '"role": "domain"' /tmp/dg.j && grep -q '"index_budget": 1048576' /tmp/dg.j &&
+    grep -q '"index_used": null' /tmp/dg.j || fail "dg-diagnose-user $rc"
+"$BIN/asuid" 1001 "$BIN/moobfs" diagnose "$LAYER" > /tmp/dg.t 2>&1; grep -q '(above the domains)' /tmp/dg.t || fail dg-diagnose-above
+echo 7 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail dg-param-set
+rc=0; "$BIN/moobfs" diagnose --json "$LAYER/a" > /tmp/dg.j 2> /tmp/dg.e || rc=$?
+echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail dg-param-reset
+cat /tmp/dg.j /tmp/dg.e
+[ "$rc" -eq 2 ] && dg_has /tmp/dg.j test-parameter && dg_has /tmp/dg.j tracepoints &&
+    grep -q '"scan_delay_us": 7' /tmp/dg.j && grep -q '"index_used": [0-9]' /tmp/dg.j &&
+    grep -q '"tracepoints": "\(on\|off\)"' /tmp/dg.j || fail "dg-diagnose-root $rc"
+umount "$LAYER" || fail dg-budget-unmount
+echo "DIAG_BUDGET_PASS: ENOMEM of a domain over index_budget named the budget, not a cgroup; diagnose warned of no memory.max (user) and of a test parameter (root)"
+if ! grep -qw memory "$dg_cg/cgroup.controllers"; then
+    [ "${MOOB_EXPECT_MEMCG:-0}" = 1 ] && fail dg-memcg-unavailable
+    echo "DIAG_MEMCG_SKIPPED: no cgroup v2 memory controller in this guest"
+else
+    echo +memory > "$dg_cg/cgroup.subtree_control" &&
+        mkdir "$dg_cg/moob-dg" && echo +memory > "$dg_cg/moob-dg/cgroup.subtree_control" &&
+        mkdir "$dg_cg/moob-dg/leaf" && echo 4194304 > "$dg_cg/moob-dg/memory.max" || fail dg-cgroups
+    mount -t moobfs_layer -o lower="$LOWER/dg",domain_depth=1 none "$LAYER" || fail dg-memcg-mount
+    dg_builds=$(dg_info domain_builds)
+    dg_inleaf() { sh -c 'echo $$ > "$1/moob-dg/leaf/cgroup.procs" && echo -1000 > /proc/self/oom_score_adj && shift && exec "$@"' sh "$dg_cg" "$@"; }
+    rc=0; dg_inleaf "$BIN/asuid" 1001 "$BIN/moobfs" query --page 16 "$LAYER/big" kind exists - - > /tmp/dg.k 2> /tmp/dg.e || rc=$?
+    cat /tmp/dg.e
+    [ "$rc" -eq 75 ] && [ ! -s /tmp/dg.k ] || fail "dg-memcg-status $rc"
+    grep -q 'refused (ENOMEM): the memory cgroup /moob-dg reached its memory.max (4 MiB)' /tmp/dg.e ||
+        fail dg-memcg-not-named
+    [ "$(dg_info domain_builds)" -eq "$dg_builds" ] || fail dg-memcg-built
+    rc=0; dg_inleaf "$BIN/asuid" 1001 "$BIN/moobfs" diagnose --json "$LAYER/big" > /tmp/dg.j 2> /tmp/dg.e || rc=$?
+    cat /tmp/dg.j /tmp/dg.e
+    [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || fail "dg-diagnose-cgroup-status $rc"
+    ! dg_has /tmp/dg.j no-memory-limit && dg_has /tmp/dg.j limit-reached &&
+        grep -q '"cgroup": "/moob-dg/leaf", "limit": {"cgroup": "/moob-dg", "memory_max": 4194304}' /tmp/dg.j ||
+        fail dg-diagnose-cgroup
+    "$BIN/asuid" 1001 "$BIN/moobfs" query "$LAYER/big" kind exists - - | sort > /tmp/dg.k || fail dg-big-outside
+    "$BIN/moobfs-index" --domain "$LOWER/dg/big" kind exists - - | cut -f2 | sort > /tmp/dg.o || fail dg-big-oracle
+    cmp -s /tmp/dg.k /tmp/dg.o && [ "$(wc -l < /tmp/dg.k)" -eq 6000 ] ||
+        fail "dg-big-differs kernel=$(wc -l < /tmp/dg.k) oracle=$(wc -l < /tmp/dg.o)"
+    umount "$LAYER" && rmdir "$dg_cg/moob-dg/leaf" "$dg_cg/moob-dg" || fail dg-memcg-cleanup
+    echo "DIAG_MEMCG_PASS: ENOMEM of a build in /moob-dg/leaf named the 4 MiB memory.max of /moob-dg; diagnose named the same limit, reached; built outside, equal to the oracle"
+fi
+rm -rf "$LOWER/dg" && umount "$LOWER" || fail dg-cleanup
+[ "$dg_mounted" -eq 0 ] || umount "$dg_cg" || fail dg-cgroup-unmount
+fi
 if [ -n "${MOOB_ONLY:-}" ] && want builddenial; then
 # Compare the same cold 17,000-file QUERY2 with the pre-limit and limited
 # modules. The helper accepts only a complete empty answer or E2BIG with
@@ -2219,19 +2358,37 @@ umount "$LAYER" && rm -rf "$LOWER/bw" && umount "$LOWER" || fail bw-cleanup
 echo 'BUILD_WORK_OPTION_PASS: invalid values refused; default and minimum denied; 65536 completed 17000 attributed files; remount contract preserved'
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildtime; then
-# Existing test-only scan delay makes the cooperative ten-second deadline
-# reachable without relying on a particular lower device's speed.
+# ADR-0031: the ten-second build budget counts the builder's CPU time; a 120 s elapsed
+# backstop remains. Test-only knobs make each bound reachable without relying on a
+# particular lower device's speed: scan_delay_us sleeps per file (as a slow disk does),
+# scan_spin_us busy-waits per file. Sixty files at 200 ms is 12 s; at 2.1 s, 126 s.
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail bt-lower-mount
 mkdir -p "$LOWER/bt/d/s" || fail bt-mkdir
 "$BIN/overbudget-race" plant "$LOWER/bt/d/s" 60 || fail bt-plant
+bt_info() { "$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p'; }
+bt_param=/sys/module/moobfs_layer/parameters
 mount -t moobfs_layer -o lower="$LOWER/bt",domain_depth=1 none "$LAYER" || fail bt-mount
-echo 200000 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bt-delay-on
-"$BIN/query-build-limit" "$LAYER/d" 1001 timeout || fail bt-timeout-errno-or-output
-echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bt-delay-off
-"$BIN/query-build-limit" "$LAYER/d" 1001 ok || fail bt-recovery
-[ "$("$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')" -eq 1 ] || fail bt-build-count
+echo 200000 > "$bt_param/scan_delay_us" || fail bt-sleep-on
+"$BIN/query-build-limit" "$LAYER/d" 1001 ok || fail bt-sleep-refused
+echo 0 > "$bt_param/scan_delay_us" || fail bt-sleep-off
+[ "$(bt_info)" -eq 1 ] || fail bt-sleep-build-count
+umount "$LAYER" || fail bt-sleep-unmount
+mount -t moobfs_layer -o lower="$LOWER/bt",domain_depth=1 none "$LAYER" || fail bt-cpu-mount
+echo 200000 > "$bt_param/scan_spin_us" || fail bt-spin-on
+"$BIN/query-build-limit" "$LAYER/d" 1001 timeout || fail bt-cpu-errno-or-output
+echo 0 > "$bt_param/scan_spin_us" || fail bt-spin-off
+[ "$(bt_info)" -eq 0 ] || fail bt-cpu-partial-build
+"$BIN/query-build-limit" "$LAYER/d" 1001 ok || fail bt-cpu-recovery
+[ "$(bt_info)" -eq 1 ] || fail bt-cpu-build-count
+umount "$LAYER" || fail bt-cpu-unmount
+mount -t moobfs_layer -o lower="$LOWER/bt",domain_depth=1 none "$LAYER" || fail bt-wall-mount
+echo 2100000 > "$bt_param/scan_delay_us" || fail bt-wall-on
+"$BIN/query-build-limit" "$LAYER/d" 1001 timeout || fail bt-wall-errno-or-output
+echo 0 > "$bt_param/scan_delay_us" || fail bt-wall-off
+[ "$(bt_info)" -eq 0 ] || fail bt-wall-partial-build
+"$BIN/query-build-limit" "$LAYER/d" 1001 ok || fail bt-wall-recovery
 umount "$LAYER" && rm -rf "$LOWER/bt" && umount "$LOWER" || fail bt-cleanup
-echo "BUILD_TIME_PASS: timed-out scan did not publish results and the next query rebuilt"
+echo "BUILD_TIME_PASS: 12 s asleep built; 12 s on the CPU and 126 s asleep timed out with no results; the next query rebuilt"
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildmoved; then
 # Function tracing synchronizes a same-domain directory rename with the
@@ -2476,6 +2633,8 @@ for f in plain same other0 named; do
     "$BIN/moobfs-attr" set "$LOWER/d/$f" kind string note > /dev/null || fail "ma-attr-$f"
 done
 "$TOOLS/setfacl" -m u:1002:r "$LOWER/d/named" || fail ma-setfacl
+mkdir -m 755 "$LOWER/x" && echo bad > "$LOWER/x/bad" && chmod 644 "$LOWER/x/bad" || fail ma-bad-file
+"$BIN/moobfs-attr" set "$LOWER/x/bad" kind string note > /dev/null || fail ma-bad-attr
 umount "$LOWER" || fail ma-lower-umount
 ma_acl 6 4 4 > /tmp/ma-same.acl && ma_acl 6 4 0 > /tmp/ma-other0.acl || fail ma-acl-files
 for f in same other0; do
@@ -2509,6 +2668,21 @@ print(" ".join(sorted(p for p, _, _ in scan.candidates(sys.argv[2]))))' "${REPO:
     [ "$(cat /tmp/ma-py.txt)" = "plain same" ] || { cat /tmp/ma-py.txt; fail ma-python-mismatch; }
     ma_py=equal
 fi
+# S14 (journal 0242, mutant M11): an access ACL the lower cannot read counts as restrictive in
+# the write paths too. debugfs writes x/bad's ACL raw, in ext4's on-disk format with a wrong
+# version (ext4_acl_from_disk() refuses it with EINVAL), so every read of it fails. x/bad
+# (0644, with an attribute) is renamed into the built domain d by the layer; the rename's
+# placement must keep it out of 1001's answer, which stays "plain same".
+umount "$LAYER" && umount "$LOWER" || fail ma-bad-umount
+printf '\002\000\000\000\001\000\006\000\004\000\004\000\040\000\004\000' > /tmp/ma-bad.acl || fail ma-bad-acl
+"$TOOLS/debugfs" -w -R "ea_set -r -f /tmp/ma-bad.acl /x/bad system.posix_acl_access" "$DEV_SCRATCH" 2> /dev/null || fail ma-bad-plant
+mount -t ext4 "$DEV_SCRATCH" "$LOWER" || fail ma-bad-lower-mount
+"$BIN/query" --uid 1001 "$LOWER/x" open bad | grep -q 'Invalid argument' || fail "ma-bad-precondition (the planted ACL reads)"
+mount -t moobfs_layer -o lower="$LOWER",domain_depth=1 none "$LAYER" || fail ma-bad-mount
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind eq string note > /dev/null || fail ma-bad-build
+mv "$LAYER/x/bad" "$LAYER/d/bad" || fail ma-bad-rename
+"$BIN/query" --uid 1001 "$LAYER/d" q2 kind eq string note > /tmp/ma-k.txt || fail ma-bad-query
+[ "$(cut -f2 /tmp/ma-k.txt | sort | tr '\n' ' ')" = "plain same " ] || { cat /tmp/ma-k.txt; fail "ma-unreadable-acl-answered"; }
 umount "$LAYER" && umount "$LOWER" || fail ma-cleanup
 echo "MINACL_PASS: kernel answered plain and same, left out other0 (minimal ACL other than the mode) and named; moobfs-index and moobfs-check equal; python scan: $ma_py"
 fi

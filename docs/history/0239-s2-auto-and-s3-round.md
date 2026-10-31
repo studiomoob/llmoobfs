@@ -1,0 +1,290 @@
+# 0239 — S2: fstests `auto` on three lowers; S3: sixth and seventh syzkaller rounds, `moobl_xattr_get` covered
+
+Date: 2026-10-29 to 2026-10-31. Status: runs done on the dedicated test host (batch 10, branch
+`claudiofp/b10-s2s3`, based on batch 7-8). Work started: 2026-10-29 20:05 UTC; first part ended
+2026-10-30 about 13:40 UTC; the seventh round (section below) ran 2026-10-30 13:40 to 2026-10-31
+05:20 UTC. Calendar time about 17.5 hours. Machine time: about 25 guest-hours of fstests
+(three lowers, partly in parallel), 6 hours of fuzzing plus 46 minutes of kernel build. Attended
+work about 3 hours. Estimated effort: M; actual: M in calendar time, S in attended work.
+
+## Goal
+
+Advance security roadmap S2 and S3. S2: run fstests' `auto` group over the layer on ext4, btrfs
+and XFS lowers (`quick` with `vm/fstests/exclude-quick.txt` passes since journal 0091), and
+classify every failure. S3: one more syzkaller round whose report shows `moobl_xattr_get()`
+covered, as journal 0154 asked, with crashes, per-function coverage and the "done when" checked.
+
+## Decisions
+
+- **Both runs at once, pinned to host CPUs.** The host has 8 threads and two had to stay free.
+  syzkaller ran with 2 VMs of 2 vCPUs pinned to CPUs 0-3 (`taskset`), fstests in a 2-vCPU guest
+  pinned to CPUs 4-5; when syzkaller ended, XFS took CPUs 0-1. For that, three knobs were added
+  to the harness, with defaults unchanged: `MOOB_FSTESTS_CPUS` and `MOOB_FSTESTS_MEM`
+  (`vm/fstests-local.sh`), and `SYZ_VMS` and `SYZ_CACHE` (`vm/syzkaller-local.sh`). With
+  `SYZ_CACHE` the run kept its own kernel tree and image and did not change the shared cache.
+- **The syzkaller kernel was rebuilt.** `vm/kasan.config` gained the S8 hardening options in
+  journal 0237 (`FORTIFY_SOURCE`, `HARDENED_USERCOPY`, KFENCE, `DEBUG_OBJECTS` and others), so the
+  harness's configuration check rebuilt the cached 6.12.112 kernel. The round therefore ran on
+  the hardened KASAN kernel, not the one of journal 0143.
+- **One more seed, `vm/syzkaller/seeds/xattr-get-security`.** It reads `security.capability` on
+  a file of a mounted layer, by descriptor and by path. That reaches the branch of
+  `moobl_xattr_get()` that runs with the mounter's credentials (`cap_inode_getsecurity()` calls
+  the handler). Journal 0154's three seeds only reached the `user.*` branch.
+- **fstests ran on Debian 6.12.113** (`MOOB_KVER`), the kernel of journal 0206, with fstests
+  v2026.09.22 and the `quick` exclusion list (`-g auto -E exclude-quick.txt`).
+- **Failures are classified against a baseline when the lower can be the cause.** generic/186,
+  187 and 301 failed only over btrfs. They were run again on plain btrfs, without the layer, on
+  the same kernel and device size (requested by the coordinator).
+- **Exclusions in two new files.** `vm/fstests/exclude-auto.txt` is for every lower and
+  `vm/fstests/exclude-auto-btrfs.txt` for btrfs only. fstests' `-E` can be repeated and adds to
+  the list. One reason per test, in the files and in `vm/fstests/README.md`.
+
+Alternatives not taken: a third syzkaller VM (it would have left no CPU for fstests or for the
+coordinator); fstests at 4 vCPUs (one lower at a time, about three times the calendar time).
+
+## S2: fstests `auto` over the layer
+
+Command, from a copy of the tree on the host:
+`MOOB_KVER=6.12.113+deb13-amd64 MOOB_FSTESTS_CPUS=2 taskset -c <cpus> sh vm/fstests-local.sh ~/fstests <lower> -g auto -E "$PWD/vm/fstests/exclude-quick.txt"`.
+The module was built from `662ba7a`; the layer is unchanged since `e6dca41` (ADR-0027). The 16
+tests of `exclude-quick.txt` are all in `auto` and were not run, so each lower ran 779 of the
+795 tests.
+
+| | ext4 | btrfs | XFS |
+| --- | --- | --- | --- |
+| ran | 779 | 779 | 779 |
+| passed | 229 | 339 | 372 |
+| not run | 549 | 436 | 406 |
+| failed | 1 | 4 | 1 |
+| kernel diagnostic (BUG, Oops, KASAN, WARNING, lockdep) | none | none | none |
+| guest time (UTC) | 2026-10-29 20:21 – 10-30 02:12 (5 h 51 min) | 02:13 – 13:25 (11 h 12 min) | 03:12 – 11:10 (7 h 59 min) |
+
+Per test: `vm/fstests/results-{ext4,btrfs,xfs}-auto-6.12.113.txt`. Every test that passes on
+ext4 passes on XFS. Every test that passes on btrfs passes on XFS. Of the 229 that pass on ext4,
+19 are skipped on btrfs: collapse-range and insert-range (17), a `fiemap` option, and one free
+space requirement.
+
+### The failures
+
+| Test | Lower | What happens | Verdict |
+| --- | --- | --- | --- |
+| generic/631 | ext4, btrfs, XFS | mounts overlayfs with the layer as upperdir. overlayfs refuses it: "upper fs does not support tmpfile", "does not support RENAME_WHITEOUT", "upper fs missing required features". The test then works on directories that do not exist | **Does not apply.** The layer has no `O_TMPFILE` and refuses `RENAME_WHITEOUT` (no device nodes through the layer, `layer/main.c`). The test requires overlayfs but not a capable upper, so it fails instead of skipping. In `exclude-auto.txt` |
+| generic/186 | btrfs | the attempt to fragment free space ends in `ENOSPC` on `pwrite`. `file3` and `file3.chk` then agree with each other but not with the expected checksum | **fstests and the port.** fstests skips it on btrfs (`_notrun "Can't fragment free space on btrfs."`). Over the layer `FSTYP` is `moobfs_layer`, so that skip cannot fire. Skipped on plain btrfs; passes over the layer on XFS. In `exclude-auto-btrfs.txt` |
+| generic/187 | btrfs | the same as 186 | **fstests and the port**, as 186 (`_exclude_fs btrfs`) |
+| generic/301 | btrfs | "file2 badly fragmented": 1 503 extents after random CoW, threshold 1 365 (2/3 of 2 048) | **fstests and the port.** The threshold is skipped when `FSTYP` is btrfs ("btrfs CoW extent allocation depends on transaction commit frequency"). On plain btrfs file2 had 1 133 extents and the check was not made; over the layer on XFS the test passes |
+
+No failure is a layer defect: no data loss, no wrong permission, no crash.
+
+**Baseline on plain btrfs**, 2026-10-30 11:02-11:04 UTC. A virtme-ng guest of the same kernel
+pinned to the then idle CPUs 2-3, two fresh 8 GiB btrfs images, `FSTYP=btrfs`,
+`./check generic/186 generic/187 generic/301`. Result: 186 not run ("Can't fragment free space on
+btrfs."), 187 not run ("not suitable for this filesystem type: btrfs"), 301 passed. A first
+attempt at 10:59 failed before running anything (`mkfs.btrfs` not in the script's `PATH`).
+
+### Why tests do not run
+
+The skips are those of journal 0091, with more of them in `auto`. On ext4, reflink and dedupe
+skip 193 tests (none on btrfs or XFS). A block device or a sized or block-sized `mkfs` under the
+filesystem skips 127 to 165, depending on the lower. Quotas skip 31 to 35, shutdown 30,
+encryption 26, the exchange-range call 16 or 17, swap files 14, fs-verity 11, and
+`mknod`/`mkfifo` 10. Then come idmapped mounts, `O_TMPFILE`, NFS export, freezing, casefold and
+a few `xfs_io` commands. Four tests are skipped for `renameat2` with `RENAME_WHITEOUT` (the
+message reads "kernel doesn't support renameat syscall"), and three for `O_DIRECT`. A test that
+is not run proves nothing about the layer.
+
+## S3: the sixth syzkaller round
+
+Command (from a copy of the tree, `SYZ_CACHE`, `SYZ_VMS=2`, pinned):
+`SYZ=~/b10/syzkaller GO=~/syz/go/bin SYZ_CACHE=~/b10/syzcache SYZ_VMS=2 taskset -c 0-3 sh vm/syzkaller-local.sh 21600 kernel module image descriptions run`.
+syzkaller at `8fb0ae8` (the revision of journal 0109), descriptions and constants as committed,
+seeds as above. The kernel build ran 20:22 to 21:08 UTC (`-j4`).
+
+- **First manager start failed in seconds.** The copied image key had mode 0644 and syz-manager
+  refuses it ("sshkey ... is unprotected"). After `chmod 600` only the `run` step was started
+  again. The first script was stopped by PID, because it would have fetched coverage and written
+  a summary from the wrong manager. No fuzzing time was lost.
+- **Fuzzing:** 2026-10-29 21:09 to 2026-10-30 03:09 UTC, 21 600 s, exit status 0. 386 844
+  executions (about 18 per second with 2 VMs; journal 0143 had about 25 with 3). Corpus 1 095,
+  manager coverage 16 260 PCs. **No crash directory: no report from KASAN, UBSAN, lockdep or the
+  new hardening options.** The 50 starting candidates include the 14 layer seeds, and the
+  machine check disabled none of the layer's calls.
+- **Per-function coverage** (`/funccover?force=1`, saved 20 minutes before the end as intended):
+
+| File | Functions reached | PCs |
+| --- | --- | --- |
+| `layer/attr.c` | 5 of 7 | 52 of 60 (87 %) |
+| `layer/index.c` | 66 of 93 | 1 322 of 2 080 (64 %) |
+| `layer/main.c` | 70 of 80 | 449 of 790 (57 %) |
+
+- **`moobl_xattr_get()` is covered in the report: 3 of 18 PCs** (0 of 4 in journal 0143). The
+  corpus kept 14 programs with `fgetxattr$moob` and 11 with `getxattr$moob`; 5 and 7 of them mount
+  the layer. Three keep the new seed's `security.capability` reads.
+- **The handler set of the threshold** is the 23 functions listed in journal 0138, with compiler
+  suffixes (`.isra.N`, `.constprop.N`) counted as their function and the `.cold` parts left out.
+  The same computation on the fifth run's `funccover.csv` gives journal 0143's 659 of 743. This
+  run: **684 of 809 PCs, 84.5 %**, 4 PCs short of 85 %. With the `.cold` parts: 688 of 838,
+  82.1 %. The denominator grew by 66 PCs in four functions: `query_run` 211 to 233,
+  `query2_pin` 15 to 31, `moobl_xattr_set` 50 to 64 and `moobl_xattr_get` 4 to 18. The layer has
+  changed since the fifth run (findings F13 to F17, ADR-0027), and so has the kernel
+  configuration. Covered PCs rose in `query_run` (186 to 201), `query2_pin` (13 to 23) and
+  `moobl_xattr_get` (0 to 3) and fell by one in `moobl_xattr_set` (38 to 37). The other 19
+  functions are within two PCs of the fifth run.
+- **Replay of the read seeds**, as in journal 0154. A disposable guest of the same kernel and
+  image (`snapshot=on`, 2 vCPUs pinned to CPUs 2-3) ran
+  `syz-execprog -sandbox=none -procs=1 -repeat=1 -threaded=false -cover` on
+  `xattr-get-security` and `xattr-get-fd`. PCs were mapped with `nm -S` of the module and
+  `/sys/module/moobfs_layer/sections/.text`. The module's object has four
+  `__sanitizer_cov_trace_pc` call sites in `moobl_xattr_get()`, at offsets 0x25, 0x61, 0x14c and
+  0x162. Reading `security.capability` reaches 0x25, 0x61 (the `override_creds()` branch) and
+  0x14c. Reading `user.moob.kind` reaches 0x25, 0x14c and 0x162. **Together the two seeds reach
+  all four.** The manager's total of 18 for the function counts more sites than these four
+  coverage callbacks; which ones was not established.
+
+### Against S3's "done when"
+
+- Zero open reports: **met** (six six-hour runs; F8, found by the first, is fixed).
+- Every function a program can reach exercised at least once: **met for the handler set.** All
+  23 functions have covered PCs in this run's report, `moobl_xattr_get()` included, and the
+  replay reaches all four of its coverage sites.
+- Handlers at 85 % of their PCs or more: **not met by this run's number.** It is 84.5 %, on a
+  denominator that grew with the layer's changes and the hardened kernel. The fifth run's 88.7 %
+  was on the earlier code and kernel.
+- Reproducers of past crashes kept in `tests/`: as before (F8's regression in the suite).
+
+## S3: the seventh round (2026-10-30/31)
+
+The maintainer chose a seventh six-hour round with the same 85 % threshold and the same PC
+counting as journal 0143, after seeds for the paths the sixth run missed.
+
+- **Setup.** The working copy of the sixth round had been removed. The kernel tree, the image
+  and the syzkaller checkout were copied again from the shared caches and rebuilt (`kernel
+  module image descriptions`, CPUs 0, 1, 4 and 5). A power cut of the host at about 14:27 UTC
+  stopped the first rebuild half way. Everything it had touched was deleted and copied again,
+  and the rebuild was redone from the start (16:00 to 17:15 UTC).
+- **Where the PCs were missing.** The sixth run's corpus (1 095 programs) was replayed one
+  program at a time with per-call KCOV, in disposable guests of the round's kernel. The first
+  attempts filled the guest's 2 GiB disk with coverage files; the final script keeps only the
+  module's PCs and works on a tmpfs. The run was split over four guests (2 vCPUs each) once
+  more CPUs were free, and took about 3 hours of guest time. The PCs were mapped to the
+  `__sanitizer_cov_trace_pc` call sites of the 23 handler functions (`objdump -dr` of the
+  module, `.text` only, as the threshold leaves the `.cold` parts out) and to source lines
+  (`addr2line`). The union reaches **685 of 781** such sites. For 21 of the 23 functions that is
+  also the manager's total; for `moobl_xattr_get` and `moobl_xattr_set` the manager counts 14
+  more PCs each than there are call sites (18 against 4, 64 against 50), which no program
+  can cover. The missing sites are mostly in `query_run` (32): the per-result check of the
+  admin `QUERY` (paths that stopped resolving, renames during the check, chunks of 256
+  candidates), results with long paths, and partitions that changed between chunks. Others are
+  the `QUERY2` pin when a domain is removed while it is built (`query2_pin`, a race), the 65th
+  typed attribute (`moobl_xattr_set`), and the capabilities of a btrfs or XFS lower
+  (`do_get_info`). A program may have at most 40 calls (`prog.MaxCalls`), so the 64 writes the
+  65th attribute needs cannot be one seed.
+- **Three seeds.** `query-long-path`: a result whose path is longer than its 256 bytes.
+  `query-moved`: `QUERY`, `QUERY2` and `GET_INFO` after a directory is renamed through the layer
+  and a file renamed and removed behind it. `xattr-count`: typed attributes counted with the
+  reserved name and a foreign one already on the lower. A replay of the three on the round's
+  kernel adds 3 sites to the corpus union (688 of 781): the truncated path (`index.c:3427`) and
+  two in the domain-ensure loop of the admin query (`index.c:3707`, `3716`). `xattr-count` adds
+  none; the counting loop it aims at stayed uncovered in the replay.
+- **Run.** `KEEP_CORPUS=1 SYZ=... SYZ_CACHE=... SYZ_VMS=2 taskset -c 0,1,4,5 sh vm/syzkaller-local.sh 21600 run`.
+  The sixth run's `corpus.db` was kept, as the harness allows, with every seed added (1 137
+  candidates). Fuzzing ran 2026-10-30 23:07 to 2026-10-31 05:07 UTC with exit status 0. 301 716
+  executions, corpus 1 118, manager coverage 16 492 PCs. **No crash directory: no report.**
+- **Per-function coverage** (saved 20 minutes before the end): `attr.c` 5 of 7 functions, 53 of
+  60 PCs (88 %); `index.c` 66 of 93, 1 329 of 2 080 (64 %); `main.c` 70 of 80, 448 of 790
+  (57 %). The handler set: **687 of 809 PCs, 84.9 %**, one PC short of the 688 that 85 % needs.
+  With the `.cold` parts: 691 of 838. Against the sixth run: `moobl_root_ioctl` 59 to 61,
+  `query_run` 201 to 202, `query2_exec` 63 to 64 and `moob_utf8_valid` 19 to 20 gained.
+  `inode_matches_all` 12 to 11 and `value_cmp` 24 to 23 lost one each. `moobl_xattr_get` is
+  still 3 of 18 in the report, though the replays reach all four of its call sites.
+
+**Against S3's "done when" after the seventh round:** zero open reports, met (seven runs); every
+handler function exercised, met; the handlers at 85 % of their PCs, **not met: 84.9 %**, one PC
+short; reproducers of past crashes in `tests/`, as before. With the manager's counting, 28 of the
+809 PCs (in the two xattr handlers) are not coverage call sites. On the call sites alone the
+corpus union with the seeds is 688 of 781 (88.1 %). That is a different metric, which the
+maintainer chose not to adopt.
+
+## Changes
+
+- `vm/fstests-local.sh`: `MOOB_FSTESTS_CPUS`, `MOOB_FSTESTS_MEM`. `vm/syzkaller-local.sh`:
+  `SYZ_VMS`, `SYZ_CACHE`. The summary now takes the manager's own counter line
+  (`corpus=N coverage=N exec total=N`); the old pattern (`corpus: N`) matched nothing in the
+  pinned revision, so the summaries of earlier runs had no counts.
+- `vm/syzkaller/seeds/xattr-get-security` (new); for the seventh round `query-long-path`,
+  `query-moved` and `xattr-count` (new).
+- `vm/fstests/exclude-auto.txt` and `vm/fstests/exclude-auto-btrfs.txt` (new), the three
+  `results-*-auto-6.12.113.txt` files, and `vm/fstests/README.md`.
+- Surfaces: `docs/security-roadmap.md` (S2 and S3 notes and the current-state table),
+  `ROADMAP.md`, `docs/testing.md`, `README.md` and `README.pt-BR.md`, `docs/faq.md` and
+  `site/faq.html`, `docs/when-not-to-use.md`, `docs/adoption-risks.md` (current answer),
+  `docs/architecture-overview.md`, `site/index.html`, `site/guide.html`,
+  `scripts/site-journey.py` (fstests and fuzzing answers, a milestone) with the pages it
+  generates, `CHANGELOG.md`, `docs/references.md` §37, and `docs/retired-claims.txt`.
+  `docs/testing.md` §9 also dropped "a hostile lower tree" from what is not covered: the suite
+  has run it since journal 0073 (S4).
+
+## Checks of this change
+
+`shellcheck --shell=sh` over `vm/*.sh` and `scripts/*.sh` (the `make lint` set, run from the
+`koalaman/shellcheck:stable` image because the workstation has no shellcheck):
+clean. `sh scripts/check-spdx.sh`, `sh scripts/check-retired-claims.sh`,
+`python3 scripts/site-faq.py --check` and `python3 scripts/check-site.py`: pass.
+
+## Evidence kept
+
+Raw logs of both parts (consoles, fstests `results/` directories, `manager.log`,
+`funccover.csv`, `corpus.db`, the replays' coverage files and the helper scripts; the seventh
+round's under `logs7/`) are outside the repository, in
+the maintainer's local folder for this review (`revisao/2026-10-29-s2s3-logs/`), as for journals
+0091 and 0154. The test host's working directory was removed after the copy.
+
+
+*Added 2026-10-30, on PR 179:* the ext4 job of `bench.yml` failed at "Let QEMU use KVM" with
+"no KVM": `udevadm trigger` is asynchronous and the step checked `/dev/kvm` before udev applied
+the new mode; the btrfs and XFS jobs of the same run passed the step. The step now runs
+`udevadm settle --timeout=30` before the check, and so do the same steps of `kasan.yml`,
+`kasan-arm64.yml`, `kcsan.yml` and `interop.yml`, where the race did not fail the job but could
+leave QEMU on TCG. A race of the workflow, not of the layer.
+
+
+## Batch-level runs, 2026-10-31
+
+Commit tested: `b0491097718b364cb7a13c19c320a421124c7f52` (branch `claudiofp/BATCH10`, PR 179),
+on the dedicated host, both runs started at 09:47 UTC with nothing else on the host.
+
+- Full `make vm-test` (`MOOB_VM_KVM=1 MOOB_DEBIAN_KERNEL=6.12.113`, container pinned to CPUs
+  0-3): exit 0 after 23 minutes; `MOOBFS_LAYER_PASS: pass-through over ext4, btrfs and xfs; ...`,
+  `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_VM_PASS: shared`.
+- Full local KASAN/UBSAN/lockdep suite (`vm/kasan-local.sh`, CPUs 4-7): exit 0 after 68
+  minutes; `MOOBFS_KASAN_PASS`, no `BUG:`, `WARNING:`, KASAN, UBSAN or lockdep report in the
+  console.
+
+No step was rerun. A first attempt to run these overnight beside the seventh syzkaller round
+never started: the helper that waited for the replay guests to exit expired without starting
+them, so the runs moved to the morning.
+
+## Limitations
+
+- One run per lower, on one kernel, without KASAN in the fstests guest; 406 to 549 tests per lower
+  were not run.
+- The `auto` run with the two new exclusion lists was not repeated. That the lists give a clean
+  run follows from the per-test results, since `-E` only removes tests. It is not a measured run.
+- fstests ran with 2 vCPUs instead of the 4 of journals 0091 and 0206; timings are not
+  comparable.
+- The S3 aggregate is 84.5 %, below the 85 % threshold. Which sites the manager counts in the
+  18 PCs of `moobl_xattr_get()` was not established.
+- The syzkaller rounds ran 2 VMs instead of 3, with fewer executions than the fifth run. The
+  seventh started from the sixth run's corpus, so its coverage is not that of a fresh corpus.
+- The seventh round's aggregate is 84.9 %, one PC below the threshold. The two values of a
+  six-hour round vary by a few PCs from run to run (the seventh lost two PCs the sixth had).
+
+## Next steps
+
+- S2: a full `auto` run with both exclusion lists on the three lowers, expected clean. Then decide
+  whether S2's "done when" (a reproducible result in `make vm-test` or a dedicated target) needs
+  a make target for the long run.
+- S3: the aggregate stays open at 84.9 %. Options for the maintainer: an eighth round with 3 VMs
+  (more executions per hour); a description that reaches the admin `QUERY`'s per-result check
+  as an ordinary user (most of `query_run`'s missing sites; it needs a call that changes
+  credentials, which no description has); or a recorded decision on the 28 PCs of the xattr
+  handlers that are not coverage call sites.

@@ -128,7 +128,8 @@ struct moob_info {
  * without that attribute (an attribute of another type is not missing); without order_by at
  * least one term must lack the flag, and EXISTS cannot carry it.
  * Building a stale or absent domain can return EDQUOT (unprivileged rebuild frequency), E2BIG
- * (scan work) or ETIMEDOUT (cooperative elapsed deadline); no partial answer succeeds.
+ * (scan work) or ETIMEDOUT (cooperative deadline: 10 s of the builder's CPU time, or 120 s
+ * elapsed); no partial answer succeeds.
  */
 #define MOOB_QUERY2_VERSION 2U
 #define MOOB_QUERY2_CURSOR 128U

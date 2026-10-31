@@ -152,22 +152,27 @@ Facts as of 2026-10-25:
   s390x under emulation. The module also runs on arm64 under emulation, without KVM, in an
   exploratory job: the ext4, btrfs and XFS steps passed under KASAN ([journal 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
 - **Tested with** fault injection inside the module, fstests' `quick` group on the three lower
-  filesystems, syzkaller (five six-hour runs; one defect found and fixed), a first KCSAN run (no
-  race in the module) and SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143).
-- **No independent human review of the whole kernel code yet.** It was requested on 2026-10-13.
-  An external reviewer privately reported three kernel defects and wrote the fix of one (F16,
-  below). An outside contributor reviewed the scripts, tools and Python library with an AI
-  assistant (2026-10-27, pull requests 161 to 163). Two independent source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
+  filesystems and one run of its `auto` group (no layer defect among the failures), syzkaller
+  (seven six-hour runs; one defect found and fixed), a first KCSAN run (no race in the module) and
+  SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143, 0239).
+- **No independent human review of the kernel code yet.** It was requested on 2026-10-13. The
+  kernel code has been checked by automated tools (the suite under KASAN, UBSAN and lockdep,
+  KCSAN, syzkaller, fstests, fuzzing) and by AI-assisted reviews, and by no independent human
+  reviewer ([ADR-0030](docs/decisions/0030-stage-2-review-criterion.md)). An outside contributor
+  reviewed the scripts, tools and Python library with an AI
+  assistant (2026-10-27, pull requests 161 to 163). Two source reviews made by AI assistants ([journal 0111](docs/history/0111-review-5582e06.md),
   [journal 0114](docs/history/0114-second-inspection-of-5582e06.md)) and verified against the
   kernel found four security defects (findings F9 to F12 of ADR-0011), reported as private
   advisories and fixed in journals 0116 and 0117; our own tests and reviews found others before.
-  Three private reports from an external reviewer (2026-10-27) found `QUERY2` naming files under
+  Three private reports from an external reviewer (2026-10-27), AI-assisted and triaged by the
+  reviewer, who chose where to look, reproduced each defect and wrote or checked the fix, found `QUERY2` naming files under
   a search-only directory (F15, [GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6)), domain and file
   records answered for a reused inode number ([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm)) and a
   set-user-ID bit kept through a write (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), fixed
   on `main` in journals [0215](docs/history/0215-search-only-directories.md),
   [0216](docs/history/0216-domain-record-generation.md) and
-  [0218](docs/history/0218-write-credentials-fsetid.md); the reviewer wrote the fix of F16.
+  [0218](docs/history/0218-write-credentials-fsetid.md); the reviewer wrote the fix of F16. They
+  are real defects, each reproduced, fixed and given a regression test.
   `v0.5.0-experimental` has these fixes; tags up to `v0.4.1-experimental` carry defects fixed since ([changelog](CHANGELOG.md)).
 - **The measurements are pilot-grade**, from one host; the report that gathers them is
   [journal 0088](docs/history/0088-m4-report.md). They are not a general speed claim.
@@ -176,13 +181,15 @@ Facts as of 2026-10-25:
   recently queried first; a query that needs every domain (the
   mount-wide `QUERY`) costs what the mount scan used to.
 - An unprivileged build is also bounded by `index_build_work` (default
-  32,768 cumulative units; a mounter may choose 1,024–65,536), a ten-second
-  cooperative deadline and rebuild-frequency limits. The default denies the
-  measured 17,000-file domain. Issue 118 is closed: over a lower slowed to
-  400 ms per I/O the build stops at the deadline with `ETIMEDOUT` and no
-  partial answer, and G5's 25,000-file domains build at 65,536
-  ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md),
-  [journal 0210](docs/history/0210-security-batch-1-domain-records-and-slow-lower.md)).
+  32,768 cumulative units; a mounter may choose 1,024–65,536), a cooperative
+  deadline of ten seconds of the builder's CPU time with a 120 s elapsed
+  backstop, and rebuild-frequency limits. Time waiting for a slow lower does
+  not count against the ten seconds
+  ([ADR-0031](docs/decisions/0031-build-deadline-counts-cpu-time.md), proposed;
+  the earlier elapsed deadline refused builds on a slow disk, journals 0210
+  and 0238). The default denies the measured 17,000-file domain; G5's
+  25,000-file domains build at 65,536
+  ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md)).
 - Mounting needs **`CAP_SYS_ADMIN` in the initial user namespace**.
 - **The interface may change**, with no compatibility promise.
 
@@ -192,9 +199,9 @@ For anything beyond a disposable VM, SQLite or plain files remain the recommenda
 
 ## How to help
 
-The project has one maintainer and no independent human review of the whole kernel code yet; an
-external reviewer privately reported three kernel defects and wrote the fix of one (F16), and an
-outside contributor reviewed the scripts, tools and Python library (pull requests 161 to 163).
+The project has one maintainer and no independent human review of the kernel code yet; an
+external reviewer's AI-assisted private reports found three kernel defects, and the reviewer wrote
+the fix of one (F16), and an outside contributor reviewed the scripts, tools and Python library (pull requests 161 to 163).
 What would help most, by how much kernel knowledge it takes, is in **[docs/help-wanted.md](docs/help-wanted.md)**: a review of the
 credential model or of the index locking, if you know the VFS; a check of whether your memory
 system fits, if you build one; a run of the tests on your machine or on another kernel; and
@@ -497,7 +504,9 @@ KASAN harness runs the layer suite), and no benchmark exists.
   code charges that buffer and user-triggered index/query allocations to the allocating
   task's memory cgroup where supported (issue 116, journal 0180). With no `memory.max` on a
   user's cgroup nothing else caps those buffers per user: kvmalloc may take 2 MiB for each,
-  so set `MemoryMax=` for the users of a shared mount. The suite step `limits` shows a cgroup
+  so set `MemoryMax=` for the users of a shared mount: the recipe in `docs/operations.md` §5
+  does it with a user-slice drop-in, and `moobfs diagnose` shows the limit that applies to a
+  caller (journal 0243; checked in a dedicated VM). The suite step `limits` shows a cgroup
   limit hit as `ENOMEM` with other users answered, and `mountscale` measured a mount that
   reads nothing of the lower, 0.4 to 1.5 ms from 100 to 200,100 files (journal 0235,
   [ADR-0029](docs/decisions/0029-s9-limits-met-by-existing-bounds.md), accepted).
@@ -511,19 +520,20 @@ KASAN harness runs the layer suite), and no benchmark exists.
   (journals 0139 and 0143). No speed or efficiency claim beyond the conditions stated in
   [What was measured](#what-was-measured) may be made from them; no comparison with FUSE
   exists, and the comparison with the bare lower filesystem on the current module is pending.
-- No independent human review of the whole kernel code. Two independent source reviews by AI assistants (journals
+- No independent human review of the kernel code. Two source reviews by AI assistants (journals
   [0111](docs/history/0111-review-5582e06.md) and [0114](docs/history/0114-second-inspection-of-5582e06.md)),
-  private reports from an external reviewer (journals 0215, 0216, 0218; the reviewer wrote the fix of F16) and the project's own tests found and fixed kernel-side defects, security ones among them; the
+  AI-assisted private reports from an external reviewer, who triaged and reproduced them (journals 0215, 0216, 0218; the reviewer wrote the fix of F16) and the project's own tests found and fixed kernel-side defects, security ones among them; the
   findings are listed in [ADR-0011](docs/decisions/0011-threat-and-credential-model.md) (F1 to F17),
   the earlier defects in journals [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) and
   [0083](docs/history/0083-index-inspection-fixes.md). Tags up to `v0.4.1-experimental` carry
-  defects fixed later; `v0.5.0-experimental` has every fix up to 2026-10-28, later ones land on `main`. fstests ran as the `quick` group only ([vm/fstests/](vm/fstests/README.md));
-  syzkaller ran for five six-hour rounds, above the aggregate PC threshold of
-  [security roadmap](docs/security-roadmap.md) S3; `moobl_xattr_get` was at 0 PCs in that run's report, because the corpus kept almost no
-  attribute read inside a mounted layer; replayed with per-call coverage, its seeds reach it (journal 0154). SELinux enforcing was exercised once (journal
+  defects fixed later; `v0.5.0-experimental` has every fix up to 2026-10-28, later ones land on `main`. fstests' `quick` group passes with an exclusion list, and its `auto` group ran once, with 1 to 4
+  failures per lower filesystem, none a layer defect ([vm/fstests/](vm/fstests/README.md), journal
+  0239). syzkaller ran for seven six-hour rounds with no open report. The last two cover every
+  handler function, `moobl_xattr_get` included, but stand at 84.5 % and 84.9 % of the handlers'
+  PCs, below the 85 % threshold of [security roadmap](docs/security-roadmap.md) S3 (journal 0239). SELinux enforcing was exercised once (journal
   0104); AppArmor and Smack were not.
 - `QUERY` authorization holds at query time only (TOCTOU contract). A directory rename through
   the layer makes its domain stale and the next query rebuilds it; direct lower-tree changes
@@ -569,11 +579,11 @@ as a regression in the same VM.
 | Phase Q2b: `QUERY2` ordered by an attribute, ascending or descending, and paged by an authenticated cursor; equal to `moobfs-index --domain --order`; "N most recent" measured and optimized ([0048](docs/history/0048-recent-optimization.md)) | [0036](docs/history/0036-phase-q2b-order-cursor.md) | Debian 6.12.111; ext4, btrfs, XFS |
 | Phase Q2c: leapfrog intersection of equality terms in `QUERY2`; equal to the oracle, plan checked by result order, measured in [0044](docs/history/0044-q2-measured-equality-plan.md) | [0037](docs/history/0037-phase-q2c-leapfrog.md) | Debian 6.12.111; ext4, btrfs, XFS |
 | Phase Q2d: "missing or ..." terms and batches of up to 8 `QUERY2` requests per call; equal to the oracle | [0038](docs/history/0038-phase-q2d-missing-batch.md) | Debian 6.12.111; ext4, btrfs, XFS |
-| Testing under the module: fstests `quick` group with an exclusion list, systematic allocation-failure injection inside the module | [0091](docs/history/0091-s2-fstests-clean-with-exclusions.md), [0096](docs/history/0096-fault-injection.md) | Debian 6.12.111; KASAN 6.12.112; ext4, btrfs, XFS |
+| Testing under the module: fstests `quick` group with an exclusion list, systematic allocation-failure injection inside the module; one run of the fstests `auto` group | [0091](docs/history/0091-s2-fstests-clean-with-exclusions.md), [0096](docs/history/0096-fault-injection.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | Debian 6.12.111 and 6.12.113; KASAN 6.12.112; ext4, btrfs, XFS |
 | Index built per domain by the first query, released under memory pressure or over its budget (shrinker); tracepoints | [0098](docs/history/0098-index-on-demand.md), [0101](docs/history/0101-domains-released.md), [0102](docs/history/0102-index-tracepoints.md), [ADR-0012](docs/decisions/0012-index-on-demand-and-reclaimable.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | SELinux enforcing; per-result checks when an LSM labels the layer's inodes | [0104](docs/history/0104-selinux-investigation.md) | 6.12.112 with the Debian reference policy |
 | SQL over a domain through a SQLite virtual table (prototype) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |
-| syzkaller descriptions of the mount, ioctls and attributes; five six-hour runs | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md) | upstream 6.12.112 with KCOV |
+| syzkaller descriptions of the mount, ioctls and attributes; seven six-hour runs | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | upstream 6.12.112 with KCOV |
 | Security fixes of findings F9 to F12 (homogeneity rule, checks without the query semaphore, write access on the lower mount, idmapped lower refused), each with a test and a negative round | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | Security fixes of F15, GHSA-756j-cgwq-gvwm and F16 (search-only directories, records of a reused inode number, set-user-ID kept through a write), each with a test and a negative round | [0215](docs/history/0215-search-only-directories.md), [0216](docs/history/0216-domain-record-generation.md), [0218](docs/history/0218-write-credentials-fsetid.md) | Debian 6.12.111; KASAN 6.12.112 ([0219](docs/history/0219-security-batch-checks.md)); ext4, btrfs, XFS |
 | Batch 3: lookup errnos for a casefolded directory and a btrfs subvolume, the reserved byte of a query term (`EINVAL`), one privilege test, extended ACLs judged as the kernel does (F17), no index lock on instantiation or eviction of inodes without a record, and `fadvise`, `readahead`, `statx` fields, `drop_inode` and `O_NOATIME` passed to the lower; steps `casefold`, `minacl` and `ixlock`, markers `LAYER_SUBVOLUME_PASS` and `PASSTHROUGH_PASS`, each with a negative round | [0221](docs/history/0221-lookup-errnos-and-m8.md), [0222](docs/history/0222-term-padding-admin-test-extended-acl.md), [0223](docs/history/0223-index-lock-instantiation-eviction.md), [0224](docs/history/0224-passthrough-gaps-issue-115.md), [ADR-0026](docs/decisions/0026-ioctl-magic-term-padding-and-admin-test.md) | Debian 6.12.111; KASAN 6.12.112, full suite ([0225](docs/history/0225-security-batch-3.md)); ext4, btrfs, XFS (`minacl` and `ixlock` on ext4) |

@@ -17,27 +17,27 @@ edge, detectors in CI, continuous fuzzing, a minimal surface and a written threa
 crash triggerable by an ordinary user is a vulnerability (denial of service), even without an
 exploit, as the XFS and ext4 maintainers treat it.
 
-## Where each item stands (2026-10-29)
+## Where each item stands (2026-10-31)
 
 <!-- current-state -->
-State on `main` at `7ac52cd`, summarised from the dated notes of each item below.
+State on `main` at `7ac52cd`, with the rows of batch 10: S1 (journal 0240), S2 and S3 (journal 0239), S5 and S14 to S21 (journal 0242), S9 (journal 0243); summarised from the dated notes of each item below.
 
 | Item | State |
 | --- | --- |
-| S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer reported kernel defects privately; there is no independent human review of the whole kernel code. |
-| S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091); the `auto` group has not run. |
-| S3 syzkaller | Five six-hour runs; the handlers at 88.7 % of their PCs, above the threshold (journal 0143). Open: the per-function criterion, until a run's report shows `moobl_xattr_get()` covered (journal 0154). |
+| S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer's AI-assisted private reports found kernel defects, all fixed with regression tests; there is no independent human review of the kernel code. The hand-read review of the credential paths and the `QUERY2` authorization is a stage-3 gate, not a stage-2 one ([ADR-0030](decisions/0030-stage-2-review-criterion.md)). |
+| S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091). The `auto` group ran once on the three lowers on Debian 6.12.113 (journal 0239): 1, 4 and 1 failures of 779, none a layer defect, now in exclusion lists. Open: a repeat of `auto` with those lists, and a make target. |
+| S3 syzkaller | Seven six-hour runs, no open report. On the hardened KASAN kernel the sixth and seventh (journal 0239) report `moobl_xattr_get()` covered, so every handler function is exercised. The handlers are at 84.5 % and then 84.9 % of their PCs, one PC below the 85 % threshold (88.7 % in the fifth run, on earlier code and kernel). Open: the aggregate on the current code. |
 | S4 hostile lower | Done for its scope (journal 0073). |
-| S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job; `sparse`, `smatch`, `W=1` and `kernel-doc` do not run in CI. |
+| S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job. `make static` runs `W=1` (gcc and clang), `sparse`, `smatch`, Coccinelle, the clang analyzer and `kernel-doc` on both modules and the UAPI header, with six findings justified in `tests/static/baseline.txt` and none fixed (journal 0242); `.github/workflows/static.yml` runs it on every push and pull request; its first GitHub runs, on PR 179 on 2026-10-30, passed after two fixes (journal 0242); not yet a required check. |
 | S6 disclosure and versions | Done: `SECURITY.md` and [compatibility.md](compatibility.md); the KASAN/lockdep job is a required check of `main`. Open: a build-time refusal of an unlisted kernel (`make install` and the DKMS package refuse one, `make layer` does not). |
 | S7 continuous fuzzing | Three libFuzzer targets (attributes, the image parser, the tool parsers) run 30 s each per push, and `.github/workflows/fuzz.yml` runs them 45 min twice a week with a cached corpus (journal 0237); its first scheduled run is pending. Locally: 30–60 min per target, no crash. OSS-Fuzz is not applied for. |
 | S8 runtime hardening | KCSAN over `buildrace` and `release` in CI (journal 0127), with no race in the module; the KASAN kernel adds KFENCE, `FORTIFY_SOURCE`, `HARDENED_USERCOPY`, freelist hardening, `BUG_ON_DATA_CORRUPTION` and `DEBUG_OBJECTS`, and the full suite passed under them (journal 0237); a read-only review found no defect. Open: KMSAN. |
-| S9 resource limits | Done (ADR-0029, accepted 2026-10-29; journal 0235): memory-cgroup charges (ADR-0018), bounded build work and rebuild frequency (ADR-0019, ADR-0020), fair shares of the index budget (ADR-0027) and the per-call result `limit`, each tested when hit (suite step `limits`); the mount scans nothing (`mountscale`). Residual: without `memory.max` on the users' cgroups a user can pin about 2 MiB of kernel memory per open descriptor; `docs/operations.md` §5 sets `MemoryMax=`. |
+| S9 resource limits | Done (ADR-0029, accepted 2026-10-29; journal 0235): memory-cgroup charges (ADR-0018), bounded build work and rebuild frequency (ADR-0019, ADR-0020), fair shares of the index budget (ADR-0027) and the per-call result `limit`, each tested when hit (suite step `limits`); the mount scans nothing (`mountscale`). Residual: without `memory.max` on the users' cgroups a user can pin about 2 MiB of kernel memory per open descriptor; `docs/operations.md` §5 sets `MemoryMax=` with a user-slice drop-in and `moobfs diagnose` warns when no limit applies (journal 0243, checked in a dedicated VM). |
 | S10 signing and distribution | The done criterion is met in a VM (journal 0229, ADR-0028), and the unsigned `.ko` and the packages build reproducibly (`make repro-test`, journal 0236). Open: real firmware and hardware, a rebuild by a third party, no published package. |
 | S11 M3 and M4 surfaces | Nothing recorded yet. |
 | S12 SELinux | One run with SELinux enforcing (journal 0104): F6 and the labels read with the caller's credentials fixed; the rule `fs_use_xattr moobfs_layer` is needed. Open: mmap, attribute writes, rename and link under a policy, MLS/MCS, a distribution booted with SELinux, the per-result check over a lower labelled by SELinux (journal 0215), Smack; AppArmor is outside the item. |
 | S13 tracepoints | Done (journal 0102). |
-| S14 to S21 | Planned, not started; journal 0172 added bounded tests that do not complete S14 or S15. |
+| S14 to S21 | Planned item by item below, with effort and done check (journal 0242). S14: 23 mutants of the homogeneity rule apply, build and change the object code (`make mutants-check`); on 2026-10-30 a recorded VM run of the whole catalogue killed all 23, after tests were added for the five that had survived the full suite; the weekly CI job is still to do. S19: as S5, green on GitHub since PR 179. S20: the checklist item is in `CONTRIBUTING.md`; no change has gone through the procedure. S15 to S18 and S21 not started; journal 0172 added bounded tests that do not complete S14 or S15. A stage-2 gate since ADR-0030. |
 | S22 security operations | Documented (journal 0205). Open: the subscriptions, which are the maintainer's action, and the re-read of the access table before each tag. |
 <!-- /current-state -->
 
@@ -74,6 +74,7 @@ with findings F1 to F5 added since. Outside review was requested on 2026-10-13 (
 *Update, 2026-10-28 (journal 0227):* outside ADR-0011's kernel scope, two private reports from the same external reviewer, with their fixes, on the user-space clients: the MCP adapter followed a directory swapped for a symbolic link by a member of a shared domain ([GHSA-4gr9-rvgr-44qj](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-4gr9-rvgr-44qj)), and the LangGraph store's `batch()` let `..` labels leave the root ([GHSA-3wx4-fh9w-2v66](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-3wx4-fh9w-2v66)). Both fixed, with tests that fail before the fix.
 *Update, 2026-10-29 (journal 0231):* the same class as GHSA-4gr9-rvgr-44qj, pointed out by the external reviewer in the Python library's scan fallback: it walked the domain by path, so a member of a shared domain who swapped a directory or a file for a symbolic link during the walk could make it report a file outside the domain. The walk now goes through directory descriptors with `O_NOFOLLOW`; three tests fail before the fix.
 *Update, 2026-10-28 (journals 0215, 0216, 0218 and 0219):* three private reports from an external reviewer recorded and fixed through private advisories: F15 (search-only directories, GHSA-95h9-j7c2-gcw6, ADR-0025), F16 (`CAP_FSETID` in the write credentials, GHSA-6xf4-r246-92r6) and records answered for a reused inode number (GHSA-756j-cgwq-gvwm, no finding number). Findings F1 to F16 recorded; all fixed but part of F2 (fair shares, S9).
+*Correction, 2026-10-29 (journal 0240, ADR-0030):* the external reviewer's private reports (F15, F16, GHSA-756j-cgwq-gvwm, and in user space GHSA-4gr9-rvgr-44qj, GHSA-3wx4-fh9w-2v66 and the pointer behind GHSA-f769-xjf5-54wc) were produced with AI assistance: the reviewer chose where to look, reproduced the defects and wrote or checked the fixes, but the analysis was AI-assisted. They are AI-assisted reviews, like those of journals 0111 and 0114, not independent human review, of which there has been none; the defects they found are real and each is fixed with a regression test.
 
 *Update, 2026-10-21 (journals 0174 and 0175):* the round-2 domain-rename
 (R2-5, issue 110) and concurrent index-budget refusal (R2-7, issue 111)
@@ -105,6 +106,7 @@ reviews by AI assistants (journals 0111, 0114) found F9 to F12, fixed in pull re
 private advisories published afterwards; no outside human review yet. *Note, 2026-10-28:* an
 external reviewer has since reported three kernel defects privately (update of that date above);
 there is still no independent human review of the whole kernel code.
+*Correction, 2026-10-29 (journal 0240, ADR-0030):* the external reviewer's private reports (F15, F16, GHSA-756j-cgwq-gvwm, and in user space GHSA-4gr9-rvgr-44qj, GHSA-3wx4-fh9w-2v66 and the pointer behind GHSA-f769-xjf5-54wc) were produced with AI assistance: the reviewer chose where to look, reproduced the defects and wrote or checked the fixes, but the analysis was AI-assisted. They are AI-assisted reviews, like those of journals 0111 and 0114, not independent human review, of which there has been none; the defects they found are real and each is fixed with a regression test.
 
 *Separate stabilization note, 2026-10-20:* independent review 0144 identified
 two file/index correctness defects outside the F1–F12 list. Corrections
@@ -153,6 +155,12 @@ model, reviewers cannot tell whether the credentials scheme is exploitable.
   handles returned by `QUERY`.
 - Done when: ADR published, the module's `fs_flags` reviewed against it, and `moobfs-check`
   reports the model version.
+- *Note, 2026-10-29 ([ADR-0030](decisions/0030-stage-2-review-criterion.md), journal 0240):* that
+  criterion is met (ADR-0011). The independent human review of the whole kernel code that
+  `ROADMAP.md` carried as S1's remaining work is no longer a stage-2 gate: stage 2 rests on
+  automated coverage, on every AI-assisted finding reproduced with a regression test and on S14
+  to S21; stage 3 needs a hand-read human review of the credential paths and the `QUERY2`
+  authorization.
 
 ### S2. fstests (xfstests) over the layer
 
@@ -161,6 +169,14 @@ port (`vm/fstests/`). The `quick` group is recorded over ext4, btrfs and XFS; ev
 classified; the file-attribute gaps are closed; the exclusion list is written
 (`vm/fstests/exclude-quick.txt`). The complete run with that list passes on the three lowers
 (journal 0091), which meets "done when" for the `quick` group. Open: the `auto` group.
+*Update, 2026-10-30 (journal 0239):* the `auto` group ran once over ext4, btrfs and XFS on Debian
+6.12.113. Of 779 tests per lower, 229, 339 and 372 passed, 549, 436 and 406 were not run, and 1,
+4 and 1 failed, with no kernel diagnostic. generic/631 does not apply on any lower: overlayfs
+refuses the layer as its upper. generic/186, 187 and 301 fail only over btrfs: fstests skips
+them, or the failing check, by `FSTYP`, which the layer hides. A baseline on plain btrfs
+confirmed it, and they pass over the layer on XFS. None is a layer defect. They are listed in
+`vm/fstests/exclude-auto.txt` and `exclude-auto-btrfs.txt`. Open: a repeat of `auto` with the
+lists, and a target for it.
 
 Precedent: the kernel documentation "Adding New Filesystems" calls fstests standard
 infrastructure and its use strongly recommended; bcachefs reported fstests under lockdep and
@@ -208,6 +224,19 @@ by fuzzing image and syscalls together. The current libFuzzer covers only the en
   The fourth is the `security.*` branch, which the LSM answers itself for `security.selinux`.
   Three new seeds end in such a read. The per-function criterion is demonstrated when the next
   run's report shows the function covered.
+- **Update, 2026-10-30 (journal 0239):** a sixth six-hour run, with 2 VMs on the KASAN kernel that
+  now carries the S8 hardening options, and a seed reading `security.capability`. Result:
+  386 844 executions and no report. `moobl_xattr_get()` is covered in the report (3 of 18 PCs).
+  A replay of the read seeds reaches all four of its KCOV call sites, the mounter-credentials
+  branch included. Every function of the handler set is now exercised. The handlers stand at
+  684 of 809 PCs, **84.5 %**, below the 85 % threshold, on a denominator that grew with the
+  layer's fixes and the hardened kernel (743 in the fifth run). The per-function criterion is
+  met; on the current code the aggregate is not.
+- **Update, 2026-10-31 (journal 0239):** a seventh six-hour run, with the same threshold and
+  counting. It started from the sixth run's corpus plus three seeds written after a per-PC replay
+  of that corpus. Result: 301 716 executions, no report, the handlers at 687 of 809 PCs,
+  **84.9 %**, one PC below 85 %. 28 of the 809 PCs, in the two xattr handlers, are not coverage
+  call sites and cannot be covered.
 - **Threshold, set on 2026-10-15** (journal 0109): the ioctl and attribute handlers (from
   `moobl_root_ioctl()` through `query_run()`, `results_to_user()`, `moobl_xattr_get/set()` and the
   validation in `common/attr.c`) at 85 % of their PCs or more, measured by the manager's
@@ -247,6 +276,14 @@ kernel promises no security when mounting a hostile image.
 *Status, 2026-10-12 (journal 0050).* `checkpatch.pl` reports nothing on `layer/` and `kernel/`,
 with no suppressions, and is required in the `Lint` job. `sparse`, `smatch`, `W=1` and
 `kernel-doc` are still pending in CI.
+*Update, 2026-10-29 (journal 0242):* `make static` runs `W=1` with gcc and with clang, `sparse`,
+`smatch`, Coccinelle (the kernel's `coccicheck`), the clang analyzer (`clang-analyzer`) and
+`kernel-doc` on `layer/`, `kernel/` and `include/`, in a pinned image (`tests/static/Dockerfile`),
+and `.github/workflows/static.yml` runs the same command. `sparse`, `smatch`, `W=1` and
+`kernel-doc` report nothing on either module; the clang analyzer reports four findings and
+Coccinelle two, all in `layer/index.c`, each read and justified as not a defect in
+`tests/static/baseline.txt`. A canary module with one known defect per checker fails the run
+when a checker stops reporting. Run on arm64 locally; on GitHub (amd64) since PR 179, 2026-10-30, after two fixes (journal 0242).
 
 - `checkpatch.pl`, `sparse` (`make C=1`) and `smatch` over `layer/`; `W=1` in the module
   build.
@@ -267,7 +304,7 @@ turning that rule on, and the build-time check of an unlisted kernel.
 
 ### S7. Continuous and larger fuzzing
 
-*Status, 2026-10-29 (journal 0237).* Workflow written, not yet run on GitHub: `fuzz.yml` runs
+*Status, 2026-10-29 (journal 0237); first run 2026-10-29 (journal 0242).* Workflow written; its first run on GitHub (run 40953229237) passed for the three targets: `fuzz.yml` runs
 each libFuzzer target 45 minutes (on demand 1 to 300) twice a week, keeps each corpus in the
 Actions cache from run to run and uploads it with any crash as an artifact; the job summary
 carries the exec count and coverage for the journal. Two targets were added, `image` (the image
@@ -387,7 +424,7 @@ on the dedicated host and failed on the pre-filter module. The steps
 `release`, `overbudget` and `buildcostevict` then passed under KASAN,
 UBSAN and lockdep. The complete KASAN, UBSAN and lockdep suite of this
 change then exited 0 (`MOOBFS_KASAN_PASS`). The complete native-KVM suite
-of this change was not run. G2 remains open.
+of this change was not run. G2 remained open then; it closed on 2026-10-30 (journal 0243).
 
 - Issue 116 / ADR-0018 accounts user-triggered query and index allocations to
   the allocating task's memory cgroup; journal 0180 records negative controls,
@@ -532,6 +569,23 @@ code and its tests. These items make the test suite itself find that kind of def
 - **S21. A model of the loader and hook protocol.** A TLA+ model of `index_load()`'s
   registration and retry against the update hooks, checked for every interleaving. Heavier
   than the others; after S14 to S16.
+
+#### Plan per item (2026-10-29, journal 0242)
+
+Effort is engineering effort (S hours, M one to three days, L a week or more), not calendar
+time. "Needs" says where the item can run: here (a workstation with Docker), CI (GitHub's
+runners) or the test host (KVM).
+
+| Item | Effort | Plan | Done check | Needs | State (2026-10-29) |
+| --- | --- | --- | --- | --- | --- |
+| S14 | M | A catalogue of mutants (`tests/mutation/homogeneity.mut`), each one check of the rule removed or weakened, with the suite steps expected to fail it; `make mutants-check` proves each applies once, builds and changes the object code (an unchanged object is an equivalent mutant, as in trivial compiler equivalence); `scripts/mutants.py run` runs each mutant's steps in the VM from a copy of `HEAD`; then a weekly CI job over the catalogue. | Every mutant killed by a suite marker in a recorded run; a test added for each survivor; the CI job green. | here (check), test host or CI with KVM (run) | 23 mutants pass `make mutants-check`; `run` killed all 23 on the test host on 2026-10-30 (journal 0242), after tests for five survivors; the CI job remains. |
+| S15 | M | Extend `tests/permmatrix.c` (seeded random trees and identities, journal 0172) with seeded sequences of chmod, chown, setfacl, rename, link and unlink between `QUERY2` calls, with and without `scan_delay_us`, comparing each answer with `open(2)` and `getxattr(2)` as that uid. | A suite step with a fixed seed set; a longer run in the nightly job of S18. | VM | Not started; `permmatrix` covers static trees only. |
+| S16 | M | A test-only module parameter that, after each update hook and build, re-reads the touched files from the lower and warns on a difference. A kernel change: it waits for a decision on ADR-0022's freeze. | The suite runs with it on and stays silent; a mutant of S14 makes it warn. | VM, a maintainer decision | Not started (frozen kernel). |
+| S17 | M | A gcov build of the upstream test kernel (`CONFIG_GCOV_KERNEL`) and of the layer (`GCOV_PROFILE` set only by that job), the suite in virtme-ng, `lcov` branch report of `layer/` as an artifact. | The report is produced in CI and linked from the batch's journal. | CI with KVM | Not started. |
+| S18 | S, then a week of calendar time | `vm/syzkaller-local.sh` each night on the test host with the descriptions and seeds of S3, the report kept. | Seven nightly reports recorded. | test host | Not started. |
+| S19 | M | `make static` and `.github/workflows/static.yml` (see S5). | Runs on every pull request with no finding outside the justified baseline. | here, CI | Implemented; run locally (arm64) and on GitHub (amd64) since PR 179. |
+| S20 | S, then one change | The checklist item in `CONTRIBUTING.md`; for the next change of the rule or the protocol, a second model writes the test from `docs/spec-query-v2.md` without the diff. | The checklist is in place and one change went through the procedure, recorded in its journal. | here | Checklist added; no change has gone through it (kernel frozen). |
+| S21 | L | A TLA+ model of `index_load()`'s registration and retry against the update hooks, checked with TLC for every interleaving of a bounded configuration, TLC pinned and run in CI. | TLC finds no violation, and finds one when the retry is removed from the model (its negative control). | here, CI | Not started; after S14 to S16. |
 
 ### S22. Security operations from the OSTIF best-practices guide (added 2026-10-26, journal 0205)
 

@@ -1016,3 +1016,119 @@ runs 6.12.111.
   (journal 0124), so arm64 is not in the matrix.
 - [actionlint](https://github.com/rhysd/actionlint) 1.7.7 (MIT), run locally from the
   `rhysd/actionlint` image pinned by digest, to check the workflow; not part of CI.
+
+## 37. fstests `auto` and the sixth and seventh syzkaller rounds (security roadmap S2 and S3, journal 0239)
+
+- fstests, https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git, tag `v2026.09.22` (GPL-2.0):
+  `check` (repeated `-E` options add to one exclusion list), `tests/generic/631` (overlayfs over
+  the filesystem under test as upper), `tests/generic/186` and `187` (`_notrun` and
+  `_exclude_fs btrfs`: "can't fragment free space on btrfs"), `tests/generic/301` (the 2/3
+  fragmentation threshold skipped when `FSTYP` is btrfs). Read to classify the failures.
+- Linux 6.12, `fs/overlayfs/super.c` (`ovl_make_workdir()`: an upper without `O_TMPFILE` or
+  `RENAME_WHITEOUT` is refused, "upper fs missing required features") and
+  `security/commoncap.c` (`cap_inode_getsecurity()` reads `security.capability` through the
+  filesystem's handler), for the overlayfs refusal and the new seed.
+- syzkaller, https://github.com/google/syzkaller, main at `8fb0ae8` (Apache-2.0), as in §syzkaller
+  above: `syz-manager` (`/funccover`), `syz-execprog -cover -coverfile`, `syz-db unpack`.
+- virtme-ng and `taskset(1)` (util-linux) to pin each guest to its host CPUs.
+- syzkaller `prog/rand.go` (`MaxCalls = 40`) and `pkg/manager/seeds.go` (a seed longer than that
+  is skipped), which ruled out a single seed writing 65 attributes; GNU binutils `objdump -dr`
+  and `addr2line`, to list the `__sanitizer_cov_trace_pc` call sites of the handlers and map
+  the missing ones to source lines.
+
+## 38. The review criterion of the technical preview (ADR-0030, journal 0240)
+
+- OSTIF (Open Source Technology Improvement Fund), [Get an audit](https://ostif.org/get-an-audit/):
+  the published range for an initial security audit of an open-source project, roughly US$30k to
+  US$200k (read on 2026-10-29). Used for the paid-audit alternative of ADR-0030, rejected for lack
+  of budget.
+- AWS Open Source Blog, [AWS teams with OSTIF on open source security audits](https://aws.amazon.com/blogs/opensource/aws-teams-with-ostif-on-open-source-security-audits/):
+  an AWS-funded program of ten audits, at an average of about US$74k each (read on 2026-10-29).
+
+## 39. The build deadline counts CPU time (ADR-0031, journal 0241)
+
+Upstream Linux v6.12 sources (GPL-2.0), read at the `v6.12` tag; Debian's 6.12 tree was not at
+hand and carries the same code paths:
+
+- `fs/xfs/scrub/scrub.h`, `xchk_maybe_relax()` and `xchk_should_terminate()`: XFS online scrub
+  bounds its long walks by `cond_resched()` and fatal signals, with no wall-clock deadline.
+- `fs/btrfs/relocation.c`, `btrfs_should_cancel_balance()`: btrfs balance and relocation stop on
+  a cancel request or a fatal signal.
+- `kernel/time/posix-cpu-timers.c`, `check_thread_timers()` and `task_sample_cputime()`:
+  `RLIMIT_CPU` counts a task's CPU time from `p->se.sum_exec_runtime`; the model for counting
+  the builder's CPU time and not its time asleep.
+- `kernel/sched/core.c`, `task_sched_runtime()`: adds the not yet accounted part of the running
+  slice; not exported to modules, so the module reads `se.sum_exec_runtime`
+  (`include/linux/sched.h`), which lags by at most one tick.
+- `kernel/hung_task.c` and `lib/Kconfig.debug` (`CONFIG_DEFAULT_HUNG_TASK_TIMEOUT`, default
+  120 s): the kernel's wall-clock threshold for a stuck task; the elapsed backstop uses it.
+- `include/linux/delay.h` (`udelay()`): the busy-wait of the test-only `scan_spin_us`.
+- `kernel/delayacct.c` (`delayacct_on` is 0 unless the `delayacct` boot option or the
+  `kernel.task_delayacct` sysctl turns it on): why I/O wait is not excluded through delay
+  accounting (option G of ADR-0031).
+
+## 40. Static analysis and mutation testing (journal 0242)
+
+- sparse 0.6.4 (Debian package `sparse` 0.6.4-5; [kernel documentation](https://docs.kernel.org/dev-tools/sparse.html),
+  MIT), run by Kbuild with `C=2 CHECK=sparse`: address spaces (`__user`), endianness types,
+  locking annotations.
+- smatch ([error27/smatch](https://github.com/error27/smatch), GPL-2.0), commit
+  `5189e3fb018b783a26dcb45c02c114c1d1aad290` (2026-05-05), built without LLVM, run as
+  `CHECK="smatch -p=kernel"`; it has no Debian package.
+- Coccinelle 1.3.0 (Debian package `coccinelle` 1.3.0.deb-1+b2; [coccinelle.gitlabpages.inria.fr](https://coccinelle.gitlabpages.inria.fr/website/),
+  GPL-2.0) with the kernel's own semantic patches, `scripts/coccinelle/` and `scripts/coccicheck`
+  of Linux 6.12.112 ([kernel documentation](https://docs.kernel.org/dev-tools/coccinelle.html)),
+  `MODE=report`; the OCaml scripts among them need `ocaml-nox`.
+- The clang static analyzer through clang-tidy 19.1.7 (Debian `clang-tidy` 1:19.0-63; Apache-2.0
+  with LLVM exception), run by the kernel's `clang-analyzer` target (`Makefile` of 6.12.112,
+  `scripts/clang-tools/run-clang-tools.py` and `gen_compile_commands.py`), which needs a tree
+  configured with `LLVM=1`; Debian's headers are configured for gcc and refuse clang
+  (`-fmin-function-alignment`, `-fconserve-stack`).
+- `scripts/kernel-doc` of Linux 6.12.112, `-Wall -none`; `W=1` of 6.12 also runs it on each
+  compiled file (`scripts/Makefile.build`).
+- Mutation testing: R. A. DeMillo, R. J. Lipton and F. G. Sayward, "Hints on test data
+  selection: help for the practicing programmer", IEEE Computer 11(4), 1978 (the method: a test
+  suite is judged by the faults it detects when they are seeded one at a time); Y. Jia and
+  M. Harman, "An analysis and survey of the development of mutation testing", IEEE Transactions
+  on Software Engineering 37(5), 2011 (deletion and negation of conditions as operators, the
+  equivalent-mutant problem). Neither was re-read online in this session.
+- M. Papadakis, Y. Jia, M. Harman and Y. Le Traon, "Trivial compiler equivalence: a large scale
+  empirical study of a simple, fast and effective equivalent mutant detection technique", ICSE
+  2015: a mutant whose compiled object equals the original's is equivalent. `scripts/mutants.py
+  check` applies it to `layer/index.o`, built at one fixed path with the debug sections stripped,
+  so that file names and line tables cannot make two equal programs differ. Not re-read online
+  in this session.
+- Mull ([mull-project/mull](https://github.com/mull-project/mull), Apache-2.0) and Dextool
+  ([joakim-brannstrom/dextool](https://github.com/joakim-brannstrom/dextool), MPL-2.0), generic
+  mutation tools for C, considered and not used: they mutate a whole program built for user
+  space, and S14 asks for the checks of one rule in a kernel module.
+
+## 41. User-visible diagnostics and the deployment recipe of G2 (journal 0243)
+
+- Linux 6.12.112 ([source](https://github.com/gregkh/linux/tree/v6.12.112)):
+  `memcg_memory_event()`, `include/linux/memcontrol.h:1061`, which counts an event in the
+  cgroup's `memory_events_local` and in `memory_events` of it and of every ancestor below the
+  root (unless `memory_localevents`); `try_charge_memcg()`, `mm/memcontrol.c:2169`, which raises
+  `MEMCG_MAX` on `mem_over_limit`, the cgroup whose counter refused the charge (`:2219`). Why
+  `moobfs query` compares the local `max` and `oom` counts of each level before and after a
+  failed query, and why the level that counts is the one holding the limit (`user-UID.slice`),
+  not the session scope the process is in. `out_of_memory()`'s cgroup branch, `mm/oom_kill.c:1180`,
+  logs "Memory cgroup out of memory" when it kills.
+- `Documentation/admin-guide/cgroup-v2.rst` of the same tree: `memory.events` (fields `max`,
+  `oom`, `oom_kill`; hierarchical), `memory.events.local`, `memory.max`, `memory.current`, and
+  the `memory_localevents` mount option; the files `moobfs diagnose` reads.
+- systemd v257 manual pages ([source](https://github.com/systemd/systemd/tree/v257/man)), the
+  systemd of Debian 13: `user@.service(5)`, "Controlling resources for logged-in users" (a
+  drop-in for the truncated unit name `user-.slice` applies to every `user-UID.slice`; the
+  default `TasksMax=33%` is set the same way), and `systemd.unit(5)`, drop-in directories (the
+  name truncated after each dash is searched; drop-ins apply in lexicographic order of their
+  file names, whatever their directory). The recipe of `docs/operations.md` §5 and the
+  `MEMORY_LIMIT` check of `make install-test` (`systemd-run --uid --slice --pipe --wait`).
+  Context7 (`/systemd/systemd/v257`) was asked first and returned the user-record and
+  delegation documents, not these pages, so they were read from the source tree.
+- Prior art for a per-user report of the limit that refused an operation: `quota(1)` of the
+  Linux quota tools ([project](https://sourceforge.net/projects/linuxquota/)), which prints a
+  user's usage against each soft and hard limit of each filesystem, the limits behind `EDQUOT`, and
+  `systemctl status`, which shows a unit's memory use beside its `MemoryMax=`. `moobfs diagnose`
+  follows the same shape (usage, limit, where it is set) for the bounds of a query; unlike quota
+  it changes nothing and needs no privilege.

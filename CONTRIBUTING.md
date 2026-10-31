@@ -12,8 +12,8 @@ attribute index lives only in RAM, built per domain by the first query on it and
 memory pressure (ADR-0012). The UAPI (v1 and v2) may
 change. Only pilot-grade measurements exist. Our own tests and reviews keep
 finding kernel-side defects (the README banner and `CHANGELOG.md` list them);
-there has been no independent human review of the whole kernel code (two source reviews by AI assistants, journals 0111 and 0114;
-an external reviewer privately reported three kernel defects and wrote the fix of one, F16, journals 0215, 0216 and 0218;
+there has been no independent human review of the kernel code, only automated tools and AI-assisted reviews (two source reviews by AI assistants, journals 0111 and 0114;
+an external reviewer's AI-assisted private reports found three kernel defects, and the reviewer wrote the fix of one, F16, journals 0215, 0216 and 0218;
 an outside contributor reviewed the scripts, tools and Python library, pull requests 161 to 163). Do not expect production readiness, compatibility promises or quick
 turnaround on every issue. See the status banner in [README.md](README.md).
 
@@ -138,11 +138,19 @@ AI-assisted:
 | `tools/`, `common/`, `include/`, `tests/` | `make test` with ASan/UBSan (see `docs/testing.md`), `make fuzz` when the attribute encoding is involved, and `make vm-test`. |
 | `layer/`, `kernel/`, `vm/` | `make vm-test` green locally with the log path in the PR; a new or extended test in `vm/suite.sh` or `tests/` for every behaviour change, including invalid inputs for parsers and ioctls. |
 | `layer/`, `vm/`, `include/`, `common/`, `tests/`, `sqlite/`, `tools/`, `Makefile` | The KASAN/lockdep workflow (`.github/workflows/kasan.yml`) is a required check of `main`. It runs the suite when the pull request touches these paths, passes at once otherwise, and must finish with `MOOBFS_KASAN_PASS` and no `BUG`, `WARNING`, lockdep or UBSAN report. |
+| `layer/`, `kernel/`, `include/` | `make static` (needs only Docker): W=1, sparse, smatch, Coccinelle, the clang analyzer and kernel-doc report nothing outside `tests/static/baseline.txt`; a new finding is fixed, or added there with the reason it is not a defect (`.github/workflows/static.yml`, journal 0242). |
+| The homogeneity rule (`reach_ok()`, `target_ok()`, `ext_acl()`, `place_dentry_above()`, the scan's and the rename's `inner_ok`) | `make mutants-check`, and a new check gets its mutant in `tests/mutation/homogeneity.mut` (security roadmap S14). |
 | `docs/`, `site/` | `python3 scripts/check-site.py` for the site; link check for docs. No fabricated kernel runs. |
 
 "Tested" means executed, with a log you can point to. Compiling on macOS tests
 nothing on Linux. Do not write that a change was tested in the VM unless
 `make vm-test` (or the KASAN workflow) actually ran on it.
+
+For a change to the permission rule or to the index protocol (the update hooks, `index_load()`,
+the build and its release), check the code for one defect the reviews found and the end-state
+tests did not (security roadmap S20): **a value computed before a registration, a lock drop, a
+retry or a sleep, and used after it.** Name each such value in the pull request and say what
+makes it still valid, or recompute it.
 
 ## Pull request checklist
 

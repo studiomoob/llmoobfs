@@ -260,3 +260,79 @@ KFENCE (not enabled)
 Fuzzing beyond 30 s per CI run
 KMSAN/KCSAN/KFENCE
 | KMSAN, KCSAN, KFENCE |
+
+# Journal 0239: fstests' auto group ran once on three lowers; syzkaller ran a sixth six-hour round.
+the `auto` group has not run
+fstests ran as its `quick` group only
+fstests ran as the `quick` group only
+O fstests rodou só com o grupo `quick`
+fstests as its <code>quick</code> group only
+five six-hour runs
+five six-hour rounds
+cinco rodadas de seis horas
+until a run's report shows `moobl_xattr_get()` covered
+
+# Journal 0240 (ADR-0030): the external reviewer's reports were AI-assisted; there has been no
+# independent human review of any of the kernel code, so the "whole" qualifier and the
+# "partly answered" call are retired.
+human review of the whole kernel code
+human has reviewed the whole kernel code
+human audit of the whole code
+the external reviewer's reports and the fix of F16 aside
+Partly answered: an external reviewer
+revisão humana independente de todo o código do kernel
+
+the build stops at the deadline with
+the build stops at its deadline
+ten-second cooperative deadline
+cooperative ten-second deadline
+o build para no prazo
+a construção para no prazo
+Not yet run in a VM for ADR-0031
+its VM run is pending
+the VM step, its negative round and KASAN/lockdep are pending
+
+`kernel-doc` do not run in CI
+S14 to S21 | Planned, not started
+sparse and `W=1` in CI |
+
+# Journal 0243: G2's diagnostics and deployment recipe are written (their VM runs pending).
+G2 stays open for its user-visible diagnostics and deployment recipe
+open for the user-visible diagnostics and the deployment recipe, which has to set
+# Journal 0243, 2026-10-30: G2's VM runs passed.
+its VM runs pending
+rodadas em VM pendentes
+these runs are still pending
+are pending, so G2 stays open
+estão pendentes, então o G2 segue aberto
+journal 0243, VM runs pending
+journal 0243, not run yet
+journal 0243; not run yet
+# Journal 0242, 2026-10-30: the mutants ran in the VM.
+none has run in the VM yet
+`run` has not been executed
+no mutant has run in the VM
+
+# Journal 0242, 2026-10-30: static.yml and fuzz.yml have run on GitHub.
+has not yet run on GitHub
+not yet run on GitHub
+first GitHub run pending
+the workflow has not run on GitHub
+
+# Journal 0242, 2026-10-30: fuzz.yml's first scheduled run passed.
+first scheduled run pending
+
+# Journal 0243, 2026-10-30: the maintainer accepted G2; done.
+G2 stays open until the maintainer accepts them
+closing waits for the maintainer
+G2 closes when the maintainer
+o G2 fecha quando o mantenedor as aceitar
+
+# Journal 0241, 2026-10-30: ADR-0031 accepted.
+ADR-0031 (proposed)
+ADR-0031, proposed
+ADR-0031 (proposta)
+# Journal 0239, seventh round: syzkaller ran seven six-hour rounds.
+six six-hour runs
+six six-hour rounds
+seis rodadas de seis horas

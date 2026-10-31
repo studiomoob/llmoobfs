@@ -2,6 +2,80 @@
 
 ## Unreleased
 
+- G2 (predictable shared operation) is done: the maintainer accepted its diagnostics, deployment
+  recipe and VM runs on 2026-10-30 (journal 0243).
+- Roadmap: a planned applicability track for corporate directory identities, D1 to D3 (journal
+  0244; planned, nothing run).
+- Repository settings (journal 0240; no code change): releases are immutable, commits made in
+  the GitHub web interface must be signed off, and the `main` ruleset blocks a merge that adds a
+  CodeQL alert of high or critical security severity or of error severity.
+- Review categories and the stage-2 review criterion (journal 0240, ADR-0030; documentation
+  only). The external reviewer's private reports (F15, F16, GHSA-756j-cgwq-gvwm, and in user space
+  GHSA-4gr9-rvgr-44qj, GHSA-3wx4-fh9w-2v66 and the pointer behind GHSA-f769-xjf5-54wc) were
+  AI-assisted: the reviewer chose where to look, reproduced the defects and wrote or checked the
+  fixes. Documents now use three categories: automated tools, AI-assisted reviews (those reports
+  and the source reviews of journals 0111 and 0114) and independent human review, of which there
+  has been none; wordings that presented the reports as partial human review are retired.
+  ADR-0030: stage 2 (technical preview) requires strong automated coverage, every AI-assisted
+  finding reproduced with a regression test, and S14 to S21 done, with no human review; stage 3
+  (public release) requires a hand-read human review of the credential paths and the `QUERY2`
+  authorization by a volunteer who knows the VFS.
+- The `QUERY2` domain-build deadline counts the builder's CPU time (ADR-0031, accepted; journal
+  0241). The ten-second deadline of ADR-0019 counted elapsed time, so a slow lower alone could
+  refuse with `ETIMEDOUT` a build that fits `index_build_work`, and every retry with it: the cold
+  first `QUERY2` of a 7,459-file domain on an `O_DIRECT` disk (journal 0238), a lower slowed to
+  400 ms per I/O (journal 0210). The ten seconds now count `se.sum_exec_runtime` of the building
+  task, the clock of `RLIMIT_CPU`; a 120 s elapsed backstop (the hung-task default) bounds how
+  long a build holds its domain. Same errno, no partial answer, no interface change; only builds
+  refused before can now succeed. Test-only `scan_spin_us` module parameter; the opt-in
+  `buildtime` step checks a 12 s sleeping build completes, a 12 s spinning build and a 126 s
+  sleeping build are refused. `make checkpatch`, `make lint` and the retired-claims check ran
+  locally. On the dedicated host (2026-10-30, journal 0241): `MOOB_ONLY=buildtime make vm-test`
+  passed (`BUILD_TIME_PASS`), main's module failed it at `bt-sleep-refused`, and `buildtime`,
+  `buildlimit`, `buildwork` and `buildmoved` passed under KASAN/UBSAN/lockdep. Journal 0238's
+  case (`O_DIRECT` lower on the host's rotating disk, other guests running) still refused the
+  cold first `QUERY2` of `ns3`, now at the 120 s backstop; the query after it completed.
+- Kernel static analysis (security roadmap S5 and S19, journal 0242; tests and CI only, no
+  kernel, UAPI or format change). `make static` runs `W=1` with gcc and with clang, `sparse`,
+  `smatch`, Coccinelle (`coccicheck`), the clang analyzer (`clang-analyzer`) and `kernel-doc` on
+  `layer/`, `kernel/` and `include/` in a pinned image (`tests/static/Dockerfile`), and the new
+  `.github/workflows/static.yml` runs the same command on every push and pull request (not yet
+  run on GitHub; not a required check). Findings are compared with `tests/static/baseline.txt`,
+  where the six current ones (four of the clang analyzer, two of Coccinelle, all in
+  `layer/index.c`) are justified as not defects; a new finding, a stale entry or a checker that
+  misses the known defect of the canary module `tests/static/canary` fails the run. sparse,
+  smatch, `W=1` and kernel-doc report nothing.
+- Mutants of the homogeneity rule (security roadmap S14, journal 0242).
+  `tests/mutation/homogeneity.mut` lists 23 mutants of `reach_ok()`, `target_ok()`, `ext_acl()`,
+  `place_dentry_above()`, `index_load()` and the scan's and the rename's `inner_ok`, each with
+  the suite steps expected to fail it; `make mutants-check` proves that each applies, builds and
+  changes the object code (no equivalent mutant). `python3 scripts/mutants.py run` runs them in
+  the VM. On the dedicated host (2026-10-30) the first run killed 16 of 23; M02 and M21 were
+  killed by a step their steps line left out (completed), and M11, M16, M19, M22 and M23
+  survived even the full default suite. New checks in the `ext4`/`btrfs`/`xfs`, `minacl` and
+  `permmatrix` steps (a directory with attributes below a private directory, read by the build
+  or moved there during it; an ACL the lower cannot read, in a rename; a path deeper than 64
+  levels) kill them, and a run of the whole catalogue killed all 23.
+- `docs/security-roadmap.md` gives S14 to S21 a plan, an effort and a done check each, and
+  `CONTRIBUTING.md` the S20 checklist item for changes to the permission rule or the index
+  protocol (journal 0242).
+- G2's user-visible diagnostics and deployment recipe (journal 0243; user space only, no kernel,
+  UAPI or format change). New `moobfs diagnose [--json] <path>`: read-only report of what bounds
+  a query by the caller (domain role of the path, index on/off, budget and build work, the
+  memory cgroup of the process and the smallest `memory.max` above it with its usage and how
+  often it was reached, `RLIMIT_NOFILE`, test-only module parameters left set, and for root the
+  index's use of its budget and the tracepoints); warnings exit 2. `moobfs query` now says, after
+  an `ENOMEM`, whether a memory cgroup's own limit was reached during the query (its local `max`
+  or `oom` count in `memory.events.local` grew) or the index budget or the uid's share refused
+  it; the `E2BIG` and `EDQUOT` messages name the bound. `docs/operations.md` §5 gains "Limits for
+  a shared mount": the three bounds, the `user-.slice.d` drop-in setting `MemoryMax=`, per-user
+  overrides, sizing, services and `sudo -u` outside user slices; §8 gains the exit-75 and
+  OOM-kill rows and the tracepoints (`err=` of `moobfs_domain_build`). Tests: `tests/diag_test.c`
+  in `make test` (portable; two negative variants fail it), `moobfs diagnose` usage and no-layer
+  exit in `tests/tools-json.sh`, new VM suite step `diag` and a `MEMORY_LIMIT` check in
+  `make install-test`. On the dedicated host (2026-10-30): `MOOB_ONLY="limits diag" make vm-test`
+  and `make install-test` passed, and both negative rounds failed where expected; G2 waits for
+  the maintainer.
 - `moobfs-check` and `moobfs-index` walk by directory descriptor (journal 0232, issue #168).
   They walked with `nftw()` and read attributes, ACLs and the directories between by path, so
   another writer of the tree who swapped a directory for a symbolic link while root ran them
@@ -95,6 +169,25 @@
   In the VM the lower's disk image stays in the host's page cache (`MOOB_BENCH_CACHE=host`), so
   its "cold" rows are cold in the guest only: with O_DIRECT the cold first `QUERY2` of a
   7 459-file domain exceeded the ten-second build deadline and was refused with `ETIMEDOUT`.
+- fstests `auto` group over the layer, once on ext4, btrfs and XFS, Debian 6.12.113 (journal
+  0239, security roadmap S2). Of 779 tests per lower, 229, 339 and 372 passed, 549, 436 and 406
+  were not run, and 1, 4 and 1 failed, with no kernel diagnostic. None is a layer defect:
+  generic/631 mounts overlayfs with the layer as upper, which overlayfs refuses (no `O_TMPFILE`,
+  no `RENAME_WHITEOUT`); generic/186, 187 and 301 are skipped by fstests on btrfs by `FSTYP`,
+  which the layer hides (baseline on plain btrfs; they pass over the layer on XFS). New
+  `vm/fstests/exclude-auto.txt` and `exclude-auto-btrfs.txt`, per-test results in
+  `vm/fstests/results-*-auto-6.12.113.txt`. The run with the lists has not been repeated.
+- syzkaller, a sixth six-hour round (journal 0239, S3): 386 844 executions, no report, on the KASAN
+  kernel with the S8 hardening options. `moobl_xattr_get()` is covered in the report (3 of 18 PCs),
+  and a replay of the read seeds reaches all four of its coverage call sites. Every handler
+  function is exercised; the handlers are at 684 of 809 PCs (84.5 %), below the 85 % threshold.
+  New seed `xattr-get-security`. Harness knobs with unchanged defaults: `MOOB_FSTESTS_CPUS`,
+  `MOOB_FSTESTS_MEM`, `SYZ_VMS`, `SYZ_CACHE`; the syzkaller summary now reads the manager's
+  counter line, which the earlier pattern never matched.
+- syzkaller, a seventh six-hour round (journal 0239, S3), with the same threshold and counting:
+  seeds `query-long-path`, `query-moved` and `xattr-count`, written after a per-PC replay of the
+  sixth run's corpus; the run kept that corpus. 301 716 executions, no report; the handlers at
+  687 of 809 PCs (84.9 %), one PC below the 85 % threshold.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and

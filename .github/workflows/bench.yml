@@ -43,6 +43,8 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          # the trigger is asynchronous: wait for udev before checking the node's mode
+          sudo udevadm settle --timeout=30
           if [ -w /dev/kvm ]; then echo "KVM usable"; else echo "no KVM: the benchmark refuses to run under TCG"; exit 1; fi
       - name: Record the runner
         run: |

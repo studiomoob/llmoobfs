@@ -83,6 +83,8 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          # the trigger is asynchronous: wait for udev before checking the node's mode
+          sudo udevadm settle --timeout=30
           if [ -w /dev/kvm ]; then echo "KVM usable"; else echo "no KVM: QEMU will use TCG"; fi
       - name: Fetch and verify the kernel source
         run: |

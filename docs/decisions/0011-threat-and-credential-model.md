@@ -104,7 +104,8 @@ Against A2 and A3:
    a differing generation rebuilds the domain record and drops the file record. Reported privately
    by an external reviewer, credited in the
    [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm); no
-   finding number was given.
+   finding number was given. *Note, 2026-10-29 (journal 0240, ADR-0030):* the report was
+   AI-assisted, triaged and reproduced by the reviewer; see the note after F16.
 3. **Path-based LSMs** (AppArmor, Landlock) do not filter query results. A confined process can see
    in the results a name it could not open; it already sees it by listing the directory and reading
    its attributes, which Landlock does not control (journal 0030). To hide a domain from a
@@ -321,6 +322,11 @@ later) and its verification against Linux 6.12.112 (journals 0116 and 0117):
   privately by an external reviewer, who also wrote the fix, credited in the
   [advisory](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6). **Fixed** in journal 0218: the credentials carry `CAP_FSETID`
   only when the writer has it in the initial user namespace, the test the lower applies.
+  *Note, 2026-10-29 (journal 0240, ADR-0030):* the external reviewer's reports behind F15, F16
+  and GHSA-756j-cgwq-gvwm were produced with AI assistance: the reviewer chose where to look,
+  reproduced each defect and wrote (F16) or checked the fix, but the analysis was AI-assisted.
+  They count as AI-assisted reviews, not as independent human review; the defects are real and
+  each is fixed with a regression test.
 - **F17 — `QUERY2` answered a file whose minimal access ACL refuses the caller.** The
   homogeneity rule took an access ACL for extended only when it had more than three entries. A
   minimal ACL can still disagree with the mode (`u=rw,g=r,o=-` on a `0644` file refuses others,

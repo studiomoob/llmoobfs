@@ -161,25 +161,31 @@ Fatos em 2026-10-25:
   s390x big-endian, com emulação. O módulo também roda em arm64 com emulação, sem KVM, num job
   exploratório: os passos de ext4, btrfs e XFS passaram sob KASAN ([diário 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
 - **Testado com** injeção de falhas dentro do módulo, o grupo `quick` do fstests nos três sistemas
-  de arquivos de baixo, syzkaller (cinco rodadas de seis horas; um defeito achado e corrigido), uma
-  primeira rodada do KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091,
-  0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143).
-- **Ainda sem revisão humana independente de todo o código do kernel.** Foi pedida em 2026-10-13.
-  Um revisor externo relatou em privado três defeitos do kernel e escreveu a correção de um deles
-  (F16, abaixo). Um colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um
-  assistente de IA (2026-10-27, pull requests 161 a 163). Duas revisões independentes do
+  de arquivos de baixo e uma rodada do grupo `auto` (nenhuma das falhas é defeito da camada),
+  syzkaller (sete rodadas de seis horas; um defeito achado e corrigido), uma primeira rodada do
+  KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091, 0096, 0104, 0109,
+  0112, 0115, 0133, 0138, 0143, 0239).
+- **Ainda sem revisão humana independente do código do kernel.** Foi pedida em 2026-10-13. O
+  código do kernel foi verificado por ferramentas automáticas (a suíte sob KASAN, UBSAN e
+  lockdep, KCSAN, syzkaller, fstests, fuzzing) e por revisões assistidas por IA, e por nenhum
+  revisor humano independente ([ADR-0030](docs/decisions/0030-stage-2-review-criterion.md)). Um
+  colaborador de fora revisou scripts, ferramentas e a biblioteca Python com um
+  assistente de IA (2026-10-27, pull requests 161 a 163). Duas revisões do
   código, feitas por assistentes de IA ([diário 0111](docs/history/0111-review-5582e06.md),
   [diário 0114](docs/history/0114-second-inspection-of-5582e06.md)) e conferidas contra o kernel,
   acharam quatro defeitos de segurança (achados F9 a F12 do ADR-0011), relatados como avisos de
   segurança privados e corrigidos nos diários 0116 e 0117; nossos próprios testes e revisões
-  acharam outros antes. Três relatos privados de um revisor externo (2026-10-27) acharam o `QUERY2`
+  acharam outros antes. Três relatos privados de um revisor externo (2026-10-27), assistidos por IA e
+  triados pelo revisor, que escolheu onde olhar, reproduziu cada defeito e escreveu ou conferiu a
+  correção, acharam o `QUERY2`
   nomeando arquivos sob um diretório só de busca (F15, [GHSA-95h9-j7c2-gcw6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-95h9-j7c2-gcw6)),
   registros de domínio e de arquivo respondidos para um número de inode reutilizado
   ([GHSA-756j-cgwq-gvwm](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-756j-cgwq-gvwm)) e um bit set-user-ID mantido depois de uma escrita
   (F16, [GHSA-6xf4-r246-92r6](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-6xf4-r246-92r6)), corrigidos na `main` nos diários
   [0215](docs/history/0215-search-only-directories.md),
   [0216](docs/history/0216-domain-record-generation.md) e
-  [0218](docs/history/0218-write-credentials-fsetid.md); a correção do F16 é do revisor. A `v0.5.0-experimental` tem essas correções; as tags até a `v0.4.1-experimental`
+  [0218](docs/history/0218-write-credentials-fsetid.md); a correção do F16 é do revisor. São defeitos reais, cada um reproduzido, corrigido e com
+  teste de regressão. A `v0.5.0-experimental` tem essas correções; as tags até a `v0.4.1-experimental`
   carregam defeitos corrigidos depois ([changelog](CHANGELOG.md)).
 - **As medições são de nível piloto**, de uma máquina; o relatório que as reúne é o
   [diário 0088](docs/history/0088-m4-report.md). Não são uma afirmação geral de velocidade.
@@ -189,13 +195,15 @@ Fatos em 2026-10-25:
   montagem inteira) custa o que a varredura da montagem custava.
 - Uma construção sem privilégio também é limitada por `index_build_work`
   (padrão de 32.768 unidades acumuladas; quem monta pode escolher de 1.024 a
-  65.536), por um prazo cooperativo de dez segundos e por limites de
-  frequência de reconstrução. O padrão recusa o domínio medido de 17 mil
-  arquivos. A issue 118 foi fechada: com o disco inferior atrasado em
-  400 ms por E/S, o build para no prazo com `ETIMEDOUT` e sem resposta parcial,
-  e os domínios de 25 mil arquivos do G5 se constroem com 65.536
-  ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md),
-  [diário 0210](docs/history/0210-security-batch-1-domain-records-and-slow-lower.md)).
+  65.536), por um prazo cooperativo de dez segundos de CPU de quem constrói,
+  com um limite de 120 s de tempo decorrido, e por limites de frequência de
+  reconstrução. O tempo de espera por um disco inferior lento não conta para
+  os dez segundos
+  ([ADR-0031](docs/decisions/0031-build-deadline-counts-cpu-time.md), proposta;
+  o prazo anterior, de tempo decorrido, recusava builds num disco lento, diários
+  0210 e 0238). O padrão recusa o domínio medido de 17 mil arquivos; os domínios
+  de 25 mil arquivos do G5 se constroem com 65.536
+  ([ADR-0020](docs/decisions/0020-configurable-query-build-work-per-mount.md)).
 - Montar exige **`CAP_SYS_ADMIN` no namespace de usuário inicial**.
 - **A interface pode mudar**, sem promessa de compatibilidade.
 
@@ -205,9 +213,9 @@ recomendação ([when-not-to-use.md](docs/when-not-to-use.md)). A lista completa
 
 ## Como ajudar
 
-O projeto tem um mantenedor e ainda nenhuma revisão humana independente de todo o código do
-kernel; um revisor externo relatou em privado três defeitos do kernel e escreveu a correção de um
-deles (F16), e um colaborador de fora revisou scripts, ferramentas e a biblioteca Python (pull
+O projeto tem um mantenedor e ainda nenhuma revisão humana independente do código do
+kernel; os relatos privados de um revisor externo, assistidos por IA, acharam três defeitos do
+kernel, e o revisor escreveu a correção de um deles (F16), e um colaborador de fora revisou scripts, ferramentas e a biblioteca Python (pull
 requests 161 a 163). O que mais ajudaria, organizado por
 quanto conhecimento de kernel exige, está em **[docs/help-wanted.md](docs/help-wanted.md)**: uma
 revisão do modelo de credenciais ou das travas do índice, se você conhece o VFS; uma verificação
@@ -525,7 +533,9 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   do cgroup de memória da tarefa que os alocou, quando disponível (issue 116, diário 0180).
   Sem `memory.max` no cgroup de um usuário, nada mais limita esses buffers por usuário: o
   kvmalloc pode tomar 2 MiB para cada um, então defina `MemoryMax=` para os usuários de uma
-  montagem compartilhada. O passo `limits` da suíte mostra o limite de um cgroup atingido como
+  montagem compartilhada: a receita em `docs/operations.md` §5 faz isso com um drop-in para as
+  fatias de usuário, e `moobfs diagnose` mostra o limite que vale para quem chama (diário 0243;
+  verificado em VM dedicada). O passo `limits` da suíte mostra o limite de um cgroup atingido como
   `ENOMEM`, com os outros usuários respondidos, e `mountscale` mediu uma montagem que não lê
   nada do disco inferior, de 0,4 a 1,5 ms de 100 a 200.100 arquivos (diário 0235,
   [ADR-0029](docs/decisions/0029-s9-limits-met-by-existing-bounds.md), aceita).
@@ -540,21 +550,22 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   condições descritas em [O que foi medido](#o-que-foi-medido) pode ser feita a partir deles; não
   existe comparação com FUSE, e a comparação com o sistema de arquivos de baixo puro no módulo atual
   está pendente.
-- Sem revisão humana independente de todo o código do kernel. Duas revisões independentes do código, feitas por assistentes de IA
+- Sem revisão humana independente do código do kernel. Duas revisões do código, feitas por assistentes de IA
   (diários [0111](docs/history/0111-review-5582e06.md) e [0114](docs/history/0114-second-inspection-of-5582e06.md)),
-  relatos privados de um revisor externo (diários 0215, 0216, 0218; a correção do F16 é dele) e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
+  relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele (diários 0215, 0216, 0218; a correção do F16 é dele) e os testes do próprio projeto acharam e corrigiram defeitos do lado do kernel, alguns de
   segurança; os achados estão no [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)
   (F1 a F17), e os defeitos anteriores nos diários [0015](docs/history/0015-phase-2e-investigation.md),
   [0016](docs/history/0016-kasan-lockdep-harness.md),
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) e
   [0083](docs/history/0083-index-inspection-fixes.md). As tags até a `v0.4.1-experimental` carregam
-  defeitos corrigidos depois; a `v0.5.0-experimental` tem todas as correções até 2026-10-28, e as posteriores entram na `main`. O fstests rodou só com o grupo `quick`
-  ([vm/fstests/](vm/fstests/README.md)); o syzkaller rodou cinco rodadas de seis horas; a última
-  medição ficou acima do limiar agregado de PCs do item S3 do [roteiro de segurança](docs/security-roadmap.md),
-  e o `moobl_xattr_get` ficou com 0 PCs no relatório dessa rodada, porque o corpus quase não guardou
-  leituras de atributo dentro de uma camada montada; reexecutadas com cobertura por chamada, as
-  sementes chegam nela (diário 0154). O SELinux em
+  defeitos corrigidos depois; a `v0.5.0-experimental` tem todas as correções até 2026-10-28, e as posteriores entram na `main`. O grupo `quick` do fstests
+  passa com uma lista de exclusões, e o grupo `auto` rodou uma vez, com 1 a 4 falhas por sistema de
+  arquivos de baixo, nenhuma delas defeito da camada ([vm/fstests/](vm/fstests/README.md), diário
+  0239). O syzkaller rodou sete rodadas de seis horas, sem relato em aberto. As duas últimas cobrem todas
+  as funções dos handlers, inclusive o `moobl_xattr_get`, mas ficam em 84,5 % e 84,9 % dos PCs dos handlers,
+  abaixo do limiar de 85 % do item S3 do [roteiro de segurança](docs/security-roadmap.md) (diário
+  0239). O SELinux em
   modo enforcing foi exercitado uma vez (diário 0104); AppArmor e Smack não foram.
 - A autorização do `QUERY` vale só no momento da consulta (contrato TOCTOU). Renomear um
   diretório pela camada torna o domínio desatualizado e a próxima consulta o reconstrói;
@@ -602,11 +613,11 @@ experimento M1 está congelado e roda como regressão na mesma VM.
 | Fase Q2b: `QUERY2` ordenado por um atributo, crescente ou decrescente, e paginado por um cursor autenticado; igual a `moobfs-index --domain --order`; "N mais recentes" medido e otimizado ([0048](docs/history/0048-recent-optimization.md)) | [0036](docs/history/0036-phase-q2b-order-cursor.md) | Debian 6.12.111; ext4, btrfs, XFS |
 | Fase Q2c: interseção leapfrog de termos de igualdade no `QUERY2`; igual ao oráculo, plano verificado pela ordem dos resultados, medido no [0044](docs/history/0044-q2-measured-equality-plan.md) | [0037](docs/history/0037-phase-q2c-leapfrog.md) | Debian 6.12.111; ext4, btrfs, XFS |
 | Fase Q2d: termos "ausente ou ..." e lotes de até 8 requisições `QUERY2` por chamada; igual ao oráculo | [0038](docs/history/0038-phase-q2d-missing-batch.md) | Debian 6.12.111; ext4, btrfs, XFS |
-| Testes sob o módulo: grupo `quick` do fstests com lista de exclusões, injeção sistemática de falhas de alocação dentro do módulo | [0091](docs/history/0091-s2-fstests-clean-with-exclusions.md), [0096](docs/history/0096-fault-injection.md) | Debian 6.12.111; KASAN 6.12.112; ext4, btrfs, XFS |
+| Testes sob o módulo: grupo `quick` do fstests com lista de exclusões, injeção sistemática de falhas de alocação dentro do módulo; uma rodada do grupo `auto` do fstests | [0091](docs/history/0091-s2-fstests-clean-with-exclusions.md), [0096](docs/history/0096-fault-injection.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | Debian 6.12.111 e 6.12.113; KASAN 6.12.112; ext4, btrfs, XFS |
 | Índice construído por domínio na primeira consulta, liberado sob pressão de memória ou acima do orçamento (shrinker); tracepoints | [0098](docs/history/0098-index-on-demand.md), [0101](docs/history/0101-domains-released.md), [0102](docs/history/0102-index-tracepoints.md), [ADR-0012](docs/decisions/0012-index-on-demand-and-reclaimable.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | SELinux em modo enforcing; checagem por resultado quando um LSM rotula os inodes da camada | [0104](docs/history/0104-selinux-investigation.md) | 6.12.112 com a política de referência do Debian |
 | SQL sobre um domínio por uma tabela virtual do SQLite (protótipo) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |
-| Descrições do syzkaller para a montagem, as ioctls e os atributos; cinco rodadas de seis horas | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md) | 6.12.112 upstream com KCOV |
+| Descrições do syzkaller para a montagem, as ioctls e os atributos; sete rodadas de seis horas | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | 6.12.112 upstream com KCOV |
 | Correções de segurança dos achados F9 a F12 (regra de homogeneidade, checagens sem o semáforo de consulta, acesso de escrita na montagem de baixo, lower idmapped recusado), cada uma com teste e rodada negativa | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | Correções de segurança de F15, GHSA-756j-cgwq-gvwm e F16 (diretórios só de busca, registros de um número de inode reutilizado, set-user-ID mantido numa escrita), cada uma com teste e rodada negativa | [0215](docs/history/0215-search-only-directories.md), [0216](docs/history/0216-domain-record-generation.md), [0218](docs/history/0218-write-credentials-fsetid.md) | Debian 6.12.111; KASAN 6.12.112 ([0219](docs/history/0219-security-batch-checks.md)); ext4, btrfs, XFS |
 | Lote 3: errnos do lookup para um diretório com casefold e um subvolume btrfs, o byte reservado de um termo de consulta (`EINVAL`), um só teste de privilégio, ACLs estendidas julgadas como o kernel julga (F17), sem trava do índice na criação ou despejo de inodes sem registro, e `fadvise`, `readahead`, campos de `statx`, `drop_inode` e `O_NOATIME` repassados ao sistema de baixo; passos `casefold`, `minacl` e `ixlock`, marcadores `LAYER_SUBVOLUME_PASS` e `PASSTHROUGH_PASS`, cada um com rodada negativa | [0221](docs/history/0221-lookup-errnos-and-m8.md), [0222](docs/history/0222-term-padding-admin-test-extended-acl.md), [0223](docs/history/0223-index-lock-instantiation-eviction.md), [0224](docs/history/0224-passthrough-gaps-issue-115.md), [ADR-0026](docs/decisions/0026-ioctl-magic-term-padding-and-admin-test.md) | Debian 6.12.111; KASAN 6.12.112, suíte completa ([0225](docs/history/0225-security-batch-3.md)); ext4, btrfs, XFS (`minacl` e `ixlock` em ext4) |

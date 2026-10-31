@@ -294,9 +294,10 @@ the upstream kernel tarball against kernel.org's `sha256sums.asc` (the Lint job 
 
 | Pin | Copies |
 | --- | --- |
-| Upstream kernel for KASAN and KCSAN (`KERNEL_VERSION`, `KERNEL_SHA256`) | `.github/workflows/kasan.yml`, `.github/workflows/kasan-arm64.yml`, `.github/workflows/kcsan.yml`, `.github/workflows/interop.yml`, this file's KASAN section; `vm/kasan-local.sh` and `vm/syzkaller-local.sh` read `kasan.yml` |
+| Upstream kernel for KASAN and KCSAN (`KERNEL_VERSION`, `KERNEL_SHA256`) | `.github/workflows/kasan.yml`, `.github/workflows/kasan-arm64.yml`, `.github/workflows/kcsan.yml`, `.github/workflows/interop.yml`, `tests/static/Dockerfile`, this file's KASAN section; `vm/kasan-local.sh` and `vm/syzkaller-local.sh` read `kasan.yml` |
 | checkpatch.pl tag and file hashes | `scripts/checkpatch.sh` (`TAG` follows the KASAN kernel) |
-| Debian image digest and kernel package of `make vm-test` | `vm/Dockerfile` (image and headers packages at the same version) |
+| Debian image digest and kernel package of `make vm-test` | `vm/Dockerfile` (image and headers packages at the same version); `tests/static/Dockerfile` uses the same image and one of its kernels (`DEBIAN_KERNEL`) |
+| Static checkers of `make static` (smatch commit, sparse and Coccinelle package versions) | `tests/static/Dockerfile` only (journal 0242); a change of tool version usually changes the findings, so `tests/static/baseline.txt` is reviewed in the same commit |
 | virtme-ng and its dependencies | `vm/kasan-requirements.txt` (regenerate the hashes as its header says) |
 | Tools of the interoperability test (fselect and cshatag with SHA-256, Recoll and KFileMetaData package versions) | `.github/workflows/interop.yml` only (journal 0140) |
 

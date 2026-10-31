@@ -7,6 +7,7 @@
  *   moobfs query [--json] [--ino] [--order NAME TYPE asc|desc] [--limit N] [--page N]
  *                <dir> [terms...]
  *   moobfs check [moobfs-check arguments]
+ *   moobfs diagnose [--json] <path>
  *   moobfs --help
  *
  * info finds the layer mount that holds <path> (/proc/self/mountinfo) and prints GET_INFO of
@@ -14,13 +15,20 @@
  * is complete or --limit results were printed; on the mount root of a mount without domains it
  * issues the mount-wide QUERY, which has no cursor. Paths are relative to <dir>. Without
  * --order the results are sorted by inode number, as moobfs-index prints them. Terms are those
- * of moobfs-index: "name op type value", up to four. check runs moobfs-check.
+ * of moobfs-index: "name op type value", up to four. check runs moobfs-check. diagnose reports,
+ * without changing anything, the limits that apply to the caller of a query on <path>: the
+ * mount's index settings, the memory cgroup limits above the calling process and how often they
+ * were reached, the descriptor limit, test-only module parameters left set and, for an
+ * administrator, the index counters and the tracepoints (roadmap item G2, journal 0243). When a
+ * query fails with ENOMEM, query reads the caller's memory cgroups again and says whether one of
+ * their limits or the index budget refused it (tools/diag.h).
  *
  * Exit status (docs/tools.md): 0 success; 1 a system call failed; 64 usage; 65 invalid terms or
  * a query the kernel refused as invalid; 69 no layer at <path> (module not loaded, another
  * filesystem, or a directory that cannot be queried); 75 temporary (the domain does not fit the
  * index budget, a build limit, or the domain kept changing); 77 permission denied; 3 the answer
- * is incomplete (the mount-wide QUERY had more results than it can return).
+ * is incomplete (the mount-wide QUERY had more results than it can return). diagnose exits 0, or
+ * 2 when it printed a warning, besides the find_mount statuses above.
  *
  * /proc/self/mountinfo is optional (issue #167): a sandbox such as Landlock may deny reading it.
  * Without it the layer is recognised by statfs, query still issues QUERY2 and learns the domain
@@ -32,12 +40,15 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <stdarg.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <sys/vfs.h>
 #include <time.h>
 #include <unistd.h>
 #include "query-common.h"
+#include "diag.h"
 
 #define EX_INCOMPLETE 3
 #define EX_USAGE 64
@@ -54,6 +65,7 @@ static const char synopsis[] =
 	"       moobfs query [--json] [--ino] [--order NAME TYPE asc|desc] [--limit N] [--page N]\n"
 	"                    <dir> [name op type value]...\n"
 	"       moobfs check [moobfs-check arguments]\n"
+	"       moobfs diagnose [--json] <path>\n"
 	"       moobfs --help\n"
 	"Terms: op is eq lt le gt ge prefix exists (exists takes - - as type and value); an op\n"
 	"ending in ? also matches files without the attribute. Type: string int64 double bool time.\n"
@@ -371,15 +383,17 @@ static int query_error(int err, const char *dir, const char *op, int depth)
 		return EX_UNAVAILABLE;
 	case ENOMEM:
 		fprintf(stderr, "moobfs: %s: the domain does not fit the index budget (index_budget), "
-			"or the kernel is out of memory\n", dir);
+			"or a memory limit or the kernel's memory refused it; moobfs diagnose %s shows "
+			"the limits that apply\n", dir, dir);
 		return EX_TEMPFAIL;
 	case EDQUOT:
-		fprintf(stderr, "moobfs: %s: too many first queries of domains in the last minute; "
-			"retry later\n", dir);
+		fprintf(stderr, "moobfs: %s: too many first queries of domains in the last minute, by "
+			"this user or on this mount; retry in a minute\n", dir);
 		return EX_TEMPFAIL;
 	case E2BIG:
 		fprintf(stderr, "moobfs: %s: building this domain's index needs more work than the "
-			"mount allows (index_build_work); the administrator can raise it\n", dir);
+			"mount allows (index_build_work, at most 65536); the administrator can raise it, "
+			"or mount with a larger domain_depth so that domains are smaller\n", dir);
 		return EX_TEMPFAIL;
 	case ETIMEDOUT:
 		fprintf(stderr, "moobfs: %s: building this domain's index took longer than the "
@@ -486,12 +500,70 @@ static int run_query2(int fd, const struct moob_query2 *proto, size_t max, __u32
 	}
 }
 
+#define PROC_CGROUP "/proc/self/cgroup"
+#define CGROUP_ROOT "/sys/fs/cgroup"
+#define LAYER_SYSMOD "/sys/module/moobfs_layer"
+
+static unsigned long long mib(unsigned long long bytes)
+{
+	return bytes >> 20;
+}
+
+/*
+ * After ENOMEM: was it the memory cgroup of the caller (a limit whose local "max" or "oom"
+ * count grew during the query), or the index budget? before is the chain read before the
+ * query, NULL if it could not be read. Returns the exit status, after printing the cause.
+ */
+static int enomem_error(const char *dir, const char *point, const struct diag_chain *before)
+{
+	struct diag_chain *after = before ? malloc(sizeof *after) : NULL;
+	struct moob_info info;
+	char budget[48] = "";
+	int fd, hit = -1, lim = -1;
+
+	memset(&info, 0, sizeof info);
+	fd = open(point, O_RDONLY | O_DIRECTORY);
+	if (fd >= 0 && !ioctl(fd, MOOB_IOC_GET_INFO, &info))
+		snprintf(budget, sizeof budget, ", %llu MiB",
+			 mib((unsigned long long)info.index_budget));
+	if (fd >= 0)
+		close(fd);
+	if (after && !diag_chain_read(PROC_CGROUP, CGROUP_ROOT, after)) {
+		hit = diag_hit(before, after);
+		lim = diag_effective(after);
+	}
+	if (hit >= 0) {
+		fprintf(stderr, "moobfs: %s: refused (ENOMEM): the memory cgroup %s reached its "
+			"memory.max (%llu MiB) during the query; the index a query builds and the "
+			"buffer it keeps are charged to the caller's cgroup. Close idle descriptors "
+			"that queried, or ask the administrator for a larger MemoryMax= "
+			"(docs/operations.md, section 5)\n", dir, after->lv[hit].path,
+			mib(after->lv[hit].max));
+	} else if (after && before) {
+		fprintf(stderr, "moobfs: %s: refused (ENOMEM): the domain does not fit the mount's "
+			"index budget (index_budget%s), or this user's fair share of it while other "
+			"users hold theirs; ", dir, budget);
+		if (lim >= 0)
+			fprintf(stderr, "the memory cgroup %s (memory.max %llu MiB) did not reach "
+				"its limit. ", after->lv[lim].path, mib(after->lv[lim].max));
+		else
+			fprintf(stderr, "no memory cgroup limit applies to this process. ");
+		fprintf(stderr, "Retry later, or ask the administrator to raise index_budget\n");
+	} else {
+		free(after);
+		return query_error(ENOMEM, dir, "QUERY2", 0);
+	}
+	free(after);
+	return EX_TEMPFAIL;
+}
+
 static int cmd_query(int argc, char **argv)
 {
 	struct moob_query2 q2;
 	struct moob_query_result *buf;
 	struct results res = { NULL, 0, 0 };
 	struct mnt m;
+	struct diag_chain *cg;
 	int json = 0, ino = 0, n, k = 1, fd, rc, truncated = 0, v1 = 0;
 	unsigned long max = 0, page = MOOB_QUERY_MAX_LIMIT;
 	int depth;
@@ -557,6 +629,12 @@ static int cmd_query(int argc, char **argv)
 		return 1;
 	q2.version = MOOB_QUERY2_VERSION;
 	q2.nterms = (__u32)n;
+	/* the caller's memory cgroups before the query, to tell an ENOMEM's cause afterwards */
+	cg = malloc(sizeof *cg);
+	if (cg && diag_chain_read(PROC_CGROUP, CGROUP_ROOT, cg)) {
+		free(cg);
+		cg = NULL;
+	}
 	rc = run_query2(fd, &q2, max, (__u32)page, buf, &res);
 	if ((rc == ENOTTY || rc == EOPNOTSUPP) && depth < 0) {
 		struct moob_info info;
@@ -584,6 +662,12 @@ static int cmd_query(int argc, char **argv)
 		truncated = q.truncated && !(max && res.n >= max);
 	}
 	close(fd);
+	if (rc == ENOMEM) {
+		rc = enomem_error(argv[k], m.point, cg);
+		free(cg);
+		return rc;
+	}
+	free(cg);
 	if (rc)
 		return query_error(rc, argv[k], v1 ? "QUERY" : "QUERY2", depth);
 	if (!q2.order_by[0] && res.n)
@@ -616,6 +700,316 @@ static int cmd_query(int argc, char **argv)
 		return EX_INCOMPLETE;
 	}
 	return 0;
+}
+
+/* One finding of diagnose: a warning makes the exit status 2. */
+struct finding {
+	int warning;
+	const char *code;
+	char text[640];
+};
+
+#define MAX_FINDINGS 16
+
+struct findings {
+	int n, warnings;
+	struct finding v[MAX_FINDINGS];
+};
+
+__attribute__((format(printf, 4, 5)))
+static void add(struct findings *f, int warning, const char *code, const char *fmt, ...)
+{
+	va_list ap;
+
+	if (f->n == MAX_FINDINGS)
+		return;
+	f->v[f->n].warning = warning;
+	f->v[f->n].code = code;
+	va_start(ap, fmt);
+	vsnprintf(f->v[f->n].text, sizeof f->v[f->n].text, fmt, ap);
+	va_end(ap);
+	f->warnings += warning;
+	f->n++;
+}
+
+/*
+ * Depth of real below the root of the layer filesystem, given its mount record (a bind mount
+ * of a subdirectory adds the components of m->root). -1 when unknown.
+ */
+static int depth_below_root(const char *real, const struct mnt *m)
+{
+	const char *p = real + strlen(m->point);
+	int d = 0;
+
+	if (!m->record)
+		return -1;
+	if (strcmp(m->point, "/") && *p && *p != '/')
+		return -1;
+	if (!strcmp(m->point, "/"))
+		p = real;
+	for (; *p; p++)
+		if (*p == '/' && p[1] && p[1] != '/')
+			d++;
+	for (p = m->root; *p; p++)
+		if (*p == '/' && p[1] && p[1] != '/')
+			d++;
+	return d;
+}
+
+/* Test-only parameters of the module (layer/index.c); not 0 means a build is slowed or fails. */
+static const char *const test_params[] = { "scan_delay_us", "scan_hold_us",
+					   "scan_getxattr_errno_once" };
+#define NTEST_PARAMS (sizeof test_params / sizeof test_params[0])
+
+static void json_ull_or_null(int has, unsigned long long v)
+{
+	if (has && v != DIAG_NOLIMIT)
+		printf("%llu", v);
+	else
+		printf("null");
+}
+
+static int cmd_diagnose(int argc, char **argv)
+{
+	struct moob_info info;
+	struct mnt m;
+	struct diag_chain *cg = malloc(sizeof *cg);
+	struct findings *fs = calloc(1, sizeof *fs);
+	struct rlimit nofile = { 0, 0 };
+	char real[PATH_MAX], tracing[16] = "";
+	long long params[NTEST_PARAMS];
+	int have_params[NTEST_PARAMS];
+	int json = 0, fd, rc, have_info = 0, have_cg = 0, lim = -1, depth, role_depth, admin;
+	unsigned int work = 0;
+	size_t i;
+	const char *role = "unknown";
+
+	if (!cg || !fs)
+		return 1;
+	if (argc >= 2 && !strcmp(argv[1], "--json")) {
+		json = 1;
+		argv++;
+		argc--;
+	}
+	if (argc != 2)
+		return usage();
+	rc = find_mount(argv[1], &m);
+	if (rc)
+		return rc;
+	if (!realpath(argv[1], real))
+		snprintf(real, sizeof real, "%s", argv[1]);
+	admin = geteuid() == 0;
+
+	/* the mount: GET_INFO answers on its root only */
+	memset(&info, 0, sizeof info);
+	fd = open(m.point, O_RDONLY | O_DIRECTORY);
+	if (fd >= 0) {
+		have_info = !ioctl(fd, MOOB_IOC_GET_INFO, &info);
+		close(fd);
+	}
+	if (m.record)
+		work = opt_uint(m.opts, "index_build_work", 32768);
+	depth = have_info ? (int)info.domain_depth :
+		m.record ? (int)opt_uint(m.opts, "domain_depth", 1) : -1;
+	role_depth = depth_below_root(real, &m);
+	if (depth >= 0 && role_depth >= 0) {
+		if (!depth)
+			role = role_depth ? "inside" : "mount-root";
+		else
+			role = role_depth == depth ? "domain" : role_depth < depth ? "above" : "inside";
+	}
+	if (!have_info)
+		add(fs, 0, "info-unknown", "GET_INFO on %s failed, so the index settings are unknown "
+		    "(a bind mount of a directory inside a layer, or the mount root not readable)",
+		    m.point);
+	else if (info.flags & MOOB_FLAG_INDEX_OFF)
+		add(fs, 0, "index-off", "the index of this mount is off (noindex): QUERY and QUERY2 "
+		    "answer EOPNOTSUPP; moobfs-index scans the lower tree in user space instead");
+	if (!strcmp(role, "above"))
+		add(fs, 0, "not-a-domain", "%s is above the domains: queries go to a directory %d "
+		    "level%s below the mount root", argv[1], depth, depth == 1 ? "" : "s");
+	else if (!strcmp(role, "inside") && depth)
+		add(fs, 0, "not-a-domain", "%s is inside a domain: query its domain directory, %d "
+		    "level%s below the mount root", argv[1], depth, depth == 1 ? "" : "s");
+
+	/* the caller's memory cgroups (ADR-0018, ADR-0029) */
+	have_cg = !diag_chain_read(PROC_CGROUP, CGROUP_ROOT, cg);
+	(void)getrlimit(RLIMIT_NOFILE, &nofile);
+	if (have_cg)
+		lim = diag_effective(cg);
+	if (!have_cg) {
+		add(fs, 0, "cgroup-unknown", "the memory cgroup of this process cannot be read (no "
+		    "cgroup v2 hierarchy at " CGROUP_ROOT ", or a sandbox denies " PROC_CGROUP ")");
+	} else if (lim < 0) {
+		add(fs, 1, "no-memory-limit", "no memory.max applies to this process (cgroup %s): the "
+		    "index its queries build and the buffer each descriptor that queried keeps (about "
+		    "2 MiB at the largest page, up to RLIMIT_NOFILE=%llu descriptors per process) are "
+		    "bounded only by the machine's memory (ADR-0029). The deployment recipe sets "
+		    "MemoryMax= for the users of a shared mount (docs/operations.md, section 5)",
+		    cg->n ? cg->lv[0].path : "/", (unsigned long long)nofile.rlim_cur);
+	} else {
+		const struct diag_level *l = &cg->lv[lim];
+
+		if (l->ev_oom_kill)
+			add(fs, 1, "oom-killed", "%llu process%s in the memory cgroup %s %s killed at "
+			    "its memory.max (%llu MiB); a query near the limit can be killed instead of "
+			    "refused", l->ev_oom_kill, l->ev_oom_kill == 1 ? "" : "es", l->path,
+			    l->ev_oom_kill == 1 ? "was" : "were", mib(l->max));
+		if (l->ev_max || l->ev_oom)
+			add(fs, 0, "limit-reached", "the memory cgroup %s reached its memory.max "
+			    "(%llu MiB) %llu time%s (%llu without room after reclaim); a query that "
+			    "needs memory there then fails with ENOMEM", l->path, mib(l->max),
+			    l->ev_max, l->ev_max == 1 ? "" : "s", l->ev_oom);
+		if (l->has_current && l->max && l->current >= l->max - l->max / 10)
+			add(fs, 1, "near-limit", "the memory cgroup %s uses %llu of its %llu MiB",
+			    l->path, mib(l->current), mib(l->max));
+	}
+
+	/* the module */
+	for (i = 0; i < NTEST_PARAMS; i++) {
+		have_params[i] = !diag_param(LAYER_SYSMOD, test_params[i], &params[i]);
+		if (have_params[i] && params[i])
+			add(fs, 1, "test-parameter", "the test-only module parameter %s is %lld: index "
+			    "builds are slowed or made to fail (echo 0 > " LAYER_SYSMOD
+			    "/parameters/%s)", test_params[i], params[i], test_params[i]);
+	}
+	if (have_info && (info.flags & MOOB_FLAG_COUNTERS) && info.index_budget &&
+	    info.index_used >= info.index_budget - info.index_budget / 10)
+		add(fs, 1, "budget-near-full", "the index holds %llu of its %llu MiB budget: first "
+		    "queries of other domains can be refused with ENOMEM until a domain is released",
+		    mib((unsigned long long)info.index_used), mib((unsigned long long)info.index_budget));
+	if (admin) {
+		static const char *const roots[] = { "/sys/kernel/tracing", "/sys/kernel/debug/tracing" };
+		char file[PATH_MAX];
+
+		for (i = 0; i < 2 && !tracing[0]; i++) {
+			snprintf(file, sizeof file, "%s/events/moobfs/enable", roots[i]);
+			if (!diag_line(file, tracing, sizeof tracing))
+				add(fs, 0, "tracepoints", "the moobfs tracepoints are %s: each refused "
+				    "build is a moobfs_domain_build line with err=<-errno> (enable: echo 1 > "
+				    "%s; read %s/trace_pipe; docs/operations.md, section 8)",
+				    !strcmp(tracing, "0") ? "off" : "on", file, roots[i]);
+		}
+		if (!tracing[0])
+			add(fs, 0, "tracepoints", "no moobfs tracepoints found (tracefs not mounted at "
+			    "/sys/kernel/tracing, or the module not loaded)");
+	} else {
+		add(fs, 0, "administrator-only", "the index counters and the tracepoints are shown to "
+		    "administrators only (they cover every user's memories)");
+	}
+
+	if (json) {
+		printf("{\"path\": ");
+		json_str(argv[1]);
+		printf(", \"mount\": ");
+		json_str(m.point);
+		printf(", \"role\": \"%s\", \"uid\": %u", role, (unsigned int)getuid());
+		if (have_info) {
+			printf(", \"index\": {\"on\": %s, \"domain_depth\": %u, \"index_budget\": %" PRIu64
+			       ", \"index_build_work\": ",
+			       (info.flags & MOOB_FLAG_INDEX_OFF) ? "false" : "true", info.domain_depth,
+			       (uint64_t)info.index_budget);
+			if (m.record)
+				printf("%u", work);
+			else
+				printf("null");
+			printf(", \"index_used\": ");
+			if (info.flags & MOOB_FLAG_COUNTERS)
+				printf("%" PRIu64, (uint64_t)info.index_used);
+			else
+				printf("null");
+			printf("}");
+		} else {
+			printf(", \"index\": null");
+		}
+		printf(", \"memory_cgroup\": ");
+		if (have_cg) {
+			int j;
+
+			printf("{\"cgroup\": ");
+			json_str(cg->n ? cg->lv[0].path : "/");
+			printf(", \"limit\": ");
+			if (lim >= 0) {
+				printf("{\"cgroup\": ");
+				json_str(cg->lv[lim].path);
+				printf(", \"memory_max\": %llu}", cg->lv[lim].max);
+			} else {
+				printf("null");
+			}
+			printf(", \"levels\": [");
+			for (j = 0; j < cg->n; j++) {
+				const struct diag_level *l = &cg->lv[j];
+
+				printf("%s{\"cgroup\": ", j ? ", " : "");
+				json_str(l->path);
+				printf(", \"memory_max\": ");
+				json_ull_or_null(l->has_max, l->max);
+				printf(", \"memory_current\": ");
+				json_ull_or_null(l->has_current, l->current);
+				printf(", \"events_max\": %llu, \"events_oom\": %llu, \"events_oom_kill\": "
+				       "%llu}", l->ev_max, l->ev_oom, l->ev_oom_kill);
+			}
+			printf("]}");
+		} else {
+			printf("null");
+		}
+		printf(", \"nofile\": %llu, \"module_parameters\": {", (unsigned long long)nofile.rlim_cur);
+		for (i = 0; i < NTEST_PARAMS; i++) {
+			printf("%s\"%s\": ", i ? ", " : "", test_params[i]);
+			if (have_params[i])
+				printf("%lld", params[i]);
+			else
+				printf("null");
+		}
+		printf("}, \"tracepoints\": ");
+		if (!admin)
+			printf("null");
+		else if (!tracing[0])
+			printf("\"unavailable\"");
+		else
+			printf("\"%s\"", !strcmp(tracing, "0") ? "off" : "on");
+		printf(", \"warnings\": %d, \"findings\": [", fs->warnings);
+		for (rc = 0; rc < fs->n; rc++) {
+			printf("%s\n  {\"level\": \"%s\", \"code\": \"%s\", \"text\": ", rc ? "," : "",
+			       fs->v[rc].warning ? "warning" : "note", fs->v[rc].code);
+			json_str(fs->v[rc].text);
+			printf("}");
+		}
+		printf("%s]}\n", fs->n ? "\n" : "");
+	} else {
+		printf("path:             %s (%s)\n", argv[1], !strcmp(role, "domain") ?
+		       "a domain directory" : !strcmp(role, "above") ? "above the domains" :
+		       !strcmp(role, "inside") ? "inside a domain" : !strcmp(role, "mount-root") ?
+		       "the mount root" : "role unknown");
+		printf("mount:            %s\n", m.point);
+		if (have_info) {
+			printf("index:            %s, budget %llu MiB", (info.flags & MOOB_FLAG_INDEX_OFF) ?
+			       "off" : "on", mib((unsigned long long)info.index_budget));
+			if (info.flags & MOOB_FLAG_COUNTERS)
+				printf(" (%llu MiB used)", mib((unsigned long long)info.index_used));
+			if (m.record)
+				printf(", build work %u", work);
+			printf("\n");
+		}
+		if (have_cg) {
+			printf("memory cgroup:    %s\n", cg->n ? cg->lv[0].path : "/");
+			if (lim >= 0)
+				printf("memory limit:     %llu MiB at %s (%llu MiB used)\n",
+				       mib(cg->lv[lim].max), cg->lv[lim].path,
+				       cg->lv[lim].has_current ? mib(cg->lv[lim].current) : 0ULL);
+			else
+				printf("memory limit:     none\n");
+		} else {
+			printf("memory cgroup:    unknown\n");
+		}
+		printf("descriptors:      up to %llu per process\n", (unsigned long long)nofile.rlim_cur);
+		for (rc = 0; rc < fs->n; rc++)
+			printf("%s %s\n", fs->v[rc].warning ? "warning:" : "note:   ", fs->v[rc].text);
+	}
+	rc = fs->warnings ? 2 : 0;
+	free(cg);
+	free(fs);
+	return rc;
 }
 
 /* moobfs-check from the directory of this program, else from PATH. */
@@ -656,5 +1050,7 @@ int main(int argc, char **argv)
 		return cmd_query(argc - 1, argv + 1);
 	if (!strcmp(argv[1], "check"))
 		return cmd_check(argv + 1);
+	if (!strcmp(argv[1], "diagnose"))
+		return cmd_diagnose(argc - 1, argv + 1);
 	return usage();
 }

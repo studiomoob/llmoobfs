@@ -404,6 +404,13 @@ drops the partially built domain. Individual `QUERY2` calls do not publish
 a successful partial result; on any `QUERY2_BATCH` error, clients must
 discard all outputs, including buffers copied by earlier subqueries.
 
+*2026-10-29 proposal, ADR-0031 and journal 0241:* the ten-second deadline
+counts the building task's CPU time (`se.sum_exec_runtime`, as `RLIMIT_CPU`)
+instead of elapsed time, and a 120 s elapsed backstop is checked at the same
+points. Both return `ETIMEDOUT` with the same no-partial-result contract.
+Time asleep on lower I/O counts only against the backstop. The paragraph
+above describes the earlier elapsed deadline.
+
 No on-disk format or ioctl layout changes. Compatibility changes at query
 time: an oversized or frequently rebuilt domain that previously answered
 may now fail. The figures are initial guardrails calibrated in a bounded

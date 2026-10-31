@@ -53,8 +53,8 @@ State on `main` at `7ac52cd`. The project-wide status is in [status.md](status.m
 
 | # | State |
 | --- | --- |
-| 1 | The set-user-ID crash (R-CRED-3) is fixed (journal 0069). fstests `quick` passes on ext4, btrfs and XFS with a justified exclusion list (journal 0091); syzkaller ran five six-hour rounds (journal 0143); KASAN, UBSAN and lockdep are a required check of `main`. An external reviewer reported kernel defects privately, all fixed; there is still no independent human review of the whole kernel code, and a module defect still takes the host down. |
-| 2 | fstests `quick` and `fsx` as above; the `auto` group has not run. |
+| 1 | The set-user-ID crash (R-CRED-3) is fixed (journal 0069). fstests `quick` passes on ext4, btrfs and XFS with a justified exclusion list (journal 0091), and `auto` ran once with no layer defect among its failures (journal 0239); syzkaller ran seven six-hour rounds with no open report (journal 0239); KASAN, UBSAN and lockdep are a required check of `main`. An external reviewer's AI-assisted private reports found kernel defects, all fixed; there is still no independent human review of the kernel code (ADR-0030), and a module defect still takes the host down. |
+| 2 | fstests `quick` and `fsx` as above; fstests `auto` ran once on the three lowers (journal 0239): its 1, 4 and 1 failures of 779 are in exclusion lists, none a layer defect; the run with those lists has not been repeated. |
 | 3 | Done for its scope (S4, journal 0073): hostile lower trees in the suite on three lowers, also under KASAN, and through the tools under sanitizers in CI. |
 | 4 | R-CRED-2 and F4 are fixed (journals 0069 and 0132). The layer never enters a btrfs subvolume or another device (journal 0216). An inode number reused after a removal behind the layer is detected by its generation (journal 0216), except on a lower that leaves `i_generation` at 0 and through ext4's `EXT4_IOC_SETVERSION` on the lower ([when-not-to-use.md](when-not-to-use.md) §3). |
 | 5 | Accepted, unchanged. The Python library (roadmap C5, ADR-0023) applies the kernel's rules in a scan where the layer is not mounted. |
@@ -66,7 +66,7 @@ State on `main` at `7ac52cd`. The project-wide status is in [status.md](status.m
 | 11 | `moobfs-check --domain-depth N` names the files left out and why (journal 0090); the per-domain flag in the `QUERY2` reply proposed above does not exist, so a client confined to its domain still cannot ask. |
 | 12 | The write sequence is part of the client contract ([client-contract.md](client-contract.md)); the suite's `powerloss` step replays crashes of the lower ext4 with `dm-log-writes`. |
 | 13 | The M4 report lists where the layer loses (journal 0088). |
-| 14 | Still one maintainer. The external reviewer's private reports are recorded in ADR-0011; no second reviewer of `layer/` yet. |
+| 14 | Still one maintainer. The external reviewer's AI-assisted private reports are recorded in ADR-0011; no independent human reviewer and no second reviewer of `layer/` yet. |
 | 15 | A client contract exists ([client-contract.md](client-contract.md)); a second client, the LangGraph store, ran with answers equal to its own storage (journal 0089); an MCP adapter (C7) exists. A third system has not run. |
 <!-- /current-state -->
 
@@ -341,6 +341,9 @@ the results is proposed there.
 **Risk.** Every item above depends on one person, and no one outside the project has reviewed the
 whole kernel code. *Note, 2026-10-28:* an external reviewer privately reported three kernel
 defects and wrote the fix of one (F15, F16 and GHSA-756j-cgwq-gvwm; journals 0215, 0216, 0218). A client cannot rely on fixes arriving.
+*Correction, 2026-10-29 (journal 0240, ADR-0030):* those reports were AI-assisted (the reviewer chose
+where to look, reproduced the defects and wrote or checked the fixes); no independent human has
+reviewed any of the kernel code.
 
 **Answer.** *Build* community action 15 (review requests, possible now that ADR-0011 exists) and
 action 18 (the KASAN check enforced by branch protection). Proposed here, not yet in any plan: a

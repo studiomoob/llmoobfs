@@ -31,6 +31,7 @@
 #include <linux/uidgid.h>
 #include <linux/random.h>
 #include <linux/siphash.h>
+#include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/shrinker.h>
 #include <linux/jiffies.h>
@@ -846,7 +847,15 @@ static bool depth_and_domain(struct moobl_index *ix, struct dentry *dentry, unsi
 #define MOOBL_BUILD_WINDOW (60 * HZ)
 #define MOOBL_BUILD_UID_ATTEMPTS 16U
 #define MOOBL_BUILD_MOUNT_ATTEMPTS 64U
-#define MOOBL_BUILD_TIME_NS (10ULL * NSEC_PER_SEC)
+/*
+ * ADR-0031: the ten-second budget counts the building task's own CPU time, the clock that
+ * RLIMIT_CPU samples (p->se.sum_exec_runtime, kernel/time/posix-cpu-timers.c), so time asleep
+ * on lower I/O or waiting for a CPU does not refuse a build that fits index_build_work. The
+ * elapsed backstop, the hung-task detector's default timeout, keeps a finite bound on how long
+ * a build holds its domain's build mutex. Both are checked between operations (scan_check()).
+ */
+#define MOOBL_BUILD_CPU_NS (10ULL * NSEC_PER_SEC)
+#define MOOBL_BUILD_TIME_NS (120ULL * NSEC_PER_SEC)
 #define MOOBL_MOVED_ROUNDS 64
 
 /* A directory renamed inside a domain while it was being built, at its new name. */
@@ -891,6 +900,27 @@ static void moved_list_free(struct list_head *head)
 static unsigned int scan_delay_us;
 module_param(scan_delay_us, uint, 0644);
 MODULE_PARM_DESC(scan_delay_us, "tests only: microseconds the index scan sleeps between reading a file and storing it");
+
+/*
+ * For tests only (vm/suite.sh step buildtime, ADR-0031): microseconds the index scan spends on
+ * the CPU, in busy-waits of at most a millisecond with cond_resched() between them, between
+ * reading a file and storing it, so that a test can reach the CPU-time budget; scan_delay_us
+ * sleeps instead, as a slow lower device does, and must not reach it. Same rules as above.
+ */
+static unsigned int scan_spin_us;
+module_param(scan_spin_us, uint, 0644);
+MODULE_PARM_DESC(scan_spin_us, "tests only: microseconds the index scan busy-waits between reading a file and storing it");
+
+static void scan_spin(unsigned int us)
+{
+	while (us) {
+		unsigned int step = min(us, 1000U);
+
+		udelay(step);
+		us -= step;
+		cond_resched();
+	}
+}
 
 /*
  * For tests only (vm/suite.sh step ixlock, issue #117): microseconds the index scan sleeps
@@ -1608,6 +1638,8 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 			break;
 		if (unlikely(READ_ONCE(scan_delay_us)) && path)
 			usleep_range(scan_delay_us, scan_delay_us + 50);
+		if (unlikely(READ_ONCE(scan_spin_us)) && path)
+			scan_spin(READ_ONCE(scan_spin_us));
 		nofs = ix_write_lock(ix);
 		if (unlikely(READ_ONCE(scan_hold_us)) && path)
 			fsleep(READ_ONCE(scan_hold_us));
@@ -1778,13 +1810,25 @@ struct scan_job {
 	bool index;			/* false: only collect the directories at depth stop */
 	struct list_head found;		/* those directories, when !index */
 	u64 started_ns;
+	u64 started_cpu_ns;	/* build_cpu_ns() at the start */
 	u32 work;		/* names, directories and index_load attempts combined */
 	u32 work_limit;
 };
 
+/*
+ * CPU time of the building task, as RLIMIT_CPU reads it. The scheduler brings it up to date at
+ * each tick and context switch, so it lags by at most one tick; task_sched_runtime(), which adds
+ * that pending part, is not exported to modules.
+ */
+static u64 build_cpu_ns(void)
+{
+	return READ_ONCE(current->se.sum_exec_runtime);
+}
+
 static int scan_check(struct scan_job *job, bool charge)
 {
-	if (ktime_get_ns() - job->started_ns > MOOBL_BUILD_TIME_NS)
+	if (build_cpu_ns() - job->started_cpu_ns > MOOBL_BUILD_CPU_NS ||
+	    ktime_get_ns() - job->started_ns > MOOBL_BUILD_TIME_NS)
 		return -ETIMEDOUT;
 	if (charge) {
 		if (job->work >= job->work_limit)
@@ -2004,6 +2048,7 @@ static int scan_job_init(struct scan_job *job, struct super_block *sb)
 {
 	job->sb = sb;
 	job->started_ns = ktime_get_ns();
+	job->started_cpu_ns = build_cpu_ns();
 	job->work = 0;
 	job->work_limit = IX(sb)->build_work_limit;
 	INIT_LIST_HEAD(&job->stack);

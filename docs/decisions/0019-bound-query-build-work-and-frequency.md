@@ -18,6 +18,11 @@ the admission, accounting, deadline and output-on-error decisions here
 remain in force. The earlier checkpoints below retain their dates and
 do not describe the new opt-in setting. Issue 118 stays open.
 
+*Note, 2026-10-29 (journal 0241):* ADR-0031 (accepted 2026-10-30) changes what the
+ten-second deadline measures: the building task's CPU time, with a 120 s
+elapsed backstop. If it is accepted, the "elapsed-time deadline" below
+describes the earlier policy. Admission, accounting and errnos stay.
+
 ## Context
 
 ADR-0012 intentionally builds a domain synchronously on its first query,

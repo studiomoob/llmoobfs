@@ -37,6 +37,17 @@ img=$(grep -o 'linux-image-[0-9.]*+deb13-amd64=[0-9.-]*' vm/Dockerfile | head -n
 hdr=$(grep -o 'linux-headers-[0-9.]*+deb13-amd64=[0-9.-]*' vm/Dockerfile | head -n 1)
 [ "${img#linux-image-}" = "${hdr#linux-headers-}" ] || bad "vm/Dockerfile kernel image ($img) and headers ($hdr) differ"
 
+# the image of make static (journal 0242): same upstream kernel, base image and Debian kernel
+sarg() { sed -n "s/^ARG $1=//p" tests/static/Dockerfile; }
+[ "$(sarg KERNEL_VERSION)" = "$kver" ] || bad "tests/static/Dockerfile KERNEL_VERSION differs from kasan.yml"
+[ "$(sarg KERNEL_SHA256)" = "$ksum" ] || bad "tests/static/Dockerfile KERNEL_SHA256 differs from kasan.yml"
+[ "$(sed -n 's/^FROM //p' tests/static/Dockerfile)" = "$(sed -n 's/^FROM //p' vm/Dockerfile | head -n 1)" ] ||
+	bad "tests/static/Dockerfile and vm/Dockerfile use different base images"
+grep -q "linux-headers-$(sarg DEBIAN_KERNEL)+deb13-amd64=" vm/Dockerfile ||
+	bad "tests/static/Dockerfile DEBIAN_KERNEL ($(sarg DEBIAN_KERNEL)) is not a kernel of vm/Dockerfile"
+echo "static analysis (tests/static/Dockerfile): Debian headers $(sarg DEBIAN_KERNEL), smatch $(sarg SMATCH_COMMIT)"
+echo "  $(grep -o 'sparse=[^ ]*' tests/static/Dockerfile) $(grep -o 'coccinelle=[^ ]*' tests/static/Dockerfile)"
+
 # virtme-ng for the KASAN harness
 echo "virtme-ng (vm/kasan-requirements.txt): $(sed -n 's/^virtme-ng==\([^ ]*\).*/\1/p' vm/kasan-requirements.txt)"
 

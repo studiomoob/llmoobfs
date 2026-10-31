@@ -9,9 +9,9 @@ meets what the project is before its status history. The facts are unchanged. Th
 ## Last tag and later corrections
 
 **Experimental. Not for production.** One kernel series (6.12), tested in a VM only; no independent
-human review of the whole kernel code yet (two independent source reviews by AI assistants, journals 0111 and 0114;
-an external reviewer privately reported three kernel defects and wrote the fix of one, F16, journals 0215, 0216 and 0218;
-an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163). The last
+human review of the kernel code yet, only automated tools and AI-assisted reviews ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): two source reviews by AI assistants, journals 0111 and 0114;
+an external reviewer's AI-assisted private reports, triaged and reproduced by the reviewer, found three kernel defects, and the reviewer wrote the fix of one, F16, journals 0215, 0216 and 0218;
+an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163. The last
 tag, `v0.5.0-experimental` (2026-10-28), carries every correction below; the previous one,
 `v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch.
 The two findings of the [independent review](history/0144-independent-review.md)
@@ -48,6 +48,11 @@ domain took 0.3 s with no delay and 9.8 s at 200 ms per I/O; at 400 ms it stoppe
 with `ETIMEDOUT` and no partial answer, and the next query answered in full. G5's domains of about
 25,000 real memories built at `index_build_work=65536`. Issue 113 (domain records kept until
 unmount) is fixed in the same batch.
+*Update, 2026-10-29 ([journal 0241](history/0241-build-deadline-cpu-time.md)):* that deadline
+counted elapsed time, so a slow lower alone could refuse a build that fits `index_build_work`
+(also journal 0238). ADR-0031 (accepted 2026-10-30) counts the builder's CPU time against the ten seconds,
+with a 120 s elapsed backstop; its VM step, negative round and KASAN/lockdep run passed on
+2026-10-30, and the ADR waits for the maintainer.
 *Update, 2026-10-28 ([journal 0219](history/0219-security-batch-checks.md)):* a second security
 batch fixes three private reports from an external reviewer, each with a test and a negative
 round: `QUERY2` naming files under a search-only directory (F15 of ADR-0011,
@@ -104,3 +109,12 @@ done; a shared mount needs `memory.max` on its users' cgroups (`docs/operations.
 module is reproducible: `make repro-test` builds it twice per listed kernel in clean containers
 and gets byte-identical files, whose hashes the journal records; the two packages are
 reproducible too.
+*Update, 2026-10-29 ([journal 0243](history/0243-g2-diagnostics-and-deployment-recipe.md)):* G2's
+user-visible diagnostics and deployment recipe are written, in user space: `moobfs diagnose`
+shows the limits that apply to a caller (index budget, the memory cgroup limit above the process
+and how often it was reached, descriptors, test-only module parameters, and for root the
+counters and tracepoints), `moobfs query` says whether an `ENOMEM` came from the index budget or
+from a memory cgroup's `memory.max`, and `docs/operations.md` §5 sets `MemoryMax=` for every user
+slice with a systemd drop-in. Unit-tested offline; the VM runs (suite step `diag`,
+`make install-test`) and their negative rounds passed on 2026-10-30, and the maintainer accepted
+them the same day: G2 is done.

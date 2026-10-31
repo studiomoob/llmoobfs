@@ -85,7 +85,8 @@ or a sized `mkfs` under the filesystem.
 
 ## Not done
 
-The `auto` group, a run under the KASAN kernel, and `make vm-test` integration.
+A run under the KASAN kernel, `make vm-test` integration, and a repeat of the `auto` run with
+its exclusion lists (below).
 
 ## Exclusion list
 
@@ -126,3 +127,35 @@ kernel. Per test: [`results-ext4-quick-6.12.113.txt`](results-ext4-quick-6.12.11
 [`results-xfs-quick-6.12.113.txt`](results-xfs-quick-6.12.113.txt). Each lower passed one test
 more than the 6.12.111 run of journal 0091 and skipped one fewer; that run kept no per-test list,
 so the test is not identified.
+
+## Group `auto`, three lower filesystems (journal 0239)
+
+`sh vm/fstests-local.sh ~/fstests <lower> -g auto -E "$PWD/vm/fstests/exclude-quick.txt"` on
+Debian kernel `6.12.113+deb13-amd64` (`MOOB_KVER`), module built from `662ba7a`, fstests
+v2026.09.22, a guest of 2 vCPUs and 4 GiB (`MOOB_FSTESTS_CPUS=2`), 2026-10-29/30. The 16 tests
+of `exclude-quick.txt` are in `auto` and were not run.
+
+| | ext4 | btrfs | XFS |
+| --- | --- | --- | --- |
+| ran | 779 | 779 | 779 |
+| passed | 229 | 339 | 372 |
+| not run | 549 | 436 | 406 |
+| failed | 1 | 4 | 1 |
+| guest time | 5 h 51 min | 11 h 12 min | 7 h 59 min |
+
+No kernel diagnostic in any run. Per test:
+[`results-ext4-auto-6.12.113.txt`](results-ext4-auto-6.12.113.txt),
+[`results-btrfs-auto-6.12.113.txt`](results-btrfs-auto-6.12.113.txt),
+[`results-xfs-auto-6.12.113.txt`](results-xfs-auto-6.12.113.txt). Everything that passes on ext4
+or btrfs passes on XFS.
+
+| Test | Lower | What happens | Verdict |
+| --- | --- | --- | --- |
+| 631 | all | mounts overlayfs with the layer as upperdir; overlayfs refuses it (no tmpfile, no `RENAME_WHITEOUT`) and the test does not skip | Does not apply: no `O_TMPFILE` and no whiteouts (device nodes) through the layer. [`exclude-auto.txt`](exclude-auto.txt) |
+| 186, 187 | btrfs | the attempt to fragment free space ends in `ENOSPC`; the expected checksum differs | fstests skips both on btrfs by `FSTYP`, which is `moobfs_layer` over the layer. Skipped on plain btrfs (baseline, same kernel and size); pass over the layer on XFS. [`exclude-auto-btrfs.txt`](exclude-auto-btrfs.txt) |
+| 301 | btrfs | "file2 badly fragmented" (1 503 extents, threshold 1 365) | fstests skips that check on btrfs by `FSTYP`; on plain btrfs the test passes (1 133 extents, unchecked); passes over the layer on XFS. `exclude-auto-btrfs.txt` |
+
+None is a layer defect. With both lists, a run is
+`-g auto -E .../exclude-quick.txt -E .../exclude-auto.txt` (plus `-E .../exclude-auto-btrfs.txt`
+on btrfs); fstests' `-E` adds to the list. That run follows from the per-test results but has not
+been made.

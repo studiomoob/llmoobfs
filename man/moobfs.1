@@ -22,6 +22,10 @@
 .Nm
 .Cm check
 .Op Ar moobfs-check-argument ...
+.Nm
+.Cm diagnose
+.Op Fl -json
+.Ar path
 .Sh DESCRIPTION
 .Nm
 answers attribute queries from the MoobFS layer's index and reports the state of a mount.
@@ -47,7 +51,21 @@ the results are sorted by inode number.
 runs
 .Xr moobfs-check 1
 with the remaining arguments.
+.It Cm diagnose
+reports, without changing anything, what bounds a query on
+.Ar path
+by the caller: whether it is a domain directory, the index settings, the memory cgroup of the
+process and the smallest memory.max above it with how often it was reached, the descriptor
+limit, test-only module parameters left set and, for root, the index's use of its budget and
+the tracepoints.
+Each finding is a warning or a note; the exit status is 2 when a warning was printed.
+Run it as the user, in the session that queries.
 .El
+.Pp
+When a query fails with ENOMEM,
+.Cm query
+reads the caller's memory cgroups again and says whether the memory.max of one of them or the
+index budget refused it.
 .Pp
 .Nm
 reads the mount record from
@@ -98,15 +116,18 @@ results
 results per call, 1 to 4096 (default 4096)
 .El
 .Sh EXIT STATUS
-0 on success; 1 a system call failed; 3 the mount-wide query had more results than it can
+0 on success; 1 a system call failed; 2
+.Cm diagnose
+printed a warning; 3 the mount-wide query had more results than it can
 return; 64 usage; 65 invalid terms or a query the kernel refused; 69 no layer there, a directory
-that is not a domain, or the index off; 75 a temporary refusal (index budget, build limits, a
-domain that kept changing); 77 permission denied.
+that is not a domain, or the index off; 75 a temporary refusal (index budget, a memory cgroup limit,
+build limits, a domain that kept changing); 77 permission denied.
 The message on standard error names the cause.
 .Sh EXAMPLES
 .Dl $ moobfs info /srv/memory
 .Dl $ moobfs query /srv/memory/alice kind eq string decision
 .Dl $ moobfs query --order created time desc --limit 10 /srv/memory/alice
+.Dl $ moobfs diagnose /srv/memory/alice
 .Sh SEE ALSO
 .Xr moobfs-attr 1 ,
 .Xr moobfs-check 1 ,

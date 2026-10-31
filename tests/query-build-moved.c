@@ -2,7 +2,8 @@
 /* Force a directory move during QUERY2's first scan and require the moved
  * rescan to share the original work allowance. Dedicated VM and ftrace only.
  * With "any" after the domain, the query's own answer is not judged: the suite
- * then checks what the build stored for the moved directory (journal 0215). */
+ * then checks what the build stored for the moved directory (journal 0215).
+ * "any OLD NEW" moves DOMAIN/OLD to DOMAIN/NEW instead of s to t (journal 0242). */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -94,15 +95,16 @@ int main(int argc, char **argv)
 	char oldpath[4096], newpath[4096], pidstr[32], go;
 	int pipefd[2], status, seen = 0, i;
 	pid_t pid;
-	int any = argc == 3 && !strcmp(argv[2], "any");
+	int any = (argc == 3 || argc == 5) && !strcmp(argv[2], "any");
+	const char *from = argc == 5 ? argv[3] : "s", *to = argc == 5 ? argv[4] : "t";
 
 	if (argc != 2 && !any) {
-		fprintf(stderr, "usage: query-build-moved DOMAIN [any]\n");
+		fprintf(stderr, "usage: query-build-moved DOMAIN [any [OLD NEW]]\n");
 		return 64;
 	}
 	setbuf(stdout, NULL);
-	if (snprintf(oldpath, sizeof(oldpath), "%s/s", argv[1]) >= (int)sizeof(oldpath) ||
-	    snprintf(newpath, sizeof(newpath), "%s/t", argv[1]) >= (int)sizeof(newpath))
+	if (snprintf(oldpath, sizeof(oldpath), "%s/%s", argv[1], from) >= (int)sizeof(oldpath) ||
+	    snprintf(newpath, sizeof(newpath), "%s/%s", argv[1], to) >= (int)sizeof(newpath))
 		return 64;
 	if (pipe(pipefd))
 		die("pipe");
