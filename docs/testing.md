@@ -430,7 +430,7 @@ Expected noise that is **not** a failure:
   not claim that every concurrent read completed without `SQLITE_BUSY` (journal 0253).
 
 A failure is: `MOOBFS_VM_FAIL:`, a missing required final marker, QEMU exiting
-nonzero (including the 2400-second timeout), or in KASAN any of the `dmesg`
+nonzero (including the 3600-second timeout), or in KASAN any of the `dmesg`
 patterns above. **QEMU exit 0 alone does not prove success:** `vm/init` powers
 off on both failure and success. `vm/in-container.sh` requires exit 0, all three
 full-run markers (`MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`,

@@ -102,3 +102,13 @@ The marker table's former wording also overstated the helper's return status as 
 `integrity_check`. A dated correction now says that it checks the final row count and prints
 integrity/missing-row diagnostics for separate inspection; the old claim is retired. The
 actual six outputs in this run were all `integrity=ok` and `missing=[]`.
+
+## Focused KASAN evidence archived
+
+The final focused logs and source manifest were copied outside Git to the local review
+archive `s15-focused-kasan-final.tar.gz`. All 1,796 tracked files match snapshot `0512db7`
+byte for byte after the run. Console inspection confirms three `PERMCHURN_STEP_PASS`
+markers, 6,912 QUERY2 checks per lower, `MOOBFS_KASAN_ONLY_PASS`, and no VM failure/environment
+failure marker. These counts belong to the focused run, not to the still-running full suite.
+The full-suite timeout description in testing.md was also corrected from 2,400 to 3,600
+seconds to match the existing `vm/in-container.sh`; executable code is unchanged.
