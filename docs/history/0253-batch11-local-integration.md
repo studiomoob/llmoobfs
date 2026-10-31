@@ -126,3 +126,10 @@ at 14:05:13, exit 0: all three seeds replayed, no failed/unreached program, 911 
 PCs and 341/781 handler call sites (43.7%). This is a three-seed smoke, not a corpus-coverage
 measurement and not a change to the S3 result. ext4 auto started at 14:05:41; XFS auto had
 reached generic/166 at 14:17. The nightly installer still waits for the full KASAN result.
+
+Checkpoint, 2026-10-31 15:20 Brasília time: full KASAN remains active. The console records
+RELEASE_PASS and the six-default-seed PERMCHURN_STEP_PASS on all three lowers (5,184 QUERY2
+checks per lower), followed by IXLOCK_PASS. No VM_FAIL/ENV_FAIL marker was found; the final
+KASAN marker is still pending. XFS auto was running generic/187 and ext4 generic/133; no
+`.out.bad` files were present in either results directory at inspection. This is progress,
+not a final fstests verdict. The nightly installer and btrfs queue remain waiting.
