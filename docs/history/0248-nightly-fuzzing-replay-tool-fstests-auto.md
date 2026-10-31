@@ -89,3 +89,16 @@ pending the maintainer's publication authorization.
 
 Final offline recheck, 2026-10-31: ShellCheck passed after the permission stage and time
 limits were added; all three replay controls also passed on the dedicated Debian host.
+
+Continuation, 2026-10-31 about 12:49 Brasília time: a detached one-shot continuation waits
+for the existing kernel build's successful `prep.done`, takes slotA, runs a real replay smoke
+on `xattr-get-security`, `xattr-get-fd` and `query-long-path`, and checks nonempty module
+coverage. Only on success does it release the slot and start ext4 auto on CPUs 4–5, in a
+separate copy. This does not claim either run has started or passed yet. XFS progressed to
+`generic/037`; it is not stuck in `generic/017`.
+
+The final result classifier now exits nonzero if any test failed, while retaining every
+classification in the output file. Three fixture controls passed on the workstation: a pass
+plus skip is successful; a failed test preserves `fail` and returns nonzero; an interrupted
+log without `Ran:` returns nonzero. ShellCheck of that final script passed on the host.
+The reboot example takes both slot locks just like the normal nightly entry.

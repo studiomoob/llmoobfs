@@ -230,7 +230,9 @@ def main():
             q.put((name, path, key))
             queued.add(key)
     todo = q.qsize()
-    print(f'replay: {len(progs)} programs, {len(progs) - todo} in the cache, {todo} to run', flush=True)
+    unique = len(set(keys.values()))
+    print(f'replay: {len(progs)} programs ({unique} unique), '
+          f'{unique - todo} in the cache, {todo} to run', flush=True)
     stats = {'run': 0, 'failed': []}
     lock = threading.Lock()
     cpus = a.guests.split() or ['']

@@ -534,7 +534,7 @@ keeps the module in guests.
 
   ```
   0 23 * * * cd $HOME/b11night/src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
-  @reboot sleep 300; cd $HOME/b11night/src && PATH=$HOME/.venv-vng/bin:$PATH env NIGHT_RESUME=1 SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
+  @reboot sleep 300; cd $HOME/b11night/src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env NIGHT_RESUME=1 SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
   ```
 
   `vng` must be on `PATH`. The script uses GNU `timeout` to bound builds and replay
