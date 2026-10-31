@@ -527,6 +527,48 @@ to `/etc/selinux/semanage.conf`; SELinux is not activated on the host. Markers:
 `MOOBFS_SELINUX_RESULT: <run> differ=<n> denied_directly=<n>` per run, `MOOBFS_SELINUX_FAIL`
 on any failed check. Not part of `make vm-test` nor of CI.
 
+### Long runs on the test host: fstests `auto`, the corpus replay, nightly syzkaller
+
+None of these is part of `make vm-test` or of CI; each needs a Linux host with KVM, and each
+keeps the module in guests.
+
+- **`make fstests-auto LOWER=ext4|btrfs|xfs FSTESTS=<built fstests checkout>`** (security
+  roadmap S2, journal 0248): `vm/fstests-local.sh` with `-g auto` and the exclusion lists
+  `vm/fstests/exclude-quick.txt` and `exclude-auto.txt`, plus `exclude-auto-btrfs.txt` on btrfs,
+  then `vm/fstests/results.sh` writes one line per test to `build/fstests/results-<lower>.txt`.
+  6 to 11 hours per lower at 2 vCPUs; `MOOB_KVER`, `MOOB_FSTESTS_CPUS` and `MOOB_FSTESTS_MEM`
+  apply, and `taskset -c` pins it. Expected: no failure and no kernel diagnostic in
+  `build/fstests/console-<lower>.log`; [vm/fstests/README.md](../vm/fstests/README.md) has the
+  verdict per test.
+- **`SYZ=<checkout> sh vm/syzkaller-replay.sh <out> <corpus.db or dir>...`** (ADR-0032, journal
+  0248): every program once with per-call KCOV in disposable guests of the syzkaller kernel
+  that `vm/syzkaller-local.sh` built (`snapshot=on`, the image's module checked against
+  `layer/moobfs_layer.ko`), the module's `.text` PCs mapped to the `__sanitizer_cov_trace_pc`
+  call sites of the functions in `vm/syzkaller/handlers.txt` (`vm/syzkaller/callsites.py`,
+  `objdump -dr`). `<out>/callsites.txt` ends in `CALLSITES covered/total percent`, S3's
+  figure; `REPLAY_GUESTS="4,5 6,7"` runs two pinned guests; results per program are cached as
+  they come, so a stopped replay resumes. `python3 vm/syzkaller/callsites.py funccover
+  funccover.csv` gives the manager's own count of the same functions beside it.
+- **`vm/syzkaller-nightly.sh <reports dir>`** (S18): one night, from its start to `NIGHT_END`
+  (05:00 by default): the extended S15 permission campaign under KASAN
+  (`MOOB_PERMCHURN=24,96,YYYYMMDD`, at most 20 minutes), the build steps, `vm/syzkaller-local.sh ... run` with the corpus kept
+  from the previous night and the seeds added, stopped an hour before the end, then the replay
+  over the night's corpus and the seeds, and `report.txt` per night plus a line in
+  `nights.txt`. Restartable after a power cut. The host's crontab, with `SYZ`, `GO`,
+  `SYZ_CACHE` and the paths of that host (the locks keep it off CPUs a daytime run still holds):
+
+  ```
+  0 23 * * * cd $HOME/b11night/src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
+  @reboot sleep 300; cd $HOME/b11night/src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env NIGHT_RESUME=1 SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
+  ```
+
+  `vng` must be on `PATH`. The script uses GNU `timeout` to bound builds and replay
+  at the end of the window (TERM, then KILL after 15 seconds); interrupted or failed phases
+  remain visible in the report. Offline harness controls: `python3 tests/syzkaller-replay-test.py`.
+
+  The copy under `src/` has no `.git`; a `REVISION` file there (the commit it was copied
+  from) names it in the reports.
+
 ## 7. Adding a lower filesystem
 
 Each new lower filesystem widens the tested matrix and needs a journal entry; it

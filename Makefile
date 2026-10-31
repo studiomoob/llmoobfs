@@ -7,7 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test static mutants-check
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test static mutants-check fstests-auto
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
@@ -38,6 +38,8 @@ help:
 	@echo '  make package-test  the packages under Secure Boot in a disposable Debian 13 VM; needs only Docker'
 	@echo '  make repro-test    build the module and the packages twice in clean containers; byte-identical or fail (Docker)'
 	@echo '  make bench-test    the on-demand index benchmark (issue #68) in that VM; MOOB_BENCH_FS=ext4|btrfs|xfs'
+	@echo 'Long runs on a Linux test host with KVM (docs/testing.md):'
+	@echo '  make fstests-auto  fstests group auto over the layer with the exclusion lists; LOWER=ext4|btrfs|xfs, FSTESTS=<built checkout> (6 to 11 hours)'
 	@echo 'Details: docs/development.md and docs/testing.md'
 tools: $(BUILD)/mkfs.moobfs $(BUILD)/fsck.moobfs $(BUILD)/attr_test $(BUILD)/diag_test
 # SQL over a domain, no database (ADR-0013, journal 0108): load with .load or load_extension
@@ -154,6 +156,15 @@ layer:
 	$(MAKE) -C $(KDIR) M=$(CURDIR)/layer KCFLAGS="$(KCFLAGS) -ffile-prefix-map=$(CURDIR)/=" modules
 vm-test:
 	sh vm/run.sh
+# Security roadmap S2 (journals 0239 and 0248): fstests' auto group over the layer on one lower,
+# in a virtme-ng guest, with the quick list, the list for every lower and, on btrfs, its own
+# list. vm/fstests-local.sh's knobs (MOOB_KVER, MOOB_FSTESTS_CPUS, MOOB_FSTESTS_MEM) apply.
+FSTESTS ?= $(HOME)/fstests
+LOWER ?= ext4
+fstests-auto:
+	sh vm/fstests-local.sh $(FSTESTS) $(LOWER) -g auto -E $(CURDIR)/vm/fstests/exclude-quick.txt \
+	  -E $(CURDIR)/vm/fstests/exclude-auto.txt $(if $(filter btrfs,$(LOWER)),-E $(CURDIR)/vm/fstests/exclude-auto-btrfs.txt)
+	sh vm/fstests/results.sh build/fstests $(LOWER) > build/fstests/results-$(LOWER).txt
 # Roadmap item C2: install and remove on the host's running kernel (scripts/supported-kernels).
 install:
 	sh scripts/install.sh install
