@@ -14,7 +14,8 @@
                                      loaded. Writes build/mutation/report.txt; exit 1 if one
                                      survives. Needs Docker and, in practice, KVM.
 
-`make mutants-check` runs `check` in the static-analysis image; `run` is for the test host.
+`make mutants-check` runs `check` in the static-analysis image; `run` is for the test host and
+for .github/workflows/mutation.yml (KVM on GitHub's runner, journal 0247).
 """
 import os
 import re
