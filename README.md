@@ -185,7 +185,7 @@ Facts as of 2026-10-25:
   deadline of ten seconds of the builder's CPU time with a 120 s elapsed
   backstop, and rebuild-frequency limits. Time waiting for a slow lower does
   not count against the ten seconds
-  ([ADR-0031](docs/decisions/0031-build-deadline-counts-cpu-time.md), proposed;
+  ([ADR-0031](docs/decisions/0031-build-deadline-counts-cpu-time.md), accepted;
   the earlier elapsed deadline refused builds on a slow disk, journals 0210
   and 0238). The default denies the measured 17,000-file domain; G5's
   25,000-file domains build at 65,536
@@ -532,8 +532,9 @@ KASAN harness runs the layer suite), and no benchmark exists.
   defects fixed later; `v0.5.0-experimental` has every fix up to 2026-10-28, later ones land on `main`. fstests' `quick` group passes with an exclusion list, and its `auto` group ran once, with 1 to 4
   failures per lower filesystem, none a layer defect ([vm/fstests/](vm/fstests/README.md), journal
   0239). syzkaller ran for seven six-hour rounds with no open report. The last two cover every
-  handler function, `moobl_xattr_get` included, but stand at 84.5 % and 84.9 % of the handlers'
-  PCs, below the 85 % threshold of [security roadmap](docs/security-roadmap.md) S3 (journal 0239). SELinux enforcing was exercised once (journal
+  handler function, `moobl_xattr_get` included, and the handlers reach 88.1 % of their KCOV call
+  sites, above the 85 % threshold of [security roadmap](docs/security-roadmap.md) S3, which counts
+  call sites since ADR-0032 (journals 0239 and 0245); S3 is done. SELinux enforcing was exercised once (journal
   0104); AppArmor and Smack were not.
 - `QUERY` authorization holds at query time only (TOCTOU contract). A directory rename through
   the layer makes its domain stale and the next query rebuilds it; direct lower-tree changes

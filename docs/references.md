@@ -1132,3 +1132,10 @@ hand and carries the same code paths:
   `systemctl status`, which shows a unit's memory use beside its `MemoryMax=`. `moobfs diagnose`
   follows the same shape (usage, limit, where it is set) for the bounds of a query; unlike quota
   it changes nothing and needs no privilege.
+
+## 42. S3's threshold on KCOV call sites (ADR-0032, journal 0245)
+
+- `Documentation/dev-tools/kcov.rst` and `scripts/Makefile.kcov` of Linux 6.12.112: with
+  `CONFIG_KCOV`, the compiler's `-fsanitize-coverage=trace-pc` inserts one call to
+  `__sanitizer_cov_trace_pc` per basic block, and KCOV reports the return address of each call;
+  a PC that is not such a call site is never reported, which is why ADR-0032 counts call sites.

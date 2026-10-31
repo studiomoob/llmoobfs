@@ -199,7 +199,7 @@ Fatos em 2026-10-25:
   com um limite de 120 s de tempo decorrido, e por limites de frequência de
   reconstrução. O tempo de espera por um disco inferior lento não conta para
   os dez segundos
-  ([ADR-0031](docs/decisions/0031-build-deadline-counts-cpu-time.md), proposta;
+  ([ADR-0031](docs/decisions/0031-build-deadline-counts-cpu-time.md), aceito;
   o prazo anterior, de tempo decorrido, recusava builds num disco lento, diários
   0210 e 0238). O padrão recusa o domínio medido de 17 mil arquivos; os domínios
   de 25 mil arquivos do G5 se constroem com 65.536
@@ -563,9 +563,10 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   passa com uma lista de exclusões, e o grupo `auto` rodou uma vez, com 1 a 4 falhas por sistema de
   arquivos de baixo, nenhuma delas defeito da camada ([vm/fstests/](vm/fstests/README.md), diário
   0239). O syzkaller rodou sete rodadas de seis horas, sem relato em aberto. As duas últimas cobrem todas
-  as funções dos handlers, inclusive o `moobl_xattr_get`, mas ficam em 84,5 % e 84,9 % dos PCs dos handlers,
-  abaixo do limiar de 85 % do item S3 do [roteiro de segurança](docs/security-roadmap.md) (diário
-  0239). O SELinux em
+  as funções dos handlers, inclusive o `moobl_xattr_get`, e os handlers chegam a 88,1 % dos seus
+  pontos de chamada do KCOV, acima do limiar de 85 % do item S3 do
+  [roteiro de segurança](docs/security-roadmap.md), que conta pontos de chamada desde o ADR-0032
+  (diários 0239 e 0245); o S3 está concluído. O SELinux em
   modo enforcing foi exercitado uma vez (diário 0104); AppArmor e Smack não foram.
 - A autorização do `QUERY` vale só no momento da consulta (contrato TOCTOU). Renomear um
   diretório pela camada torna o domínio desatualizado e a próxima consulta o reconstrói;
