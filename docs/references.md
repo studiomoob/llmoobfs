@@ -1139,3 +1139,29 @@ hand and carries the same code paths:
   `CONFIG_KCOV`, the compiler's `-fsanitize-coverage=trace-pc` inserts one call to
   `__sanitizer_cov_trace_pc` per basic block, and KCOV reports the return address of each call;
   a PC that is not such a call site is never reported, which is why ADR-0032 counts call sites.
+
+## 43. Randomized differential test of permissions (security roadmap S15, journal 0250)
+
+- W. M. McKeeman, "Differential testing for software", Digital Technical Journal 10(1), 1998:
+  the same input given to two implementations of one behaviour, a difference being a defect of
+  one of them. `permmatrix churn` compares the layer's `QUERY2` answer with the lower kernel's
+  own permission decision taken as the same identity (`getxattr(2)`, `opendir(3)`,
+  `faccessat(2)` with `AT_EACCESS`), not with a copy of the homogeneity rule. Not re-read online
+  in this session.
+- K. Claessen and J. Hughes, "QuickCheck: a lightweight tool for random testing of Haskell
+  programs", ICFP 2000, and its stateful extension (random sequences of commands checked after
+  each one against a model): the shape of the churn, seeded operations with a check after each.
+  Not re-read online in this session.
+- `ltp/fsstress.c` of xfstests (the fstests already used, §1 and the fstests row): seeded random
+  sequences of filesystem operations with a seed and an operation count (`-s`, `-n`); the
+  knob `MOOB_PERMCHURN=SEEDS,STEPS[,FIRST]` follows that shape. Not vendored; not re-read in this
+  session.
+- Prior art in the tree: `tests/buildrace.c` and `tests/chmodrace.c` (journals 0098, 0102), which
+  use `scan_delay_us` to land writes and a chmod inside a domain build; `permmatrix churn` uses
+  the same parameter for its build phases. Linux 6.12.112 (the KASAN kernel's tree, read on the
+  test host): `fs/attr.c` `chown_ok()` and `chgrp_ok()` (without `CAP_CHOWN`, a user never gives a
+  file another owner and changes its group only to one of its own groups), `fs/namei.c` `may_linkat()` and
+  `safe_hardlink_source()` (with `fs.protected_hardlinks`, a user links only a file it owns or
+  can read and write), `acl_permission_check()` and `may_delete()`: why many of the operations
+  done as a user are refused, which the run counts as `denied`; a directory renamed to another
+  depth is refused with `EXDEV` by the layer (spec §5) and counted as `refused`.

@@ -265,3 +265,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0243 — G2: user-visible diagnostics and the deployment recipe (done)](0243-g2-diagnostics-and-deployment-recipe.md)
 - [0244 — Roadmap: an applicability track for corporate directory identities](0244-directory-identities-roadmap.md)
 - [0245 — S3's coverage threshold counts KCOV call sites (ADR-0032); S3 done](0245-s3-threshold-call-sites.md)
+
+- [0250 — Randomized permission sequences against the lower kernel (S15, in progress)](0250-randomized-permission-sequences.md)

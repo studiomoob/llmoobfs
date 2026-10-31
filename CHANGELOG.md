@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- S15 permission-sequence harness (journal 0250, validation in progress): the default
+  `permchurn` suite step runs seeded chmod, chown, access-ACL, rename, link and unlink
+  sequences against the lower kernel as nine identities, including delayed builds.
+  `MOOB_PERMCHURN=SEEDS,STEPS[,FIRST]` selects a longer campaign.
+
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be
   covered. The handlers reach 688 of 781 (88.1 %); the value stays 85 %. Documentation only.

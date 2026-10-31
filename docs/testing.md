@@ -282,6 +282,30 @@ credentials), not a copy of the rule.
 | `QUERY_BUILD_MOVED_PASS` | Inside this step: a search-only directory renamed during the domain's first build stays out of the partition | Other renames during a build |
 | `PERMMATRIX_STEP_PASS: <fs>, ...` | On that lower: the twelve seeds, counts showing that they met cases the rules before journals 0116 and 0215 got wrong, and the three fixtures for a search-only directory made through the layer after the build, created in a built domain and renamed during the first build, and (journal 0242, mutants M22 and M23) a passing directory with an attribute and 600 files moved during the first build below a 0700 directory, kept out of 1001's answer | A complete suite by itself |
 
+### QUERY2 while permissions change (security roadmap S15, journal 0250)
+
+`MOOB_ONLY=permchurn make vm-test` runs `permmatrix churn` on ext4, btrfs and
+XFS; the full suite includes it. Each seed plants the tree of `permmatrix`
+(and a directory two levels down), then mounts the layer four times; each mount
+runs a number of seeded operations through the layer (chmod, chown, setfacl,
+rename, link, unlink), as root, as the owner concerned or as another identity,
+and after each one sends `QUERY2` as the nine identities. The second and fourth
+mounts set `scan_delay_us` while a build runs (at the mount and after a
+directory rename) and land operations in it. The oracle is again the lower
+kernel as that identity: every returned path must name the returned inode and
+be reachable; every reachable file the rule admits must be returned, except
+files whose answer depends on history the rule leaves open (a second name since
+the mount, a directory above them changed or renamed, an operation during a
+build), which are checked for leaks only. Multiple names are recorded before the first
+build and before operations, so an unlink cannot erase that history before the check. The default run is six fixed seeds of
+24 operations per mount; `MOOB_PERMCHURN=SEEDS,STEPS[,FIRST]` (passed to the
+guest by `make vm-test` and `vm/kasan-local.sh`) runs a longer one.
+
+| Marker | Proves | Does not prove |
+| --- | --- | --- |
+| `PERMCHURN_PASS seed=... mismatching_steps=0` | For one seed: after every operation, no identity got a path the lower would not let it reach or a path naming another inode, and none missed a reachable homogeneous file outside the history-dependent cases; the counts say how many operations were done, by users, during builds | Operations other than the six; more than one domain; default ACLs; concurrency between users other than during a build |
+| `PERMCHURN_STEP_PASS: <fs>, ...` | On that lower: every seed passed, and some operations were done by users and some during a build | A complete suite by itself |
+
 ### Decisive permission and independent-oracle checks (journal 0172)
 
 `MOOB_ONLY=permgaps make vm-test` runs `tests/permission-gaps.c` on ext4,
