@@ -18,6 +18,10 @@
 #   release             built domains released by the budget and by the shrinker (journal 0101)
 #   sqlext              the moobfs SQLite virtual table against an ordinary table (journal 0108)
 #   permmatrix          QUERY2 against the lower's own permission decision, random modes (0116)
+#   permchurn           seeded chmod, chown, setfacl, rename, link and unlink through the layer
+#                       between QUERY2 calls, from several uids, some during a build, against
+#                       the lower's own permission decision (S15, journal 0250);
+#                       MOOB_PERMCHURN=SEEDS,STEPS[,FIRST] (default 6,24,1) for a longer run
 #   permgaps            decisive search, truncation, directory and encoding checks (0172)
 #   rootpath            a domain directory renamed while a build waits to start (issue #110)
 #   overbudget          builds over the budget while other domains are built (issue #111)
@@ -77,7 +81,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permchurn|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -1642,6 +1646,54 @@ for fs in ext4 btrfs xfs; do
     umount "$LAYER" || fail "pm-mvp-umount-$fs"
     rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pm-cleanup-$fs"
     echo "PERMMATRIX_STEP_PASS: $fs, 12 seeds, partition and per-result checks, no answer the lower would refuse; $pm_wrong answers the rule before journal 0116 gave wrongly, $pm_prev the rule before 0215"
+done
+fi
+if want permchurn; then
+# Security roadmap S15 (journal 0250): the matrix of permmatrix, now changing. Each seed plants a
+# tree as the permmatrix step does, and tests/permmatrix.c mounts the layer over it four times;
+# each mount runs STEPS seeded operations through the layer (chmod, chown, setfacl, rename,
+# link, unlink), as root, as the owner concerned or as another identity, and after each one
+# QUERY2 for the nine identities, judged by the lower kernel as that identity: no returned path
+# it would not let that identity reach, no reachable file the rule admits missing. In the
+# second and fourth mounts scan_delay_us (3000) slows the builds, at the mount and after a
+# directory rename, and operations land while they run. The default seeds are fixed (1 to 6, 24
+# steps); MOOB_PERMCHURN=SEEDS,STEPS[,FIRST] runs more, for the nightly job (S18).
+pc_conf=${MOOB_PERMCHURN:-6,24,1}
+pc_seeds=${pc_conf%%,*}
+pc_rest=${pc_conf#*,}
+pc_steps=${pc_rest%%,*}
+pc_first=${pc_rest#*,}
+[ "$pc_first" = "$pc_rest" ] && pc_first=1
+case "$pc_seeds,$pc_steps,$pc_first" in *[!0-9,]*|,*|*,,*|*,) fail "permchurn-config ($pc_conf)" ;; esac
+pc_last=$((pc_first + pc_seeds - 1))
+pc_sum() { sed -n "s/.* $1=\([0-9]*\).*/\1/p" /tmp/pc.txt; }
+for fs in ext4 btrfs xfs; do
+    case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t "$fs" "$dev" "$LOWER" || fail "pc-lower-mount-$fs"
+    pc_ops=0 pc_uid=0 pc_during=0 pc_builds=0 pc_checks=0 pc_expected=0
+    seed=$pc_first
+    while [ "$seed" -le "$pc_last" ]; do
+        rm -rf "$LOWER/pmx" && mkdir -m 755 "$LOWER/pmx" || fail "pc-mkdir-$fs-$seed"
+        "$BIN/permmatrix" plant "$LOWER/pmx" "$seed" || fail "pc-plant-$fs-$seed"
+        "$BIN/permmatrix" churn "$LAYER" "$LOWER/pmx" "$seed" 4 "$pc_steps" 3000 > /tmp/pc.txt; rc=$?
+        echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "pc-delay-off-$fs-$seed"
+        head -n 60 /tmp/pc.txt
+        grep -q '^PERMCHURN' /tmp/pc.txt || tail -n 1 /tmp/pc.txt
+        [ $rc -eq 0 ] || fail "pc-mismatch-$fs-$seed"
+        pc_ops=$((pc_ops + $(pc_sum "done")))
+        pc_uid=$((pc_uid + $(pc_sum done_by_uid)))
+        pc_during=$((pc_during + $(pc_sum during_build)))
+        pc_builds=$((pc_builds + $(pc_sum builds)))
+        pc_checks=$((pc_checks + $(pc_sum checks)))
+        pc_expected=$((pc_expected + $(pc_sum expected_checked)))
+        seed=$((seed + 1))
+    done
+    # the run proves something only if operations were done by users and during builds
+    [ "$pc_uid" -gt 0 ] || fail "pc-no-operation-by-a-user-$fs"
+    [ "$pc_during" -gt 0 ] && [ "$pc_builds" -gt 0 ] || fail "pc-no-operation-during-a-build-$fs ($pc_during, $pc_builds builds)"
+    [ "$pc_expected" -gt 0 ] || fail "pc-no-file-expected-$fs"
+    rm -rf "$LOWER/pmx" && umount "$LOWER" || fail "pc-cleanup-$fs"
+    echo "PERMCHURN_STEP_PASS: $fs, seeds $pc_first to $pc_last, 4 mounts of $pc_steps steps; $pc_ops operations done ($pc_uid by users, $pc_during during $pc_builds builds), $pc_checks QUERY2 answers equal to the lower's decision, $pc_expected expected files found"
 done
 fi
 if want permgaps; then

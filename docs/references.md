@@ -1140,28 +1140,30 @@ hand and carries the same code paths:
   `__sanitizer_cov_trace_pc` per basic block, and KCOV reports the return address of each call;
   a PC that is not such a call site is never reported, which is why ADR-0032 counts call sites.
 
-## 44. Mutation testing and branch coverage in CI (security roadmap S14 and S17, journal 0247)
 
-- GitHub Actions, "Actions limits" ([docs.github.com/en/actions/reference/limits](https://docs.github.com/en/actions/reference/limits)),
-  read through Context7 (`/websites/github_en_actions`) on 2026-10-31: each job on a
-  GitHub-hosted runner may run for up to 6 hours, and a Free plan runs up to 20 standard jobs at
-  once. Why `mutation.yml` splits the catalogue into four matrix jobs, each with a 180-minute
-  timeout, instead of one job or one job per mutant. The matrix itself follows "Running
-  variations of jobs in a workflow" of the same documentation and the per-variant jobs of §36.
-- `Documentation/dev-tools/gcov.rst` of Linux 6.12.112: `CONFIG_DEBUG_FS` and
-  `CONFIG_GCOV_KERNEL`; `GCOV_PROFILE := y` profiles the objects of one directory, including a
-  module; the counters appear as `.gcda` files under `/sys/kernel/debug/gcov/<build path>`,
-  which debugfs reports with size 0 (so `vm/gcov-guest.sh` reads them with `cat`); the data of an
-  unloaded module is kept and reloaded with it unless `gcov_persist=0`.
-- `kernel/gcov/fs.c` of the same tree: `gcov_persist` defaults to 1, and `save_info()` adds the
-  counts of each unload to `unloaded_info`, so a suite that loads and unloads the layer many
-  times reports the sum of every load. `kernel/gcov/Kconfig`: `GCOV_KERNEL` depends on
-  `DEBUG_FS` and selects `CONSTRUCTORS`. `scripts/Makefile.lib`: `CFLAGS_GCOV` is added when
-  `GCOV_PROFILE_<obj>.o`, `GCOV_PROFILE` or, for kernel objects, `CONFIG_GCOV_PROFILE_ALL` is
-  not `n`; a `GCOV_PROFILE=y` on the make command line therefore profiles the external module
-  only. Read from git.kernel.org's stable tree at tag `v6.12.112`.
-- lcov ([linux-test-project/lcov](https://github.com/linux-test-project/lcov), GPL-2.0), the
-  Ubuntu 24.04 package (2.0), read through Context7 (`/linux-test-project/lcov`): `lcov --capture
-  --directory`, `--include`, `--summary`, `--list` and `genhtml`; branch data is collected only
-  with `--rc branch_coverage=1` (default 0). gcov of GCC (the runner's gcc, the compiler of the
-  kernel and the module) reads the notes and counters.
+
+## 43. Randomized differential test of permissions (security roadmap S15, journal 0250)
+
+- W. M. McKeeman, "Differential testing for software", Digital Technical Journal 10(1), 1998:
+  the same input given to two implementations of one behaviour, a difference being a defect of
+  one of them. `permmatrix churn` compares the layer's `QUERY2` answer with the lower kernel's
+  own permission decision taken as the same identity (`getxattr(2)`, `opendir(3)`,
+  `faccessat(2)` with `AT_EACCESS`), not with a copy of the homogeneity rule. Not re-read online
+  in this session.
+- K. Claessen and J. Hughes, "QuickCheck: a lightweight tool for random testing of Haskell
+  programs", ICFP 2000, and its stateful extension (random sequences of commands checked after
+  each one against a model): the shape of the churn, seeded operations with a check after each.
+  Not re-read online in this session.
+- `ltp/fsstress.c` of xfstests (the fstests already used, §1 and the fstests row): seeded random
+  sequences of filesystem operations with a seed and an operation count (`-s`, `-n`); the
+  knob `MOOB_PERMCHURN=SEEDS,STEPS[,FIRST]` follows that shape. Not vendored; not re-read in this
+  session.
+- Prior art in the tree: `tests/buildrace.c` and `tests/chmodrace.c` (journals 0098, 0102), which
+  use `scan_delay_us` to land writes and a chmod inside a domain build; `permmatrix churn` uses
+  the same parameter for its build phases. Linux 6.12.112 (the KASAN kernel's tree, read on the
+  test host): `fs/attr.c` `chown_ok()` and `chgrp_ok()` (without `CAP_CHOWN`, a user never gives a
+  file another owner and changes its group only to one of its own groups), `fs/namei.c` `may_linkat()` and
+  `safe_hardlink_source()` (with `fs.protected_hardlinks`, a user links only a file it owns or
+  can read and write), `acl_permission_check()` and `may_delete()`: why many of the operations
+  done as a user are refused, which the run counts as `denied`; a directory renamed to another
+  depth is refused with `EXDEV` by the layer (spec §5) and counted as `refused`.
