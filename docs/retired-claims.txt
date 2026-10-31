@@ -355,3 +355,6 @@ including the 2400-second timeout
 
 # 2026-10-31: ext4 rerun passed; make target implemented locally.
 Open: a repeat of `auto` with those lists, and a make target.
+
+# 2026-10-31: XFS exclusion-list rerun independently verified.
+XFS and btrfs reruns remain pending.

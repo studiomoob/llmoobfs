@@ -20,12 +20,12 @@ exploit, as the XFS and ext4 maintainers treat it.
 ## Where each item stands (2026-10-31)
 
 <!-- current-state -->
-State based on `main` at `302bff0`, with local batch-11 additions (journals 0247, 0248, 0250 and 0253). Local full-suite validation passed on 2026-10-31; the XFS/btrfs S2 reruns, first nightly campaign and first S14/S17 CI runs remain pending. Summarised from the dated notes below.
+State based on `main` at `302bff0`, with local batch-11 additions (journals 0247, 0248, 0250 and 0253). Local full-suite validation passed on 2026-10-31; the btrfs S2 rerun, first nightly campaign and first S14/S17 CI runs remain pending. Summarised from the dated notes below.
 
 | Item | State |
 | --- | --- |
 | S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer's AI-assisted private reports found kernel defects, all fixed with regression tests; there is no independent human review of the kernel code. The hand-read review of the credential paths and the `QUERY2` authorization is a stage-3 gate, not a stage-2 one ([ADR-0030](decisions/0030-stage-2-review-criterion.md)). |
-| S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091). The `auto` group ran once on the three lowers on Debian 6.12.113 (journal 0239): 1, 4 and 1 failures of 779, none a layer defect, now in exclusion lists. The local batch-11 target is implemented; the ext4 rerun passed on 2026-10-31 (229 pass, 549 notrun, zero fail; journal 0248). XFS and btrfs reruns remain pending. |
+| S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091). The `auto` group ran once on the three lowers on Debian 6.12.113 (journal 0239): 1, 4 and 1 failures of 779, none a layer defect, now in exclusion lists. The local batch-11 target is implemented; the ext4 rerun passed on 2026-10-31 (229 pass, 549 notrun, zero fail; journal 0248). XFS also passed at 19:26 Brasília time (372 pass, 406 notrun, zero fail); the btrfs rerun remains pending. |
 | S3 syzkaller | **Done** (journal 0245, ADR-0032). Seven six-hour runs, no open report; every handler function exercised, `moobl_xattr_get()` included (journal 0239). The handlers reach 688 of 781 KCOV call sites, 88.1 %, above the 85 % threshold, which counts call sites since ADR-0032; the manager's own count, which includes 28 PCs that are not call sites, was 84.9 % in the seventh run. |
 | S4 hostile lower | Done for its scope (journal 0073). |
 | S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job. `make static` runs `W=1` (gcc and clang), `sparse`, `smatch`, Coccinelle, the clang analyzer and `kernel-doc` on both modules and the UAPI header, with six findings justified in `tests/static/baseline.txt` and none fixed (journal 0242); `.github/workflows/static.yml` runs it on every push and pull request; its first GitHub runs, on PR 179 on 2026-10-30, passed after two fixes (journal 0242); not yet a required check. |
@@ -180,8 +180,9 @@ lists, and a target for it.
 
 *Update, 2026-10-31 (journals 0248/0253):* the target is implemented locally. The ext4
 exclusion-list rerun finished at 18:39:42 Brasília time: 229 pass, 549 notrun, zero fail
-out of 778 selected cases, check/classifier exit 0 and no kernel diagnostic. XFS is still
-running; btrfs is queued. Skipped cases are not counted as executed tests.
+out of 778 selected cases, check/classifier exit 0 and no kernel diagnostic. XFS finished
+at 19:26:08 with 372 pass, 406 notrun and zero fail, independently verified with the current
+classifier and diagnostic scan. Btrfs is queued. Skipped cases are not executed tests.
 
 Precedent: the kernel documentation "Adding New Filesystems" calls fstests standard
 infrastructure and its use strongly recommended; bcachefs reported fstests under lockdep and

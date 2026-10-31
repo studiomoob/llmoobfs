@@ -211,3 +211,36 @@ CPUs 6–7, and the host disk remains reserved to S2. The existing nightly sched
 both slots at 23:00; btrfs remains queued after 05:15 on November 1 and XFS completion.
 G6 and the corporate instance were notified. Public surfaces outside this local branch
 remain unchanged pending publication approval; no push, PR or merge to main occurred.
+
+
+## XFS auto rerun verified (2026-10-31)
+
+The inherited XFS run started at 12:22:07 and ended at 19:26:08 Brasília time,
+exit 0, about 7 h 4 min of machine/calendar time. Verification completed at 19h27 Brasília time.
+The full guest log has MOOBFS_FSTESTS_CHECK_EXIT: 0 and the XFS DONE marker. Among
+778 selected cases: 372 pass, 406 notrun, zero fail; skipped cases were not executed.
+No .out.bad file was present. vm/kdiag.sh found no kernel diagnostic in the console.
+The inherited classifier predates the failure-exit fix: its exit status alone was not
+accepted. The current batch classifier was independently run against the saved console,
+returned 0, and reproduced the saved per-test classifications byte for byte.
+
+Post-run hashes were collected for 1,803 tracked paths and compared with `e839590`.
+All 24 relevant module/fstests paths checked match, including production module sources,
+Makefile, host/guest harness, filesystem patch, diagnostic helper and exclusion lists.
+Six documentation paths and seven classifier/fuzzing paths differ; the verification JSON
+records each difference. This is not a fully identical snapshot, and no inherited pre-run
+manifest exists. fstests HEAD is `22348afe338c0f6d540c0d7ef0db749eaa51b218`, with the
+expected common/config and common/rc adaptation. The built module SHA256 equals the ext4
+run: `36dff256c0877a25301354dd86fc027aee1647412e552468fd5e18ccbdabbaa1`.
+
+Per-test results: `vm/fstests/results-xfs-auto-exclusions-6.12.113.txt`. Console, results,
+build log and exclusions are archived outside Git in the batch-11 review directory as
+`xfs-auto-final.tar.gz`, SHA256
+`ce4f1ec8fc873aa68a4203cac16ae13d4bfd6566550386fc64a2f6b5e985c4c1`;
+`xfs-auto-source-verification.json` records hashes and the independent verdicts.
+Both daytime slot locks are free and no QEMU guest remained at inspection. The existing
+23:00 nightly and November 1 btrfs queue after 05:15 are preserved; no workload or monitor
+was duplicated. S2's exclusion-list rerun is now verified for ext4 and XFS; btrfs remains
+pending. Resource notices were sent to the existing G6 and corporate instances.
+Public surfaces outside this local branch remain unchanged pending approval.
+No push, PR, merge to main or publication.
