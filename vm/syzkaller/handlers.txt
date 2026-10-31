@@ -1,0 +1,26 @@
+# The handler functions of security roadmap S3's coverage threshold (journal 0138), one per line.
+# Compiler suffixes (.isra.N, .constprop.N) count as their function; the .cold parts in
+# .text.unlikely are left out (ADR-0032). Read by vm/syzkaller/callsites.py.
+moobl_root_ioctl
+do_get_info
+query2_validate
+query2_target
+query2_pin
+query2_one
+query2_exec
+query_run
+results_to_user
+add_candidate
+term_check
+entry_matches
+inode_matches_all
+value_cmp
+seek_eq
+seek_first
+leap_collect
+moobl_xattr_get
+moobl_xattr_set
+moob_attr_validate
+moob_utf8_valid
+moob_attr_name_ok
+moob_attr_name_reserved

@@ -1139,3 +1139,18 @@ hand and carries the same code paths:
   `CONFIG_KCOV`, the compiler's `-fsanitize-coverage=trace-pc` inserts one call to
   `__sanitizer_cov_trace_pc` per basic block, and KCOV reports the return address of each call;
   a PC that is not such a call site is never reported, which is why ADR-0032 counts call sites.
+
+## 45. Nightly fuzzing and per-call corpus replay (journal 0248)
+
+- syzkaller at `8fb0ae898` (Apache-2.0, already used in §1):
+  `tools/syz-execprog/execprog.go`, `dumpCallCoverage()`, and
+  `pkg/cover/backend/pc.go`, `PreviousInstructionPC()` and `instructionLen()`.
+  Read in the exact checkout on the dedicated host on 2026-10-31: its coverage files
+  subtract five bytes on amd64 from KCOV's return PCs, so they already name the call
+  instructions listed by `objdump -dr`. The replay must not subtract five again.
+  Source: <https://github.com/google/syzkaller/tree/8fb0ae898>.
+- Linux 6.12.112 KCOV and module coverage: see §42 and ADR-0032. The replay uses the
+  built module's `.text` and checks the guest module's SHA-256 before running programs.
+- Existing MoobFS harnesses: `vm/syzkaller-local.sh`, its descriptions and seeds,
+  `vm/fstests-local.sh` and the exclusion lists of journal 0239; these are reused by
+  the nightly runner and `make fstests-auto`. No new fuzzer or filesystem port.
