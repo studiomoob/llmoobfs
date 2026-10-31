@@ -94,3 +94,9 @@ image tests; shell syntax, SPDX, retired claims and diff checks passed. Dedicate
 changed shell harnesses passed. Snapshot comments still said 0246 when copied; renumbering
 those comments to 0250 changes no executable behavior. Full integrated suites, the longer
 nightly campaign and a fresh negative control after the oracle correction remain pending.
+
+Continuation, 2026-10-31 about 12:50 Brasília time: M15 applied to the corrected oracle
+snapshot also exited 2, with `MOOBFS_VM_FAIL` (full marker preserved in the local logs).
+The focused KASAN/UBSAN/lockdep expanded campaign on committed snapshot `0512db7`
+(`MOOB_ONLY=permchurn MOOB_PERMCHURN=3,64,101`, CPUs 0–3) started after that negative run;
+its result is pending. `make checkpatch` passed before the implementation commit.
