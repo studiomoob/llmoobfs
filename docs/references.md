@@ -1017,7 +1017,7 @@ runs 6.12.111.
 - [actionlint](https://github.com/rhysd/actionlint) 1.7.7 (MIT), run locally from the
   `rhysd/actionlint` image pinned by digest, to check the workflow; not part of CI.
 
-## 37. fstests `auto` and the sixth syzkaller round (security roadmap S2 and S3, journal 0239)
+## 37. fstests `auto` and the sixth and seventh syzkaller rounds (security roadmap S2 and S3, journal 0239)
 
 - fstests, https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git, tag `v2026.09.22` (GPL-2.0):
   `check` (repeated `-E` options add to one exclusion list), `tests/generic/631` (overlayfs over
@@ -1031,6 +1031,10 @@ runs 6.12.111.
 - syzkaller, https://github.com/google/syzkaller, main at `8fb0ae8` (Apache-2.0), as in §syzkaller
   above: `syz-manager` (`/funccover`), `syz-execprog -cover -coverfile`, `syz-db unpack`.
 - virtme-ng and `taskset(1)` (util-linux) to pin each guest to its host CPUs.
+- syzkaller `prog/rand.go` (`MaxCalls = 40`) and `pkg/manager/seeds.go` (a seed longer than that
+  is skipped), which ruled out a single seed writing 65 attributes; GNU binutils `objdump -dr`
+  and `addr2line`, to list the `__sanitizer_cov_trace_pc` call sites of the handlers and map
+  the missing ones to source lines.
 
 ## 38. The review criterion of the technical preview (ADR-0030, journal 0240)
 

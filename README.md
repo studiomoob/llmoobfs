@@ -153,7 +153,7 @@ Facts as of 2026-10-25:
   exploratory job: the ext4, btrfs and XFS steps passed under KASAN ([journal 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
 - **Tested with** fault injection inside the module, fstests' `quick` group on the three lower
   filesystems and one run of its `auto` group (no layer defect among the failures), syzkaller
-  (six six-hour runs; one defect found and fixed), a first KCSAN run (no race in the module) and
+  (seven six-hour runs; one defect found and fixed), a first KCSAN run (no race in the module) and
   SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143, 0239).
 - **No independent human review of the kernel code yet.** It was requested on 2026-10-13. The
   kernel code has been checked by automated tools (the suite under KASAN, UBSAN and lockdep,
@@ -531,9 +531,9 @@ KASAN harness runs the layer suite), and no benchmark exists.
   [0083](docs/history/0083-index-inspection-fixes.md). Tags up to `v0.4.1-experimental` carry
   defects fixed later; `v0.5.0-experimental` has every fix up to 2026-10-28, later ones land on `main`. fstests' `quick` group passes with an exclusion list, and its `auto` group ran once, with 1 to 4
   failures per lower filesystem, none a layer defect ([vm/fstests/](vm/fstests/README.md), journal
-  0239). syzkaller ran for six six-hour rounds with no open report. The sixth covers every
-  handler function, `moobl_xattr_get` included, but stands at 84.5 % of the handlers' PCs, below
-  the 85 % threshold of [security roadmap](docs/security-roadmap.md) S3 (journal 0239). SELinux enforcing was exercised once (journal
+  0239). syzkaller ran for seven six-hour rounds with no open report. The last two cover every
+  handler function, `moobl_xattr_get` included, but stand at 84.5 % and 84.9 % of the handlers'
+  PCs, below the 85 % threshold of [security roadmap](docs/security-roadmap.md) S3 (journal 0239). SELinux enforcing was exercised once (journal
   0104); AppArmor and Smack were not.
 - `QUERY` authorization holds at query time only (TOCTOU contract). A directory rename through
   the layer makes its domain stale and the next query rebuilds it; direct lower-tree changes
@@ -583,7 +583,7 @@ as a regression in the same VM.
 | Index built per domain by the first query, released under memory pressure or over its budget (shrinker); tracepoints | [0098](docs/history/0098-index-on-demand.md), [0101](docs/history/0101-domains-released.md), [0102](docs/history/0102-index-tracepoints.md), [ADR-0012](docs/decisions/0012-index-on-demand-and-reclaimable.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | SELinux enforcing; per-result checks when an LSM labels the layer's inodes | [0104](docs/history/0104-selinux-investigation.md) | 6.12.112 with the Debian reference policy |
 | SQL over a domain through a SQLite virtual table (prototype) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |
-| syzkaller descriptions of the mount, ioctls and attributes; six six-hour runs | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | upstream 6.12.112 with KCOV |
+| syzkaller descriptions of the mount, ioctls and attributes; seven six-hour runs | [0109](docs/history/0109-syzkaller-first-runs.md), [0112](docs/history/0112-mount-leak-and-sql-omit.md), [0133](docs/history/0133-syzkaller-third-run.md), [0138](docs/history/0138-syzkaller-fourth-run.md), [0143](docs/history/0143-syzkaller-fifth-run-threshold-met.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | upstream 6.12.112 with KCOV |
 | Security fixes of findings F9 to F12 (homogeneity rule, checks without the query semaphore, write access on the lower mount, idmapped lower refused), each with a test and a negative round | [0116](docs/history/0116-homogeneity-classes-and-checks-without-query-sem.md), [0117](docs/history/0117-lower-mount-write-access.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | Security fixes of F15, GHSA-756j-cgwq-gvwm and F16 (search-only directories, records of a reused inode number, set-user-ID kept through a write), each with a test and a negative round | [0215](docs/history/0215-search-only-directories.md), [0216](docs/history/0216-domain-record-generation.md), [0218](docs/history/0218-write-credentials-fsetid.md) | Debian 6.12.111; KASAN 6.12.112 ([0219](docs/history/0219-security-batch-checks.md)); ext4, btrfs, XFS |
 | Batch 3: lookup errnos for a casefolded directory and a btrfs subvolume, the reserved byte of a query term (`EINVAL`), one privilege test, extended ACLs judged as the kernel does (F17), no index lock on instantiation or eviction of inodes without a record, and `fadvise`, `readahead`, `statx` fields, `drop_inode` and `O_NOATIME` passed to the lower; steps `casefold`, `minacl` and `ixlock`, markers `LAYER_SUBVOLUME_PASS` and `PASSTHROUGH_PASS`, each with a negative round | [0221](docs/history/0221-lookup-errnos-and-m8.md), [0222](docs/history/0222-term-padding-admin-test-extended-acl.md), [0223](docs/history/0223-index-lock-instantiation-eviction.md), [0224](docs/history/0224-passthrough-gaps-issue-115.md), [ADR-0026](docs/decisions/0026-ioctl-magic-term-padding-and-admin-test.md) | Debian 6.12.111; KASAN 6.12.112, full suite ([0225](docs/history/0225-security-batch-3.md)); ext4, btrfs, XFS (`minacl` and `ixlock` on ext4) |

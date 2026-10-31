@@ -1,8 +1,9 @@
-# 0239 — S2: fstests `auto` on three lowers; S3: a sixth syzkaller round with `moobl_xattr_get` covered
+# 0239 — S2: fstests `auto` on three lowers; S3: sixth and seventh syzkaller rounds, `moobl_xattr_get` covered
 
-Date: 2026-10-29 to 2026-10-30. Status: runs done on the dedicated test host (batch 10, branch
-`claudiofp/b10-s2s3`, based on batch 7-8). Work started: 2026-10-29 20:05 UTC; ended 2026-10-30
-about 13:40 UTC. Calendar time about 17.5 hours. Machine time: about 25 guest-hours of fstests
+Date: 2026-10-29 to 2026-10-31. Status: runs done on the dedicated test host (batch 10, branch
+`claudiofp/b10-s2s3`, based on batch 7-8). Work started: 2026-10-29 20:05 UTC; first part ended
+2026-10-30 about 13:40 UTC; the seventh round (section below) ran 2026-10-30 13:40 to 2026-10-31
+05:20 UTC. Calendar time about 17.5 hours. Machine time: about 25 guest-hours of fstests
 (three lowers, partly in parallel), 6 hours of fuzzing plus 46 minutes of kernel build. Attended
 work about 3 hours. Estimated effort: M; actual: M in calendar time, S in attended work.
 
@@ -150,13 +151,67 @@ seeds as above. The kernel build ran 20:22 to 21:08 UTC (`-j4`).
   was on the earlier code and kernel.
 - Reproducers of past crashes kept in `tests/`: as before (F8's regression in the suite).
 
+## S3: the seventh round (2026-10-30/31)
+
+The maintainer chose a seventh six-hour round with the same 85 % threshold and the same PC
+counting as journal 0143, after seeds for the paths the sixth run missed.
+
+- **Setup.** The working copy of the sixth round had been removed. The kernel tree, the image
+  and the syzkaller checkout were copied again from the shared caches and rebuilt (`kernel
+  module image descriptions`, CPUs 0, 1, 4 and 5). A power cut of the host at about 14:27 UTC
+  stopped the first rebuild half way. Everything it had touched was deleted and copied again,
+  and the rebuild was redone from the start (16:00 to 17:15 UTC).
+- **Where the PCs were missing.** The sixth run's corpus (1 095 programs) was replayed one
+  program at a time with per-call KCOV, in disposable guests of the round's kernel. The first
+  attempts filled the guest's 2 GiB disk with coverage files; the final script keeps only the
+  module's PCs and works on a tmpfs. The run was split over four guests (2 vCPUs each) once
+  more CPUs were free, and took about 3 hours of guest time. The PCs were mapped to the
+  `__sanitizer_cov_trace_pc` call sites of the 23 handler functions (`objdump -dr` of the
+  module, `.text` only, as the threshold leaves the `.cold` parts out) and to source lines
+  (`addr2line`). The union reaches **685 of 781** such sites. For 21 of the 23 functions that is
+  also the manager's total; for `moobl_xattr_get` and `moobl_xattr_set` the manager counts 14
+  more PCs each than there are call sites (18 against 4, 64 against 50), which no program
+  can cover. The missing sites are mostly in `query_run` (32): the per-result check of the
+  admin `QUERY` (paths that stopped resolving, renames during the check, chunks of 256
+  candidates), results with long paths, and partitions that changed between chunks. Others are
+  the `QUERY2` pin when a domain is removed while it is built (`query2_pin`, a race), the 65th
+  typed attribute (`moobl_xattr_set`), and the capabilities of a btrfs or XFS lower
+  (`do_get_info`). A program may have at most 40 calls (`prog.MaxCalls`), so the 64 writes the
+  65th attribute needs cannot be one seed.
+- **Three seeds.** `query-long-path`: a result whose path is longer than its 256 bytes.
+  `query-moved`: `QUERY`, `QUERY2` and `GET_INFO` after a directory is renamed through the layer
+  and a file renamed and removed behind it. `xattr-count`: typed attributes counted with the
+  reserved name and a foreign one already on the lower. A replay of the three on the round's
+  kernel adds 3 sites to the corpus union (688 of 781): the truncated path (`index.c:3427`) and
+  two in the domain-ensure loop of the admin query (`index.c:3707`, `3716`). `xattr-count` adds
+  none; the counting loop it aims at stayed uncovered in the replay.
+- **Run.** `KEEP_CORPUS=1 SYZ=... SYZ_CACHE=... SYZ_VMS=2 taskset -c 0,1,4,5 sh vm/syzkaller-local.sh 21600 run`.
+  The sixth run's `corpus.db` was kept, as the harness allows, with every seed added (1 137
+  candidates). Fuzzing ran 2026-10-30 23:07 to 2026-10-31 05:07 UTC with exit status 0. 301 716
+  executions, corpus 1 118, manager coverage 16 492 PCs. **No crash directory: no report.**
+- **Per-function coverage** (saved 20 minutes before the end): `attr.c` 5 of 7 functions, 53 of
+  60 PCs (88 %); `index.c` 66 of 93, 1 329 of 2 080 (64 %); `main.c` 70 of 80, 448 of 790
+  (57 %). The handler set: **687 of 809 PCs, 84.9 %**, one PC short of the 688 that 85 % needs.
+  With the `.cold` parts: 691 of 838. Against the sixth run: `moobl_root_ioctl` 59 to 61,
+  `query_run` 201 to 202, `query2_exec` 63 to 64 and `moob_utf8_valid` 19 to 20 gained.
+  `inode_matches_all` 12 to 11 and `value_cmp` 24 to 23 lost one each. `moobl_xattr_get` is
+  still 3 of 18 in the report, though the replays reach all four of its call sites.
+
+**Against S3's "done when" after the seventh round:** zero open reports, met (seven runs); every
+handler function exercised, met; the handlers at 85 % of their PCs, **not met: 84.9 %**, one PC
+short; reproducers of past crashes in `tests/`, as before. With the manager's counting, 28 of the
+809 PCs (in the two xattr handlers) are not coverage call sites. On the call sites alone the
+corpus union with the seeds is 688 of 781 (88.1 %). That is a different metric, which the
+maintainer chose not to adopt.
+
 ## Changes
 
 - `vm/fstests-local.sh`: `MOOB_FSTESTS_CPUS`, `MOOB_FSTESTS_MEM`. `vm/syzkaller-local.sh`:
   `SYZ_VMS`, `SYZ_CACHE`. The summary now takes the manager's own counter line
   (`corpus=N coverage=N exec total=N`); the old pattern (`corpus: N`) matched nothing in the
   pinned revision, so the summaries of earlier runs had no counts.
-- `vm/syzkaller/seeds/xattr-get-security` (new).
+- `vm/syzkaller/seeds/xattr-get-security` (new); for the seventh round `query-long-path`,
+  `query-moved` and `xattr-count` (new).
 - `vm/fstests/exclude-auto.txt` and `vm/fstests/exclude-auto-btrfs.txt` (new), the three
   `results-*-auto-6.12.113.txt` files, and `vm/fstests/README.md`.
 - Surfaces: `docs/security-roadmap.md` (S2 and S3 notes and the current-state table),
@@ -177,8 +232,9 @@ clean. `sh scripts/check-spdx.sh`, `sh scripts/check-retired-claims.sh`,
 
 ## Evidence kept
 
-Raw logs (consoles, fstests `results/` directories, `manager.log`, `funccover.csv`,
-`corpus.db`, the replay's coverage files and the helper scripts) are outside the repository, in
+Raw logs of both parts (consoles, fstests `results/` directories, `manager.log`,
+`funccover.csv`, `corpus.db`, the replays' coverage files and the helper scripts; the seventh
+round's under `logs7/`) are outside the repository, in
 the maintainer's local folder for this review (`revisao/2026-10-29-s2s3-logs/`), as for journals
 0091 and 0154. The test host's working directory was removed after the copy.
 
@@ -200,14 +256,18 @@ leave QEMU on TCG. A race of the workflow, not of the layer.
   comparable.
 - The S3 aggregate is 84.5 %, below the 85 % threshold. Which sites the manager counts in the
   18 PCs of `moobl_xattr_get()` was not established.
-- The syzkaller round ran 2 VMs instead of 3, with fewer executions than the fifth run.
+- The syzkaller rounds ran 2 VMs instead of 3, with fewer executions than the fifth run. The
+  seventh started from the sixth run's corpus, so its coverage is not that of a fresh corpus.
+- The seventh round's aggregate is 84.9 %, one PC below the threshold. The two values of a
+  six-hour round vary by a few PCs from run to run (the seventh lost two PCs the sixth had).
 
 ## Next steps
 
 - S2: a full `auto` run with both exclusion lists on the three lowers, expected clean. Then decide
   whether S2's "done when" (a reproducible result in `make vm-test` or a dedicated target) needs
   a make target for the long run.
-- S3: to close the aggregate, either a seventh round with 3 VMs and descriptions or seeds for
-  the uncovered paths of `query_run`, `query2_pin` and `moobl_xattr_set`, or a recorded decision
-  on how the threshold counts PCs on the hardened kernel (for example only the
-  `__sanitizer_cov_trace_pc` sites).
+- S3: the aggregate stays open at 84.9 %. Options for the maintainer: an eighth round with 3 VMs
+  (more executions per hour); a description that reaches the admin `QUERY`'s per-result check
+  as an ordinary user (most of `query_run`'s missing sites; it needs a call that changes
+  credentials, which no description has); or a recorded decision on the 28 PCs of the xattr
+  handlers that are not coverage call sites.

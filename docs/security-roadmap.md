@@ -17,7 +17,7 @@ edge, detectors in CI, continuous fuzzing, a minimal surface and a written threa
 crash triggerable by an ordinary user is a vulnerability (denial of service), even without an
 exploit, as the XFS and ext4 maintainers treat it.
 
-## Where each item stands (2026-10-30)
+## Where each item stands (2026-10-31)
 
 <!-- current-state -->
 State on `main` at `7ac52cd`, with the rows of batch 10: S1 (journal 0240), S2 and S3 (journal 0239), S5 and S14 to S21 (journal 0242), S9 (journal 0243); summarised from the dated notes of each item below.
@@ -26,7 +26,7 @@ State on `main` at `7ac52cd`, with the rows of batch 10: S1 (journal 0240), S2 a
 | --- | --- |
 | S1 threat model | Done ([ADR-0011](decisions/0011-threat-and-credential-model.md)). Findings F1 to F17 are fixed on `main` (journal 0228), with the reused-inode records of GHSA-756j-cgwq-gvwm (journal 0216; its limits are in [when-not-to-use.md](when-not-to-use.md) §3). An external reviewer's AI-assisted private reports found kernel defects, all fixed with regression tests; there is no independent human review of the kernel code. The hand-read review of the credential paths and the `QUERY2` authorization is a stage-3 gate, not a stage-2 one ([ADR-0030](decisions/0030-stage-2-review-criterion.md)). |
 | S2 fstests | `quick` group done on ext4, btrfs and XFS with a justified exclusion list (journal 0091). The `auto` group ran once on the three lowers on Debian 6.12.113 (journal 0239): 1, 4 and 1 failures of 779, none a layer defect, now in exclusion lists. Open: a repeat of `auto` with those lists, and a make target. |
-| S3 syzkaller | Six six-hour runs, no open report. The sixth (journal 0239), on the hardened KASAN kernel, reports `moobl_xattr_get()` covered, so every handler function is exercised. The handlers are at 84.5 % of their PCs there, below the 85 % threshold (88.7 % in the fifth run, on earlier code and kernel). Open: the aggregate on the current code. |
+| S3 syzkaller | Seven six-hour runs, no open report. On the hardened KASAN kernel the sixth and seventh (journal 0239) report `moobl_xattr_get()` covered, so every handler function is exercised. The handlers are at 84.5 % and then 84.9 % of their PCs, one PC below the 85 % threshold (88.7 % in the fifth run, on earlier code and kernel). Open: the aggregate on the current code. |
 | S4 hostile lower | Done for its scope (journal 0073). |
 | S5 static analysis | `checkpatch.pl` clean and required in the `Lint` job. `make static` runs `W=1` (gcc and clang), `sparse`, `smatch`, Coccinelle, the clang analyzer and `kernel-doc` on both modules and the UAPI header, with six findings justified in `tests/static/baseline.txt` and none fixed (journal 0242); `.github/workflows/static.yml` runs it on every push and pull request; its first GitHub runs, on PR 179 on 2026-10-30, passed after two fixes (journal 0242); not yet a required check. |
 | S6 disclosure and versions | Done: `SECURITY.md` and [compatibility.md](compatibility.md); the KASAN/lockdep job is a required check of `main`. Open: a build-time refusal of an unlisted kernel (`make install` and the DKMS package refuse one, `make layer` does not). |
@@ -232,6 +232,11 @@ by fuzzing image and syscalls together. The current libFuzzer covers only the en
   684 of 809 PCs, **84.5 %**, below the 85 % threshold, on a denominator that grew with the
   layer's fixes and the hardened kernel (743 in the fifth run). The per-function criterion is
   met; on the current code the aggregate is not.
+- **Update, 2026-10-31 (journal 0239):** a seventh six-hour run, with the same threshold and
+  counting. It started from the sixth run's corpus plus three seeds written after a per-PC replay
+  of that corpus. Result: 301 716 executions, no report, the handlers at 687 of 809 PCs,
+  **84.9 %**, one PC below 85 %. 28 of the 809 PCs, in the two xattr handlers, are not coverage
+  call sites and cannot be covered.
 - **Threshold, set on 2026-10-15** (journal 0109): the ioctl and attribute handlers (from
   `moobl_root_ioctl()` through `query_run()`, `results_to_user()`, `moobl_xattr_get/set()` and the
   validation in `common/attr.c`) at 85 % of their PCs or more, measured by the manager's

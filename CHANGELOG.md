@@ -184,6 +184,10 @@
   New seed `xattr-get-security`. Harness knobs with unchanged defaults: `MOOB_FSTESTS_CPUS`,
   `MOOB_FSTESTS_MEM`, `SYZ_VMS`, `SYZ_CACHE`; the syzkaller summary now reads the manager's
   counter line, which the earlier pattern never matched.
+- syzkaller, a seventh six-hour round (journal 0239, S3), with the same threshold and counting:
+  seeds `query-long-path`, `query-moved` and `xattr-count`, written after a per-PC replay of the
+  sixth run's corpus; the run kept that corpus. 301 716 executions, no report; the handlers at
+  687 of 809 PCs (84.9 %), one PC below the 85 % threshold.
 - Experimental Debian packages (journal 0229, ADR-0028; roadmap C6, security roadmap S10).
   `make deb` (`scripts/build-debs.sh`, `packaging/debian/`) builds `moobfs-dkms`, the module's
   sources with a `dkms.conf` whose `BUILD_EXCLUSIVE_KERNEL` is `scripts/supported-kernels`, and

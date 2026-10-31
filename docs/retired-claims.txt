@@ -332,3 +332,7 @@ o G2 fecha quando o mantenedor as aceitar
 ADR-0031 (proposed)
 ADR-0031, proposed
 ADR-0031 (proposta)
+# Journal 0239, seventh round: syzkaller ran seven six-hour rounds.
+six six-hour runs
+six six-hour rounds
+seis rodadas de seis horas
