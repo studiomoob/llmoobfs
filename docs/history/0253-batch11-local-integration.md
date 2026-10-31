@@ -73,3 +73,10 @@ schedule is still not installed. Host scripts passed shell syntax and ShellCheck
 
 Actionlint 1.7.7 passed the two new CI workflows after consolidation. The complete `make lint`
 on the dedicated snapshot is being captured separately. No workflow has run on GitHub.
+
+Checkpoint at about 13:22 Brasília time: complete `make lint` on the frozen dedicated-host
+snapshot passed (ShellCheck over all tracked VM/scripts shell files, then SPDX; exit 0).
+The full Debian guest reached `QUERY2_PASS` and `ISOLATION_PASS` on ext4; it is still running.
+The existing XFS auto guest reached `generic/127`. No final complete-suite, fstests or replay
+verdict exists yet. The later integration commits update only this journal; executable code
+remains identical to the frozen source `569ec2a`.
