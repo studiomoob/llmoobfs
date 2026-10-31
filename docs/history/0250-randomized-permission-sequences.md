@@ -100,3 +100,11 @@ snapshot also exited 2, with `MOOBFS_VM_FAIL` (full marker preserved in the loca
 The focused KASAN/UBSAN/lockdep expanded campaign on committed snapshot `0512db7`
 (`MOOB_ONLY=permchurn MOOB_PERMCHURN=3,64,101`, CPUs 0–3) started after that negative run;
 its result is pending. `make checkpatch` passed before the implementation commit.
+
+## Focused KASAN result, inspected at integration
+
+The expanded campaign on snapshot `0512db7` finished at 12:54:47 Brasília time on
+2026-10-31 with exit 0, `MOOBFS_ONLY_PASS` and `MOOBFS_KASAN_ONLY_PASS`, under
+KASAN, UBSAN and lockdep with no kernel diagnostic according to the harness. This is
+a focused run, not the full batch suite. The final corrected-oracle M15 control was
+`MOOBFS_VM_FAIL: pc-mismatch-ext4-2`, exit 2, returning unreadable `f44` to uid 1001.
