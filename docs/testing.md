@@ -561,16 +561,17 @@ keeps the module in guests.
   `SYZ_CACHE` and the paths of that host (the locks keep it off CPUs a daytime run still holds):
 
   ```
-  0 23 * * * cd $HOME/b11night/src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
-  @reboot sleep 300; cd $HOME/b11night/src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env NIGHT_RESUME=1 SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
+  0 23 * * * cd $HOME/b11night/nightly-src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
+  @reboot sleep 300; cd $HOME/b11night/nightly-src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env NIGHT_RESUME=1 SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
   ```
 
   `vng` must be on `PATH`. The script uses GNU `timeout` to bound builds and replay
   at the end of the window (TERM, then KILL after 15 seconds); interrupted or failed phases
   remain visible in the report. Offline harness controls: `python3 tests/syzkaller-replay-test.py`.
 
-  The copy under `src/` has no `.git`; a `REVISION` file there (the commit it was copied
-  from) names it in the reports.
+  The installed schedule uses a dedicated frozen Git clone under `nightly-src/`
+  (snapshot `569ec2a`, journal 0253). For a copy without `.git`, put its source commit
+  in `REVISION` so the reports identify it. Do not edit the source while a night runs.
 
 ## 7. Adding a lower filesystem
 

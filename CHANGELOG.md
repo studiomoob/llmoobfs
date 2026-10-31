@@ -18,7 +18,9 @@
 - Long-test harnesses (journal 0248, validation in progress): `make fstests-auto`
   applies the exclusion lists, per-call KCOV corpus replay implements ADR-0032,
   and a restartable nightly runner retains permission/fuzzing/replay reports.
-  No nightly reports or completed exclusion-list reruns are claimed yet.
+  The real three-seed replay smoke and both full integration suites passed; the nightly
+  schedule was installed on 2026-10-31. No nightly reports or completed exclusion-list
+  reruns are claimed yet.
 
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be

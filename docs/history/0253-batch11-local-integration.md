@@ -1,7 +1,7 @@
 # 0253 — Batch 11 local integration and complete-suite validation
 
-Date: 2026-10-31. Status: **in progress**. Work started about 13:17 Brasília time
-(UTC-3); end pending. Calendar time, not measured engineering effort. Estimated effort: S
+Date: 2026-10-31. Status: **local integration and full-suite validation passed; batch publication pending**.
+Work started about 13:17 Brasília time (UTC-3); this validation unit ended about 15:29. Calendar time, not measured engineering effort. Estimated effort: S
 for integration, plus machine time for the complete suites and long S2 runs.
 
 ## Goal and decisions
@@ -149,3 +149,34 @@ The first local nohup attempt did not stay alive; it was replaced by a persisten
 terminal, observed running Python. This is a notification helper, not another test runner or
 AI instance. Test verdicts still require inspection of actual logs and source hashes.
 No push, PR, merge to main or public edit is authorized by the communication decision.
+
+## Full KASAN passed and nightly schedule installed
+
+The full KASAN/UBSAN/lockdep suite on frozen snapshot `569ec2a` finished at 15:27:27
+Brasília time on 2026-10-31, exit 0. Required markers: MOOBFS_ACCEPTANCE_PASS,
+MOOBFS_LAYER_PASS and MOOBFS_KASAN_PASS. Fault injection: 22 operations, 325 calls,
+303 injected failures, unexpected=0; RENAMEPATH_FAULT_PASS and DEADSCAN_PASS. The saved
+dmesg passed the diagnostic scan. All 1,810 tracked source hashes match before/after in
+each full-suite copy and match the Git snapshot. The final archive and verification JSON
+are outside Git under the local review directory, `full-suites-569ec2a-final.tar.gz` and
+`full-suites-569ec2a-verification.json`.
+
+Instrumentation limits: CONFIG_KASAN, CONFIG_UBSAN and CONFIG_PROVE_LOCKING are enabled;
+CONFIG_MEMCG is absent in this instrumented kernel. Its MEMCG, LIMITS_MEMCG and DIAG_MEMCG
+cases therefore skipped. The full Debian run separately passed MEMCG_ACCOUNT_PASS,
+LIMITS_MEMCG_PASS and DIAG_MEMCG_PASS. The Python backend step passed in KASAN
+(MOOBFS_PYLIB_PASS), and was skipped in the Debian initramfs without Python as documented.
+No skipped case is counted as exercised by the instrumented run.
+
+At 15:28:17 the gated installer added and verified the requested 23:00/reboot crontab
+entries, with a private backup and byte comparison. Nights use an independent clean Git
+clone of `569ec2a`, CPUs 4–7, America/Sao_Paulo, and both daytime slot locks. The source
+is frozen; the first night has not run. Scheduling does not satisfy S18's seven-report
+criterion or S15's longer nightly campaign.
+
+Only the ext4 and XFS fstests guests remain active on the dedicated host. CPUs 0–3 are
+no longer used by full KASAN, but the host disk remains reserved to S2. Other instances
+were informed; no workload was started on the separate corporate host. The notifier's
+first prompt was delivered and its receipt retained; it continues waiting for remaining
+events. No publication or remote repository change. Local validation took about 2 h 12 min
+of calendar time, dominated by serial complete suites; engineering effort was not measured.

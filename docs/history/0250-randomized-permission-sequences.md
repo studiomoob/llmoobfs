@@ -108,3 +108,11 @@ The expanded campaign on snapshot `0512db7` finished at 12:54:47 Brasília time 
 KASAN, UBSAN and lockdep with no kernel diagnostic according to the harness. This is
 a focused run, not the full batch suite. The final corrected-oracle M15 control was
 `MOOBFS_VM_FAIL: pc-mismatch-ext4-2`, exit 2, returning unreadable `f44` to uid 1001.
+
+## Integrated full suites and nightly readiness
+
+The combined batch snapshot `569ec2a` passed both full suites on 2026-10-31 (journal 0253):
+Debian at 14:09 and KASAN/UBSAN/lockdep at 15:27 Brasília time, with all source hashes
+preserved. The six-default-seed permchurn step passed on all lowers in both suites.
+The scheduled frozen clone includes the longer S15 campaign; first execution pending.
+S15 remains in progress until that longer campaign is recorded.

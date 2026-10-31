@@ -111,3 +111,12 @@ programs replayed, zero failed/unreached, nonempty coverage: 911 module-text PCs
 341 of 781 handler call sites (43.7%). This is only a smoke; it does not measure the full
 corpus or replace S3's 688/781. ext4 auto started at 14:05:41 in its separate copy.
 Full Debian integration passed at 14:09; the nightly installer awaits full KASAN.
+
+## Schedule installed (2026-10-31 15:28:17 Brasília time)
+
+After full Debian and full KASAN passed on `569ec2a` and the real replay smoke passed,
+the gated host installer added the 23:00 and reboot entries. It preserved the prior crontab
+and verified the installed content. A clean frozen clone under `nightly-src/` is used,
+with both daytime slot locks and CPUs 4–7, window 23:00–05:00 America/Sao_Paulo.
+No nightly report exists yet; S18 and S15's longer campaign remain open. ext4 and XFS
+auto continue; btrfs remains queued after 05:15 on November 1 and XFS completion.
