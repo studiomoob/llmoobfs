@@ -5,8 +5,8 @@ Date: 2026-10-31. Status: **written, not yet run.** Both workflows exist on bran
 free). Their first run is expected on the batch's pull request, which their path filters
 trigger. Work started: 2026-10-31 15:18 UTC; ended about 15:30 UTC. Wall-clock time, not an
 engineering-effort measurement. Estimated effort: S14's remainder S, S17 M (journal 0242);
-actual so far: about a quarter of an hour of attended work for both, before any run; the runs and the fixes
-they need are not counted yet.
+actual so far: about a quarter of an hour of attended work for both, before any run; the runs
+and the fixes they need are not counted yet.
 
 ## Goal
 
