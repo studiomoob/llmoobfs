@@ -133,3 +133,19 @@ checks per lower), followed by IXLOCK_PASS. No VM_FAIL/ENV_FAIL marker was found
 KASAN marker is still pending. XFS auto was running generic/187 and ext4 generic/133; no
 `.out.bad` files were present in either results directory at inspection. This is progress,
 not a final fstests verdict. The nightly installer and btrfs queue remain waiting.
+
+## Coordination continuity (2026-10-31, about 15:27 Brasília time)
+
+The maintainer authorized the three existing instances to communicate and continue their
+assigned work. Batch 11 retains ownership of its dedicated host, frozen test copies and
+journals 0247/0248/0250/0253. The corporate campaign retains its separate shared host and
+journal 0255; G6 will renumber its isolated colliding records before any integration.
+No additional workload was started on either reserved host by this coordination.
+
+A local read-only marker notifier was prepared outside Git to prompt the existing batch-11
+terminal after the complete suites, each fstests lower and the first nightly report settle.
+It records one send receipt per event; an uncertain send stops instead of submitting twice.
+The first local nohup attempt did not stay alive; it was replaced by a persistent Orca shell
+terminal, observed running Python. This is a notification helper, not another test runner or
+AI instance. Test verdicts still require inspection of actual logs and source hashes.
+No push, PR, merge to main or public edit is authorized by the communication decision.
