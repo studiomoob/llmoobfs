@@ -336,3 +336,10 @@ ADR-0031 (proposta)
 six six-hour runs
 six six-hour rounds
 seis rodadas de seis horas
+
+# Journal 0245, 2026-10-31: S3 done; its threshold counts KCOV call sites (ADR-0032).
+but stand at 84.5 % and 84.9 % of the handlers'
+mas ficam em 84,5 % e 84,9 % dos PCs dos handlers
+Open: the aggregate on the current code.
+The aggregate on the current code is 84.9 %
+below the 85 % target (journal 0239)

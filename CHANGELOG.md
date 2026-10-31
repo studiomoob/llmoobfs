@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
+  sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be
+  covered. The handlers reach 688 of 781 (88.1 %); the value stays 85 %. Documentation only.
 - G2 (predictable shared operation) is done: the maintainer accepted its diagnostics, deployment
   recipe and VM runs on 2026-10-30 (journal 0243).
 - Roadmap: a planned applicability track for corporate directory identities, D1 to D3 (journal
