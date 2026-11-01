@@ -120,3 +120,12 @@ On the Apple Silicon workstation, Docker Desktop:
 Open the batch's pull request (coordinator); read the first runs; fix what they show, with a
 dated note in this journal; then update the S14 and S17 rows of the security roadmap from
 "written" to their run state.
+
+
+## First GitHub execution started (2026-11-01)
+
+The maintainer authorized publishing the integrated batch as PR 181. Both new workflows
+started there: Mutation testing run 41347762160 and Branch coverage run 41347762118.
+This is the first execution, not a passing result. Check the latest PR head and Checks
+tab for current outcomes; later synchronization may supersede these initial runs.
+https://github.com/studiomoob/llmoobfs/pull/181 . No required gate was added or merge performed.

@@ -20,7 +20,7 @@ exploit, as the XFS and ext4 maintainers treat it.
 ## Where each item stands (2026-11-01)
 
 <!-- current-state -->
-State based on `main` at `302bff0`, with local batch-11 additions (journals 0247, 0248, 0250 and 0253). Local full-suite validation passed on 2026-10-31; S2 exclusion-list reruns passed on all three lowers; complete nightly reports and first S14/S17 CI runs remain pending. Summarised from the dated notes below.
+State based on `main` at `302bff0`, with local batch-11 additions (journals 0247, 0248, 0250 and 0253). Local full-suite validation passed on 2026-10-31; S2 exclusion-list reruns passed on all three lowers; complete nightly reports remain pending. First S14/S17 GitHub validation started in [PR 181](https://github.com/studiomoob/llmoobfs/pull/181); current outcomes are tracked in its Checks tab. Summarised from the dated notes below.
 
 | Item | State |
 | --- | --- |
@@ -37,7 +37,7 @@ State based on `main` at `302bff0`, with local batch-11 additions (journals 0247
 | S11 M3 and M4 surfaces | Nothing recorded yet. |
 | S12 SELinux | One run with SELinux enforcing (journal 0104): F6 and the labels read with the caller's credentials fixed; the rule `fs_use_xattr moobfs_layer` is needed. Open: mmap, attribute writes, rename and link under a policy, MLS/MCS, a distribution booted with SELinux, the per-result check over a lower labelled by SELinux (journal 0215), Smack; AppArmor is outside the item. |
 | S13 tracepoints | Done (journal 0102). |
-| S14 to S21 | Planned item by item below, with effort and done check (journal 0242). S14: 23 mutants of the homogeneity rule apply, build and change the object code (`make mutants-check`); on 2026-10-30 a recorded VM run of the whole catalogue killed all 23, after tests were added for the five that had survived the full suite; the weekly CI job (`mutation.yml`, journal 0247) is written and has not run on GitHub yet. S17: the coverage job (`coverage.yml`, journal 0247) is written and has not run on GitHub yet, so no report exists. S19: as S5, green on GitHub since PR 179. S20: the checklist item is in `CONTRIBUTING.md`; no change has gone through the procedure. S15 and S18 are in progress (journals 0250 and 0248); S16 and S21 not started; journal 0172 added bounded tests that do not complete S14 or S15. A stage-2 gate since ADR-0030. |
+| S14 to S21 | Planned item by item below, with effort and done check (journal 0242). S14: 23 mutants of the homogeneity rule apply, build and change the object code (`make mutants-check`); on 2026-10-30 a recorded VM run of the whole catalogue killed all 23, after tests were added for the five that had survived the full suite; the weekly CI job (`mutation.yml`, journal 0247) is implemented and its first GitHub validation started in [PR 181](https://github.com/studiomoob/llmoobfs/pull/181); see the live Checks tab. S17: the coverage job (`coverage.yml`, journal 0247) is implemented and its first GitHub validation started in PR 181; no successful coverage report is claimed before inspecting its artifacts. S19: as S5, green on GitHub since PR 179. S20: the checklist item is in `CONTRIBUTING.md`; no change has gone through the procedure. S15 and S18 are in progress (journals 0250 and 0248); S16 and S21 not started; journal 0172 added bounded tests that do not complete S14 or S15. A stage-2 gate since ADR-0030. |
 | S22 security operations | Documented (journal 0205). Open: the subscriptions, which are the maintainer's action, and the re-read of the access table before each tag. |
 <!-- /current-state -->
 

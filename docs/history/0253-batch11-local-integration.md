@@ -1,6 +1,6 @@
 # 0253 — Batch 11 local integration and complete-suite validation
 
-Date: 2026-10-31–2026-11-01. Status: **required local batch validation passed; CI/publication pending; S18 remains open**.
+Date: 2026-10-31–2026-11-01. Status: **required local validation passed; PR 181 open for CI/review; S18 remains open**.
 Work started about 13:17 Brasília time (UTC-3); this validation unit ended about 15:29. Calendar time, not measured engineering effort. Estimated effort: S
 for integration, plus machine time for the complete suites and long S2 runs.
 
@@ -506,3 +506,31 @@ start (mostly machine time/waits); engineering effort was not measured. No push,
 merge or publication occurred. The next maintainer decision is publication of the prepared
 batch, with remaining CI/nightly limitations visible; Azure and S16/freeze decisions remain
 separate. A concrete review synopsis is retained outside Git in the local review directory.
+
+
+## Publication authorized: PR 181 (2026-11-01)
+
+After the local review checkpoint, the maintainer authorized pushing this branch and opening
+one batch PR; merge approval remains separate. origin/main was fetched and remains `302bff0`.
+`git rebase --rebase-merges origin/main` preserved final head `4f2e134`; the worktree was clean,
+all commits carried DCO, and layer/kernel/include/common matched main. Prepublication portable
+`make test`, checkpatch, five replay controls, retired claims, FAQ/site and whitespace checks
+passed. A mistaken journal filename in the private draft was caught before publication and
+corrected; the public links were checked against actual files.
+
+Branch claudiofp/BATCH11 was pushed without force and PR 181 opened against main:
+https://github.com/studiomoob/llmoobfs/pull/181 . Scope excludes the separate G6/corporate branches.
+The new Mutation testing and Branch coverage workflows started for the first time on the PR,
+along with required CI/KASAN and existing analyses. Initial run links:
+- Mutation: https://github.com/studiomoob/llmoobfs/actions/runs/41347762160
+- Coverage: https://github.com/studiomoob/llmoobfs/actions/runs/41347762118
+- KASAN: https://github.com/studiomoob/llmoobfs/actions/runs/41347762042
+- CI: https://github.com/studiomoob/llmoobfs/actions/runs/41347762103
+
+These are started executions, not passed-check claims. Live/latest results are on the PR's
+Checks tab; documentation-only publication records may supersede initial runs through the
+existing concurrency settings. No protection setting, issue closure, merge, Azure operation
+or unrelated publication was performed. The PR explicitly retains all local evidence limits,
+first-night incompleteness, S18 open status and pending nightly permission integration.
+Next: inspect exact-head checks/logs, correct any batch-scoped failure, and obtain separate
+maintainer approval before merge. Local source-validation snapshots remain immutable.

@@ -370,3 +370,7 @@ one run of the fstests `auto` group
 uma rodada do grupo `auto` do fstests
 The auto group ran once on the three: 1, 4 and 1 failures of 779 tests
 O grupo auto rodou uma vez nos três: 1, 4 e 1 falhas em 779 testes
+
+# 2026-11-01: first mutation/gcov workflow executions started in PR 181.
+complete nightly reports and first S14/S17 CI runs remain pending
+written and has not run on GitHub yet, so no report exists
