@@ -313,3 +313,26 @@ and the btrfs queue are unchanged. Next scheduled night uses the corrected harne
 the first night is still incomplete, zero of seven complete nights accepted. No new
 full module suite is claimed for this harness-only correction. The original full-suite
 snapshot remains `569ec2a`. No QEMU remained from the replay control after completion.
+
+
+## Authorized daytime long permissions campaign (2026-11-01)
+
+The maintainer authorized running the missing longer profile now. Started at 08:05:25
+Brasília time in an independent clone of `06e4a65`, under slotA on CPUs 4–5:
+MOOB_ONLY=permchurn MOOB_PERMCHURN=24,96,20261031, timeout 3600 seconds including build,
+then KILL after 15 seconds. This retains the first night's seed range and 96-step profile.
+The existing btrfs auto guest stays on slotB/CPUs 6–7 and was not interrupted. Available
+memory and slot locks were checked before launch; no other KASAN campaign was running.
+This is a focused daytime validation, not another nightly report or a complete suite.
+
+A unique driver retains source revision, hashes before/after, test exit status and final
+marker under the dedicated host's b11night/s15-long-20261101/. Result pending: accept only
+after checking all three lower step markers, final KASAN-only marker, real exit status,
+source identity and diagnostics. A timeout is not a pass. Latest calendar deadline is
+about 09:05 Brasília time, plus the explicit 15-second final kill allowance.
+
+The existing local marker notifier was extended with this run's done path, not duplicated.
+Its prior sole process was stopped, its lock confirmed free, then it was restarted in the
+same shell terminal; exactly one process observed (PID 94386). Prior send receipts persist,
+so completed events are not resubmitted. Both this marker and btrfs completion are watched.
+No publication approval was given; push, PR, main merge and public edits remain prohibited.
