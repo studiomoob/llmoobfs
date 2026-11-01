@@ -278,3 +278,10 @@ This final documentation synchronization does not change workflow/runtime source
 PR head must pass its own required checks before a merge decision. Results of that unchanged
 validation payload will be reflected in local coordination and the PR rather than repeatedly
 pushing documentation-only changes merely to name each new head.
+
+
+*Calendar correction, 2026-11-01:* the preceding acceptance note's roughly 29-hour span
+mixed UTC and Brasília time. From implementation start on 2026-10-31 at 15:18 UTC to the
+passing coverage result on 2026-11-01 at 23:27 UTC is about **32 hours 9 minutes of calendar
+time**, mostly machine time and waits. Attended engineering effort remains unmeasured.
+The recorded run results, source snapshots and acceptance are unchanged.
