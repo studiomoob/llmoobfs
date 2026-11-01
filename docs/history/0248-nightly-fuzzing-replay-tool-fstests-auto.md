@@ -317,3 +317,12 @@ preserve possible active work. Previously verified S15/full-suite/ext4/XFS evide
 unchanged. G6 reports its independent Debian VM prepared and shut down; this access issue
 concerns the distinct dedicated host. Next: inspect actual btrfs logs/markers after access
 returns, preserving the existing observer and avoiding duplicate execution.
+
+
+Recovery, 2026-11-01 09:59 Brasília time: bounded SSH succeeded again. Host uptime is
+1 day 21 hours and the original btrfs QEMU PID 273025 remains, running for 4 h 43 min.
+Console advanced to generic/319 at 09:59:24; no final done marker yet. The run continued
+through the access outage. No reboot, test restart or replacement monitor was performed.
+The maintainer reported a possible temporary connectivity outage; its exact network cause
+was not independently diagnosed. Peer instances were informed that host access is restored
+but btrfs retains slotB. Approval remains pending its actual final logs and verdict.
