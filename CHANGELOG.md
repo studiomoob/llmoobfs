@@ -15,7 +15,8 @@
   negative counter. The coverage-only module build now uses atomic profile updates and
   preserves compiler notes/configuration and build hashes. Its next suite passed but the
   distro LCOV 2.0 failed on macro branch merging; the same saved counters produce a valid
-  report with LCOV 2.6. That release is now pinned by SHA-256; updated workflow awaits CI.
+  report with LCOV 2.6. That release is pinned by SHA-256. CI run 41357772643 passed on 1071845:
+  2,250/3,120 branches (72.1%); report/HTML, suite markers and artifact hashes checked.
 - S15 permission-sequence harness (journal 0250, validation in progress): the default
   `permchurn` suite step runs seeded chmod, chown, access-ACL, rename, link and unlink
   sequences against the lower kernel as nine identities, including delayed builds.

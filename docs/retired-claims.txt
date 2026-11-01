@@ -374,3 +374,8 @@ O grupo auto rodou uma vez nos três: 1, 4 e 1 falhas em 779 testes
 # 2026-11-01: first mutation/gcov workflow executions started in PR 181.
 complete nightly reports and first S14/S17 CI runs remain pending
 written and has not run on GitHub yet, so no report exists
+
+# 2026-11-01: S17 pinned-tool CI passed; journal 0247.
+That release is now pinned by SHA-256; updated workflow awaits CI.
+the pinned-tool CI report remains pending.
+pinned-tool CI capture pending.

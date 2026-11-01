@@ -1,6 +1,6 @@
 # 0247 — CI jobs for the mutants of S14 and the branch coverage of S17
 
-Current status, 2026-11-01: **S14 CI passed; S17 CI reporting failed twice; saved-data LCOV 2.6 recapture passed; pinned-tool CI pending.** See the dated follow-up below.
+Current status, 2026-11-01: **S14 and S17 CI validated on 1071845, artifacts checked; two reporting failures and their fixes preserved below.** See the dated follow-up below.
 
 Original implementation checkpoint, 2026-10-31: **written, not yet run.** Both workflows exist on branch
 `claudiofp/b11-ci`; neither has run on GitHub, and neither was run locally (no KVM host was
@@ -234,3 +234,47 @@ Actionlint, offline pins and documentation checks are rerun before the authorize
 PR 181. S17 stays open until this updated workflow produces an inspectable CI artifact;
 S18 remains open with zero accepted complete nights. No production code, kernel cache,
 host scheduling, branch protection or merge authorization is changed.
+
+
+## S14/S17 CI acceptance (2026-11-01, reviewed about 20:29 Brasília time)
+
+All 19 PR checks passed on head `1071845358e4fc71face87d6f10718a1f936b57d`.
+The actual artifacts, not only the check conclusions, were downloaded and reviewed:
+
+- [Branch coverage run 41357772643](https://github.com/studiomoob/llmoobfs/actions/runs/41357772643):
+  full instrumented suite passed, collected three gcda files with suite exit 0; the pinned
+  release archive passed its SHA-256 check and `lcov --version` reports `2.6-0`. Capture,
+  summary, list, genhtml and the non-zero branch check passed. The artifact contains a valid
+  report and HTML: **2,250/3,120 branches (72.1%)**, **3,274/3,461 lines (94.6%)**, four source
+  records including the trace header. All recorded line/branch hits are non-negative. These
+  are this run's measured totals, not a coverage threshold or production-readiness claim.
+- [KASAN run 41357772580](https://github.com/studiomoob/llmoobfs/actions/runs/41357772580):
+  full-suite pass marker in the console and no diagnostic under `vm/kdiag.sh`'s rules in the
+  retained dmesg. The instrumented coverage run has the same successful sanitizer marker.
+- [Mutation run 41357772802](https://github.com/studiomoob/llmoobfs/actions/runs/41357772802):
+  the unmutated baseline's `MOOBFS_ONLY_PASS` and no VM/environment failure; all 23 distinct
+  catalogue IDs killed, each once, with none missing or surviving.
+
+The tested checkout is synthetic merge `66c980b87e0e7107fd22bbf14954a63115b89446`; its parents match
+`main` at `302bff0` and topic head `1071845`. Ten available source/notes/config hashes match
+and 95 artifact-file SHA-256 values are retained in the private verification JSON. Generated
+mod.c, the module and kernel binaries are named by the build manifest but absent from the
+artifact; this does not independently verify those bytes. The existing diagnostic warnings
+about raw QEMU image formats/SRSO are not kernel warnings under the harness rules.
+
+LCOV still emits an unexecuted-block warning at `index.c:240`. It is preserved in the job
+log; counters were not normalized, exception branches were not excluded, and no error was
+ignored. This does not invalidate the successful capture, but optimizer/gcov warnings and
+macro branch matching limit interpretation of the percentage. The two earlier failed
+reports remain failed evidence; the 71.8% offline recapture remains a separate measurement.
+
+S14's CI done check and S17's report/link done check are now met. This follow-up closes their
+CI investigation; initial implementation took about 15 minutes, and subsequent attended
+engineering effort was not measured separately from the roughly 29-hour calendar span.
+S15's complete-night integration and S18's accumulation remain open (zero accepted reports).
+No new test runner, host load or observer was started. The maintainer has not authorized merge.
+
+This final documentation synchronization does not change workflow/runtime sources. Its new
+PR head must pass its own required checks before a merge decision. Results of that unchanged
+validation payload will be reflected in local coordination and the PR rather than repeatedly
+pushing documentation-only changes merely to name each new head.

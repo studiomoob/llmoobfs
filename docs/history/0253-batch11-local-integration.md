@@ -1,6 +1,6 @@
 # 0253 — Batch 11 local integration and complete-suite validation
 
-Date: 2026-10-31–2026-11-01. Status: **required local validation passed; PR 181 open for CI/review; S18 remains open**.
+Date: 2026-10-31–2026-11-01. Status: **local validation and all 19 PR checks passed on 1071845; documentation synchronization awaits its final checks; S18 remains open**.
 Work started about 13:17 Brasília time (UTC-3); this validation unit ended about 15:29. Calendar time, not measured engineering effort. Estimated effort: S
 for integration, plus machine time for the complete suites and long S2 runs.
 
@@ -568,3 +568,20 @@ rewrite is added. Journal 0247 records the failed alternative, remaining warning
 The coverage workflow now installs that SHA-256-pinned release. Offline checks passed before
 updating the same authorized PR; new CI validation remains pending, as do S17 and S18. Existing
 host jobs/observer are untouched; no main merge or unrelated publication is authorized.
+
+
+## CI validation accepted; final documentation synchronization (2026-11-01, 20:29 Brasília)
+
+All 19 checks on `1071845` passed. Journal 0247 records independently checked artifacts:
+mutation baseline plus 23/23 kills, full KASAN/lockdep, and valid CI LCOV/HTML output with
+2,250/3,120 branches (72.1%) and 3,274/3,461 lines (94.6%). The real tested synthetic-merge
+parents, ten available source/notes/config hashes, 95 artifact hashes and actual markers
+were checked. Explicit limitations include absent binary/generated-source bytes and LCOV's
+retained non-zero unexecuted-block warning. No ignored errors, exclusions or counter rewrite.
+
+S14 CI and S17's report acceptance are complete. The first incomplete night remains 0/7;
+S15 nightly integration/S18, S16's freeze decision and the later items retain their existing
+status. This final record changes documentation only. Its head must pass required checks
+before requesting the separate main-merge approval; no further documentation-only push is
+needed solely to record the unchanged validation payload's new check IDs. Existing host
+jobs/observer are preserved. Push/PR181 updates remain authorized; merge is not authorized.

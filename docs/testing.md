@@ -658,8 +658,9 @@ and neither had run on GitHub when it was added. The first mutation run passed; 
 coverage suite passed but its LCOV report failed on a negative counter. The coverage-only
 module build now uses atomic profile updates and keeps notes, configuration and build hashes;
 the next suite passed but LCOV 2.0 rejected macro branch merging. A saved-data recapture
-passed with LCOV 2.6; that release is pinned by SHA-256, with its CI report pending
-(dated follow-ups in journal 0247).
+passed with LCOV 2.6; that release is pinned by SHA-256. CI run 41357772643 then passed
+on 1071845, with report/HTML and suite markers checked (2,250/3,120 branches, 72.1%;
+dated follow-ups in journal 0247).
 Logs are temporary Actions artifacts; permanent conclusions belong
 in the journal with links to the run. The Pages workflow publishes only `site/`.
 Preview locally with `python3 -m http.server 8080 --directory site`.
