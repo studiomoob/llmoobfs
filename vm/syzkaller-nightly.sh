@@ -60,7 +60,7 @@ if [ ! -f "$N/permchurn.done" ] && [ $((FEND - $(date +%s))) -gt 600 ]; then
     # S15's longer nightly campaign. This script runs from the integrated batch tree.
     FIRST=$(date -d "$ID" +%Y%m%d)
     LEFT=$((FEND - $(date +%s)))
-    LIMIT=${NIGHT_PERMCHURN_S:-1200}
+    LIMIT=${NIGHT_PERMCHURN_S:-3600}
     [ "$LIMIT" -le "$LEFT" ] || LIMIT=$LEFT
     PC_RC=0
     MOOB_ONLY=permchurn MOOB_PERMCHURN=${MOOB_PERMCHURN:-24,96,$FIRST} \
@@ -114,8 +114,12 @@ fi
 if [ -f "$N/fuzz.done" ] && [ ! -f "$N/replay.done" ] && [ "$(date +%s)" -lt "$WEND" ]; then
     echo "$(stamp) replay" >> "$N/events.txt"
     LEFT=$((WEND - $(date +%s)))
-    if REPLAY_DEADLINE=$WEND REPLAY_CACHE=$REP/replay-cache pin timeout --kill-after=15 "$LEFT" sh vm/syzkaller-replay.sh \
-        "$N/replay" "$N/corpus.db" vm/syzkaller/seeds > "$N/replay.log" 2>&1; then
+    # Leave time to stop guests, aggregate the cache and write the partial verdict.
+    REPLAY_RC=0
+    REPLAY_DEADLINE=$((WEND - 30)) REPLAY_CACHE=$REP/replay-cache pin timeout --kill-after=15 "$LEFT" sh vm/syzkaller-replay.sh \
+        "$N/replay" "$N/corpus.db" vm/syzkaller/seeds > "$N/replay.log" 2>&1 || REPLAY_RC=$?
+    echo "$REPLAY_RC" > "$N/replay.exit"
+    if [ "$REPLAY_RC" = 0 ]; then
         stamp > "$N/replay.done"
     fi
     rm -rf "$N/replay/progs"
@@ -129,6 +133,7 @@ fi
     if [ ! -f "$N/permchurn.done" ]; then echo "permchurn: not complete"; fi
     if [ ! -f "$N/fuzz.done" ]; then echo "fuzzing: did not end (see events.txt)"; fi
     if [ -f "$N/fuzz.exit" ]; then echo "fuzzing_exit=$(cat "$N/fuzz.exit")"; fi
+    if [ -f "$N/replay.exit" ]; then echo "replay_exit=$(cat "$N/replay.exit")"; fi
     if [ -f "$N/summary.txt" ]; then cat "$N/summary.txt"; fi
     for d in "$N"/part*/crashes/*/; do
         if [ -f "$d/description" ]; then sed 's/^/crash (earlier part): /' "$d/description"; fi

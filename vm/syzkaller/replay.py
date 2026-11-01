@@ -71,6 +71,12 @@ class Guest:
         print(f'replay[{self.idx}] {time.strftime("%H:%M:%S")} {msg}', flush=True)
 
     def run(self, cmd, inp=None, timeout=120):
+        deadline = getattr(self.a, 'deadline', 0)
+        if deadline:
+            left = deadline - time.time()
+            if left <= 0:
+                raise subprocess.TimeoutExpired(cmd, 0)
+            timeout = min(timeout, left)
         return subprocess.run(self.ssh + [cmd], input=inp, capture_output=True, timeout=timeout)
 
     def boot(self):
@@ -88,6 +94,8 @@ class Guest:
         self.proc = subprocess.Popen(qemu, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL)
         end = time.time() + 300
+        if a.deadline:
+            end = min(end, a.deadline)
         while time.time() < end:
             if self.proc.poll() is not None:
                 break
@@ -159,6 +167,8 @@ def worker_run(g, q, a, stats, lock):
             break
         result = None
         for attempt in range(2):
+            if a.deadline and time.time() >= a.deadline:
+                break
             if not up:
                 up = g.boot()
                 if not up:
@@ -173,7 +183,8 @@ def worker_run(g, q, a, stats, lock):
             up = False
         with lock:
             if result is None:
-                stats['failed'].append(name)
+                if not a.deadline or time.time() < a.deadline:
+                    stats['failed'].append(name)
             else:
                 tmp = os.path.join(a.cache, key + '.tmp')
                 with open(tmp, 'w') as f:
@@ -191,7 +202,8 @@ def worker(g, q, a, stats, lock):
     except Exception as exc:
         g.log(f'worker failed: {exc}')
         with lock:
-            stats['failed'].append(f'guest-{g.idx}: {exc}')
+            if not a.deadline or time.time() < a.deadline:
+                stats['failed'].append(f'guest-{g.idx}: {exc}')
     finally:
         g.stop()
 
@@ -253,7 +265,9 @@ def main():
                 union.update(int(x, 16) for x in f.read().split())
     with open(os.path.join(a.out, 'union.txt'), 'w') as f:
         f.write(''.join(f'{x:x}\n' for x in sorted(union)))
-    left = q.qsize()
+    # A deadline can interrupt an item already removed from the queue.
+    left = sum(not os.path.exists(os.path.join(a.cache, keys[name]))
+               and name not in stats['failed'] for name in progs)
     summary = (f'programs={len(progs)} replayed={have} run_now={stats["run"]} '
                f'failed={len(stats["failed"])} not_reached={left} module_text_pcs={len(union)}\n')
     with open(os.path.join(a.out, 'replay.txt'), 'w') as f:

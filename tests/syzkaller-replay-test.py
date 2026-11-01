@@ -5,9 +5,11 @@ import importlib.util
 from pathlib import Path
 import queue
 import subprocess
+import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 spec = importlib.util.spec_from_file_location(
     'replay', Path(__file__).resolve().parents[1] / 'vm/syzkaller/replay.py')
@@ -16,6 +18,36 @@ spec.loader.exec_module(replay)
 
 
 class ReplayControls(unittest.TestCase):
+    def test_transport_respects_remaining_window(self):
+        g = replay.Guest(SimpleNamespace(port=10000, key='unused', deadline=103), 0, '')
+        with mock.patch.object(replay.time, 'time', return_value=100), \
+                mock.patch.object(replay.subprocess, 'run') as run:
+            g.run('true', timeout=120)
+            self.assertEqual(run.call_args.kwargs['timeout'], 3)
+        with mock.patch.object(replay.time, 'time', return_value=103), \
+                mock.patch.object(replay.subprocess, 'run') as run:
+            with self.assertRaises(subprocess.TimeoutExpired):
+                g.run('true')
+            run.assert_not_called()
+
+    def test_dequeued_unfinished_program_remains_in_summary(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / 'progs').mkdir()
+            for name in ['kernel', 'ko', 'progs/seed']:
+                (root / name).write_text('fixture')
+            args = ['replay', '--kernel', str(root / 'kernel'), '--image', 'unused',
+                    '--key', 'unused', '--bin', 'unused', '--ko', str(root / 'ko'),
+                    '--progs', str(root / 'progs'), '--out', str(root / 'out')]
+            # Simulate a worker interrupted after dequeue, before any cache entry.
+            def interrupted(g, q, a, stats, lock):
+                q.get_nowait()
+            with mock.patch.object(replay.sys, 'argv', args), \
+                    mock.patch.object(replay, 'text_size', return_value=32), \
+                    mock.patch.object(replay, 'worker', interrupted):
+                self.assertEqual(replay.main(), 1)
+            self.assertIn('not_reached=1', (root / 'out/replay.txt').read_text())
+
     def test_guest_script_formats_and_parses(self):
         script = replay.GUEST_SCRIPT.format(timeout=60)
         self.assertEqual(subprocess.run(['sh', '-n'], input=script, text=True).returncode, 0)

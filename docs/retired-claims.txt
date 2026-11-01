@@ -358,3 +358,6 @@ Open: a repeat of `auto` with those lists, and a make target.
 
 # 2026-10-31: XFS exclusion-list rerun independently verified.
 XFS and btrfs reruns remain pending.
+
+# 2026-11-01: first report exists but is incomplete.
+First nightly campaign and seven reports pending.

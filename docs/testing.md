@@ -554,7 +554,7 @@ keeps the module in guests.
   funccover.csv` gives the manager's own count of the same functions beside it.
 - **`vm/syzkaller-nightly.sh <reports dir>`** (S18): one night, from its start to `NIGHT_END`
   (05:00 by default): the extended S15 permission campaign under KASAN
-  (`MOOB_PERMCHURN=24,96,YYYYMMDD`, at most 20 minutes), the build steps, `vm/syzkaller-local.sh ... run` with the corpus kept
+  (`MOOB_PERMCHURN=24,96,YYYYMMDD`, at most 60 minutes), the build steps, `vm/syzkaller-local.sh ... run` with the corpus kept
   from the previous night and the seeds added, stopped an hour before the end, then the replay
   over the night's corpus and the seeds, and `report.txt` per night plus a line in
   `nights.txt`. Restartable after a power cut. The host's crontab, with `SYZ`, `GO`,
@@ -566,7 +566,9 @@ keeps the module in guests.
   ```
 
   `vng` must be on `PATH`. The script uses GNU `timeout` to bound builds and replay
-  at the end of the window (TERM, then KILL after 15 seconds); interrupted or failed phases
+  at the end of the window (TERM, then KILL after 15 seconds). Replay guest work stops
+  30 seconds earlier, with SSH/boot operations capped by that deadline, to leave time for
+  cache aggregation; replay.exit retains the phase result. Interrupted or failed phases
   remain visible in the report. Offline harness controls: `python3 tests/syzkaller-replay-test.py`.
 
   The installed schedule uses a dedicated frozen Git clone under `nightly-src/`

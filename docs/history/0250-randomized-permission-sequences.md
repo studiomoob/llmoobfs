@@ -116,3 +116,9 @@ Debian at 14:09 and KASAN/UBSAN/lockdep at 15:27 Brasília time, with all source
 preserved. The six-default-seed permchurn step passed on all lowers in both suites.
 The scheduled frozen clone includes the longer S15 campaign; first execution pending.
 S15 remains in progress until that longer campaign is recorded.
+
+
+Update, 2026-11-01: the first scheduled 24-seed/96-step campaign timed out after
+20 minutes: ext4 completed, btrfs 20 seeds, no XFS/final marker. It is not a pass.
+Journal 0248 records evidence and the increased next-run budget; the longer campaign
+remains pending. Earlier complete and focused KASAN results remain distinct.

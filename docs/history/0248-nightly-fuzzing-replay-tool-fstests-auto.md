@@ -184,3 +184,45 @@ was duplicated. S2's exclusion-list rerun is now verified for ext4 and XFS; btrf
 pending. Resource notices were sent to the existing G6 and corporate instances.
 Public surfaces outside this local branch remain unchanged pending approval.
 No push, PR, merge to main or publication.
+
+
+## First scheduled night incomplete; deadline corrections (2026-11-01)
+
+Inspection began at 05:00 Brasília time. The October 31 night ran 23:00:02–05:00:00.
+Fuzzing exited 0 after 16,690 seconds: corpus 1,244, 593,680 executions, manager coverage
+16,737, zero crash directories. Manager handler count 687/809 (84.9%) is not ADR-0032's
+call-site metric and does not replace S3. Build/run logs and phase markers were inspected.
+
+The extended permissions stage exited 124 at its 1,200-second limit. Its console has all
+24 ext4 seed passes and its ext4 step marker (82,944 QUERY2 checks), followed by 20 btrfs
+seed passes; no completed btrfs/XFS step or final KASAN marker. The full S15 nightly
+campaign did not pass. There is no final diagnostic capture from this interrupted guest.
+The captured output includes QEMU redirection/image-format warnings; replay guest 0 also
+reports the kernel's deprecated mand mount option. These are retained, not presented as a
+completed clean instrumented suite. No kernel correction is inferred from this timeout.
+
+Replay started at 04:00:02 with 1,261 unique programs and no prior entries. It cached 260
+programs before the outer 05:00 timeout killed aggregation: replay.done, replay.txt,
+union.txt and callsites.txt are absent. Report existence is not completion; zero of seven
+complete nightly reports are accepted. The original script did not save replay's exit
+status, so it cannot be reconstructed as a measured code after the fact. No automatic
+repeat of this night was started, and the original cache/corpus remain intact.
+
+Post-run comparison: 1,810 tracked paths against `569ec2a`; only the generated
+vm/syzkaller/moobfs.txt.const differs (getxattr syscall constant replaces chdir). Source
+comparison is not a pre/post proof: no per-night pre-run manifest existed. The replay cache
+is scoped to module SHA256 a0f6ff09405e8a521c5852f2c80a40065c5c7bf0dc23bb6453fa88832437a85c
+and its kernel. Evidence was copied locally and SHA256-verified as
+night-2026-10-31-final.tar.gz:
+b2b0e5c04c326ae102dce1a2047dc78fff3ef75024fdd4323820f27d91811e48.
+The adjacent verification JSON lists source hashes, partial markers and cache count.
+
+Harness corrections: allow up to 3,600 seconds for 24 permission seeds on all lowers;
+retain the nightly deadline. End replay work 30 seconds before the hard window cutoff,
+cap each guest SSH operation and boot loop by that deadline, save replay.exit explicitly,
+and include a dequeued unfinished program in not_reached. Expiry preserves cache entries
+and is not mislabeled as a completed/failed program. Five offline controls passed; removing
+the SSH deadline cap and interrupted-program accounting makes two fail. Shell syntax and
+whitespace checks passed. Real bounded replay and deployment validation are pending below.
+Both slots were free with no QEMU at inspection; the existing btrfs queue after 05:15 and
+the scheduled next night are preserved. No duplicated test/monitor and no publication.

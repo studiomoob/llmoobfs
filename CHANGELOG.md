@@ -21,7 +21,8 @@
   The real three-seed replay smoke and both full integration suites passed; the nightly
   schedule was installed on 2026-10-31. The ext4 exclusion-list rerun passed with
   229 pass, 549 notrun and zero fail; XFS also passed with 372 pass, 406 notrun and
-  zero fail. The btrfs rerun and nightly reports remain pending.
+  zero fail. The btrfs rerun remains pending. The first nightly report records incomplete permissions
+  and replay phases; corrected time budgets and replay deadline/accounting are under validation.
 
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be
