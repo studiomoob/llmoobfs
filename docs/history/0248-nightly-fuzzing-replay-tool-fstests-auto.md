@@ -302,3 +302,18 @@ original full VM/KASAN snapshot `569ec2a` and this focused evidence are kept dis
 slotA/CPUs 4–5 is released; btrfs auto continues alone in slotB (generic/170 at inspection).
 Other instances are informed of resource ownership and the result. No duplicated test or
 monitor, push, PR, main merge or public edit.
+
+
+## Dedicated-host access unavailable (2026-11-01, about 09:51 Brasília time)
+
+A status query to the dedicated host did not respond. A separate bounded SSH connection
+(7-second connect timeout, one attempt) returned "Operation timed out" on port 22.
+The local notifier remains alive and logged marker-read unavailability at 09:50:59.
+The current btrfs run state is unknown: the last successful check at 08:52 had no final
+marker and console progress at generic/175. This does not establish a failed or stopped
+run. No host reboot, test restart, replacement runner or extra monitor was attempted.
+Only the old local read-only SSH query was terminated. Peer instances were notified to
+preserve possible active work. Previously verified S15/full-suite/ext4/XFS evidence is
+unchanged. G6 reports its independent Debian VM prepared and shut down; this access issue
+concerns the distinct dedicated host. Next: inspect actual btrfs logs/markers after access
+returns, preserving the existing observer and avoiding duplicate execution.
