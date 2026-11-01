@@ -420,3 +420,29 @@ exclusive project use and the daytime queue. The criterion of seven complete nig
 reports remains recorded; no overnight criterion is silently counted as met by daytime
 work. Publication remains unauthorized. Next: inspect actual daytime replay outcomes and
 retain separate evidence when the existing notifier reports completion.
+
+
+## Coordinated unattended continuity (2026-11-01)
+
+The maintainer authorized continued use of the two local project hosts during his absence,
+with resource coordination across the existing fronts. Azure decisions are explicitly
+postponed; the inventoried cloud VM remains deallocated. No cloud start/create/resize,
+publication authorization or implicit change to the freeze/batch order follows from this.
+
+Btrfs retains slotB and the pending-corpus replay retains slotA. At 10:51 the same btrfs
+QEMU remained active (console generic/476), and the replay guest was up since 10:40:54.
+G6 was actively resumed in its existing session for nonintrusive recovery/identification
+of the new Debian host, verified G5 assets, launcher adaptation and offline preparation
+that can progress while access is unavailable. The prepared guest and corporate evidence
+remain preserved; no mounted G6 experiment is authorized ahead of the security batches.
+The corporate front retains its separately authorized research/materials work and will
+coordinate any new host workload rather than restarting its old guests independently.
+
+The same sole marker observer was updated to keep watching later per-date nightly reports,
+besides btrfs/daytime replay, throughout a bounded 48-hour window instead of exiting after
+the initial events. Existing receipts prevent duplicate submissions. Its old process was
+stopped, free lock checked and one replacement PID 16326 confirmed in the existing helper
+terminal. No additional observer or test runner was added. Each new report triggers review,
+not automatic acceptance. Local rules, pending list, host registry and HTML map were updated
+under the agreed lock. Next: verify real completion evidence, record findings and keep the
+next available authorized work ready for maintainer review without publishing.

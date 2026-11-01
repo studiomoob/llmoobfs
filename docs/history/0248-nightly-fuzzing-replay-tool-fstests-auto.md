@@ -360,3 +360,9 @@ exclusive project use and the daytime queue. The criterion of seven complete nig
 reports remains recorded; no overnight criterion is silently counted as met by daytime
 work. Publication remains unauthorized. Next: inspect actual daytime replay outcomes and
 retain separate evidence when the existing notifier reports completion.
+
+
+Continuity, 2026-11-01: the existing sole observer now watches subsequent per-date
+nightly reports as well as pending btrfs/daytime replay for 48 hours, retaining receipts.
+One active process PID16326 confirmed. Report existence never implies approval.
+Azure operations are explicitly deferred by the maintainer; both local host queues continue.
