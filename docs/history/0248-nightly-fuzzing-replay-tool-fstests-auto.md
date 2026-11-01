@@ -326,3 +326,37 @@ through the access outage. No reboot, test restart or replacement monitor was pe
 The maintainer reported a possible temporary connectivity outage; its exact network cause
 was not independently diagnosed. Peer instances were informed that host access is restored
 but btrfs retains slotB. Approval remains pending its actual final logs and verdict.
+
+
+## Idle daytime slot used for pending replay (2026-11-01)
+
+The maintainer clarified that the dedicated host and new Debian host are exclusively for
+our project fronts and reminded us of an existing Azure VM. This permits coordinating
+available daytime windows; it does not by itself change acceptance criteria or batch order.
+Read-only Azure inventory found Linux VM moobfs, size Standard_D4as_v4, deallocated.
+No cloud VM was started, resized or created. Infrastructure identities remain outside Git.
+
+At 10:39:38 Brasília time a unique daytime continuation of the first night's corpus replay
+started in the unused slotA, CPUs 4–5, while btrfs keeps slotB/CPUs 6–7. Source `06e4a65`,
+module SHA256 a0f6ff09405e8a521c5852f2c80a40065c5c7bf0dc23bb6453fa88832437a85c,
+same snapshot image/kernel and shared content-addressed replay cache: 1,261 unique programs,
+260 already cached, only 1,001 pending. Guest readiness was confirmed at 10:40:54.
+This continues pending work instead of replaying completed programs. It is not another
+fuzzing campaign, a new S3 result or retroactive approval of the incomplete first night.
+Original night artifacts are preserved; the daytime result has its own directory.
+
+The driver captures source hashes before/after, real exit status and final markers and
+takes slotA. Work deadline 21:29:30, outer cutoff 21:30 plus 15-second kill allowance, to
+release the host before the scheduled 23:00 window. Result pending. The existing sole
+notifier was extended for this marker. Initial PID matching failed to identify the old
+process and the lock correctly rejected a concurrent observer; terminal input sent while
+Python held the foreground did not start the replacement. The old observer was then
+identified exactly and stopped, its free lock verified, and the same shell restarted once.
+One observer (PID 2122) was confirmed, retaining all previous send receipts. No test was
+interrupted and no duplicate observer/guest was left running.
+
+Peer fronts were informed; the local map, rules, pending list and host registry reflect
+exclusive project use and the daytime queue. The criterion of seven complete nightly
+reports remains recorded; no overnight criterion is silently counted as met by daytime
+work. Publication remains unauthorized. Next: inspect actual daytime replay outcomes and
+retain separate evidence when the existing notifier reports completion.
