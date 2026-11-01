@@ -572,7 +572,8 @@ keeps the module in guests.
   remain visible in the report. Offline harness controls: `python3 tests/syzkaller-replay-test.py`.
 
   The installed schedule uses a dedicated frozen Git clone under `nightly-src/`
-  (snapshot `569ec2a`, journal 0253). For a copy without `.git`, put its source commit
+  (initial snapshot `569ec2a`, corrected harness `06e4a65` installed on 2026-11-01;
+  journals 0248/0253). For a copy without `.git`, put its source commit
   in `REVISION` so the reports identify it. Do not edit the source while a night runs.
 
 ## 7. Adding a lower filesystem

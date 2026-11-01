@@ -22,7 +22,8 @@
   schedule was installed on 2026-10-31. The ext4 exclusion-list rerun passed with
   229 pass, 549 notrun and zero fail; XFS also passed with 372 pass, 406 notrun and
   zero fail. The btrfs rerun remains pending. The first nightly report records incomplete permissions
-  and replay phases; corrected time budgets and replay deadline/accounting are under validation.
+  and replay phases; corrected replay deadline/accounting passed bounded and resumed guest
+  controls and were installed for the next night. The longer permission campaign remains pending.
 
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be

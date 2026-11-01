@@ -286,3 +286,30 @@ the SSH deadline cap and interrupted-program accounting makes two fail. Shell sy
 whitespace checks passed. Real bounded replay and deployment validation are pending below.
 Both slots were free with no QEMU at inspection; the existing btrfs queue after 05:15 and
 the scheduled next night are preserved. No duplicated test/monitor and no publication.
+
+
+### Corrected deadline validated and installed (2026-11-01 05:05 Brasília time)
+
+Real bounded replay on snapshot `06e4a65`, one guest on CPUs 4–5 under slotA: at the
+75-second deadline it retained 2/3 programs, failed=0, not_reached=1, exit 1. It saved
+replay.txt, union.txt and CALLSITES 340/781 before returning; the unfinished program was
+not cached as successful. Resuming that same test cache ran only the remaining program:
+3/3 replayed, failed=0, not_reached=0, exit 0, 911 module-text PCs and 341/781 call sites.
+This is a three-seed harness control, not the nightly corpus or a new S3 measurement.
+Completed at 05:05:13. ShellCheck and all five offline controls also passed on the host.
+The clone was clean at launch; its 1,812 source hashes were collected during the control,
+matched the Git snapshot and were checked again after execution. No source file changed.
+
+The first remote launch transport timed out while the detached command was already
+running. Processes/logs were inspected; no second launch or duplicate guest was created.
+Control evidence and hashes are archived locally as replay-check-06e4a65-final.tar.gz,
+SHA256 ab260cea9c73ae8e642c9bbb9550aebf96ef5c1e0171723bc6e8848fc32d4fee,
+with its verification JSON. Original nightly corpus/cache/report remain preserved separately.
+
+At 05:05:28 both daytime slot locks were acquired and the host wrapper was atomically
+switched to a separate clean clone, nightly-next-06e4a65; old wrapper backed up. Crontab
+and the btrfs queue are unchanged. Next scheduled night uses the corrected harness and
+60-minute maximum permission-stage budget. That longer campaign has not yet passed;
+the first night is still incomplete, zero of seven complete nights accepted. No new
+full module suite is claimed for this harness-only correction. The original full-suite
+snapshot remains `569ec2a`. No QEMU remained from the replay control after completion.
