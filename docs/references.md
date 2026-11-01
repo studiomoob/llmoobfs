@@ -1203,6 +1203,16 @@ hand and carries the same code paths:
   test-host tree, add arc instrumentation but not atomic updates. Used for the isolated
   coverage module-build correction and concurrent positive/negative control in journal 0247.
 
+
+- LCOV 2.6 [official release](https://github.com/linux-test-project/lcov/releases/tag/v2.6),
+  published 2026-10-03 (not marked prerelease), asset `lcov-2.6.tar.gz`, SHA-256
+  `67a45db99b8ef0260c3fac9a2e3749fd8fa350a15e235dd3c29b356d97755c75`.
+  Release metadata and bytes verified on 2026-11-01. The `geninfo` manual's branch
+  identification/matching section, retrieved through Context7, describes matching blocks
+  by signature when macros expand multiple expressions at one line. Used to replace the
+  distro 2.0 parser after reproducing its trace-macro mismatch and successfully recapturing
+  the same CI notes/counters with the pinned release (journal 0247). No branch exclusions.
+
 ## 45. Nightly fuzzing and per-call corpus replay (journal 0248)
 
 - syzkaller at `8fb0ae898` (Apache-2.0, already used in §1):

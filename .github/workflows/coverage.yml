@@ -25,6 +25,8 @@ concurrency:
   group: coverage-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 env:
+  LCOV_VERSION: '2.6'
+  LCOV_SHA256: 67a45db99b8ef0260c3fac9a2e3749fd8fa350a15e235dd3c29b356d97755c75
   KERNEL_VERSION: 6.12.112
   KERNEL_SHA256: 164dc9d1f6c93c61a15e1f071c48379b467f2b17c469cce7223471968208ed03
 jobs:
@@ -45,6 +47,15 @@ jobs:
             e2fsprogs btrfs-progs xfsprogs sqlite3 libsqlite3-dev git dmsetup acl lcov
           python3 -m pip install --user --require-hashes -r vm/kasan-requirements.txt   # virtme-ng 1.41 and deps, by hash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install pinned LCOV for macro-expanded branches
+        run: |
+          # The distro lcov supplies Perl dependencies; its 2.0 parser cannot merge trace macros.
+          mkdir -p build/lcov
+          curl -fsSL -o build/lcov.tar.gz "https://github.com/linux-test-project/lcov/releases/download/v${LCOV_VERSION}/lcov-${LCOV_VERSION}.tar.gz"
+          echo "${LCOV_SHA256}  build/lcov.tar.gz" | sha256sum -c -
+          tar -xzf build/lcov.tar.gz -C build/lcov --strip-components=1
+          build/lcov/bin/lcov --version
+          echo "$GITHUB_WORKSPACE/build/lcov/bin" >> "$GITHUB_PATH"
       - name: Let QEMU use KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

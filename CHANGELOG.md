@@ -13,7 +13,9 @@
   shellcheck, `check-pins.sh --offline` (with a negative round), retired claims. First CI:
   mutation baseline and all 23 mutants passed; coverage suite passed but LCOV rejected a
   negative counter. The coverage-only module build now uses atomic profile updates and
-  preserves compiler notes/configuration and build hashes; corrected capture awaits CI.
+  preserves compiler notes/configuration and build hashes. Its next suite passed but the
+  distro LCOV 2.0 failed on macro branch merging; the same saved counters produce a valid
+  report with LCOV 2.6. That release is now pinned by SHA-256; updated workflow awaits CI.
 - S15 permission-sequence harness (journal 0250, validation in progress): the default
   `permchurn` suite step runs seeded chmod, chown, access-ACL, rename, link and unlink
   sequences against the lower kernel as nine identities, including delayed builds.

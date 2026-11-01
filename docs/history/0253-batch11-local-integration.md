@@ -551,3 +551,20 @@ check. No production source or normal build changed. Actionlint, pin checks and 
 positive/negative control passed; updated CI remains pending. S17 and S18 stay open, and the
 first incomplete night stays 0/7 accepted. Existing host jobs and observer were preserved.
 Push/update of this branch and PR 181 is authorized; merge still requires separate approval.
+
+
+## Saved-data coverage recapture; pinned tool awaiting CI (2026-11-01, about 19:33 Brasília)
+
+Head `d5f2b30` again passed 18/19 checks; KASAN and mutation artifacts were downloaded and
+verified, including all 23 kills and baseline. The coverage suite passed and its raw GCC JSON
+has no negative line/branch counts, but LCOV 2.0 failed to merge TRACE_EVENT branches at the
+same header line. Notes, tested synthetic-merge parents and ten available source/notes/config
+hashes were checked; absent binary/generated-source bytes remain an explicit artifact limit.
+
+The same saved inputs reproduce the old parser failure and complete capture/summary/list/HTML
+with the official LCOV 2.6 release: 2,241/3,120 branches, 3,264/3,461 lines. This is an offline
+recapture of CI data, not a successful CI reporting job. No exclusion, ignored error or counter
+rewrite is added. Journal 0247 records the failed alternative, remaining warning and exact pin.
+The coverage workflow now installs that SHA-256-pinned release. Offline checks passed before
+updating the same authorized PR; new CI validation remains pending, as do S17 and S18. Existing
+host jobs/observer are untouched; no main merge or unrelated publication is authorized.

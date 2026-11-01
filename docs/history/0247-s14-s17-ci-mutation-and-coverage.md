@@ -1,6 +1,6 @@
 # 0247 — CI jobs for the mutants of S14 and the branch coverage of S17
 
-Current status, 2026-11-01: **S14 CI passed; S17 first capture failed; atomic-counter correction awaiting CI.** See the dated follow-up below.
+Current status, 2026-11-01: **S14 CI passed; S17 CI reporting failed twice; saved-data LCOV 2.6 recapture passed; pinned-tool CI pending.** See the dated follow-up below.
 
 Original implementation checkpoint, 2026-10-31: **written, not yet run.** Both workflows exist on branch
 `claudiofp/b11-ci`; neither has run on GitHub, and neither was run locally (no KVM host was
@@ -182,3 +182,55 @@ missing counters. The original failure evidence is preserved.
 Offline actionlint and pin checks passed for this correction. The concurrent control passed
 its positive and negative checks. The corrected full CI capture is pending: S17 stays open
 until the exact updated head produces an inspectable report with non-zero branch data.
+
+
+## Second CI failure isolated; saved-data recapture passes (2026-11-01)
+
+Follow-up began at 19:29 Brasília time; this reporting correction took about four minutes of
+calendar time, not measured engineering effort. On PR head `d5f2b30`, 18/19 checks passed.
+The downloaded mutation artifacts again confirm the baseline and 23/23 unique kills;
+[KASAN run 41354183859](https://github.com/studiomoob/llmoobfs/actions/runs/41354183859)
+has its full-suite marker with no diagnostic under the harness rules. All evidence was
+retained with file hashes outside Git; no second host campaign or monitor was started.
+
+[Coverage run 41354183773](https://github.com/studiomoob/llmoobfs/actions/runs/41354183773)
+compiled with atomic updates, passed the complete instrumented suite and collected three
+counter files (exit 0). The negative count did not recur. GCC 13.3 JSON of all three data
+files contains no negative line or branch count. LCOV 2.0 now fails at `moobl_trace.h:17`:
+`mismatched exception tag for id 0, 0: '0' -> '1'`. Raw JSON identifies several distinct
+functions expanded from the same TRACE_EVENT line, with different branch/exception shapes.
+The partial report is again rejected. A non-zero unexecuted-block warning remains; it is
+preserved and not suppressed or rewritten.
+
+The new evidence retention made a suite rerun unnecessary for this investigation. The tested
+checkout is GitHub's synthetic merge `e27922a674f6e8c98f471dcb5c87924f81749010`, whose parents
+were checked against main and PR head `d5f2b30`; it is not the topic head itself. An initial
+verification that assumed checkout equals head was corrected to validate those parents.
+Ten available source/notes/config hashes match. The manifest also names generated mod.c,
+module and kernel binaries absent from the artifact; those bytes cannot be independently
+verified from this artifact and are not described as checked.
+
+In a bounded local Ubuntu 24.04 container with gcov 13.3, the same saved notes/counters and
+matching source reproduce LCOV 2.0's mismatch (negative control, exit 1). A trial removing
+exception branches produced no branch records and was rejected. No exception exclusion,
+source/header exclusion, `--ignore-errors` or counter mutation is used in the correction.
+
+The official LCOV 2.6 release instead completes capture, summary, file listing and genhtml,
+all exit 0, on those exact inputs: 2,241/3,120 branches (71.8%) and 3,264/3,461 lines (94.3%).
+All four source records, including the trace header, are retained. LCOV documents its newer
+branch-signature matching for multiple macro expansions (references §44). The unexecuted
+block at `moobl.h:121` is still a reported warning, not an error ignored by configuration.
+These percentages describe a local recapture of CI data, not yet a successful CI report.
+
+The initial tag-archive trial reported a beta version string and Perl redefinition notices
+when extracted on the workstation filesystem. It was superseded by the official packaged
+release extracted inside Linux; that reports `LCOV version 2.6-0`, without those notices,
+and reproduces the successful totals. The official release archive is pinned by SHA-256
+`67a45db99b8ef0260c3fac9a2e3749fd8fa350a15e235dd3c29b356d97755c75`, verified against the
+release asset metadata and downloaded bytes. The workflow uses that package ahead of the
+distribution tool on PATH; the distro package supplies its Perl dependencies.
+
+Actionlint, offline pins and documentation checks are rerun before the authorized push to
+PR 181. S17 stays open until this updated workflow produces an inspectable CI artifact;
+S18 remains open with zero accepted complete nights. No production code, kernel cache,
+host scheduling, branch protection or merge authorization is changed.
