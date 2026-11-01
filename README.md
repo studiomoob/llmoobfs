@@ -152,9 +152,9 @@ Facts as of 2026-10-25:
   s390x under emulation. The module also runs on arm64 under emulation, without KVM, in an
   exploratory job: the ext4, btrfs and XFS steps passed under KASAN ([journal 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
 - **Tested with** fault injection inside the module, fstests' `quick` group on the three lower
-  filesystems and one run of its `auto` group (no layer defect among the failures), syzkaller
+  filesystems and its `auto` group with justified exclusion lists, syzkaller
   (seven six-hour runs; one defect found and fixed), a first KCSAN run (no race in the module) and
-  SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143, 0239).
+  SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143, 0239, 0248).
 - **No independent human review of the kernel code yet.** It was requested on 2026-10-13. The
   kernel code has been checked by automated tools (the suite under KASAN, UBSAN and lockdep,
   KCSAN, syzkaller, fstests, fuzzing) and by AI-assisted reviews, and by no independent human
@@ -529,9 +529,10 @@ KASAN harness runs the layer suite), and no benchmark exists.
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) and
   [0083](docs/history/0083-index-inspection-fixes.md). Tags up to `v0.4.1-experimental` carry
-  defects fixed later; `v0.5.0-experimental` has every fix up to 2026-10-28, later ones land on `main`. fstests' `quick` group passes with an exclusion list, and its `auto` group ran once, with 1 to 4
-  failures per lower filesystem, none a layer defect ([vm/fstests/](vm/fstests/README.md), journal
-  0239). syzkaller ran for seven six-hour rounds with no open report. The last two cover every
+  defects fixed later; `v0.5.0-experimental` has every fix up to 2026-10-28, later ones land on `main`. fstests' `quick` group passes with an exclusion list. The initial `auto` run had 1 to 4
+  failures per lower filesystem, none a layer defect; the rerun with justified exclusions
+  passed on all three lowers with zero failures ([vm/fstests/](vm/fstests/README.md),
+  journals 0239 and 0248). Skipped cases are not counted as executed tests. syzkaller ran for seven six-hour rounds with no open report. The last two cover every
   handler function, `moobl_xattr_get` included, and the handlers reach 88.1 % of their KCOV call
   sites, above the 85 % threshold of [security roadmap](docs/security-roadmap.md) S3, which counts
   call sites since ADR-0032 (journals 0239 and 0245); S3 is done. SELinux enforcing was exercised once (journal
@@ -580,7 +581,7 @@ as a regression in the same VM.
 | Phase Q2b: `QUERY2` ordered by an attribute, ascending or descending, and paged by an authenticated cursor; equal to `moobfs-index --domain --order`; "N most recent" measured and optimized ([0048](docs/history/0048-recent-optimization.md)) | [0036](docs/history/0036-phase-q2b-order-cursor.md) | Debian 6.12.111; ext4, btrfs, XFS |
 | Phase Q2c: leapfrog intersection of equality terms in `QUERY2`; equal to the oracle, plan checked by result order, measured in [0044](docs/history/0044-q2-measured-equality-plan.md) | [0037](docs/history/0037-phase-q2c-leapfrog.md) | Debian 6.12.111; ext4, btrfs, XFS |
 | Phase Q2d: "missing or ..." terms and batches of up to 8 `QUERY2` requests per call; equal to the oracle | [0038](docs/history/0038-phase-q2d-missing-batch.md) | Debian 6.12.111; ext4, btrfs, XFS |
-| Testing under the module: fstests `quick` group with an exclusion list, systematic allocation-failure injection inside the module; one run of the fstests `auto` group | [0091](docs/history/0091-s2-fstests-clean-with-exclusions.md), [0096](docs/history/0096-fault-injection.md), [0239](docs/history/0239-s2-auto-and-s3-round.md) | Debian 6.12.111 and 6.12.113; KASAN 6.12.112; ext4, btrfs, XFS |
+| Testing under the module: fstests `quick` group with an exclusion list, systematic allocation-failure injection inside the module; fstests `auto` rerun with justified exclusions, zero failures on all three lowers | [0091](docs/history/0091-s2-fstests-clean-with-exclusions.md), [0096](docs/history/0096-fault-injection.md), [0239](docs/history/0239-s2-auto-and-s3-round.md), [0248](docs/history/0248-nightly-fuzzing-replay-tool-fstests-auto.md) | Debian 6.12.111 and 6.12.113; KASAN 6.12.112; ext4, btrfs, XFS |
 | Index built per domain by the first query, released under memory pressure or over its budget (shrinker); tracepoints | [0098](docs/history/0098-index-on-demand.md), [0101](docs/history/0101-domains-released.md), [0102](docs/history/0102-index-tracepoints.md), [ADR-0012](docs/decisions/0012-index-on-demand-and-reclaimable.md) | KASAN 6.12.112; ext4, btrfs, XFS |
 | SELinux enforcing; per-result checks when an LSM labels the layer's inodes | [0104](docs/history/0104-selinux-investigation.md) | 6.12.112 with the Debian reference policy |
 | SQL over a domain through a SQLite virtual table (prototype) | [0108](docs/history/0108-sqlite-virtual-table-prototype.md), [ADR-0013](docs/decisions/0013-user-space-query-library.md) | KASAN 6.12.112; ext4 |

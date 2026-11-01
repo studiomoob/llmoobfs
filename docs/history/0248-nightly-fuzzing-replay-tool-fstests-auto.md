@@ -366,3 +366,44 @@ Continuity, 2026-11-01: the existing sole observer now watches subsequent per-da
 nightly reports as well as pending btrfs/daytime replay for 48 hours, retaining receipts.
 One active process PID16326 confirmed. Report existence never implies approval.
 Azure operations are explicitly deferred by the maintainer; both local host queues continue.
+
+
+## Btrfs auto verified; exclusion-list reruns complete (2026-11-01)
+
+Btrfs started 05:15:07 and finished 13:40:10 Brasília time, exit 0: 8 h 25 min 3 s of
+machine/calendar time. Actual console markers CHECK_EXIT=0 and DONE lower=btrfs are
+present. The current classifier returned 0 and reproduced the saved per-test result byte
+for byte: 339 pass, 436 notrun, zero fail among 775 selected cases. No .out.bad file was
+present, and vm/kdiag.sh found no diagnostic in the captured console. Skips are not passes.
+
+All 1,803 tracked source hashes match `e839590` after the run. There is no inherited pre-run
+manifest, so this is a post-run source comparison rather than a before/after proof. The
+fstests checkout is `22348afe338c0f6d540c0d7ef0db749eaa51b218`, with only the expected
+common/config and common/rc layer adaptation. Built module SHA256 matches the ext4/XFS runs:
+36dff256c0877a25301354dd86fc027aee1647412e552468fd5e18ccbdabbaa1.
+Per-test classifications are committed as results-btrfs-auto-exclusions-6.12.113.txt.
+Full logs/artifacts were copied locally and verified in btrfs-auto-final.tar.gz, SHA256
+444228883808bf524de88d9a91097b69e77ac987a18e3592f9b19b0cc6022f7e;
+the adjacent source-verification JSON records hashes and independent check results.
+
+| Lower | Selected | Pass | Not run | Fail |
+| --- | ---: | ---: | ---: | ---: |
+| ext4 | 778 | 229 | 549 | 0 |
+| btrfs | 775 | 339 | 436 | 0 |
+| XFS | 778 | 372 | 406 | 0 |
+
+The target and all three exclusion-list reruns of S2 are now locally validated. This is
+the quick/auto scope with justified exclusions, not every fstests group. Current-state
+README mirrors, FAQ/generated site, roadmap and fstests guide are updated together; the
+initial failure evidence and dated history remain. Nothing is published remotely.
+slotB/CPUs 6–7 is free (nonblocking lock probe succeeded). Daytime corpus replay continues
+in slotA: 400 new programs completed by 13:39, in addition to 260 reused cache entries;
+no final replay verdict yet. Peer instances were informed of slot release. No new test or
+monitor was launched, no work was interrupted, and Azure remains deferred.
+
+
+Documentation validation: the first site-journey generation omitted its required root
+argument and failed before writing files; the retired-claims check then caught the still
+stale generated status pages. Rerunning `python3 scripts/site-journey.py .` regenerated
+them correctly. Retired claims, FAQ synchronization, site validation and whitespace
+checks passed after regeneration. This changed no runtime source or test outcome.

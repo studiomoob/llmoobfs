@@ -21,7 +21,8 @@
   The real three-seed replay smoke and both full integration suites passed; the nightly
   schedule was installed on 2026-10-31. The ext4 exclusion-list rerun passed with
   229 pass, 549 notrun and zero fail; XFS also passed with 372 pass, 406 notrun and
-  zero fail. The btrfs rerun remains pending. The first nightly report records incomplete permissions
+  zero fail. Btrfs passed with 339 pass, 436 notrun and zero fail on 2026-11-01,
+  completing the three exclusion-list reruns locally. The first nightly report records incomplete permissions
   and replay phases; corrected replay deadline/accounting passed bounded and resumed guest
   controls and were installed for the next night. The longer permission profile passed
   on all three lowers under KASAN/UBSAN/lockdep in a focused daytime run (248,832 checks);

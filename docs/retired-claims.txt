@@ -361,3 +361,12 @@ XFS and btrfs reruns remain pending.
 
 # 2026-11-01: first report exists but is incomplete.
 First nightly campaign and seven reports pending.
+
+# 2026-11-01: all three auto exclusion-list reruns passed locally.
+The btrfs rerun remains pending.
+A repeat of `auto` with the exclusion lists; a target for it
+one run of its `auto` group
+one run of the fstests `auto` group
+uma rodada do grupo `auto` do fstests
+The auto group ran once on the three: 1, 4 and 1 failures of 779 tests
+O grupo auto rodou uma vez nos três: 1, 4 e 1 falhas em 779 testes
