@@ -1,6 +1,6 @@
 # 0253 — Batch 11 local integration and complete-suite validation
 
-Date: 2026-10-31. Status: **local integration and full-suite validation passed; batch publication pending**.
+Date: 2026-10-31–2026-11-01. Status: **required local batch validation passed; CI/publication pending; S18 remains open**.
 Work started about 13:17 Brasília time (UTC-3); this validation unit ended about 15:29. Calendar time, not measured engineering effort. Estimated effort: S
 for integration, plus machine time for the complete suites and long S2 runs.
 
@@ -480,3 +480,29 @@ slotB/CPUs 6–7 is free (nonblocking lock probe succeeded). Daytime corpus repl
 in slotA: 400 new programs completed by 13:39, in addition to 260 reused cache entries;
 no final replay verdict yet. Peer instances were informed of slot release. No new test or
 monitor was launched, no work was interrupted, and Azure remains deferred.
+
+
+## Local validation checkpoint complete (2026-11-01 17:22 Brasília time)
+
+The complete corpus replay passed: 1,261/1,261 programs, 1,001 newly replayed and 260 reused,
+zero failures/unreached, 1,843 module-text PCs, 688/781 call sites (88.1%). All 1,812 source
+hashes match `06e4a65` before/after; cache union and call-site reports were recomputed, and
+all 260 old cached entries match their earlier archive. Journal 0248 records raw evidence,
+the known mand-option warning and binary-console decoding limitation. Both slots are free;
+future scheduled jobs and the existing observer are preserved. Daytime continuation does
+not turn the first incomplete report into an accepted night.
+
+Local batch matrix: full Debian VM and full KASAN passed on `569ec2a`; focused expanded and
+long permissions passed; negative controls retained; quick/auto exclusion reruns passed on
+all three lowers; five replay controls, two negative controls, real bounded/resumed replay,
+ShellCheck and this full corpus replay passed. After `06e4a65`, local changes are records,
+site content/generator data and per-test result artifacts; no production/module or replay
+runtime source changed. Required local evidence is ready for review, not a claim that new
+GitHub CI ran. S14/S17 GitHub jobs remain unexecuted; S18 complete-night accumulation and
+nightly permission integration remain open as explicitly documented.
+
+The local validation checkpoint spans about 28 h 5 min of calendar time from integration
+start (mostly machine time/waits); engineering effort was not measured. No push, PR, main
+merge or publication occurred. The next maintainer decision is publication of the prepared
+batch, with remaining CI/nightly limitations visible; Azure and S16/freeze decisions remain
+separate. A concrete review synopsis is retained outside Git in the local review directory.

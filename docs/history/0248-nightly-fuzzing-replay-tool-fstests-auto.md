@@ -407,3 +407,47 @@ argument and failed before writing files; the retired-claims check then caught t
 stale generated status pages. Rerunning `python3 scripts/site-journey.py .` regenerated
 them correctly. Retired claims, FAQ synchronization, site validation and whitespace
 checks passed after regeneration. This changed no runtime source or test outcome.
+
+
+## Complete corpus replay verified (2026-11-01)
+
+The daytime continuation ran 10:39:38–17:22:05 Brasília time, exit 0: 6 h 42 min 27 s of
+machine/calendar time. Final summary: programs=1261, replayed=1261, run_now=1001, failed=0,
+not_reached=0, module_text_pcs=1843. No guest boot/worker/retry failure appears in run.log.
+Per-call coverage is 688/781 KCOV call sites (88.1%); all 23 named handler functions have
+at least one reached site, including moobl_xattr_get 4/4. This reproduces the S3 figure;
+it is a replay of the first night's corpus, not another six-hour fuzzing run.
+
+Independent artifact checks: all 1,261 content-hash cache entries exist in the namespace
+for module a0f6ff09405e8a521c5852f2c80a40065c5c7bf0dc23bb6453fa88832437a85c and kernel
+4026582cc0cd60f7c22f25854fb33a21668aea40eed64eea74f726a769d40ae5. Their recomputed union
+matches union.txt exactly; rerunning the call-site classifier reproduces callsites.txt
+byte for byte. The 260 entries archived before continuation are byte-identical to the
+corresponding final entries. All 1,812 tracked source hashes match Git snapshot `06e4a65`
+before execution and remain identical afterward. Test exit, hash exit and final summaries
+were checked against raw artifacts, not accepted from the completion marker alone.
+
+The saved configuration has KASAN, UBSAN and PROVE_LOCKING enabled. The diagnostic scan of
+the serial capture found only the known mand-option deprecation warning. Exact source
+Linux 6.12.112 fs/namespace.c:1994–2000 uses pr_warn_once in warn_mandlock and says the
+option is ignored; this is not a WARN_ON report or a layer defect (references §45).
+No BUG/Oops/KASAN/UBSAN/lockdep/panic diagnostic matched in the captured output. The first
+analysis attempt assumed UTF-8 and failed on binary serial bytes; tolerant decoding for
+inspection reports 156 replacement characters. Raw bytes remain in the archive, so this
+scan is not presented as a separate complete instrumented kernel suite.
+
+Evidence was copied locally and SHA256-verified as day-replay-20261101-final.tar.gz:
+405c490425dd2b576708038c976fb4b0f273b529fa80a02553843e8c88c4f114.
+The adjacent verification JSON records manifests, reused cache identity and totals. The
+archive retains programs, full cache, raw console, logs, original corpus, module and config.
+No private SSH key/image is included. The first night's original report remains incomplete;
+this separate successful continuation does not retroactively create a complete night.
+Zero of seven complete nightly reports are accepted; S18 and successful nightly permission
+integration remain open. Next scheduled window is still 23:00–05:00 with the corrected
+harness; source code has not changed after its verified snapshot.
+
+Both slot locks are free and no QEMU/manager remains. G6/corporate fronts were notified;
+no new test or observer was started. The existing sole observer continues watching future
+reports. Required local batch evidence is assembled for maintainer review; first S14/S17
+GitHub executions and all remote publication actions still require the maintainer's approval.
+Azure remains explicitly deferred.

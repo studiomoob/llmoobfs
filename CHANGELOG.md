@@ -26,7 +26,9 @@
   and replay phases; corrected replay deadline/accounting passed bounded and resumed guest
   controls and were installed for the next night. The longer permission profile passed
   on all three lowers under KASAN/UBSAN/lockdep in a focused daytime run (248,832 checks);
-  a complete nightly report remains pending.
+  The full 1,261-program corpus replay passed on 2026-11-01: zero failed/unreached,
+  688/781 call sites (88.1%), source hashes and cache union verified. A complete nightly
+  report remains pending; the separate daytime continuation does not rewrite the first night.
 
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be

@@ -552,6 +552,9 @@ keeps the module in guests.
   figure; `REPLAY_GUESTS="4,5 6,7"` runs two pinned guests; results per program are cached as
   they come, so a stopped replay resumes. `python3 vm/syzkaller/callsites.py funccover
   funccover.csv` gives the manager's own count of the same functions beside it.
+  Full-corpus validation on 2026-11-01 (journal 0248): 1,261/1,261 programs, zero
+  failed/unreached, 688/781 call sites (88.1%); 260 earlier cache entries reused unchanged
+  and the cache union verified. This daytime continuation is not a complete nightly report.
 - **`vm/syzkaller-nightly.sh <reports dir>`** (S18): one night, from its start to `NIGHT_END`
   (05:00 by default): the extended S15 permission campaign under KASAN
   (`MOOB_PERMCHURN=24,96,YYYYMMDD`, at most 60 minutes), the build steps, `vm/syzkaller-local.sh ... run` with the corpus kept

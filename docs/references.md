@@ -1206,3 +1206,8 @@ hand and carries the same code paths:
 - Existing MoobFS harnesses: `vm/syzkaller-local.sh`, its descriptions and seeds,
   `vm/fstests-local.sh` and the exclusion lists of journal 0239; these are reused by
   the nightly runner and `make fstests-auto`. No new fuzzer or filesystem port.
+
+- Linux 6.12.112, `fs/namespace.c:1994–2000`, `warn_mandlock()`, inspected in the exact
+  syzkaller build source on 2026-11-01: `pr_warn_once` reports the deprecated and ignored
+  `mand` mount option. Used to classify the retained replay-console warning, not to
+  suppress a sanitizer/lockdep finding (journal 0248; pinned kernel source as in §42).
