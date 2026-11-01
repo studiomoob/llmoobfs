@@ -8,7 +8,7 @@ name: Branch coverage
 # (vm/gcov-guest.sh) and makes an lcov branch report of layer/, kept as an artifact, with the
 # totals in the job summary. The layer is built here without the Makefile's -ffile-prefix-map
 # (journal 0236), so the coverage notes name the sources by the paths lcov reads. A report, not
-# a gate: the job fails only when the suite fails or no counters are collected. Weekly, on
+# a gate: the job fails on suite, collection or report errors, never on a percentage. Weekly, on
 # demand, and on pull requests that change this job's own files. Not a required check.
 on:
   schedule:
@@ -87,7 +87,8 @@ jobs:
       - name: Build the layer with GCOV_PROFILE=y and the test binaries
         run: |
           # Kbuild directly, not `make layer`: no -ffile-prefix-map, so the notes keep absolute paths
-          make -C build/linux M="$PWD/layer" GCOV_PROFILE=y modules
+          # Concurrent module calls must not lose gcov counter updates (GCC PR68080).
+          make -C build/linux M="$PWD/layer" GCOV_PROFILE=y KCFLAGS=-fprofile-update=atomic modules
           ls layer/*.gcno
           make attr-tools BUILD=build/vng CFLAGS="-O2 -g -static"
           make bench-tools BUILD=build/vng CFLAGS="-O2 -g -static" SQLITE_LIBS="-lsqlite3 -ldl -lpthread" && cp bench/queries-w3.txt build/vng/bench-queries-w3.txt && cp bench/sqlbase.sh build/vng/bench-sqlbase.sh && cp bench/equiv.sh build/vng/bench-equiv.sh && cp bench/run.sh build/vng/bench-run.sh
@@ -97,6 +98,22 @@ jobs:
           truncate -s 256M build/vng/lower-btrfs.img && mkfs.btrfs -q -f -L moob-lower build/vng/lower-btrfs.img
           truncate -s 300M build/vng/lower-xfs.img && mkfs.xfs -q -f -L moob-lower build/vng/lower-xfs.img
           truncate -s 64M build/vng/scratch.img build/vng/log.img
+      - name: Preserve the coverage build inputs
+        if: always() && hashFiles('layer/*.gcno') != ''
+        run: |
+          mkdir -p build/gcov/gcno
+          cp layer/*.gcno build/gcov/gcno/
+          # A visible filename survives upload-artifact's default hidden-file exclusion.
+          cp build/linux/.config build/gcov/kernel.config
+          git rev-parse HEAD > build/gcov/source-commit.txt
+          {
+            gcc --version
+            gcov --version
+            lcov --version
+            echo 'GCOV_PROFILE=y KCFLAGS=-fprofile-update=atomic'
+          } > build/gcov/toolchain.txt
+          sha256sum layer/*.c layer/*.h layer/*.gcno layer/moobfs_layer.ko \
+            build/linux/arch/x86/boot/bzImage build/gcov/kernel.config > build/gcov/build-inputs.sha256
       - name: Run the layer suite inside the gcov kernel
         run: |
           cd build/linux
@@ -132,17 +149,19 @@ jobs:
           {
             echo '### Branch coverage of layer/ under the layer suite'
             echo
-            echo "Kernel: upstream ${KERNEL_VERSION} with vm/kasan.config and vm/gcov.config; layer built with GCOV_PROFILE=y."
+            echo "Kernel: upstream ${KERNEL_VERSION} with vm/kasan.config and vm/gcov.config; layer built with GCOV_PROFILE=y and atomic profile updates."
             grep -E '^MOOBFS_(GCOV_COLLECTED|KASAN_PASS|VM_FAIL|VM_ENV_FAIL)' build/vng/console.log 2>/dev/null || echo 'no suite marker in the console'
             echo
             echo '```'
-            cat build/gcov/summary.txt 2>/dev/null || echo 'no report: no counters were collected'
+            cat build/gcov/summary.txt 2>/dev/null || echo 'no report summary: inspect collection and lcov logs'
             echo
             cat build/gcov/files.txt 2>/dev/null || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Fail when no counters were collected
-        run: test -s build/gcov/layer.info
+      - name: Require a generated report
+        run: |
+          test -s build/gcov/layer.info
+          grep -Eq '^BRF:[1-9][0-9]*$' build/gcov/layer.info
       - name: Preserve the report and the evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -152,6 +171,5 @@ jobs:
             build/gcov/
             build/vng/console.log
             build/vng/dmesg.txt
-            build/linux/.config
           if-no-files-found: warn
           retention-days: 90

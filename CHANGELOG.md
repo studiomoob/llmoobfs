@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- CI jobs for S14 and S17 (journal 0247; written, neither has run yet, on GitHub or locally):
+- CI jobs for S14 and S17 (journal 0247):
   `.github/workflows/mutation.yml` runs the mutant catalogue of the homogeneity rule
   (`scripts/mutants.py run`, Debian 6.12.113 VM under KVM) in four shards plus a baseline job on
   the unmutated tree, weekly, on demand and on pull requests touching the catalogue, the script
@@ -10,7 +10,10 @@
   the upstream test kernel with `vm/gcov.config` and the layer with `GCOV_PROFILE=y`, runs the
   suite in virtme-ng (`vm/gcov-guest.sh`) and keeps an lcov branch report of `layer/` as an
   artifact, weekly and on demand. Neither is a required check. Checked offline: actionlint,
-  shellcheck, `check-pins.sh --offline` (with a negative round), retired claims.
+  shellcheck, `check-pins.sh --offline` (with a negative round), retired claims. First CI:
+  mutation baseline and all 23 mutants passed; coverage suite passed but LCOV rejected a
+  negative counter. The coverage-only module build now uses atomic profile updates and
+  preserves compiler notes/configuration and build hashes; corrected capture awaits CI.
 - S15 permission-sequence harness (journal 0250, validation in progress): the default
   `permchurn` suite step runs seeded chmod, chown, access-ACL, rename, link and unlink
   sequences against the lower kernel as nine identities, including delayed builds.

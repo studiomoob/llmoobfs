@@ -534,3 +534,20 @@ or unrelated publication was performed. The PR explicitly retains all local evid
 first-night incompleteness, S18 open status and pending nightly permission integration.
 Next: inspect exact-head checks/logs, correct any batch-scoped failure, and obtain separate
 maintainer approval before merge. Local source-validation snapshots remain immutable.
+
+
+## First PR checks and coverage correction (2026-11-01, about 18:52 Brasília time)
+
+On head `865ef4d`, 18/19 checks passed; only Branch coverage failed. Mutation artifacts
+confirm baseline plus all 23 kills; the separate full KASAN artifact confirms its final pass
+marker and no kernel diagnostic under the harness rules. Journal 0247 records exact run links,
+artifact limits, the instrumented suite's successful exit and LCOV's negative counter failure.
+The reporting failure is not attributed to a filesystem defect.
+
+A bounded user-space counter control loses updates with `single` and counts every call with
+`atomic`. The fix changes only coverage instrumentation: atomic profile updates for that
+job's module, retained compiler notes/config/toolchain/hashes, and a non-zero branch-total
+check. No production source or normal build changed. Actionlint, pin checks and the concurrent
+positive/negative control passed; updated CI remains pending. S17 and S18 stay open, and the
+first incomplete night stays 0/7 accepted. Existing host jobs and observer were preserved.
+Push/update of this branch and PR 181 is authorized; merge still requires separate approval.

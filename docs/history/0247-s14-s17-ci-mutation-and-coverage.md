@@ -1,6 +1,8 @@
 # 0247 — CI jobs for the mutants of S14 and the branch coverage of S17
 
-Date: 2026-10-31. Status: **written, not yet run.** Both workflows exist on branch
+Current status, 2026-11-01: **S14 CI passed; S17 first capture failed; atomic-counter correction awaiting CI.** See the dated follow-up below.
+
+Original implementation checkpoint, 2026-10-31: **written, not yet run.** Both workflows exist on branch
 `claudiofp/b11-ci`; neither has run on GitHub, and neither was run locally (no KVM host was
 free). Their first run is expected on the batch's pull request, which their path filters
 trigger. Work started: 2026-10-31 15:18 UTC; ended about 15:30 UTC. Wall-clock time, not an
@@ -129,3 +131,54 @@ started there: Mutation testing run 41347762160 and Branch coverage run 41347762
 This is the first execution, not a passing result. Check the latest PR head and Checks
 tab for current outcomes; later synchronization may supersede these initial runs.
 https://github.com/studiomoob/llmoobfs/pull/181 . No required gate was added or merge performed.
+
+
+## First CI artifacts and counter correction (2026-11-01, Brasília time)
+
+Follow-up started about 18:32; implementation/probe checkpoint about 18:52. These are
+calendar times; engineering effort was not measured. The initial runs above were superseded
+by head `865ef4da1ffccd8c630ad0877d897456063a10d9` after publication records were added.
+
+- [Mutation run 41347899785](https://github.com/studiomoob/llmoobfs/actions/runs/41347899785)
+  passed. Downloaded artifacts independently confirm the unmutated baseline's VM/ONLY pass
+  markers and all 23 catalogue IDs, each killed once, with zero survivors or missing entries.
+- [KASAN run 41347899850](https://github.com/studiomoob/llmoobfs/actions/runs/41347899850)
+  passed on that head. Its downloaded console has `MOOBFS_KASAN_PASS`; the dmesg scan has no
+  kernel diagnostic under `vm/kdiag.sh`'s rules. The SRSO boot text and QEMU raw-image notices
+  are not kernel warnings. Artifacts contain no independent source-hash manifest or hidden
+  `.config`; exact-head metadata and SHA-256 of both captured files are retained locally.
+- [Coverage run 41347899684](https://github.com/studiomoob/llmoobfs/actions/runs/41347899684)
+  passed its instrumented VM suite and collected all three `.gcda` files, with suite exit 0.
+  LCOV 2.0 then failed at `layer/main.c:764`, branch 2: negative count `-24`. A warning at
+  line 536 also reported a non-zero count in an unexecuted block. No valid branch report was
+  accepted. The preserved `.info` is partial, not evidence of coverage. The artifact omitted
+  `.gcno` files and the hidden kernel `.config`, preventing an independent recapture.
+
+LCOV's documentation identifies concurrent GCC counter updates as a possible cause and
+recommends `-fprofile-update=atomic`, followed by rebuilding and rerunning the tests. GCC's
+manual describes atomic updates as protecting profile counters against concurrent corruption.
+Linux 6.12.112's Makefile sets `CFLAGS_GCOV` to profile arcs/test coverage without atomic
+updates. These sources were inspected (references §44); no filesystem defect is inferred from
+this reporting failure. The exact cause remains provisional until the corrected CI run.
+
+A bounded user-space control on the idle dedicated host used GCC/gcov 14.2.0, eight joined
+threads pinned to two reserved CPUs, and 300,000 calls per thread. Both binaries returned
+correct application results. With explicit `-fprofile-update=single`, gcov counted 1,555,357
+of 2,400,000 calls; with `atomic`, exactly 2,400,000. This demonstrates lost counters and its
+prevention on this compiler; it does not reproduce the exact negative branch on CI's compiler.
+The raw control archive SHA-256 is
+`ac9441a6447b78dc4d9c31742466c957224a3f662565249c52f461cfea9843ca`.
+No VM or module was started, the resource lock was released, and existing scheduled jobs
+were preserved. Source, commands, objects, raw counters and results are retained outside Git.
+
+The coverage workflow now passes `KCFLAGS=-fprofile-update=atomic` only when building its
+external module. Normal builds and production source are unchanged; the unprofiled kernel's
+cache key is still valid. The artifact now includes `.gcno` notes, a visible `kernel.config`,
+compiler/tool versions, source commit and build-input hashes. Report errors remain fatal;
+no `--ignore-errors negative`, counter rewriting or percentage threshold was added. A report
+must contain a non-zero branch total. The summary no longer mistakes report failure for
+missing counters. The original failure evidence is preserved.
+
+Offline actionlint and pin checks passed for this correction. The concurrent control passed
+its positive and negative checks. The corrected full CI capture is pending: S17 stays open
+until the exact updated head produces an inspectable report with non-zero branch data.

@@ -654,6 +654,10 @@ week and on demand, with the corpus kept in the Actions cache (journal 0237);
 weekly, on demand and on pull requests touching its harness, as a trend monitor.
 `Mutation testing` (`mutation.yml`) and `Branch coverage` (`coverage.yml`), journal 0247, run
 weekly, on demand and on pull requests touching their own inputs; neither is a required check,
-and neither had run on GitHub when it was added. Logs are temporary Actions artifacts; permanent conclusions belong
+and neither had run on GitHub when it was added. The first mutation run passed; the first
+coverage suite passed but its LCOV report failed on a negative counter. The coverage-only
+module build now uses atomic profile updates and keeps notes, configuration and build hashes;
+its corrected report still needs CI validation (dated follow-up in journal 0247).
+Logs are temporary Actions artifacts; permanent conclusions belong
 in the journal with links to the run. The Pages workflow publishes only `site/`.
 Preview locally with `python3 -m http.server 8080 --directory site`.

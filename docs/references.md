@@ -1192,6 +1192,17 @@ hand and carries the same code paths:
   with `--rc branch_coverage=1` (default 0). gcov of GCC (the runner's gcc, the compiler of the
   kernel and the module) reads the notes and counters.
 
+
+- Follow-up read on 2026-11-01: LCOV `geninfo`'s
+  [negative-count guidance](https://github.com/linux-test-project/lcov/blob/master/docs/man/geninfo.rst),
+  retrieved through Context7 (`/linux-test-project/lcov`), recommends rebuilding with
+  `-fprofile-update=atomic` and rerunning tests/capture rather than ignoring invalid counts.
+  GCC 13.3's [Instrumentation Options](https://gcc.gnu.org/onlinedocs/gcc-13.3.0/gcc/Instrumentation-Options.html)
+  documents `single`, `atomic` and `prefer-atomic` and the automatic selection with `-pthread`.
+  Linux 6.12.112's `Makefile` (`CFLAGS_GCOV`) and `scripts/Makefile.lib`, reread in the exact
+  test-host tree, add arc instrumentation but not atomic updates. Used for the isolated
+  coverage module-build correction and concurrent positive/negative control in journal 0247.
+
 ## 45. Nightly fuzzing and per-call corpus replay (journal 0248)
 
 - syzkaller at `8fb0ae898` (Apache-2.0, already used in §1):
