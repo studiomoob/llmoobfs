@@ -23,7 +23,9 @@
   229 pass, 549 notrun and zero fail; XFS also passed with 372 pass, 406 notrun and
   zero fail. The btrfs rerun remains pending. The first nightly report records incomplete permissions
   and replay phases; corrected replay deadline/accounting passed bounded and resumed guest
-  controls and were installed for the next night. The longer permission campaign remains pending.
+  controls and were installed for the next night. The longer permission profile passed
+  on all three lowers under KASAN/UBSAN/lockdep in a focused daytime run (248,832 checks);
+  a complete nightly report remains pending.
 
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be

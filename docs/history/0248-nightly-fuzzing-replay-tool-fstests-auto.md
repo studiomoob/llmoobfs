@@ -276,3 +276,29 @@ Its prior sole process was stopped, its lock confirmed free, then it was restart
 same shell terminal; exactly one process observed (PID 94386). Prior send receipts persist,
 so completed events are not resubmitted. Both this marker and btrfs completion are watched.
 No publication approval was given; push, PR, main merge and public edits remain prohibited.
+
+
+## Long focused permissions campaign passed (2026-11-01)
+
+Started 08:05:25 and finished 08:30:35 Brasília time, exit 0, 25 min 10 s calendar/machine
+time including build. All 24 seeds 20261031–20261054, four mounts of 96 steps, passed on
+ext4, btrfs and XFS under KASAN/UBSAN/lockdep. Each lower's final step reports 82,944
+QUERY2 checks; total 248,832. Both MOOBFS_ONLY_PASS and MOOBFS_KASAN_ONLY_PASS are present.
+The saved final dmesg passes the exact kasan-guest.sh diagnostic regex through vm/kdiag.sh.
+Instrumented kernel fragment matches the pinned fragment, with KASAN, UBSAN and
+PROVE_LOCKING enabled. The module used by the guest equals the built module (SHA256
+f99bbbe9d8a926bc580474dc49949147acc97b67115ffc266e949a5f82633780).
+All 1,812 tracked source hashes match Git snapshot `06e4a65` before the run and remain
+identical afterward. The completion marker's exit=0 hashes=0 was checked against these
+logs and manifests; approval is not inferred from that marker alone.
+
+Archive copied locally and SHA256-verified as s15-long-20261101-final.tar.gz:
+34fbb34153a71a77eb085b4256383c72fa34725bc398d4ad56c9529b9ef48303.
+The adjacent verification JSON retains the three step markers, hash count and scope.
+This passes the longer permission profile in a daytime focused run; it is not a full
+suite or a completed nightly report. The first night remains incomplete, zero of seven
+complete nights accepted; next scheduled nightly integration remains pending. The
+original full VM/KASAN snapshot `569ec2a` and this focused evidence are kept distinct.
+slotA/CPUs 4–5 is released; btrfs auto continues alone in slotB (generic/170 at inspection).
+Other instances are informed of resource ownership and the result. No duplicated test or
+monitor, push, PR, main merge or public edit.
