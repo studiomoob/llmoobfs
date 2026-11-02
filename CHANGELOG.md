@@ -37,7 +37,9 @@
   report remains pending; the separate daytime continuation does not rewrite the first night.
   The second night passed long permissions (72 seeds, 248,832 checks) and fuzzing, but
   saved an incomplete replay (259/1,116, zero failed, 857 pending). The next daytime
-  continuation reuses those cached results; zero of seven complete nights accepted.
+  continuation completed 1,116/1,116 on 2026-11-02 (857 new, 259 reused, zero failed/unreached;
+  689/781 call sites, 88.2%), with source/binary/cache checks passed. Both original night
+  reports remain incomplete; zero of seven complete nights accepted.
 
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be

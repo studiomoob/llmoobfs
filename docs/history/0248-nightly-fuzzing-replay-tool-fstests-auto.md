@@ -508,3 +508,42 @@ The existing sole observer was stopped, its lock checked free, and restarted in 
 helper terminal with dated daytime-marker discovery, preserving all receipts. Exactly one
 observer was verified; no test or guest was interrupted. No Azure use or main merge.
 PR 181 publication/updates are authorized; the separate merge decision remains pending.
+
+
+## November 2 daytime continuation complete (2026-11-02 08:19:20 Brasília)
+
+The pending-only replay begun at 05:04:43 completed at 08:19:20, exit 0, hash checks 0.
+The original November 1 night report is byte-identical to its preserved copy and remains
+incomplete. This separate daytime completion does not create an accepted night: **0/7**.
+
+Actual result: **1,116/1,116 programs**, 857 newly executed and 259 reused, zero failed and
+zero not reached, 1,827 module-text PCs. The cache union was independently recomputed from
+all 1,116 SHA-1-addressed program entries, with exactly the corpus/seed content hashes;
+all 259 earlier cache files are unchanged. The call-site report reproduces byte for byte:
+**689/781 (88.2%)**, all 23 reported functions positive, `moobl_xattr_get` 4/4. This is a
+new corpus result, distinct from the November 1 daytime 1,261-program run and its 88.1%.
+
+All 1,812 source hashes match the before-run manifest and the freshly recomputed post-run
+manifest. Compared with Git `06e4a65`, only the already-generated description constants
+file differs; no tracked source changed during the daytime run. Module/kernel hashes were
+verified against copied binaries; image hash before/after passed on the host, but the private
+image is not copied into the archive. The reused-cache checks also passed after execution.
+Completion and exit markers were checked against actual logs and data, not accepted alone.
+
+Both guest consoles retain only the known Linux `mand` mount-option deprecation warning
+(previous source review in references §45); no other matching kernel/sanitizer/lockdep
+finding appears in the capture. Raw serial bytes are preserved. Seventy-four invalid-UTF-8
+replacement characters were used only for viewing, not to rewrite the saved console.
+
+Evidence is retained locally as day-replay-20261102-final.tar.gz, SHA-256
+`eee715f7daf3542f585b1d1acf53cb6ab9c11d4b236f6178c7894c24f6e4fa3e`, with verification JSON,
+corpus/programs/cache, source and binary manifests, module/kernel/config, raw consoles,
+original partial night report and independently reproduced union/call-site output. No private
+SSH key or guest image is included. The source snapshot remains `06e4a65`, module namespace
+`299a8521106e6a3f-4026582cc0cd60f7`; no cache identity check was weakened.
+
+Both slot locks were free and no QEMU/manager remained at 08:20:24. Peer fronts were notified
+of actual resource release; the existing 23:00 schedule and sole observer are preserved.
+No new test or observer was started. This continuation spans about 3 h 15 min of calendar
+machine time; engineering effort was not measured. Next: inspect the next scheduled night,
+keeping both incomplete reports and acceptance criteria intact; no new PR is authorized.

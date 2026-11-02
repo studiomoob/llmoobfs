@@ -672,3 +672,32 @@ the previously stated publication limit. `docs/history/README.md`, this journal'
 status and `docs/security-roadmap.md`'s post-merge introduction will accompany the next
 authorized integration; no new PR/direct main push is authorized merely to record these
 results. The existing merged PR's summary and local map/pending list are updated now.
+
+
+## Daytime replay approved; lab access restored (2026-11-02)
+
+The November 2 pending-only continuation completed 08:19:20 Brasília, exit 0/hashes 0.
+The independent audit confirms 1,116/1,116 programs (857 new, 259 unchanged cached entries),
+zero failed/unreached, 1,827 module-text PCs and 689/781 call sites (88.2%). All 1,812 source
+hashes are identical before/after; the sole difference from the Git snapshot is the prior
+generated constants file. Cache union, program membership, archived module/kernel hashes,
+image before/after checks and call-site report were reviewed. Journal 0248 records archive,
+raw-console decoding and diagnostic limits. No full nightly report was retroactively accepted:
+S18 remains 0/7. Both slots are free and no test VM remains; peer fronts were informed.
+
+Separately, the second laboratory host's SSH access was restored without changing its
+firewall, sshd, routes or Wi-Fi connection. A bounded packet investigation isolated failed
+broadcast ARP delivery: source requests are seen by the wired management host but not at
+the destination station. Genuine unicast ARP requests between the verified endpoints are
+answered and restore direct SSH with the existing host key. The precise source of broadcast
+filtering (upstream AP/router versus receive driver) remains unconfirmed; no permanent
+network-policy fix is claimed. Power saving was off and firewall/ARP checks found no rule
+explaining the failure. The only diagnostic package installed was tcpdump; captures were
+bounded and recorded ARP headers only. A private SSH fallback through the existing management
+host was tested, without forwarding an agent or copying key material. No VM/workload was
+started on that host. Detailed addresses, packets, screenshot and private access procedures
+stay outside Git; existing campaign priorities and authorizations are unchanged.
+
+These result records remain local on the follow-up branch until a new integration is
+explicitly authorized. No new PR, additional merge, release or Azure action is inferred.
+The existing merged PR summary and local map/pending list reflect the new verified result.
