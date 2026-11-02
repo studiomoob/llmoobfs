@@ -585,3 +585,24 @@ status. This final record changes documentation only. Its head must pass require
 before requesting the separate main-merge approval; no further documentation-only push is
 needed solely to record the unchanged validation payload's new check IDs. Existing host
 jobs/observer are preserved. Push/PR181 updates remain authorized; merge is not authorized.
+
+
+## Second night reviewed; daytime continuation active (2026-11-02, about 05:07 Brasília)
+
+The November 1 report is partial, not an accepted night. Scheduled long permissions passed
+all three lowers under KASAN/UBSAN/lockdep (72 seeds, 248,832 checks); fuzzing exited 0 with
+459,608 executions and no crash directory. Replay now saves a correct partial verdict before
+the cutoff: 259/1,116, failed=0, not_reached=857. Original evidence preserved and archived;
+source post-hashes, cache union and call-site report checked, with no pre-night manifest.
+Journal 0248 records exact identities and limitations. S18 remains 0/7; broader S15 complete-
+night integration stays open despite the successful permission phase.
+
+A single daytime continuation started 05:04:43, both reserved slots, two guests verified
+booted, 259 cache hits and only 857 queued. No existing test/guest was interrupted or completed
+program intentionally repeated. Original night remains unchanged; source/binary/cache hashes
+will be checked after continuation. Existing sole observer extended in place to dated daytime
+markers, receipts retained, one process verified. Peer fronts informed; 23:00 schedule intact.
+This new experiment record changes documentation only; the last tested PR head `ca9321e`
+passed 19/19, and any subsequently published record head must pass its own required checks.
+Main merge and Azure remain unauthorized. Next: inspect daytime completion evidence and
+obtain the separate maintainer decision on PR 181; no automatic approval inferred.

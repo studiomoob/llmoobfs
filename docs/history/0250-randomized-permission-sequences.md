@@ -171,3 +171,16 @@ original full VM/KASAN snapshot `569ec2a` and this focused evidence are kept dis
 slotA/CPUs 4–5 is released; btrfs auto continues alone in slotB (generic/170 at inspection).
 Other instances are informed of resource ownership and the result. No duplicated test or
 monitor, push, PR, main merge or public edit.
+
+
+## First complete scheduled permission phase (2026-11-01 night, reviewed 2026-11-02)
+
+The 23:00 scheduled job on runtime source `06e4a65` completed the long permission phase
+at 23:29:56 Brasília time, exit 0. Actual console: 24 seeds 20261101–20261124 on each lower,
+72 passes total, four mounts of 96 steps, 248,832 QUERY2 checks, ext4/btrfs/XFS step markers
+and final `MOOBFS_KASAN_ONLY_PASS`; boot/final diagnostic captures clean under harness rules.
+This confirms the corrected one-hour allowance fits that scheduled phase. It does not claim
+a full suite or complete nightly report: fuzzing passed, but replay reached its deadline
+with 857 programs pending. The broader successful complete-night integration remains open,
+without changing the acceptance scope. Journal 0248 records raw artifact/hash verification,
+the absence of a pre-night manifest, and the separate daytime replay continuation.
