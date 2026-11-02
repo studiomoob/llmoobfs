@@ -639,3 +639,36 @@ until the next authorized integration. No follow-up PR or direct main push is au
 The public merge outcome is recorded immediately in PR 181 and the merge commit itself;
 local pending list, handoff and HTML map are synchronized under their shared lock. Existing
 G6/corporate fronts are informed of integration without changing their priorities or reservations.
+
+
+## Post-merge checks and Pages verified (2026-11-02, about 07:17 Brasília)
+
+All 13 automatic checks on merge commit `e59a244f1282994ed1a8cd21d53fb34dbe235f3c`
+completed successfully. Exact-head run metadata was checked for CI
+[41425610258](https://github.com/studiomoob/llmoobfs/actions/runs/41425610258), static analysis
+[41425610114](https://github.com/studiomoob/llmoobfs/actions/runs/41425610114), CodeQL
+[41425610188](https://github.com/studiomoob/llmoobfs/actions/runs/41425610188), Scorecard
+[41425610100](https://github.com/studiomoob/llmoobfs/actions/runs/41425610100), and Pages
+[41425610101](https://github.com/studiomoob/llmoobfs/actions/runs/41425610101).
+Both native-VM artifacts contain VM/ACCEPTANCE/LAYER pass markers and no VM/environment
+failure or captured kernel diagnostic under the harness rules. This is the main-push
+workflow set, distinct from the 19 pre-merge PR checks; no manual test rerun was started.
+
+Pages build/deploy succeeded automatically. The downloaded Pages tar's 18 files, including
+`.well-known/security.txt`, match all corresponding source files at the merge commit by
+SHA-256, with no extra or missing file. The public homepage returned HTTP 200 and exactly
+matched the merged `site/index.html` hash. Artifact hashes, console markers, run metadata,
+public response hash and Pages log are retained locally in github-merge181-e59a244, with a
+verification JSON. No separate publication or deploy command was issued.
+
+The existing observer's now-complete GitHub watch is archived by moving its configuration;
+its loop and receipts are preserved and it continues the dedicated-host day/night markers.
+No second observer, new guest or host workload was started. At 07:15:18 both replay slots
+were still held; the latest milestone was 550 new programs at 07:09:04 plus 259 reused.
+There is no final replay verdict and no resource release. S18 remains 0/7 accepted nights.
+
+This and the history index's corrected merge status remain local follow-up records under
+the previously stated publication limit. `docs/history/README.md`, this journal's updated
+status and `docs/security-roadmap.md`'s post-merge introduction will accompany the next
+authorized integration; no new PR/direct main push is authorized merely to record these
+results. The existing merged PR's summary and local map/pending list are updated now.

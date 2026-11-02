@@ -268,4 +268,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0247 — CI mutation and coverage passed; artifacts validated](0247-s14-s17-ci-mutation-and-coverage.md)
 - [0248 — Nightly fuzzing, the replay tool and fstests auto (in progress)](0248-nightly-fuzzing-replay-tool-fstests-auto.md)
 - [0250 — Randomized permission sequences against the lower kernel (S15, in progress)](0250-randomized-permission-sequences.md)
-- [0253 — Batch 11 local/CI validation passed; final documentation checks and merge decision pending](0253-batch11-local-integration.md)
+- [0253 — Batch 11 PR merged; local/CI and post-merge checks verified; nightly work open](0253-batch11-local-integration.md)
