@@ -567,3 +567,21 @@ No cache entries were transferred between module identities. The 23:00 schedule,
 budget and seven-complete-night criterion are unchanged. This is a build/cache preflight,
 not another accepted night or a new runtime test. Calendar completion is recorded; effort
 was not measured.
+
+## Additional daytime campaign (started 2026-11-02 10:16:24 Brasília; in progress)
+
+The maintainer requested using idle capacity immediately instead of waiting for cron. A
+separate full campaign started on the immutable `06e4a65` runtime, holding both slots,
+CPUs 4–7: extended permissions under KASAN (24 seeds starting 20261102, 96 steps), fuzzing
+until 16:00, then replay with a six-hour reserve until 22:00. The outer deadline is
+22:00:15 plus a 15-second kill grace; the existing 23:00 cron remains unchanged.
+Permissions execution was observed; no phase result or overall acceptance is claimed yet.
+Source manifests and exit markers are captured by the private host driver.
+
+Output is separate in `day-campaign-20261102/reports`. The unmodified runner assigns
+its pre-noon internal ID `2026-11-01`; this does not touch the original night directory
+or make this daytime campaign an accepted calendar night. The cache identity and shared
+slot locks are preserved. The seven-night criterion is unchanged.
+The G6 owner also resumed a complementary second-Debian guest build and offline-tool
+validation, after actual host inventory; no module load or mounted G6 campaign is authorized
+by this task. Results and completion remain pending. No new publication is authorized.
