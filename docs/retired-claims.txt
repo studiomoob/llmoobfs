@@ -343,3 +343,39 @@ mas ficam em 84,5 % e 84,9 % dos PCs dos handlers
 Open: the aggregate on the current code.
 The aggregate on the current code is 84.9 %
 below the 85 % target (journal 0239)
+# Journal 0247, 2026-10-31: the S14 mutation job and the S17 coverage job are written.
+the weekly CI job is still to do
+S15 to S18 and S21 not started
+
+# 2026-10-31: SQLite helper status checks row count; integrity is reported separately (0253).
+each exit code is 0 when 200 of 200 rows survive with `integrity_check` ok
+
+# 2026-10-31: current vm/in-container.sh guard is 3600 seconds (0253).
+including the 2400-second timeout
+
+# 2026-10-31: ext4 rerun passed; make target implemented locally.
+Open: a repeat of `auto` with those lists, and a make target.
+
+# 2026-10-31: XFS exclusion-list rerun independently verified.
+XFS and btrfs reruns remain pending.
+
+# 2026-11-01: first report exists but is incomplete.
+First nightly campaign and seven reports pending.
+
+# 2026-11-01: all three auto exclusion-list reruns passed locally.
+The btrfs rerun remains pending.
+A repeat of `auto` with the exclusion lists; a target for it
+one run of its `auto` group
+one run of the fstests `auto` group
+uma rodada do grupo `auto` do fstests
+The auto group ran once on the three: 1, 4 and 1 failures of 779 tests
+O grupo auto rodou uma vez nos três: 1, 4 e 1 falhas em 779 testes
+
+# 2026-11-01: first mutation/gcov workflow executions started in PR 181.
+complete nightly reports and first S14/S17 CI runs remain pending
+written and has not run on GitHub yet, so no report exists
+
+# 2026-11-01: S17 pinned-tool CI passed; journal 0247.
+That release is now pinned by SHA-256; updated workflow awaits CI.
+the pinned-tool CI report remains pending.
+pinned-tool CI capture pending.

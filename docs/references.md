@@ -280,7 +280,7 @@ set. Read on 2026-10-14.
 | idmapped mounts | https://docs.kernel.org/filesystems/idmappings.html | refused by the layer and tested |
 | libmount (util-linux) | [`libmount/src/hook_mount.c`](https://github.com/util-linux/util-linux/blob/v2.41.2/libmount/src/hook_mount.c) (`hook_reconfigure_mount`, `configure_superblock`) and `libmount/src/context.c` (`mnt_context_apply_fstab`), v2.39.3 and v2.41.2 | what `mount -o remount` sends through the new mount API: every option of the mount's mountinfo line again (journal 0118) |
 | NFS remount comparison | `nfs_compare_remount_data()` and `nfs_reconfigure()` in `fs/nfs/super.c`, Linux 6.12.112 | precedent for accepting an option repeated on remount with its current value and refusing a change (journal 0118) |
-| SQLite | https://www.sqlite.org (public domain) | the benchmark baseline (`bench/sqlite-baseline.sh`, journal 0047), the WAL acceptance tests, the cost of a side index at write time (`bench/synccost.c`, journal 0088) and the user-space baseline of the index (`bench/userspace/`, journals 0092 and 0094; 3.46.1 on the benchmark host) |
+| SQLite | https://www.sqlite.org (public domain); [`sqlite3_busy_timeout()`](https://www.sqlite.org/c3ref/busy_timeout.html) and [`sqlite3_busy_handler()`](https://www.sqlite.org/c3ref/busy_handler.html), checked through Context7 `/websites/sqlite_docs` on 2026-10-31 | the benchmark baseline (`bench/sqlite-baseline.sh`, journal 0047), the WAL acceptance tests, the cost of a side index at write time (`bench/synccost.c`, journal 0088) and the user-space baseline of the index (`bench/userspace/`, journals 0092 and 0094; 3.46.1 on the benchmark host) |
 | Be File System query engine (Haiku) | [`Query.cpp`](https://github.com/haiku/haiku/blob/master/src/add-ons/kernel/file_systems/bfs/Query.cpp), MIT | how BFS chooses an index (ADR-0009 C') |
 | GUFI | https://github.com/mar-file-system/GUFI, BSD-3-Clause | per-permission-domain index model (ADR-0009) |
 | YoloFS | https://yolofs.github.io/, https://github.com/YoloFS/YoloFS, GPL-2.0 | closest prior art (see §2) |
@@ -1139,3 +1139,96 @@ hand and carries the same code paths:
   `CONFIG_KCOV`, the compiler's `-fsanitize-coverage=trace-pc` inserts one call to
   `__sanitizer_cov_trace_pc` per basic block, and KCOV reports the return address of each call;
   a PC that is not such a call site is never reported, which is why ADR-0032 counts call sites.
+
+## 43. Randomized differential test of permissions (security roadmap S15, journal 0250)
+
+- W. M. McKeeman, "Differential testing for software", Digital Technical Journal 10(1), 1998:
+  the same input given to two implementations of one behaviour, a difference being a defect of
+  one of them. `permmatrix churn` compares the layer's `QUERY2` answer with the lower kernel's
+  own permission decision taken as the same identity (`getxattr(2)`, `opendir(3)`,
+  `faccessat(2)` with `AT_EACCESS`), not with a copy of the homogeneity rule. Not re-read online
+  in this session.
+- K. Claessen and J. Hughes, "QuickCheck: a lightweight tool for random testing of Haskell
+  programs", ICFP 2000, and its stateful extension (random sequences of commands checked after
+  each one against a model): the shape of the churn, seeded operations with a check after each.
+  Not re-read online in this session.
+- `ltp/fsstress.c` of xfstests (the fstests already used, §1 and the fstests row): seeded random
+  sequences of filesystem operations with a seed and an operation count (`-s`, `-n`); the
+  knob `MOOB_PERMCHURN=SEEDS,STEPS[,FIRST]` follows that shape. Not vendored; not re-read in this
+  session.
+- Prior art in the tree: `tests/buildrace.c` and `tests/chmodrace.c` (journals 0098, 0102), which
+  use `scan_delay_us` to land writes and a chmod inside a domain build; `permmatrix churn` uses
+  the same parameter for its build phases. Linux 6.12.112 (the KASAN kernel's tree, read on the
+  test host): `fs/attr.c` `chown_ok()` and `chgrp_ok()` (without `CAP_CHOWN`, a user never gives a
+  file another owner and changes its group only to one of its own groups), `fs/namei.c` `may_linkat()` and
+  `safe_hardlink_source()` (with `fs.protected_hardlinks`, a user links only a file it owns or
+  can read and write), `acl_permission_check()` and `may_delete()`: why many of the operations
+  done as a user are refused, which the run counts as `denied`; a directory renamed to another
+  depth is refused with `EXDEV` by the layer (spec §5) and counted as `refused`.
+
+## 44. Mutation testing and branch coverage in CI (security roadmap S14 and S17, journal 0247)
+
+- GitHub Actions, "Actions limits" ([docs.github.com/en/actions/reference/limits](https://docs.github.com/en/actions/reference/limits)),
+  read through Context7 (`/websites/github_en_actions`) on 2026-10-31: each job on a
+  GitHub-hosted runner may run for up to 6 hours, and a Free plan runs up to 20 standard jobs at
+  once. Why `mutation.yml` splits the catalogue into four matrix jobs, each with a 180-minute
+  timeout, instead of one job or one job per mutant. The matrix itself follows "Running
+  variations of jobs in a workflow" of the same documentation and the per-variant jobs of §36.
+- `Documentation/dev-tools/gcov.rst` of Linux 6.12.112: `CONFIG_DEBUG_FS` and
+  `CONFIG_GCOV_KERNEL`; `GCOV_PROFILE := y` profiles the objects of one directory, including a
+  module; the counters appear as `.gcda` files under `/sys/kernel/debug/gcov/<build path>`,
+  which debugfs reports with size 0 (so `vm/gcov-guest.sh` reads them with `cat`); the data of an
+  unloaded module is kept and reloaded with it unless `gcov_persist=0`.
+- `kernel/gcov/fs.c` of the same tree: `gcov_persist` defaults to 1, and `save_info()` adds the
+  counts of each unload to `unloaded_info`, so a suite that loads and unloads the layer many
+  times reports the sum of every load. `kernel/gcov/Kconfig`: `GCOV_KERNEL` depends on
+  `DEBUG_FS` and selects `CONSTRUCTORS`. `scripts/Makefile.lib`: `CFLAGS_GCOV` is added when
+  `GCOV_PROFILE_<obj>.o`, `GCOV_PROFILE` or, for kernel objects, `CONFIG_GCOV_PROFILE_ALL` is
+  not `n`; a `GCOV_PROFILE=y` on the make command line therefore profiles the external module
+  only. Read from git.kernel.org's stable tree at tag `v6.12.112`.
+- lcov ([linux-test-project/lcov](https://github.com/linux-test-project/lcov), GPL-2.0), the
+  Ubuntu 24.04 package (2.0), read through Context7 (`/linux-test-project/lcov`): `lcov --capture
+  --directory`, `--include`, `--summary`, `--list` and `genhtml`; branch data is collected only
+  with `--rc branch_coverage=1` (default 0). gcov of GCC (the runner's gcc, the compiler of the
+  kernel and the module) reads the notes and counters.
+
+
+- Follow-up read on 2026-11-01: LCOV `geninfo`'s
+  [negative-count guidance](https://github.com/linux-test-project/lcov/blob/master/docs/man/geninfo.rst),
+  retrieved through Context7 (`/linux-test-project/lcov`), recommends rebuilding with
+  `-fprofile-update=atomic` and rerunning tests/capture rather than ignoring invalid counts.
+  GCC 13.3's [Instrumentation Options](https://gcc.gnu.org/onlinedocs/gcc-13.3.0/gcc/Instrumentation-Options.html)
+  documents `single`, `atomic` and `prefer-atomic` and the automatic selection with `-pthread`.
+  Linux 6.12.112's `Makefile` (`CFLAGS_GCOV`) and `scripts/Makefile.lib`, reread in the exact
+  test-host tree, add arc instrumentation but not atomic updates. Used for the isolated
+  coverage module-build correction and concurrent positive/negative control in journal 0247.
+
+
+- LCOV 2.6 [official release](https://github.com/linux-test-project/lcov/releases/tag/v2.6),
+  published 2026-10-03 (not marked prerelease), asset `lcov-2.6.tar.gz`, SHA-256
+  `67a45db99b8ef0260c3fac9a2e3749fd8fa350a15e235dd3c29b356d97755c75`.
+  Release metadata and bytes verified on 2026-11-01. The `geninfo` manual's branch
+  identification/matching section, retrieved through Context7, describes matching blocks
+  by signature when macros expand multiple expressions at one line. Used to replace the
+  distro 2.0 parser after reproducing its trace-macro mismatch and successfully recapturing
+  the same CI notes/counters with the pinned release (journal 0247). No branch exclusions.
+
+## 45. Nightly fuzzing and per-call corpus replay (journal 0248)
+
+- syzkaller at `8fb0ae898` (Apache-2.0, already used in §1):
+  `tools/syz-execprog/execprog.go`, `dumpCallCoverage()`, and
+  `pkg/cover/backend/pc.go`, `PreviousInstructionPC()` and `instructionLen()`.
+  Read in the exact checkout on the dedicated host on 2026-10-31: its coverage files
+  subtract five bytes on amd64 from KCOV's return PCs, so they already name the call
+  instructions listed by `objdump -dr`. The replay must not subtract five again.
+  Source: <https://github.com/google/syzkaller/tree/8fb0ae898>.
+- Linux 6.12.112 KCOV and module coverage: see §42 and ADR-0032. The replay uses the
+  built module's `.text` and checks the guest module's SHA-256 before running programs.
+- Existing MoobFS harnesses: `vm/syzkaller-local.sh`, its descriptions and seeds,
+  `vm/fstests-local.sh` and the exclusion lists of journal 0239; these are reused by
+  the nightly runner and `make fstests-auto`. No new fuzzer or filesystem port.
+
+- Linux 6.12.112, `fs/namespace.c:1994–2000`, `warn_mandlock()`, inspected in the exact
+  syzkaller build source on 2026-11-01: `pr_warn_once` reports the deprecated and ignored
+  `mand` mount option. Used to classify the retained replay-console warning, not to
+  suppress a sanitizer/lockdep finding (journal 0248; pinned kernel source as in §42).

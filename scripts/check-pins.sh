@@ -22,6 +22,8 @@ echo "upstream kernel (KASAN workflow):  linux-$kver  sha256 $ksum"
 [ "$(yaml KERNEL_SHA256 .github/workflows/kcsan.yml)" = "$ksum" ] || bad "kcsan.yml KERNEL_SHA256 differs from kasan.yml"
 [ "$(yaml KERNEL_VERSION .github/workflows/interop.yml)" = "$kver" ] || bad "interop.yml KERNEL_VERSION differs from kasan.yml"
 [ "$(yaml KERNEL_SHA256 .github/workflows/interop.yml)" = "$ksum" ] || bad "interop.yml KERNEL_SHA256 differs from kasan.yml"
+[ "$(yaml KERNEL_VERSION .github/workflows/coverage.yml)" = "$kver" ] || bad "coverage.yml KERNEL_VERSION differs from kasan.yml"
+[ "$(yaml KERNEL_SHA256 .github/workflows/coverage.yml)" = "$ksum" ] || bad "coverage.yml KERNEL_SHA256 differs from kasan.yml"
 dver=$(sed -n 's/^KERNEL_VERSION=//p' docs/development.md | head -n 1)
 dsum=$(sed -n 's/^KERNEL_SHA256=//p' docs/development.md | head -n 1)
 [ "$dver" = "$kver" ] || bad "docs/development.md KERNEL_VERSION ($dver) differs from kasan.yml ($kver)"

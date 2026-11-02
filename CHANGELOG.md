@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+- CI jobs for S14 and S17 (journal 0247):
+  `.github/workflows/mutation.yml` runs the mutant catalogue of the homogeneity rule
+  (`scripts/mutants.py run`, Debian 6.12.113 VM under KVM) in four shards plus a baseline job on
+  the unmutated tree, weekly, on demand and on pull requests touching the catalogue, the script
+  or `layer/index.c`, and fails when a mutant survives; `.github/workflows/coverage.yml` builds
+  the upstream test kernel with `vm/gcov.config` and the layer with `GCOV_PROFILE=y`, runs the
+  suite in virtme-ng (`vm/gcov-guest.sh`) and keeps an lcov branch report of `layer/` as an
+  artifact, weekly and on demand. Neither is a required check. Checked offline: actionlint,
+  shellcheck, `check-pins.sh --offline` (with a negative round), retired claims. First CI:
+  mutation baseline and all 23 mutants passed; coverage suite passed but LCOV rejected a
+  negative counter. The coverage-only module build now uses atomic profile updates and
+  preserves compiler notes/configuration and build hashes. Its next suite passed but the
+  distro LCOV 2.0 failed on macro branch merging; the same saved counters produce a valid
+  report with LCOV 2.6. That release is pinned by SHA-256. CI run 41357772643 passed on 1071845:
+  2,250/3,120 branches (72.1%); report/HTML, suite markers and artifact hashes checked.
+- S15 permission-sequence harness (journal 0250, validation in progress): the default
+  `permchurn` suite step runs seeded chmod, chown, access-ACL, rename, link and unlink
+  sequences against the lower kernel as nine identities, including delayed builds.
+  `MOOB_PERMCHURN=SEEDS,STEPS[,FIRST]` selects a longer campaign.
+- Long-test harnesses (journal 0248, validation in progress): `make fstests-auto`
+  applies the exclusion lists, per-call KCOV corpus replay implements ADR-0032,
+  and a restartable nightly runner retains permission/fuzzing/replay reports.
+  The real three-seed replay smoke and both full integration suites passed; the nightly
+  schedule was installed on 2026-10-31. The ext4 exclusion-list rerun passed with
+  229 pass, 549 notrun and zero fail; XFS also passed with 372 pass, 406 notrun and
+  zero fail. Btrfs passed with 339 pass, 436 notrun and zero fail on 2026-11-01,
+  completing the three exclusion-list reruns locally. The first nightly report records incomplete permissions
+  and replay phases; corrected replay deadline/accounting passed bounded and resumed guest
+  controls and were installed for the next night. The longer permission profile passed
+  on all three lowers under KASAN/UBSAN/lockdep in a focused daytime run (248,832 checks);
+  The full 1,261-program corpus replay passed on 2026-11-01: zero failed/unreached,
+  688/781 call sites (88.1%), source hashes and cache union verified. A complete nightly
+  report remains pending; the separate daytime continuation does not rewrite the first night.
+  The second night passed long permissions (72 seeds, 248,832 checks) and fuzzing, but
+  saved an incomplete replay (259/1,116, zero failed, 857 pending). The next daytime
+  continuation reuses those cached results; zero of seven complete nights accepted.
+
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be
   covered. The handlers reach 688 of 781 (88.1 %); the value stays 85 %. Documentation only.

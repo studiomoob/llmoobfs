@@ -32,7 +32,8 @@ Measured wall-clock times per machine are not recorded yet; the CI timeouts are
 | `make test BUILD=build/asan CC=clang CFLAGS=... LDFLAGS=...` | Same, under ASan and UBSan (see development.md for the exact flags) | `build/asan/` |
 | `make fuzz FUZZ_TIME=30` | libFuzzer, `FUZZ_TIME` seconds per target (`FUZZ_TARGETS`, default all three): `attr` over `common/attr.c` (`tests/fuzz_attr.c`), `image` over the image parser `common/format.c` that the M1 module and `fsck.moobfs` share (`tests/fuzz_image.c`, which writes the checksums an input's fields ask for so that mutations pass them), `tools` over the query terms of `tools/query-common.h` and the ACL value of `tools/ext-acl.h` (`tests/fuzz_tools.c`); seeded by `tests/fuzz-corpus/<target>` (journal 0237) | `build/host/fuzz_<target>`, new inputs in `build/host/fuzz-corpus/<target>/`, crashes in `build/host/fuzz-crashes/` |
 | `make static` and `.github/workflows/static.yml` | Security roadmap S5 and S19 (journal 0242), needs only Docker: in the image of `tests/static/Dockerfile` (Debian's 6.12.113 headers for gcc, upstream 6.12.112 configured with `LLVM=1`, smatch built from a fixed commit), `W=1` with gcc and with clang, `sparse`, `smatch -p=kernel`, Coccinelle (`make coccicheck MODE=report`), the clang analyzer (`make clang-analyzer`) and `kernel-doc -Wall` over `layer/`, `kernel/` and `include/`. `scripts/static-triage.py` fails on a finding not in `tests/static/baseline.txt` (each entry with its reason), on an entry no longer reported, and when a checker misses the known defect of the canary module `tests/static/canary`. Ends in `STATIC_OK`. Not a required check | `build/static/` (logs, `findings.txt`, `versions.txt`) |
-| `make mutants-check` | Security roadmap S14 (journal 0242), needs only Docker, in the same image: each mutant of `tests/mutation/homogeneity.mut` (one check of the homogeneity rule removed or weakened) applies at exactly one place, builds against the headers, and changes the object code of `layer/index.o` (an unchanged object means an equivalent mutant). `python3 scripts/mutants.py run [M01 ...]` runs each mutant's `MOOB_ONLY` steps with `make vm-test` from a copy of `HEAD` and reports it killed or survived; on 2026-10-30 it killed all 23 (journal 0242) | nothing kept (`check`); `build/mutation/` (`run`) |
+| `make mutants-check` | Security roadmap S14 (journal 0242), needs only Docker, in the same image: each mutant of `tests/mutation/homogeneity.mut` (one check of the homogeneity rule removed or weakened) applies at exactly one place, builds against the headers, and changes the object code of `layer/index.o` (an unchanged object means an equivalent mutant). `python3 scripts/mutants.py run [M01 ...]` runs each mutant's `MOOB_ONLY` steps with `make vm-test` from a copy of `HEAD` and reports it killed or survived; on 2026-10-30 it killed all 23 (journal 0242). `.github/workflows/mutation.yml` (journal 0247) runs `run` weekly under KVM on GitHub's runner, in four shards of the catalogue, with a baseline job running the same steps on the unmutated tree; it fails when a mutant survives. Written; its first GitHub run is pending (journal 0247) | nothing kept (`check`); `build/mutation/` (`run`), Actions artifacts `mutation-shard-<n>` and `mutation-baseline` |
+| `.github/workflows/coverage.yml` | Security roadmap S17 (journal 0247): the upstream 6.12.112 kernel of the KASAN job built with `vm/kasan.config` and `vm/gcov.config` (`CONFIG_GCOV_KERNEL`), the layer built with `GCOV_PROFILE=y` on the job's command line only, the full suite in virtme-ng (`vm/gcov-guest.sh` runs `vm/kasan-guest.sh`, then copies the layer's `.gcda` files out of debugfs), an `lcov` branch report of `layer/` with its totals in the job summary. A report, not a gate: it fails only when the suite fails or no counters are collected. Weekly, on demand and on pull requests touching its own files. Written; its first GitHub run is pending (journal 0247) | `build/gcov/` (`layer.info`, `summary.txt`, `files.txt`, `html/`), Actions artifact `layer-branch-coverage` |
 | `make attr-tools` | Linux-only `moobfs-attr`, `moobfs-check`, `moobfs-index` | `build/host/` |
 | `make hostile-test` / `make json-test` | Linux, no module (CI job "Tools and sanitizers", under ASan and UBSan): `tests/hostile-user.sh` runs `moobfs-check` and `moobfs-index` over the adversarial trees of `tests/hostile.c` (S4), `tests/tools-json.sh` checks both JSON documents and `moobfs diagnose`'s usage and no-layer exit (64, 69), and since journal 0232 `tests/tools-walk.sh` (`hostile-test` only) runs both tools while `hostile swap` exchanges a directory and a link to outside the root with `renameat2(RENAME_EXCHANGE)` (no answer may come from outside; the `nftw()` tools failed most rounds), checks that planted links and a FIFO are not followed, walks 150 levels with 64 descriptors and, as a user other than root, keeps an unreadable file reported as before. Each skips or fails cleanly where `TMPDIR` has no user extended attributes | a `mktemp -d` under `TMPDIR`, removed at exit |
 | `make module` / `make layer` | `kernel/moobfs.ko` / `layer/moobfs_layer.ko` against `KDIR` | in-tree (`kernel/`, `layer/`) |
@@ -252,7 +253,7 @@ Markers come from three places: `vm/init` and `tests/mounted.c` (M1),
 | `QUERY2_RACE_PASS: <fs>` | `vm/suite.sh`, `tests/query.c race2` | Two query processes share one open file; only the parent prints statistics after validating the child exit status (journal 0171). For 5 s, mode changes, renames, unlink and recreate, files moving to another domain and back, and `chmod` of the domain directory race paged `QUERY2` (limit 7) as uid 1001, cycling the plain, equality and ordered plans: every result is well formed (NUL-terminated, relative, length consistent) and openable unless removed, recreated or denied after the answer; `ESTALE` when the domain switches to fallback restarts paging; afterwards the domain is in fallback, and the answer, paged by 3 or not, equals `moobfs-index --domain` | Absence of all races (5 s of one interleaving per run); duplicates across pages while keys change, which keyset paging allows |
 | `LAYER_LOWER_PASS: <fs> reflink=<yes|no>` | `vm/suite.sh`, once per lower filesystem | Everything in `run_lower` for that filesystem: mount contract (no `lower=`, bad `lower=`, stacking on itself all refused), pass-through tests, typed attribute tools (`moobfs-attr`, `moobfs-check` with a planted invalid encoding), index and `QUERY` equal to `moobfs-index` for ten predicates and after rename, directory rename, unlink, removexattr and remount, `noindex` and `index_budget=1M`, isolation, three `fsx` seeds (9000 operations) with the result compared to the lower copy, `nolinks` remount, clean unmount | Durability (that is the lower filesystem's), performance, behaviour with the budget exhausted on large trees |
 | `DEMO_PASS: ...` and the `DEMO| ` lines before it | `vm/suite.sh`, once over ext4 after the three lower filesystems | The README demonstration ran as printed: under the default mount options, attributes written through the layer are readable on the lower tree; `QUERY2` as uid 1001 returns its own domain's file and, in a shared domain, only the file every visitor can read; another user's domain gives `EACCES` at `open`; the v1 `QUERY` gives `EPERM` to that user and answers root with all four files; `GET_INFO` counts one heterogeneous file and no fallback domain | Anything beyond those four files; the `DEMO| ` lines are a transcript, not an extra check |
-| `SQLITE_RESULT <label>: rows=... integrity=... reads=... missing=[...]` and `SQLITE_VARIANTS: lower=.. alone=.. layer=.. rollback=.. excl=.. again=..` | `vm/suite.sh` | Per-variant counts are printed before any verdict: control on the lower filesystem, WAL alone, WAL with a concurrent reader (twice), rollback journal, `unix-excl` VFS; each exit code is 0 when 200 of 200 rows survive with `integrity_check` ok | Behaviour of SQLite builds or page sizes other than the Debian package in the image |
+| `SQLITE_RESULT <label>: rows=... integrity=... reads=... missing=[...]` and `SQLITE_VARIANTS: lower=.. alone=.. layer=.. rollback=.. excl=.. again=..` | `vm/suite.sh` | Per-variant counts are printed before any verdict: control on the lower filesystem, WAL alone, WAL with a concurrent reader (twice), rollback journal, `unix-excl` VFS; each helper status checks the final count of 200 rows; integrity and missing-row diagnostics are printed for separate inspection | Behaviour of SQLite builds or page sizes other than the Debian package in the image |
 | `SQLITE_CONCURRENT_OK` | `vm/suite.sh` | The control, the WAL-alone run and both WAL-with-reader runs kept all rows (this is the regression for the phase 2e data-loss bug) | Other concurrency patterns |
 | `ACCEPTANCE_CLIENTS_PASS` | `vm/suite.sh` | git (three commits, `fsck --strict`, clean status), SQLite as above and the memory-client convention (`remember`) work on the layer over ext4, and `moobfs-check` finds no problem afterwards | The same over btrfs or XFS (acceptance runs over ext4 only) |
 | `POWER_LOSS_REPLAY_PASS: marks mkfs m1 m2 m4 end` | `vm/suite.sh` | With the lower ext4 on `dm-log-writes`, replaying the log to each mark on a zeroed disk, running `e2fsck -fn` and mounting the layer shows every memory synced before the mark whole and later ones absent, with `QUERY` counts matching | Crash consistency without the client's `sync` of the parent directory; other lower filesystems; barriers under real hardware |
@@ -281,6 +282,30 @@ credentials), not a copy of the rule.
 | `PERMMATRIX_PASS identities=... mismatches=0` | For one seed, no identity gets a file the lower would refuse it, from the partition and again in fallback mode (per-result checks) after a chmod through the layer | Shapes outside the seeds; default ACLs; SELinux labels on the lower |
 | `QUERY_BUILD_MOVED_PASS` | Inside this step: a search-only directory renamed during the domain's first build stays out of the partition | Other renames during a build |
 | `PERMMATRIX_STEP_PASS: <fs>, ...` | On that lower: the twelve seeds, counts showing that they met cases the rules before journals 0116 and 0215 got wrong, and the three fixtures for a search-only directory made through the layer after the build, created in a built domain and renamed during the first build, and (journal 0242, mutants M22 and M23) a passing directory with an attribute and 600 files moved during the first build below a 0700 directory, kept out of 1001's answer | A complete suite by itself |
+
+### QUERY2 while permissions change (security roadmap S15, journal 0250)
+
+`MOOB_ONLY=permchurn make vm-test` runs `permmatrix churn` on ext4, btrfs and
+XFS; the full suite includes it. Each seed plants the tree of `permmatrix`
+(and a directory two levels down), then mounts the layer four times; each mount
+runs a number of seeded operations through the layer (chmod, chown, setfacl,
+rename, link, unlink), as root, as the owner concerned or as another identity,
+and after each one sends `QUERY2` as the nine identities. The second and fourth
+mounts set `scan_delay_us` while a build runs (at the mount and after a
+directory rename) and land operations in it. The oracle is again the lower
+kernel as that identity: every returned path must name the returned inode and
+be reachable; every reachable file the rule admits must be returned, except
+files whose answer depends on history the rule leaves open (a second name since
+the mount, a directory above them changed or renamed, an operation during a
+build), which are checked for leaks only. Multiple names are recorded before the first
+build and before operations, so an unlink cannot erase that history before the check. The default run is six fixed seeds of
+24 operations per mount; `MOOB_PERMCHURN=SEEDS,STEPS[,FIRST]` (passed to the
+guest by `make vm-test` and `vm/kasan-local.sh`) runs a longer one.
+
+| Marker | Proves | Does not prove |
+| --- | --- | --- |
+| `PERMCHURN_PASS seed=... mismatching_steps=0` | For one seed: after every operation, no identity got a path the lower would not let it reach or a path naming another inode, and none missed a reachable homogeneous file outside the history-dependent cases; the counts say how many operations were done, by users, during builds | Operations other than the six; more than one domain; default ACLs; concurrency between users other than during a build |
+| `PERMCHURN_STEP_PASS: <fs>, ...` | On that lower: every seed passed, and some operations were done by users and some during a build | A complete suite by itself |
 
 ### Decisive permission and independent-oracle checks (journal 0172)
 
@@ -399,10 +424,13 @@ Expected noise that is **not** a failure:
 - unsigned/out-of-tree module taint messages;
 - `SQLITE_RESULT` lines for `layer-rollback` and `layer-wal-unix-excl` with a
   nonzero exit code are printed for information; the verdict uses `lower`,
-  `alone`, `layer` and `again` only.
+  `alone`, `layer` and `again` only. Concurrent `reader error` messages are also
+  informational in the current helper: its return status checks the final row count.
+  Inspect the printed integrity and missing-row fields separately; a passing suite does
+  not claim that every concurrent read completed without `SQLITE_BUSY` (journal 0253).
 
 A failure is: `MOOBFS_VM_FAIL:`, a missing required final marker, QEMU exiting
-nonzero (including the 2400-second timeout), or in KASAN any of the `dmesg`
+nonzero (including the 3600-second timeout), or in KASAN any of the `dmesg`
 patterns above. **QEMU exit 0 alone does not prove success:** `vm/init` powers
 off on both failure and success. `vm/in-container.sh` requires exit 0, all three
 full-run markers (`MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`,
@@ -502,6 +530,55 @@ to `/etc/selinux/semanage.conf`; SELinux is not activated on the host. Markers:
 `MOOBFS_SELINUX_RESULT: <run> differ=<n> denied_directly=<n>` per run, `MOOBFS_SELINUX_FAIL`
 on any failed check. Not part of `make vm-test` nor of CI.
 
+### Long runs on the test host: fstests `auto`, the corpus replay, nightly syzkaller
+
+None of these is part of `make vm-test` or of CI; each needs a Linux host with KVM, and each
+keeps the module in guests.
+
+- **`make fstests-auto LOWER=ext4|btrfs|xfs FSTESTS=<built fstests checkout>`** (security
+  roadmap S2, journal 0248): `vm/fstests-local.sh` with `-g auto` and the exclusion lists
+  `vm/fstests/exclude-quick.txt` and `exclude-auto.txt`, plus `exclude-auto-btrfs.txt` on btrfs,
+  then `vm/fstests/results.sh` writes one line per test to `build/fstests/results-<lower>.txt`.
+  6 to 11 hours per lower at 2 vCPUs; `MOOB_KVER`, `MOOB_FSTESTS_CPUS` and `MOOB_FSTESTS_MEM`
+  apply, and `taskset -c` pins it. Expected: no failure and no kernel diagnostic in
+  `build/fstests/console-<lower>.log`; [vm/fstests/README.md](../vm/fstests/README.md) has the
+  verdict per test.
+- **`SYZ=<checkout> sh vm/syzkaller-replay.sh <out> <corpus.db or dir>...`** (ADR-0032, journal
+  0248): every program once with per-call KCOV in disposable guests of the syzkaller kernel
+  that `vm/syzkaller-local.sh` built (`snapshot=on`, the image's module checked against
+  `layer/moobfs_layer.ko`), the module's `.text` PCs mapped to the `__sanitizer_cov_trace_pc`
+  call sites of the functions in `vm/syzkaller/handlers.txt` (`vm/syzkaller/callsites.py`,
+  `objdump -dr`). `<out>/callsites.txt` ends in `CALLSITES covered/total percent`, S3's
+  figure; `REPLAY_GUESTS="4,5 6,7"` runs two pinned guests; results per program are cached as
+  they come, so a stopped replay resumes. `python3 vm/syzkaller/callsites.py funccover
+  funccover.csv` gives the manager's own count of the same functions beside it.
+  Full-corpus validation on 2026-11-01 (journal 0248): 1,261/1,261 programs, zero
+  failed/unreached, 688/781 call sites (88.1%); 260 earlier cache entries reused unchanged
+  and the cache union verified. This daytime continuation is not a complete nightly report.
+- **`vm/syzkaller-nightly.sh <reports dir>`** (S18): one night, from its start to `NIGHT_END`
+  (05:00 by default): the extended S15 permission campaign under KASAN
+  (`MOOB_PERMCHURN=24,96,YYYYMMDD`, at most 60 minutes), the build steps, `vm/syzkaller-local.sh ... run` with the corpus kept
+  from the previous night and the seeds added, stopped an hour before the end, then the replay
+  over the night's corpus and the seeds, and `report.txt` per night plus a line in
+  `nights.txt`. Restartable after a power cut. The host's crontab, with `SYZ`, `GO`,
+  `SYZ_CACHE` and the paths of that host (the locks keep it off CPUs a daytime run still holds):
+
+  ```
+  0 23 * * * cd $HOME/b11night/nightly-src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
+  @reboot sleep 300; cd $HOME/b11night/nightly-src && PATH=$HOME/.venv-vng/bin:$PATH flock -w 3600 $HOME/b11night/slotA.lock flock -w 3600 $HOME/b11night/slotB.lock env NIGHT_RESUME=1 SYZ=$HOME/b11night/syzkaller GO=$HOME/syz/go/bin SYZ_CACHE=$HOME/b11night/syzcache SYZ_VMS=2 NIGHT_CPUS=4-7 REPLAY_GUESTS="4,5 6,7" sh vm/syzkaller-nightly.sh $HOME/b11night/nights >> $HOME/b11night/nightly.log 2>&1
+  ```
+
+  `vng` must be on `PATH`. The script uses GNU `timeout` to bound builds and replay
+  at the end of the window (TERM, then KILL after 15 seconds). Replay guest work stops
+  30 seconds earlier, with SSH/boot operations capped by that deadline, to leave time for
+  cache aggregation; replay.exit retains the phase result. Interrupted or failed phases
+  remain visible in the report. Offline harness controls: `python3 tests/syzkaller-replay-test.py`.
+
+  The installed schedule uses a dedicated frozen Git clone under `nightly-src/`
+  (initial snapshot `569ec2a`, corrected harness `06e4a65` installed on 2026-11-01;
+  journals 0248/0253). For a copy without `.git`, put its source commit
+  in `REVISION` so the reports identify it. Do not edit the source while a night runs.
+
 ## 7. Adding a lower filesystem
 
 Each new lower filesystem widens the tested matrix and needs a journal entry; it
@@ -572,8 +649,18 @@ pull requests) and `Native Linux VM` on pushes to `main` and on pull requests;
 `Native Linux VM (Debian 6.12.113)` runs on the same pushes and pull requests;
 `KASAN and lockdep` runs on pull requests touching `layer/` or `vm/`, weekly and
 on demand. `Long fuzzing` (`fuzz.yml`) runs the three libFuzzer targets 45 minutes each, twice a
-week and on demand, with the corpus kept in the Actions cache (journal 0237). Logs are temporary Actions artifacts; permanent conclusions belong
-on demand; `Weekly benchmark` (`bench.yml`, journal 0238) runs the on-demand index benchmark
-weekly, on demand and on pull requests touching its harness, as a trend monitor. Logs are temporary Actions artifacts; permanent conclusions belong
+week and on demand, with the corpus kept in the Actions cache (journal 0237);
+`Weekly benchmark` (`bench.yml`, journal 0238) runs the on-demand index benchmark
+weekly, on demand and on pull requests touching its harness, as a trend monitor.
+`Mutation testing` (`mutation.yml`) and `Branch coverage` (`coverage.yml`), journal 0247, run
+weekly, on demand and on pull requests touching their own inputs; neither is a required check,
+and neither had run on GitHub when it was added. The first mutation run passed; the first
+coverage suite passed but its LCOV report failed on a negative counter. The coverage-only
+module build now uses atomic profile updates and keeps notes, configuration and build hashes;
+the next suite passed but LCOV 2.0 rejected macro branch merging. A saved-data recapture
+passed with LCOV 2.6; that release is pinned by SHA-256. CI run 41357772643 then passed
+on 1071845, with report/HTML and suite markers checked (2,250/3,120 branches, 72.1%;
+dated follow-ups in journal 0247).
+Logs are temporary Actions artifacts; permanent conclusions belong
 in the journal with links to the run. The Pages workflow publishes only `site/`.
 Preview locally with `python3 -m http.server 8080 --directory site`.

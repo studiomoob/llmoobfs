@@ -85,8 +85,8 @@ or a sized `mkfs` under the filesystem.
 
 ## Not done
 
-A run under the KASAN kernel, `make vm-test` integration, and a repeat of the `auto` run with
-its exclusion lists (below).
+A run of fstests under the KASAN kernel and `make vm-test` integration. The standalone
+`make fstests-auto` target and the exclusion-list reruns are validated below.
 
 ## Exclusion list
 
@@ -159,3 +159,23 @@ None is a layer defect. With both lists, a run is
 `-g auto -E .../exclude-quick.txt -E .../exclude-auto.txt` (plus `-E .../exclude-auto-btrfs.txt`
 on btrfs); fstests' `-E` adds to the list. That run follows from the per-test results but has not
 been made.
+
+
+## Result: auto rerun with exclusion lists (2026-10-31/2026-11-01)
+
+`make fstests-auto` passed on Debian 6.12.113 over all three lowers (journals 0248/0253).
+
+| Lower | Selected | Pass | Not run | Fail |
+| --- | ---: | ---: | ---: | ---: |
+| ext4 | 778 | 229 | 549 | 0 |
+| btrfs | 775 | 339 | 436 | 0 |
+| XFS | 778 | 372 | 406 | 0 |
+
+Per-test results: [ext4](results-ext4-auto-exclusions-6.12.113.txt),
+[btrfs](results-btrfs-auto-exclusions-6.12.113.txt),
+[XFS](results-xfs-auto-exclusions-6.12.113.txt). Each finished with check exit 0,
+its DONE marker and no diagnostic in the saved console; the current classifier independently
+reproduced the results. Skipped cases were not executed. Post-run module/harness/exclusion
+hashes were checked; no pre-run manifest exists for these inherited copies. Their exact
+source differences and evidence hashes are recorded in journal 0248. This validates the
+quick/auto scope with justified exclusions, not every fstests group.
