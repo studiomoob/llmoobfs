@@ -547,3 +547,23 @@ of actual resource release; the existing 23:00 schedule and sole observer are pr
 No new test or observer was started. This continuation spans about 3 h 15 min of calendar
 machine time; engineering effort was not measured. Next: inspect the next scheduled night,
 keeping both incomplete reports and acceptance criteria intact; no new PR is authorized.
+
+## November 2 cache preflight (completed 09:37 Brasília)
+
+A build-only control on the same immutable runtime clone rebuilt the KASAN module and
+then the syzkaller module, holding slot B on CPUs 6–7 with bounded commands. Both builds
+exited 0, all 1,812 tracked-source hashes stayed unchanged, and the final module is
+byte-identical to the original `299a8521...` module. Thus this rebuild sequence preserves
+the warmed cache identity; it does not prove that future corpus additions fit the replay
+budget. No guest or replay was started, and slot B was free after the control.
+
+A raw comparison of the archived and live corpus databases failed, so the initial control
+stopped before its end marker. Follow-up unpacking found exactly the same 1,099 programs,
+with identical filenames and SHA-256 contents. Database container bytes differ; the cause
+is not established, and byte equality is not claimed. Both program manifests are retained.
+The completed evidence archive SHA-256 is
+`f5c5731b3ce2e64cb6a23a80319b0ce8fc6358bd5ad1626174989a674d6219e5`.
+No cache entries were transferred between module identities. The 23:00 schedule, replay
+budget and seven-complete-night criterion are unchanged. This is a build/cache preflight,
+not another accepted night or a new runtime test. Calendar completion is recorded; effort
+was not measured.
