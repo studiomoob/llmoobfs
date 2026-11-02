@@ -20,7 +20,7 @@ exploit, as the XFS and ext4 maintainers treat it.
 ## Where each item stands (2026-11-01)
 
 <!-- current-state -->
-State based on `main` at `302bff0`, with local batch-11 additions (journals 0247, 0248, 0250 and 0253). Local full-suite validation passed on 2026-10-31; S2 exclusion-list reruns passed on all three lowers; complete nightly reports remain pending. S14/S17 GitHub validation passed on `1071845` in [PR 181](https://github.com/studiomoob/llmoobfs/pull/181), with artifacts reviewed (journal 0247); final documentation checks and merge approval remain separate. Summarised from the dated notes below.
+State based on `main` at `e59a244`, after the authorized merge of batch-11 test infrastructure in PR 181 (journals 0247, 0248, 0250 and 0253); the remaining nightly work continues. Local full-suite validation passed on 2026-10-31; S2 exclusion-list reruns passed on all three lowers; complete nightly reports remain pending. S14/S17 GitHub validation passed on `1071845` in [PR 181](https://github.com/studiomoob/llmoobfs/pull/181), with artifacts reviewed (journal 0247); final documentation checks and merge approval remain separate. Summarised from the dated notes below.
 
 | Item | State |
 | --- | --- |

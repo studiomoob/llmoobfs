@@ -1,6 +1,6 @@
 # 0253 — Batch 11 local integration and complete-suite validation
 
-Date: 2026-10-31–2026-11-01. Status: **local validation and all 19 PR checks passed on 1071845; documentation synchronization awaits its final checks; S18 remains open**.
+Date: 2026-10-31–2026-11-02. Status: **PR 181 merged with maintainer approval; S14/S17 validated; remaining nightly work is open**.
 Work started about 13:17 Brasília time (UTC-3); this validation unit ended about 15:29. Calendar time, not measured engineering effort. Estimated effort: S
 for integration, plus machine time for the complete suites and long S2 runs.
 
@@ -606,3 +606,36 @@ This new experiment record changes documentation only; the last tested PR head `
 passed 19/19, and any subsequently published record head must pass its own required checks.
 Main merge and Azure remain unauthorized. Next: inspect daytime completion evidence and
 obtain the separate maintainer decision on PR 181; no automatic approval inferred.
+
+
+## Authorized merge completed; nightly continuation preserved (2026-11-02, 07:03:03 Brasília)
+
+The maintainer explicitly approved merging PR 181 using a merge commit, with nightly
+limitations still open. A fresh preflight confirmed head `8686b116b9bd8030ac29fc29d97b1858c363a72b`,
+base `302bff0`, all 19 successful checks, and OPEN/MERGEABLE/CLEAN. The merge used
+`gh pr merge 181 --merge --match-head-commit 8686b116b9bd8030ac29fc29d97b1858c363a72b`
+with the technical validation summary in its body, without admin bypass, squash or branch
+deletion. GitHub confirms MERGED at 10:03:03 UTC (07:03:03 Brasília), merge commit
+`e59a244f1282994ed1a8cd21d53fb34dbe235f3c`. Its two parents are the checked base and head;
+its tree is identical to the reviewed head. The clean local main checkout was fast-forwarded
+to that commit. No shared history was rewritten.
+
+The same existing observer now follows checks on the authorized merge commit as well as
+nightly/daytime markers; exact commit identity is enforced. Its prior process was stopped,
+the single-instance lock verified free, and the same helper terminal reused. No running VM
+or test was interrupted and no second monitor was created. Automatic main workflows, including
+Pages publication, are consequences of the approved merge; no separate deployment command,
+release, outreach or new PR was issued.
+
+The daytime replay remains active in both dedicated-host slots. At 06:57:48, 500 new programs
+had completed in addition to 259 reused entries, with no final verdict. S18 remains 0/7 complete
+nightly reports accepted; the separate continuation does not rewrite either incomplete night.
+S14/S17 acceptance remains met. Kernel freeze, format/UAPI and all later decision gates remain.
+
+This post-merge journal/status record is a small local follow-up commit prepared at about 07:07
+Brasília. The current-state introduction of `docs/security-roadmap.md` and this journal's
+status heading are updated locally; their dated pre-merge source checkpoints in main remain
+until the next authorized integration. No follow-up PR or direct main push is authorized.
+The public merge outcome is recorded immediately in PR 181 and the merge commit itself;
+local pending list, handoff and HTML map are synchronized under their shared lock. Existing
+G6/corporate fronts are informed of integration without changing their priorities or reservations.
