@@ -664,3 +664,17 @@ dated follow-ups in journal 0247).
 Logs are temporary Actions artifacts; permanent conclusions belong
 in the journal with links to the run. The Pages workflow publishes only `site/`.
 Preview locally with `python3 -m http.server 8080 --directory site`.
+
+### S18 scheduling amendment (2026-11-02)
+
+The maintainer replaced the calendar-week requirement with **seven complete campaigns**.
+The nightly timer is an operational convenience: equivalent campaigns may run during idle
+daytime windows and on both dedicated hosts in parallel. Preserve comparable fuzzing
+workload, the extended KASAN permissions profile, complete corpus replay and audited
+source/binary identities, phase exit codes, crash findings and final reports. Use isolated
+outputs and corpus/cache namespaces, coordinated resource reservations and disposable
+guests; never load the test module on a physical host. A resumed campaign stays one
+campaign, and a replay-only continuation or worker shard is not another campaign.
+The November 2 daytime campaign is eligible after its final audit. Earlier partial reports
+remain preserved; joining evidence into a completed campaign requires an explicit audit
+before changing the accepted count. This change does not approve any pending result.

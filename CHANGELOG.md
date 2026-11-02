@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- S18 acceptance requires seven complete, audited campaigns with comparable workload,
+  runnable by day or night and on coordinated hosts in parallel (maintainer amendment,
+  2026-11-02); calendar nights are no longer a gate. No pending result is approved by this change.
+
 - CI jobs for S14 and S17 (journal 0247):
   `.github/workflows/mutation.yml` runs the mutant catalogue of the homogeneity rule
   (`scripts/mutants.py run`, Debian 6.12.113 VM under KVM) in four shards plus a baseline job on

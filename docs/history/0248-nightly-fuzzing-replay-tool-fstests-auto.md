@@ -585,3 +585,19 @@ slot locks are preserved. The seven-night criterion is unchanged.
 The G6 owner also resumed a complementary second-Debian guest build and offline-tool
 validation, after actual host inventory; no module load or mounted G6 campaign is authorized
 by this task. Results and completion remain pending. No new publication is authorized.
+
+## Maintainer scheduling/acceptance amendment (2026-11-02)
+
+The original S18 text required a week of nightly reports. The maintainer now directs
+acceptance by seven complete campaigns, with comparable workload, at any hour and on
+coordinated dedicated hosts in parallel. There is no night-time-dependent property in
+these tests; waiting for calendar nights wasted idle capacity. This replaces the earlier
+calendar-night restriction, including the statement above excluding daytime campaigns.
+The active daytime campaign becomes eligible after audit. Partial original reports remain
+unaltered, and prior composite campaigns are not counted without auditing their full
+phase/evidence chain. Resumptions, replay continuations and worker shards never add a
+campaign. No runtime result is newly accepted by this decision alone. The roadmap, test
+guide and local map/rules/pending list reflect the amendment; published main/GitHub/site
+remain at their dated checkpoint until a separate publication authorization. No kernel,
+UAPI, freeze, Azure or mounted G6 gate changed. The G6 owner is asked to prepare isolated
+second-host S18 capacity while the current Mac mini campaign continues unchanged.
