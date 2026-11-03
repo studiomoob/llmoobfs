@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The VM test client creates new cursor files with mode0600 before umask and reports
+  buffered cursor-write failures. Existing-file overwrite behavior is unchanged; no kernel
+  or UAPI change. Userspace negative/positive controls passed (journal0261).
+
 - Allow explicit S18 campaign deadlines and fuzzing-duration caps outside the default
   nightly calendar, with five passing offline orchestration controls (journal 0248).
 

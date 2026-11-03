@@ -273,3 +273,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0259 — Unbuilt-partition accounting warning](0259-unbuilt-partition-accounting-warning.md): in progress; campaign findings, source hypothesis and pending regression validation.
 
 - [0260 — Repository-wide pending-item audit; actual gaps and stale checkpoints](0260-repository-pending-item-audit.md)
+
+- [0261 — Private cursor output, current-state reconciliation and S20 assessment](0261-cursor-and-current-state-reconciliation.md)
