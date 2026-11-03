@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Allow explicit S18 campaign deadlines and fuzzing-duration caps outside the default
+  nightly calendar, with five passing offline orchestration controls (journal 0248).
+
 - Fix permission-change accounting through a hard-link alias in an unbuilt domain:
   invalidate the old domain and drop its record instead of charging a missing partition.
   An independent functional fixture reproduces the warning on old code; focused ext4,

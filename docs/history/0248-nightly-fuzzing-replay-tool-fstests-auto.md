@@ -601,3 +601,18 @@ guide and local map/rules/pending list reflect the amendment; published main/Git
 remain at their dated checkpoint until a separate publication authorization. No kernel,
 UAPI, freeze, Azure or mounted G6 gate changed. The G6 owner is asked to prepare isolated
 second-host S18 capacity while the current Mac mini campaign continues unchanged.
+
+## Corrected campaign preparation and explicit windows (2026-11-03)
+
+Journal 0259 records the partition-accounting correction: old-code negative control,
+focused corrected KASAN and both full native/KASAN suites passed with reviewed artifacts.
+The two earlier complete campaigns remain warning-bearing, not newly approved as clean.
+
+The original calendar-derived end could not start an equivalent daytime campaign after
+noon. Two optional inputs now allow an explicit epoch deadline and a positive fuzzing
+duration cap, while retaining the original defaults and corpus/cache identity checks.
+Five Linux orchestration controls passed using fake phase tools (no guests/fuzzer):
+explicit deadline with/without cap, malformed deadline, zero cap and expired-window
+partial verdict. ShellCheck and shell syntax passed. This scheduling-only change does
+not alter the kernel/UAPI tested in `4f17fb4`. A separate corrected runtime and private
+cache/image/syzkaller copies are being prepared; no long corrected result is claimed.

@@ -690,3 +690,17 @@ The fixture was designed separately from the implementation using spec ยง3 and ย
 The old module triggers `part_rec` and fails the diagnostic gate; the correction passed
 focused KASAN/UBSAN/lockdep on ext4, btrfs and XFS on November 3. Full batch validation
 and subsequent long campaigns remain separate checks.
+
+### Explicit S18 campaign windows
+
+`NIGHT_DEADLINE=<epoch seconds>` overrides the default next-morning end, so an
+independent report root can run a campaign started after noon without waiting for night.
+`NIGHT_FUZZ_S=<positive seconds>` caps fuzzing within the available window; it never
+extends the hard deadline or starts replay before fuzzing completes. Use a separate report
+root per campaign and a distinct long permission seed range; resumed phases remain the
+same campaign. Existing nightly defaults and identity-based replay caches are unchanged.
+
+`python3 tests/syzkaller-nightly-test.py` runs five Linux-only orchestration controls with
+fake phase tools: explicit deadline/cap, deadline without cap, invalid deadline, zero cap
+and expired-window partial reporting. They do not run a VM/fuzzer and do not approve an
+S18 campaign. All five passed on the dedicated host; ShellCheck and `sh -n` passed.
