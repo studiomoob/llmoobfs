@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Python library test: the racing-swap scan test checks that the walk finds the file after
+  the race instead of during it, which depended on scheduling; its security assertions are
+  unchanged (journal 0264).
+
 - Keep cursor-tampering fixtures private and readable by the test uid after the 0600
   output change; add an actual cursor-mode assertion. Passed in a native VM and under
   KASAN/UBSAN/lockdep on ext4, btrfs and XFS, and in the full native and KASAN suites of

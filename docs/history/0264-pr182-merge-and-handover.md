@@ -36,9 +36,10 @@ analysis, compiler warnings, lint, CodeQL, Scorecard, site build and deploy) pas
 
 ## Limits and next steps
 
-- Make the liveness assertion of test_scan_under_a_racing_swap deterministic (for example
-  a bounded pause of the swapper, or a walk outside the swap window as a separate check),
-  keeping its security assertions; until then a failure of that assertion alone is not a
-  defect signal. Estimated effort: S.
+- Done the same evening: test_scan_under_a_racing_swap keeps its assertions during the race
+  (no rename error, more than 100 swaps, no answer naming the private file) and checks
+  liveness after the race instead. With an odd number of exchanges it swaps back once; then a
+  walk must find notes/x and still no private file. On the Mac mini (Debian 13) `make
+  pylib-test` passed 5 of 5 runs and the test alone 30 of 30 (not skipped). Not yet run in CI.
 - S18 stays at 0 of 7 accepted rounds; round r01 with the correction is running.
 - S20 remains partial (journal 0261).

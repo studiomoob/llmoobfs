@@ -237,7 +237,14 @@ class Plain(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertGreater(swaps[0], 100)
         self.assertFalse({p for p in seen if p.endswith("secret")}, sorted(seen))
-        self.assertTrue({"notes/x", "notes.link/x"} & seen, "no walk went through")
+        # Whether any walk during the race found the file depends on scheduling (the walk
+        # refuses links, so a swapper that wins every race is valid behavior; journal 0264).
+        # Check liveness once the race is over instead: after an even number of exchanges
+        # the directory is back under its own name, and the walk must find its file.
+        if swaps[0] % 2:
+            self.assertEqual(exchange(-100, os.fsencode(real), -100, os.fsencode(link), 2), 0)
+        self.assertIn("notes/x", self._paths())
+        self.assertFalse({p for p in self._paths() if p.endswith("secret")})
 
     @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0, "needs root")
     def test_group_domain_and_other_caller(self):
