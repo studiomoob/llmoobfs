@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Keep cursor-tampering fixtures private and readable by the test uid after the0600
+  output change; add an actual cursor-mode assertion. Userspace ownership controls pass;
+  real VM integration remains pending (journal0263).
+
 - Verify existing first scheduled userspace-fuzzing and weekly benchmark artifacts,
   including ZIP digests, raw records and regenerated reports (journal 0262);
   no additional S18 campaign or reference performance claim.

@@ -715,3 +715,9 @@ use a private test directory. The old/new binary controls used a deterministic i
 creation under umask000, exact 128-byte cursor roundtrip, overwrite, missing parent and
 `/dev/full` error propagation. They test userspace file handling, not kernel cursor validation.
 The active S18 snapshot is immutable and does not include this later test-tool change.
+
+
+The per-lower cursor fixtures use a private uid1001 directory and retain that ownership
+on root-made tampered copies (journal0263); they assert output mode0600 before continuing.
+The ownership controls with an ioctl shim passed, but that later harness change has not yet
+run in a real VM. Do not present it as validated by the earlier full native/KASAN runs.

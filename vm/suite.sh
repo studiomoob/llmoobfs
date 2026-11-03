@@ -592,25 +592,31 @@ run_lower() {
     q2ord range 8 --order created time asc --pages --limit 2 created ge time 7000 -- --order created time asc "$LOWER/da" created ge time 7000
     q2ord unordered-pages 20 --limit 3 --pages kind eq string note -- "$LOWER/da" kind eq string note
     # cursors: the same query continues; another query, a remount or a fallback refuses it
-    "$BIN/query" --uid 1001 "$LAYER/da" q2 --limit 3 --cursor-out /tmp/c1 kind eq string note > /dev/null 2>&1 || fail "q2b-cursor-out-$fs"
-    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 3 --cursor-in /tmp/c1 kind eq string note)" = "q2 0" ] || fail "q2b-cursor-same-$fs"
-    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 9 --cursor-in /tmp/c1 kind eq string note)" = "q2 0" ] || fail "q2b-cursor-other-limit-$fs"
-    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --cursor-in /tmp/c1 kind exists x x)" = "q2 116" ] || fail "q2b-cursor-other-query-$fs"
-    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --cursor-in /tmp/c1 --order created time asc kind eq string note)" = "q2 116" ] || fail "q2b-cursor-other-order-$fs"
+    q2_cursors=$(mktemp -d /tmp/moob-cursors.XXXXXX) || fail "q2b-cursor-dir-$fs"
+    chown 1001:1001 "$q2_cursors" || fail "q2b-cursor-dir-owner-$fs"
+    "$BIN/query" --uid 1001 "$LAYER/da" q2 --limit 3 --cursor-out "$q2_cursors/c1" kind eq string note > /dev/null 2>&1 || fail "q2b-cursor-out-$fs"
+    [ "$(stat -c %a "$q2_cursors/c1")" = 600 ] || fail "q2b-cursor-private-$fs"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 3 --cursor-in "$q2_cursors/c1" kind eq string note)" = "q2 0" ] || fail "q2b-cursor-same-$fs"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 9 --cursor-in "$q2_cursors/c1" kind eq string note)" = "q2 0" ] || fail "q2b-cursor-other-limit-$fs"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --cursor-in "$q2_cursors/c1" kind exists x x)" = "q2 116" ] || fail "q2b-cursor-other-query-$fs"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --cursor-in "$q2_cursors/c1" --order created time asc kind eq string note)" = "q2 116" ] || fail "q2b-cursor-other-order-$fs"
     # T2 (journal 0155): the MAC alone must refuse a cursor whose fields changed while its query
     # hash (offset 16 of struct moobl_cursor) stayed valid: the pad (5), the high byte of the
     # inode (15) and the last inline value byte (119), all zero in this cursor
     for off in 5 15 119; do
-        cp /tmp/c1 /tmp/ct && printf '\377' | dd of=/tmp/ct bs=1 seek=$off conv=notrunc 2>/dev/null || fail "t2-patch-$fs"
-        cmp -s /tmp/c1 /tmp/ct && fail "t2-patch-changed-nothing-$off-$fs"
-        [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 3 --cursor-in /tmp/ct kind eq string note)" = "q2 116" ] || fail "t2-tampered-cursor-accepted-at-$off-$fs"
+        cp "$q2_cursors/c1" "$q2_cursors/ct" && printf '\377' | dd of="$q2_cursors/ct" bs=1 seek=$off conv=notrunc 2>/dev/null || fail "t2-patch-$fs"
+        # Cursor files are private (0600); root's copy must remain readable by the test uid.
+        chown 1001:1001 "$q2_cursors/ct" || fail "t2-cursor-owner-$fs"
+        cmp -s "$q2_cursors/c1" "$q2_cursors/ct" && fail "t2-patch-changed-nothing-$off-$fs"
+        [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 3 --cursor-in "$q2_cursors/ct" kind eq string note)" = "q2 116" ] || fail "t2-tampered-cursor-accepted-at-$off-$fs"
     done
     chmod 0700 "$LAYER/da/sub" || fail "q2b-fallback-$fs"
-    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 3 --cursor-in /tmp/c1 kind eq string note)" = "q2 116" ] || fail "q2b-cursor-fallback-$fs"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 3 --cursor-in "$q2_cursors/c1" kind eq string note)" = "q2 116" ] || fail "q2b-cursor-fallback-$fs"
     q2ord fallback-pages 14 --order created time desc --limit 4 --pages kind eq string note -- --order created time desc "$LOWER/da" kind eq string note
-    "$BIN/query" --uid 1001 "$LAYER/da" q2 --limit 3 --cursor-out /tmp/c1 kind eq string note > /dev/null 2>&1 || fail "q2b-cursor-out2-$fs"
+    "$BIN/query" --uid 1001 "$LAYER/da" q2 --limit 3 --cursor-out "$q2_cursors/c1" kind eq string note > /dev/null 2>&1 || fail "q2b-cursor-out2-$fs"
     umount "$LAYER" && mount -t moobfs_layer -o lower="$LOWER" none "$LAYER" || fail "q2b-remount-$fs"
-    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 3 --cursor-in /tmp/c1 kind eq string note)" = "q2 116" ] || fail "q2b-cursor-remount-$fs"
+    [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --limit 3 --cursor-in "$q2_cursors/c1" kind eq string note)" = "q2 116" ] || fail "q2b-cursor-remount-$fs"
+    rm -rf "$q2_cursors"
     q2ord remount-pages 30 --order title string desc --limit 7 --pages -- --order title string desc "$LOWER/da"
     # results reach user space only after query_sem is released (finding F7, journal 0105): an
     # unmapped results buffer gets EFAULT, and the semaphore is free afterwards, since a rebuild,

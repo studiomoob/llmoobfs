@@ -277,3 +277,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0261 — Private cursor output, current-state reconciliation and S20 assessment](0261-cursor-and-current-state-reconciliation.md)
 
 - [0262 — Existing scheduled fuzzing and weekly benchmark artifacts verified](0262-scheduled-fuzz-and-benchmark-evidence.md)
+
+- [0263 — Private cursor fixture ownership; real-VM validation queued](0263-private-cursor-fixture-validation.md)
