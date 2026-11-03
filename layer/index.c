@@ -2836,8 +2836,13 @@ void moobl_index_perm_changed(struct super_block *sb, struct dentry *dentry)
 	nofs = place_and_lock(ix, dentry, &pl);
 	index_touched(ix, d_inode(dentry)->i_ino);
 	rec = xa_load(&ix->inodes, d_inode(dentry)->i_ino);
-	if (rec && rec_set_partition(ix, rec, &pl))
+	if (rec && !domain_live(ix, pl.domain)) {
+		/* A hard-link alias can be in a domain that has never been built. */
+		domain_lost(ix, rec->domain, -ESTALE);
+		rec_drop(ix, rec);
+	} else if (rec && rec_set_partition(ix, rec, &pl)) {
 		inode_rec_put_if_empty(ix, rec);	/* emptied: nothing else frees it (R2-8) */
+	}
 	ix_write_unlock(ix, nofs);
 }
 

@@ -678,3 +678,15 @@ campaign, and a replay-only continuation or worker shard is not another campaign
 The November 2 daytime campaign is eligible after its final audit. Earlier partial reports
 remain preserved; joining evidence into a completed campaign requires an explicit audit
 before changing the accepted count. This change does not approve any pending result.
+
+### Cold-domain hard-link permission regression (journal 0259)
+
+The `permgaps` step first uses a fresh mount on each lower and runs
+`permission-gaps coldlink LAYER LOWER`: build A alone, add a hard-link alias in never-queried
+B, chmod through B, check QUERY2 exclusion, then remove the alias, restore mode and check
+that A contains the original file again. GET_INFO enforces a single built domain, no
+release and bounded accounting; the guest's diagnostic gate rejects kernel warnings.
+The fixture was designed separately from the implementation using spec §3 and §9.
+The old module triggers `part_rec` and fails the diagnostic gate; the correction passed
+focused KASAN/UBSAN/lockdep on ext4, btrfs and XFS on November 3. Full batch validation
+and subsequent long campaigns remain separate checks.

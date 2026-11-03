@@ -269,3 +269,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0248 — Nightly fuzzing, the replay tool and fstests auto (in progress)](0248-nightly-fuzzing-replay-tool-fstests-auto.md)
 - [0250 — Randomized permission sequences against the lower kernel (S15, in progress)](0250-randomized-permission-sequences.md)
 - [0253 — Batch 11 PR merged; local/CI and post-merge checks verified; nightly work open](0253-batch11-local-integration.md)
+
+- [0259 — Unbuilt-partition accounting warning](0259-unbuilt-partition-accounting-warning.md): in progress; campaign findings, source hypothesis and pending regression validation.

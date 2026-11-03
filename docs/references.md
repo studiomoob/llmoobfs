@@ -1232,3 +1232,14 @@ hand and carries the same code paths:
   syzkaller build source on 2026-11-01: `pr_warn_once` reports the deprecated and ignored
   `mand` mount option. Used to classify the retained replay-console warning, not to
   suppress a sanitizer/lockdep finding (journal 0248; pinned kernel source as in §42).
+
+## 46. Partition-accounting permission-hook correction (journal 0259; in progress)
+
+- Linux 6.12.112 exact build source: `lib/xarray.c:1466–1487`, `xa_load()` and its
+  absent-entry behavior; `include/linux/lockdep.h:290–291`, write-lock assertions.
+  Inspected locally in the pinned kernel used for validation; upstream source:
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/lib/xarray.c?h=v6.12.112>
+  and <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/lockdep.h?h=v6.12.112>.
+- Existing MoobFS on-demand write semantics: `docs/spec-query-v2.md` §9,
+  `moobl_index_set()` and `moobl_index_renamed()`. Reused domain-liveness/drop/invalidation
+  mechanisms; no new data structure or locking algorithm.

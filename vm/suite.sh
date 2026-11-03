@@ -1700,6 +1700,11 @@ if want permgaps; then
 for fs in ext4 btrfs xfs; do
     case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
     mount -t "$fs" "$dev" "$LOWER" || fail "pg-lower-$fs"
+    # Independent fixture for 0259: only A is built; B must stay cold across alias chmod.
+    rm -rf "$LOWER/pg-cold" && mkdir -m 755 "$LOWER/pg-cold" || fail "pg-cold-directory-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pg-cold",domain_depth=1 none "$LAYER" || fail "pg-cold-mount-$fs"
+    "$BIN/permission-gaps" coldlink "$LAYER" "$LOWER/pg-cold" || fail "pg-cold-link-$fs"
+    umount "$LAYER" && rm -rf "$LOWER/pg-cold" || fail "pg-cold-unmount-$fs"
     rm -rf "$LOWER/pg" && mkdir -m 755 "$LOWER/pg" || fail "pg-directory-$fs"
     "$BIN/permission-gaps" plant "$LOWER/pg" || fail "pg-plant-$fs"
     mount -t moobfs_layer -o lower="$LOWER/pg" none "$LAYER" || fail "pg-mount-$fs"

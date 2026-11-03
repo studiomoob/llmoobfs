@@ -547,9 +547,79 @@ static void faults(void)
 	printf("UNPRIV_FAULT_PASS: uid=1001 operations=6 calls=%d faults=%d unexpected=0\n", calls, total);
 }
 
+/* Journal 0259: a chmod through an alias must not build its cold domain. */
+static struct moob_info cold_info(int root)
+{
+	struct moob_info info;
+
+	MUST(!ioctl(root, MOOB_IOC_GET_INFO, &info), "cold-link GET_INFO");
+	printf("COLD_LINK_INFO: built=%u builds=%u releases=%u used=%llu entries=%u inodes=%u hetero=%u\n",
+	       info.domains_built, info.domain_builds, info.domain_releases,
+	       (unsigned long long)info.index_used, info.index_entries, info.index_inodes,
+	       info.heterogeneous);
+	MUST(!info.domain_releases && info.index_used <= info.index_budget,
+	     "cold-link no release or accounting wrap");
+	return info;
+}
+
+static void cold_answer(int fd, unsigned int expected)
+{
+	unsigned int truncated;
+
+	MUST(query(fd, "test", 0, 8, &truncated) == expected && !truncated,
+	     "cold-link exact QUERY2 membership");
+	if (expected)
+		MUST(!strcmp(results[0].path, "f"), "cold-link original path");
+}
+
+static void cold_link(void)
+{
+	static const unsigned char value[] = {1, 'v'};
+	struct moob_info initial, final;
+	struct stat original, current;
+	char a[PATHCAP], b[PATHCAP];
+	int root, domain;
+
+	directory(layer, "A", 0755);
+	directory(layer, "B", 0755);
+	file(layer, "A/f");
+	attribute(layer, "A/f", "user.moob.test", value, sizeof(value));
+	path(a, layer, "A/f");
+	path(b, layer, "B/alias");
+	MUST(!stat(a, &original) && original.st_nlink == 1, "cold-link initial file");
+	root = open_dir(layer, ".");
+	MUST(!cold_info(root).domains_built, "cold-link fresh mount");
+	domain = open_dir(layer, "A");
+	cold_answer(domain, 1);
+	initial = cold_info(root);
+	MUST(initial.domains_built == 1, "cold-link only A built");
+	MUST(!link(a, b) && !stat(b, &current) && current.st_ino == original.st_ino &&
+	     current.st_nlink == 2, "cold-link alias identity");
+	cold_answer(domain, 0);
+	MUST(!chmod(b, 0600) && !stat(a, &current) && (current.st_mode & 0777) == 0600,
+	     "cold-link chmod through B");
+	cold_answer(domain, 0);
+	MUST(cold_info(root).domains_built == 1, "cold-link B remains unbuilt");
+	MUST(!unlink(b) && !stat(a, &current) && current.st_nlink == 1,
+	     "cold-link remove alias");
+	MUST(!chmod(a, 0644), "cold-link restore mode");
+	cold_answer(domain, 1);
+	final = cold_info(root);
+	MUST(final.domains_built == 1 && final.index_entries == initial.index_entries &&
+	     final.index_inodes == initial.index_inodes && !final.heterogeneous,
+	     "cold-link final counters");
+	MUST(!stat(a, &current) && current.st_ino == original.st_ino,
+	     "cold-link surviving inode");
+	MUST(!close(domain) && !close(root), "cold-link close directories");
+	puts("COLD_LINK_PASS: cold B never queried; alias chmod, exclusion and restoration");
+}
+
 int main(int argc, char **argv)
 {
 	setbuf(stdout, NULL);
+	if (argc == 4 && !strcmp(argv[1], "coldlink")) {
+		layer = argv[2]; lower = argv[3]; cold_link(); return 0;
+	}
 	if (argc == 3 && !strcmp(argv[1], "plant")) {
 		lower = argv[2]; plant(); return 0;
 	}

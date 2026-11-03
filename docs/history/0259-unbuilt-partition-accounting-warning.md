@@ -1,0 +1,102 @@
+# Partition accounting warning after a permission change
+
+Date: 2026-11-03. Status: **in progress**. Estimated effort: S (hours), revised if the
+investigation expands. Investigation started 2026-11-03; exact engineering effort was not
+measured. Calendar start/end and individual machine runs are recorded below.
+
+## Goal and observed evidence
+
+Investigate the MoobFS `part_rec`/`part_sub` warnings found by the complete November 2
+daytime and scheduled campaigns. Both campaigns completed all three phases with exit 0,
+but neither is accepted as a clean S18 result. Replay verification independently confirms
+1,145/1,145 and 691/781 call sites (88.5%) during daytime; 1,176/1,176 and 692/781 (88.6%)
+in the scheduled campaign. An exit-0 replay does not waive a kernel warning.
+
+Evidence archive SHA-256:
+`21bbac7bb3c7c898eb9a9fdf716818faa17c19ebd5404df851aeb9858682bc69`.
+All 4,070 archived files were verified against the manifest; corpus content identifiers,
+cache unions and generated call-site reports were independently recomputed. The daytime
+1,812-source before/after manifest equals the fresh post-night manifest. Only the already
+generated syzkaller constants differ from Git `06e4a65`; no separate pre-night source
+manifest exists. Private raw crash material stays outside Git. Neither a privilege leak nor
+data loss has been demonstrated. The warning originates in this module, not an unrelated
+filesystem or an expected environment diagnostic.
+
+## Investigation and proposed behavior
+
+The warning trace passes through permission changes and `rec_set_partition()`. The latter
+charges name nodes and moves entry/inode byte counts into the newly computed partition.
+Unlike the xattr-write and rename paths, the permission-change path does not check whether
+that target domain has an active build/record. This is a source-level hypothesis pending a
+deterministic regression; it is not yet a validated fix. The associated teardown underflow
+warning is retained, not dismissed. Hard-link aliases in a never-built domain and stale
+upper paths following another mount's rename are candidate triggers; neither hypothesis
+is recorded as independently reproduced yet.
+
+The candidate correction will retain lazy domain creation: drop an existing record that
+would move into an unbuilt domain and invalidate its old live domain so a subsequent query
+rebuilds from the lower, rather than charging a missing partition or returning a partial
+answer. No UAPI or format change is planned. ADR-0022 permits fixes under the freeze;
+the maintainer instructed continuing investigation/correction after the finding.
+
+A different existing agent wrote a functional fixture from the specification and
+harness without seeing `layer/` or this implementation proposal. This task is distinct
+from that session's blocked fuzzing preparation; no security restriction is bypassed.
+
+## Validation and limits
+
+No kernel correction, negative VM round or corrected VM result is claimed at this
+checkpoint. Required: deterministic old-code failure, checkpatch, focused suite and
+KASAN/lockdep, then full VM and KASAN batch gates before publication. The runtime clone
+used by the campaigns stays immutable; correction runs use a separate copy and slot lock.
+Published main, GitHub and site retain their dated checkpoint pending separate publication
+authorization. G6 mounted work, new PR/merge, release and Azure remain outside scope.
+
+## Prior art inspected
+
+Existing MoobFS domain-liveness checks in xattr-write and rename paths and the on-demand
+write contract in spec-query-v2 §9. Linux 6.12.112 exact build sources, lib/xarray.c
+1466–1487 (`xa_load`, absent entries return NULL), and include/linux/lockdep.h
+290–291 (`lockdep_assert_held_write`), inspected on the dedicated host. The existing index
+write lock protects accounting and lookup; no new locking mechanism is proposed.
+
+## Deterministic negative control (2026-11-03 10:46:18–10:47:19 Brasília)
+
+The specification-only fixture was implemented as `permission-gaps coldlink` in a fresh
+mount per lower, before the existing permission-gap fixtures. It builds A alone, adds a
+hard-link alias in never-queried B, changes mode through B, checks exclusion while linked
+and membership after alias removal/mode restoration. GET_INFO checks that B stays cold,
+no domain is released and counters return to their initial shape. The normal guest
+diagnostic gate supplies the kernel-warning assertion.
+
+With the original `layer/index.c`, the same suite step failed with exit 1 and
+`MOOBFS_VM_FAIL: kernel-diagnostic-layer`. Dmesg records `part_rec` at line 182 with
+`permission-gaps` as the triggering process. Functional fixture membership passed,
+showing why a zero userspace result alone would miss this accounting defect. Raw consoles,
+dmesg and the old module were preserved before copying the proposed correction.
+Negative source archive SHA-256:
+`3afc0e3cc42ebf711f4a5f1481022b22481fd856c6f6311505d3ded3f9300a88`.
+
+A seven-line candidate guard/drop/invalidation change is now under the same focused
+KASAN/UBSAN/lockdep step. `make checkpatch` passed locally. No corrected VM pass or full
+batch result is claimed until actual exit markers and diagnostics are reviewed.
+The independent test receipt corrected a documentation-section reference: on-demand
+domains are spec §9, not §10. This journal and references use the corrected section.
+
+## Focused corrected result (2026-11-03; completed 11:52:01 Brasília)
+
+The same `MOOB_ONLY=permgaps` round with the candidate correction exited 0. All three
+lowers (ext4, btrfs, XFS) emitted both `COLD_LINK_PASS` and `PERMISSION_GAPS_PASS`,
+followed by `MOOBFS_KASAN_ONLY_PASS` under KASAN, UBSAN and lockdep, with no kernel
+diagnostics. The input source hashes passed after execution. This is focused validation,
+not the full batch gate or a clean long fuzzing campaign.
+
+The correction checks target-domain liveness while holding the existing index write lock.
+When the target is cold, it invalidates the old domain and drops the record instead of
+moving its charges into a nonexistent partition. The next query rebuilds the old domain
+from the lower, avoiding a falsely complete answer after dropping the record. No new
+partition is eagerly allocated. The existing warning assertions remain intact.
+
+Next: full native Debian VM and full local KASAN/lockdep suites on this corrected unit,
+in separate source/build copies and dedicated slot reservations. Long campaign acceptance
+remains open; prior warning-bearing reports are not reclassified as clean.

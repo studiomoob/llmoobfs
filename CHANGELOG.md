@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fix permission-change accounting through a hard-link alias in an unbuilt domain:
+  invalidate the old domain and drop its record instead of charging a missing partition.
+  An independent functional fixture reproduces the warning on old code; focused ext4,
+  btrfs and XFS KASAN/UBSAN/lockdep validation passed. Full batch gates are pending
+  (journal 0259).
+
 - S18 acceptance requires seven complete, audited campaigns with comparable workload,
   runnable by day or night and on coordinated hosts in parallel (maintainer amendment,
   2026-11-02); calendar nights are no longer a gate. No pending result is approved by this change.
