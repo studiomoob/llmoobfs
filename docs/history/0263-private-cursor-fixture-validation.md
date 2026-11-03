@@ -1,7 +1,7 @@
-# 0263 — Private cursor fixture ownership; native VM validation passed
+# 0263 — Private cursor fixture ownership; native and KASAN VM validation passed
 
 Date: 2026-11-03. Status: fixture correction validated in userspace and in a native Debian-kernel
-VM on ext4, btrfs and XFS; the KASAN/lockdep run of the same steps is in progress.
+VM and under KASAN/UBSAN/lockdep on ext4, btrfs and XFS; full suites of the final unit pending.
 Started after 15:13 Brasília; timestamps of controls are retained in local receipts. Calendar
 time, not measured engineering effort. Estimated effort: S. Continues the authorized batch 11
 follow-up and journal 0261; no feature, UAPI or kernel correction is added.
@@ -92,10 +92,26 @@ BUG, Oops, WARNING, KASAN, UBSAN, lockdep, Call Trace or general protection. The
 in the log come from the 15 deliberately malformed images. MOOBFS_ONLY_PASS states that this
 is not a complete run: the full suites of the final unit are still required.
 
-## KASAN run (in progress)
+## KASAN run (passed)
 
 The same snapshot runs under vm/kasan-local.sh with the same MOOB_ONLY on the physical Debian
 (virtme-ng and KVM; no Docker there), with its own KASAN kernel cache built from scratch.
 The first attempt fell back to emulation because the test user lacked /dev/kvm access; it
 was stopped before any test, its log kept as kasan-emulated-aborted.log, the user was added
-to the kvm group on that dedicated host, and the run was restarted. Result to be recorded.
+to the kvm group on that dedicated host, and the run was restarted.
+
+Restarted 18:31, ended 18:46:47 Brasilia, exit 0, source hashes 0 (same 47adf84 archive, checked
+before the build). Kernel: Linux 6.12.112 built by vm/kasan-local.sh into a fresh cache, with
+CONFIG_KASAN=y, CONFIG_KASAN_GENERIC=y, CONFIG_UBSAN=y, CONFIG_LOCKDEP=y and
+CONFIG_PROVE_LOCKING=y verified in its .config; the guest console reports RCU lockdep checking.
+The guest console (6,347 lines) carries ISOLATION_PASS, BENCH_LAYER_PASS and LAYER_LOWER_PASS
+for ext4, btrfs and XFS, RELEASE_PASS and UNPRIV_RELEASE_PASS for the three lowers,
+MOOBFS_ONLY_PASS and MOOBFS_KASAN_ONLY_PASS; zero lines matched BUG, Oops, WARNING, KASAN:,
+UBSAN:, possible circular, Call Trace or general protection. This is the first KASAN run on
+the physical Debian; its cache now lets later runs there rebuild only the module.
+
+## Remaining before publication
+
+The full native `make vm-test` and full local KASAN/lockdep suite of the final unit, then the
+maintainer's decision on a pull request for the batch 11 follow-up branch. The corrected S18
+round r01 continues on the Mac mini and is reviewed separately.
