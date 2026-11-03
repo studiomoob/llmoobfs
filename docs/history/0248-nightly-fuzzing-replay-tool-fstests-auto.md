@@ -616,3 +616,35 @@ explicit deadline with/without cap, malformed deadline, zero cap and expired-win
 partial verdict. ShellCheck and shell syntax passed. This scheduling-only change does
 not alter the kernel/UAPI tested in `4f17fb4`. A separate corrected runtime and private
 cache/image/syzkaller copies are being prepared; no long corrected result is claimed.
+
+## First corrected long campaign (2026-11-03; started 13:03:36 Brasília)
+
+Snapshot `61ee4f7f40ce688c5c8c9bf8dd191e97e1865d13` contains the explicit-window runner;
+its kernel, UAPI, C regression and suite contents are identical to full-suite-tested
+`4f17fb4`. Source archive SHA-256:
+`b3474a10d32deeb0db6bbfa9e573e0deaef4908c5116fe2e51789e0c7addac96`.
+Preparation exited 0 at 13:02:44 in a separate source/syzkaller/cache/image copy. All
+1,815 tracked sources were checked; only extracted constants differ from the archive,
+matching the prior runtime constants. The original source/image/caches are retained.
+
+The starting archived corpus hash is
+`3dd6d3ffbd1a0df8fae9cc2d06e4eac456c6a15436bf5fb19af310ff8203502b`.
+No results were copied from the old module's cache namespace. The corrected syzkaller
+module SHA-256 is `f95469448e85bf5e751c66415062b40231170330aabedadb85b589f3f917d145`,
+with the unchanged kernel `4026582cc0cd60f7c22f25854fb33a21668aea40eed64eea74f726a769d40ae5`.
+
+The extended KASAN permission phase passed at 13:31:41: seeds 2026110301–2026110324
+on all three lowers, four mounts of 96 steps, 248,832 QUERY2 comparisons, no kernel
+diagnostics. Its raw consoles/dmesg/module/config were copied into the campaign directory
+before another run could overwrite the shared build output. Fuzzing began 13:32:43 for
+18,000 seconds, ending about 18:32:43, then full corpus replay. The explicit cutoff is
+November 4 at 03:00 with a 15-second outer margin and 15-second kill grace. At 14:17:28,
+81,265 executions, corpus 1,159 and zero crash directories were observed; no final clean
+verdict is inferred. Both slots, CPUs 4–7, remain reserved.
+
+The scheduled wrapper now uses the corrected source and private cache/image. Its previous
+bytes are backed up; nonblocking slot locks skip a scheduled start during an active
+campaign. The 23:00/@reboot entries remain; the fallback window extends to 07:00 with
+three hours reserved for replay and a five-hour fuzz cap. The daytime campaign has its
+own absolute deadline. The sole existing observer already discovers the dated campaign
+marker; no new monitor or test duplicate was started. No publication is authorized.
