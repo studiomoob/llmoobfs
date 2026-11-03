@@ -275,3 +275,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0260 — Repository-wide pending-item audit; actual gaps and stale checkpoints](0260-repository-pending-item-audit.md)
 
 - [0261 — Private cursor output, current-state reconciliation and S20 assessment](0261-cursor-and-current-state-reconciliation.md)
+
+- [0262 — Existing scheduled fuzzing and weekly benchmark artifacts verified](0262-scheduled-fuzz-and-benchmark-evidence.md)

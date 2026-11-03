@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Verify existing first scheduled userspace-fuzzing and weekly benchmark artifacts,
+  including ZIP digests, raw records and regenerated reports (journal 0262);
+  no additional S18 campaign or reference performance claim.
+
 - Reconcile completed G2/S3, fstests reruns, first scheduled fuzzing and static-analysis
   runs across current summaries; preserve dated checkpoints and distinguish published main
   from the local correction. S20 remains partial after evidence review (journal 0261).
