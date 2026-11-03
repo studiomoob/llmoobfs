@@ -126,7 +126,7 @@ index for every caller, Bob and root included; private files belong in their own
 This is real output of the demonstration step of the project's VM suite (Debian 6.12.111 in
 QEMU, ext4 lower): the `DEMO| ` lines of `build/vm/console.log` with the prefix removed and the
 two closing `GET_INFO` calls left out. Lines starting with `#` are commands run as root. `query`
-is the test client in [`tests/query.c`](tests/query.c), since there is no CLI yet; `--uid 1001`
+is the test client in [`tests/query.c`](tests/query.c), used by this demonstration; the user-facing CLI is `moobfs` (journal 0198). `--uid 1001`
 switches to that user before the call, and the `q2` form is `MOOB_IOC_QUERY2` on a domain
 directory. The script is the demonstration block of [`vm/suite.sh`](vm/suite.sh). To get it
 from your own run, see [Try it in a VM](#try-it-in-a-vm).

@@ -1,6 +1,9 @@
 # Real memory client test — plan
 
-Status: **proposal** (2026-10-12). Nothing below has been run.
+Status: original proposal 2026-10-12; stages 1/2 subsequently produced the bounded results
+recorded in journals 0057, 0064–0068 and 0071. Stage 3 end-to-end integration remains separate.
+The proposal and its original scope below are preserved; it is not evidence of a completed
+final usefulness evaluation (G6). Current-module reruns with intervals remain open (ROADMAP).
 
 ## Question
 

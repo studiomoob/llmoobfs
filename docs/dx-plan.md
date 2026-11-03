@@ -103,6 +103,17 @@ a single release for the evidence; demonstration in text with real output, not G
 - Wiki: the versioned documentation lives in `docs/`.
 - Any change to `layer/`, `kernel/` or the format.
 
+## Current reconciliation (2026-11-03, journal 0261)
+
+The dated plan and hand-offs below remain historical. Checkpatch, qsort(NULL,0), the
+sanitized bench-smoke and the KASAN grep gate were completed by journal 0050 and are
+present in current code. OpenSSF enrollment and the social preview were already recorded
+in the closure below; source archive signing/provenance shipped with v0.5.0-experimental
+(journal 0226). These are not fresh maintainer tasks. Optional paid Codespaces measurement
+remains unexecuted. Do not equate the historical CodeQL count with today's alert state:
+audit0260 found one open CodeQL test-output alert and four Scorecard signals; correction
+and its remaining CI/publication boundary are in journal 0261.
+
 ## 4. Closure (2026-10-12)
 
 | Batch | Result | Where |

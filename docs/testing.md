@@ -704,3 +704,14 @@ same campaign. Existing nightly defaults and identity-based replay caches are un
 fake phase tools: explicit deadline/cap, deadline without cap, invalid deadline, zero cap
 and expired-window partial reporting. They do not run a VM/fuzzer and do not approve an
 S18 campaign. All five passed on the dedicated host; ShellCheck and `sh -n` passed.
+
+
+### Cursor-file output of the VM test client (2026-11-03, journal 0261)
+
+`tests/query.c --cursor-out` requests mode `0600` for new files before the umask,
+keeps existing-file overwrite semantics, and returns failure on buffered-write errors.
+It does not change an existing file's permissions or promise atomic/symlink-safe replacement;
+use a private test directory. The old/new binary controls used a deterministic ioctl shim:
+creation under umask000, exact 128-byte cursor roundtrip, overwrite, missing parent and
+`/dev/full` error propagation. They test userspace file handling, not kernel cursor validation.
+The active S18 snapshot is immutable and does not include this later test-tool change.

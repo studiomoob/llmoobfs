@@ -15,7 +15,7 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 revisão humana independente do código do kernel, só ferramentas automáticas e revisões assistidas por IA ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): duas revisões do código, feitas por
 assistentes de IA, diários 0111 e 0114; os relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele, acharam três defeitos do kernel, e o revisor
 escreveu a correção de um deles, F16, diários 0215, 0216 e 0218; um colaborador de fora revisou scripts,
-ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163. A última tag, `v0.5.0-experimental` (2026-10-28), tem todas as correções abaixo; a anterior,
+ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163. A última tag, `v0.5.0-experimental` (2026-10-28), contém as correções anteriores à tag; as mudanças posteriores abaixo indicam seu próprio estado de publicação; a anterior,
 `v0.4.1-experimental` (2026-10-20), é um retrato do
 código anterior a elas. Os dois achados da
 [revisão independente](history/0144-independent-review.md) têm correções na
@@ -57,7 +57,7 @@ de cerca de 25 mil memórias reais do G5 se construíram com `index_build_work=6
 contava tempo decorrido, então só um disco inferior lento já podia recusar um build que cabe em
 `index_build_work` (também diário 0238). O ADR-0031 (aceito em 30/10/2026) conta o tempo de CPU de quem
 constrói contra os dez segundos, com um limite de 120 s de tempo decorrido; o passo na VM, a rodada
-negativa e a rodada sob KASAN/lockdep passaram em 30/10/2026, e o ADR aguarda o mantenedor.
+negativa e a rodada sob KASAN/lockdep passaram em 30/10/2026, e o mantenedor aceitou o ADR em 30/10/2026.
 *Atualização, 28/10/2026 ([diário 0219](history/0219-security-batch-checks.md)):* um segundo lote
 de segurança corrige três relatos privados de um revisor externo, cada um com teste e rodada
 negativa: o `QUERY2` nomeando arquivos sob um diretório só de busca (F15 do ADR-0011,

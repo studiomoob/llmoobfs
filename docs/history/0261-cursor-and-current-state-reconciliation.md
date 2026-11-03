@@ -1,8 +1,8 @@
 # 0261 — Private cursor output, current-state reconciliation and S20 assessment
 
-Date: 2026-11-03. Status: cursor correction locally validated; documentation and S20 review in progress.
+Date: 2026-11-03. Status: local cursor correction and documentation reconciliation complete; S20 remains partial.
 Started about15:06 Brasília; cursor controls completed15:07:52. Calendar time, not measured effort.
-Estimated effort:S. Follows audit0260 and the maintainer's instruction to continue its three local units.
+Estimated effort: S. Follows audit0260 and the maintainer's instruction to continue its three local units.
 
 ## Cursor alert49: finding and correction
 
@@ -45,3 +45,53 @@ The remote CodeQL alert remains open until an authorized publication/analysis, n
 Reconcile stale current summaries while preserving historical checkpoints. Verify the S20
 receipt and checklist rather than treating a specification-only design as automatic closure.
 No push, PR, merge, release, remote setting change or additional outreach is authorized.
+
+## S20 receipt and lifetime checklist assessment
+
+The existing G6 receipt explicitly describes a specification-only design, not an executable
+test. It names the two allowed sources (specification and harness) and excludes layer/ and
+the correction proposal. The correction author then implemented that design in C. Journal0259
+records the real negative control and focused/full positive gates. This proves independent
+fixture design plus implemented/tested regression coverage. It does not prove the literal S20
+requirement that a second model wrote the executable test without seeing the implementation.
+No evidence of different model identity is asserted. Keep S20 partial; do not weaken its criterion.
+
+For CONTRIBUTING's value-lifetime checklist, inspect the seven-line correction in4f17fb4:
+place_and_lock obtains the placement/write-lock context; rec is then looked up from the xarray.
+The destination liveness check, source-domain invalidation and rec_drop occur under that write
+lock. No new registration, retry, sleep or lock drop is introduced between lookup/check/use.
+rec_drop may destroy rec: the new branch never dereferences rec afterwards. The else branch
+retains its existing rec_set_partition/inode_rec_put_if_empty ownership rule; the final unlock
+uses ix/nofs rather than rec. This bounded inspection is not a review of every helper or proof
+of global race freedom. Existing VM/KASAN evidence remains the stronger runtime check.
+
+## Current-state reconciliation and public surfaces
+
+Reconciled READMEs (existing user CLI), ROADMAP (fair shares, G2 chronology, S3 and first
+static/fuzz runs), security-roadmap (merged baseline versus local correction, S20 limits),
+adoption-risks (fstests reruns), client-test-plan (actual bounded results), DX plan (completed
+hand-offs), both status documents (tag scope and accepted ADR0031), testing.md and CHANGELOG.
+Updated the bilingual site generator and regenerated its status pages. Added retired wording
+to retired-claims.txt; old dated journals/proposals are retained, not silently erased.
+
+The public-surfaces inventory was reviewed. Remote issues16/17, discussion69 and the live
+site remain at their published checkpoints because remote edits/publication are unapproved;
+these are deliberate queued surfaces, not claimed updated. No outreach draft or account data
+is stored in Git. New private cursor output is a test-tool change, not a new user-facing API.
+
+Validation results and final local commit are recorded below after the checks actually run.
+
+## Final local verification (2026-11-03, about15:09 Brasília)
+
+site-journey generation completed, retired-claims passed, site-faq --check matched,
+check-site passed for12 pages, and git diff --check was clean. No new dependencies or
+pins changed. The cursor correction is local commit4611940; its source exactly matches
+the archived tested source. This second unit changes only documentation/site text.
+
+The existing campaign still runs on immutable61ee4f7: at15:09:38 the manager reported
+150,232 executions, corpus1,176, coverage16,713, pending0/reproducing0. Its configured
+workdir has no crash directory yet; no final done marker exists. The single observer71609
+is alive. No new VM, fuzzer, monitor or runtime mutation was introduced by these units.
+
+Future publication requires the maintainer's authorization and applicable CI; no remote
+alert closure, public document update or S20 completion is claimed here.

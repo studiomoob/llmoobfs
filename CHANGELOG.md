@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+- Reconcile completed G2/S3, fstests reruns, first scheduled fuzzing and static-analysis
+  runs across current summaries; preserve dated checkpoints and distinguish published main
+  from the local correction. S20 remains partial after evidence review (journal 0261).
+
 - The VM test client creates new cursor files with mode0600 before umask and reports
   buffered cursor-write failures. Existing-file overwrite behavior is unchanged; no kernel
-  or UAPI change. Userspace negative/positive controls passed (journal0261).
+  or UAPI change. Userspace negative/positive controls passed (journal 0261).
 
 - Allow explicit S18 campaign deadlines and fuzzing-duration caps outside the default
   nightly calendar, with five passing offline orchestration controls (journal 0248).

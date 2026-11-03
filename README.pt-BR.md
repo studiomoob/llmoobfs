@@ -134,7 +134,7 @@ num domínio próprio ([spec-query-v2](docs/spec-query-v2.md) §3).
 Esta é a saída real da etapa de demonstração da suíte de VM do projeto (Debian 6.12.111 no QEMU,
 ext4 por baixo): as linhas `DEMO| ` de `build/vm/console.log` sem o prefixo, e sem as duas
 chamadas `GET_INFO` do final. Linhas que começam com `#` são comandos executados como root. `query`
-é o cliente de teste em [`tests/query.c`](tests/query.c), já que ainda não há CLI; `--uid 1001`
+é o cliente de teste em [`tests/query.c`](tests/query.c), usado nesta demonstração; a CLI de uso geral é `moobfs` (diário 0198). `--uid 1001`
 troca para esse usuário antes da chamada, e a forma `q2` é o `MOOB_IOC_QUERY2` num diretório de
 domínio. O script é o bloco de demonstração de [`vm/suite.sh`](vm/suite.sh). Para obter essa saída
 na sua própria execução, veja [Experimente numa VM](#experimente-numa-vm).
