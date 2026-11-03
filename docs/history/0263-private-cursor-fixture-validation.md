@@ -1,6 +1,7 @@
-# 0263 — Private cursor fixture ownership; real-VM validation queued
+# 0263 — Private cursor fixture ownership; native VM validation passed
 
-Date: 2026-11-03. Status: fixture correction validated in userspace; actual VM integration pending.
+Date: 2026-11-03. Status: fixture correction validated in userspace and in a native Debian-kernel
+VM on ext4, btrfs and XFS; the KASAN/lockdep run of the same steps is in progress.
 Started after 15:13 Brasília; timestamps of controls are retained in local receipts. Calendar
 time, not measured engineering effort. Estimated effort: S. Continues the authorized batch 11
 follow-up and journal 0261; no feature, UAPI or kernel correction is added.
@@ -63,3 +64,38 @@ remote alert dismissal, PR/merge, G6 mounted campaign or Azure action is authori
 ShellCheck with the repository SC2015 exclusion completed exit0 with zero diagnostics.
 sh -n and git diff --check passed. The immutable source archive/run recipe is prepared
 locally after this commit; no invocation of the real VM recipe has occurred.
+
+## Note 2026-11-03 (evening): coordination handover and Debian access
+
+Coordination of batch 11 moved from the previous agent session to a new session at about
+18:00 Brasilia, after the previous session's turns stopped being processed. The previous
+session executed nothing after 15:20; its last actions are the ones recorded above. The
+local notifier was repointed to the new session and restarted; its send receipts prevented
+duplicate notifications. The Debian host answered again after the maintainer pinged the
+Mac mini from it, consistent with the broadcast-ARP delivery fault of 2026-11-02.
+
+## Native VM run of the immutable snapshot (passed)
+
+Source: archive of 47adf84 (SHA-256 b72377fe...669a), 1,819 files checked against
+source-files.sha256 before the build and unchanged afterwards. Host: the dedicated Mac mini,
+in a container pinned to CPUs 2-3 with a 3 GB limit, outside CPUs 4-7 held by the corrected
+S18 campaign r01, which kept running. Command:
+MOOB_DEBIAN_KERNEL=6.12.113 MOOB_VM_KVM=1 MOOB_ONLY="ext4 btrfs xfs release" make vm-test.
+Started 18:21, ended 18:36:31 Brasilia, exit 0, source hashes 0.
+
+The cursor assertions live in run_lower and abort the step on failure (q2b-cursor-private,
+t2-tampered-cursor-accepted-at-<offset>, q2b-cursor-fallback and the continuation checks).
+The log carries ISOLATION_PASS, BENCH_LAYER_PASS and LAYER_LOWER_PASS for ext4, btrfs and XFS,
+which are printed after those assertions; RELEASE_PASS and UNPRIV_RELEASE_PASS for the three
+lowers (cursors across a release); MOOBFS_VM_PASS and MOOBFS_ONLY_PASS. Zero lines matched
+BUG, Oops, WARNING, KASAN, UBSAN, lockdep, Call Trace or general protection. The mount errors
+in the log come from the 15 deliberately malformed images. MOOBFS_ONLY_PASS states that this
+is not a complete run: the full suites of the final unit are still required.
+
+## KASAN run (in progress)
+
+The same snapshot runs under vm/kasan-local.sh with the same MOOB_ONLY on the physical Debian
+(virtme-ng and KVM; no Docker there), with its own KASAN kernel cache built from scratch.
+The first attempt fell back to emulation because the test user lacked /dev/kvm access; it
+was stopped before any test, its log kept as kasan-emulated-aborted.log, the user was added
+to the kvm group on that dedicated host, and the run was restarted. Result to be recorded.
