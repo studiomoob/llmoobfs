@@ -118,3 +118,25 @@ Focused old/new evidence archive SHA-256 (verified after local copy):
 The sole existing observer was restarted after adding these two completion paths; its
 prior receipts remain intact. No VM/test was interrupted or duplicated. Source corrections
 are local only; the immutable original campaign runtime has not been modified.
+
+## Full native Debian VM approved (2026-11-03 12:13:38 Brasília)
+
+The full Debian 6.12.113 KVM suite completed in 20 minutes of calendar machine time,
+exit 0, with both `MOOBFS_ACCEPTANCE_PASS` and `MOOBFS_LAYER_PASS`. The new cold-link
+fixture and existing permission-gap cases passed on all three lowers. No unexpected
+kernel diagnostic appears in the saved console. The expected Python-library skip remains
+explicit: this native guest lacks Python; its coverage belongs to the separate KASAN run.
+
+All 1,814 before/after source hashes are identical, freshly verified on the host, and
+independently matched locally against the tested Git source archive. The archived module
+vermagic is `6.12.113+deb13-amd64 SMP preempt mod_unload modversions`. Layer module SHA-256:
+`53a28dc0af1fced7dab3cd0b207e958d8ff9d8866fb1f0ce3989fb32a95100c5`; base module:
+`6f86f90789df65dab2fd88fc4699e557fea6df3a5d203e22dd2cadce71099d1e`.
+The boot kernel image itself is not independently archived in this evidence.
+
+Native evidence archive SHA-256, checked after local copy, including the internal file
+manifest, raw console, build log, source manifests and binaries:
+`79253e592ceda1795ce97629c04248d10797d53d7d78e01aad078ad18d91bf91`.
+Slot B is free and its named container has ended. Slot A remains reserved for the full
+KASAN/UBSAN/lockdep suite; no final KASAN result is claimed. Peer fronts were notified
+without changing their tasks. The next clean long campaign waits for that gate.
