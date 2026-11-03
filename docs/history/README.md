@@ -271,3 +271,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0253 — Batch 11 PR merged; local/CI and post-merge checks verified; nightly work open](0253-batch11-local-integration.md)
 
 - [0259 — Unbuilt-partition accounting warning](0259-unbuilt-partition-accounting-warning.md): in progress; campaign findings, source hypothesis and pending regression validation.
+
+- [0260 — Repository-wide pending-item audit; actual gaps and stale checkpoints](0260-repository-pending-item-audit.md)
