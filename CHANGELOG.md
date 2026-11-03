@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- Keep cursor-tampering fixtures private and readable by the test uid after the 0600
+  output change; add an actual cursor-mode assertion. Passed in a native VM and under
+  KASAN/UBSAN/lockdep on ext4, btrfs and XFS, and in the full native and KASAN suites of
+  the follow-up unit (journal 0263).
+
+- Verify existing first scheduled userspace-fuzzing and weekly benchmark artifacts,
+  including ZIP digests, raw records and regenerated reports (journal 0262);
+  no additional S18 campaign or reference performance claim.
+
+- Reconcile completed G2/S3, fstests reruns, first scheduled fuzzing and static-analysis
+  runs across current summaries; preserve dated checkpoints and distinguish published main
+  from the local correction. S20 remains partial after evidence review (journal 0261).
+
+- The VM test client creates new cursor files with mode0600 before umask and reports
+  buffered cursor-write failures. Existing-file overwrite behavior is unchanged; no kernel
+  or UAPI change. Userspace negative/positive controls passed (journal 0261).
+
+- Allow explicit S18 campaign deadlines and fuzzing-duration caps outside the default
+  nightly calendar, with five passing offline orchestration controls (journal 0248).
+
+- Fix permission-change accounting through a hard-link alias in an unbuilt domain:
+  invalidate the old domain and drop its record instead of charging a missing partition.
+  An independent functional fixture reproduces the warning on old code; focused ext4,
+  btrfs and XFS KASAN/UBSAN/lockdep validation and both full native/KASAN batch gates
+  passed locally (journal 0259); long corrected campaigns remain pending.
+
+- S18 acceptance requires seven complete, audited campaigns with comparable workload,
+  runnable by day or night and on coordinated hosts in parallel (maintainer amendment,
+  2026-11-02); calendar nights are no longer a gate. No pending result is approved by this change.
+
 - CI jobs for S14 and S17 (journal 0247):
   `.github/workflows/mutation.yml` runs the mutant catalogue of the homogeneity rule
   (`scripts/mutants.py run`, Debian 6.12.113 VM under KVM) in four shards plus a baseline job on
@@ -37,7 +67,9 @@
   report remains pending; the separate daytime continuation does not rewrite the first night.
   The second night passed long permissions (72 seeds, 248,832 checks) and fuzzing, but
   saved an incomplete replay (259/1,116, zero failed, 857 pending). The next daytime
-  continuation reuses those cached results; zero of seven complete nights accepted.
+  continuation completed 1,116/1,116 on 2026-11-02 (857 new, 259 reused, zero failed/unreached;
+  689/781 call sites, 88.2%), with source/binary/cache checks passed. Both original night
+  reports remain incomplete; zero of seven complete nights accepted.
 
 - S3 done (journal 0245, ADR-0032): its coverage threshold counts the handlers' KCOV call
   sites, 781 on the current module, instead of the manager's 809 PCs, 28 of which cannot be

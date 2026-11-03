@@ -179,9 +179,19 @@ int main(int argc, char **argv)
 			if (errmode) { printf("q2 %d\n", r ? errno : 0); return 0; }
 			if (r) { perror("MOOB_IOC_QUERY2"); return 1; }
 			if (first && cout) {
-				FILE *f = fopen(cout, "wb");
-				if (!f || fwrite(q2.cursor, 1, sizeof q2.cursor, f) != sizeof q2.cursor) { perror(cout); return 1; }
-				fclose(f);
+				/* Like bench_create_out(), request a mode explicitly before the umask.
+				 * A saved cursor is private to this test caller; keep overwrite semantics.
+				 */
+				int out = open(cout, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+				FILE *f;
+
+				if (out < 0) { perror(cout); return 1; }
+				f = fdopen(out, "wb");
+				if (!f) { int e = errno; close(out); errno = e; perror(cout); return 1; }
+				if (fwrite(q2.cursor, 1, sizeof q2.cursor, f) != sizeof q2.cursor) {
+					perror(cout); fclose(f); return 1;
+				}
+				if (fclose(f)) { perror(cout); return 1; }
 			}
 			first = 0;
 			all = realloc(all, (nall + q2.count + 1) * sizeof *all);

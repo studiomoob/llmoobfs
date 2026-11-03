@@ -251,3 +251,9 @@ On the combined branch, `tests/fuzz_tools.c` still called the old function, so t
 sanitizers" job of PR #178 failed to compile it. The target now fuzzes `moob_ext_acl_bytes()`
 directly, with no `getxattr` stub; the errno and value selection are unchanged. A 30 s run of
 `make fuzz FUZZ_TARGETS=tools` on the test host gave 2 773 352 executions and no crash.
+
+
+## Later evidence audit — 2026-11-03
+Journal[0262](0262-scheduled-fuzz-and-benchmark-evidence.md) verifies existing scheduled
+fuzzing/benchmark artifacts, exact run identities, hashes and raw outputs. No new runtime
+execution was started by that audit; earlier checkpoints above retain their original dates.

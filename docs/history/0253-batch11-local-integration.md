@@ -1,6 +1,6 @@
 # 0253 — Batch 11 local integration and complete-suite validation
 
-Date: 2026-10-31–2026-11-01. Status: **local validation and all 19 PR checks passed on 1071845; documentation synchronization awaits its final checks; S18 remains open**.
+Date: 2026-10-31–2026-11-02. Status: **PR 181 merged with maintainer approval; S14/S17 validated; remaining nightly work is open**.
 Work started about 13:17 Brasília time (UTC-3); this validation unit ended about 15:29. Calendar time, not measured engineering effort. Estimated effort: S
 for integration, plus machine time for the complete suites and long S2 runs.
 
@@ -606,3 +606,98 @@ This new experiment record changes documentation only; the last tested PR head `
 passed 19/19, and any subsequently published record head must pass its own required checks.
 Main merge and Azure remain unauthorized. Next: inspect daytime completion evidence and
 obtain the separate maintainer decision on PR 181; no automatic approval inferred.
+
+
+## Authorized merge completed; nightly continuation preserved (2026-11-02, 07:03:03 Brasília)
+
+The maintainer explicitly approved merging PR 181 using a merge commit, with nightly
+limitations still open. A fresh preflight confirmed head `8686b116b9bd8030ac29fc29d97b1858c363a72b`,
+base `302bff0`, all 19 successful checks, and OPEN/MERGEABLE/CLEAN. The merge used
+`gh pr merge 181 --merge --match-head-commit 8686b116b9bd8030ac29fc29d97b1858c363a72b`
+with the technical validation summary in its body, without admin bypass, squash or branch
+deletion. GitHub confirms MERGED at 10:03:03 UTC (07:03:03 Brasília), merge commit
+`e59a244f1282994ed1a8cd21d53fb34dbe235f3c`. Its two parents are the checked base and head;
+its tree is identical to the reviewed head. The clean local main checkout was fast-forwarded
+to that commit. No shared history was rewritten.
+
+The same existing observer now follows checks on the authorized merge commit as well as
+nightly/daytime markers; exact commit identity is enforced. Its prior process was stopped,
+the single-instance lock verified free, and the same helper terminal reused. No running VM
+or test was interrupted and no second monitor was created. Automatic main workflows, including
+Pages publication, are consequences of the approved merge; no separate deployment command,
+release, outreach or new PR was issued.
+
+The daytime replay remains active in both dedicated-host slots. At 06:57:48, 500 new programs
+had completed in addition to 259 reused entries, with no final verdict. S18 remains 0/7 complete
+nightly reports accepted; the separate continuation does not rewrite either incomplete night.
+S14/S17 acceptance remains met. Kernel freeze, format/UAPI and all later decision gates remain.
+
+This post-merge journal/status record is a small local follow-up commit prepared at about 07:07
+Brasília. The current-state introduction of `docs/security-roadmap.md` and this journal's
+status heading are updated locally; their dated pre-merge source checkpoints in main remain
+until the next authorized integration. No follow-up PR or direct main push is authorized.
+The public merge outcome is recorded immediately in PR 181 and the merge commit itself;
+local pending list, handoff and HTML map are synchronized under their shared lock. Existing
+G6/corporate fronts are informed of integration without changing their priorities or reservations.
+
+
+## Post-merge checks and Pages verified (2026-11-02, about 07:17 Brasília)
+
+All 13 automatic checks on merge commit `e59a244f1282994ed1a8cd21d53fb34dbe235f3c`
+completed successfully. Exact-head run metadata was checked for CI
+[41425610258](https://github.com/studiomoob/llmoobfs/actions/runs/41425610258), static analysis
+[41425610114](https://github.com/studiomoob/llmoobfs/actions/runs/41425610114), CodeQL
+[41425610188](https://github.com/studiomoob/llmoobfs/actions/runs/41425610188), Scorecard
+[41425610100](https://github.com/studiomoob/llmoobfs/actions/runs/41425610100), and Pages
+[41425610101](https://github.com/studiomoob/llmoobfs/actions/runs/41425610101).
+Both native-VM artifacts contain VM/ACCEPTANCE/LAYER pass markers and no VM/environment
+failure or captured kernel diagnostic under the harness rules. This is the main-push
+workflow set, distinct from the 19 pre-merge PR checks; no manual test rerun was started.
+
+Pages build/deploy succeeded automatically. The downloaded Pages tar's 18 files, including
+`.well-known/security.txt`, match all corresponding source files at the merge commit by
+SHA-256, with no extra or missing file. The public homepage returned HTTP 200 and exactly
+matched the merged `site/index.html` hash. Artifact hashes, console markers, run metadata,
+public response hash and Pages log are retained locally in github-merge181-e59a244, with a
+verification JSON. No separate publication or deploy command was issued.
+
+The existing observer's now-complete GitHub watch is archived by moving its configuration;
+its loop and receipts are preserved and it continues the dedicated-host day/night markers.
+No second observer, new guest or host workload was started. At 07:15:18 both replay slots
+were still held; the latest milestone was 550 new programs at 07:09:04 plus 259 reused.
+There is no final replay verdict and no resource release. S18 remains 0/7 accepted nights.
+
+This and the history index's corrected merge status remain local follow-up records under
+the previously stated publication limit. `docs/history/README.md`, this journal's updated
+status and `docs/security-roadmap.md`'s post-merge introduction will accompany the next
+authorized integration; no new PR/direct main push is authorized merely to record these
+results. The existing merged PR's summary and local map/pending list are updated now.
+
+
+## Daytime replay approved; lab access restored (2026-11-02)
+
+The November 2 pending-only continuation completed 08:19:20 Brasília, exit 0/hashes 0.
+The independent audit confirms 1,116/1,116 programs (857 new, 259 unchanged cached entries),
+zero failed/unreached, 1,827 module-text PCs and 689/781 call sites (88.2%). All 1,812 source
+hashes are identical before/after; the sole difference from the Git snapshot is the prior
+generated constants file. Cache union, program membership, archived module/kernel hashes,
+image before/after checks and call-site report were reviewed. Journal 0248 records archive,
+raw-console decoding and diagnostic limits. No full nightly report was retroactively accepted:
+S18 remains 0/7. Both slots are free and no test VM remains; peer fronts were informed.
+
+Separately, the second laboratory host's SSH access was restored without changing its
+firewall, sshd, routes or Wi-Fi connection. A bounded packet investigation isolated failed
+broadcast ARP delivery: source requests are seen by the wired management host but not at
+the destination station. Genuine unicast ARP requests between the verified endpoints are
+answered and restore direct SSH with the existing host key. The precise source of broadcast
+filtering (upstream AP/router versus receive driver) remains unconfirmed; no permanent
+network-policy fix is claimed. Power saving was off and firewall/ARP checks found no rule
+explaining the failure. The only diagnostic package installed was tcpdump; captures were
+bounded and recorded ARP headers only. A private SSH fallback through the existing management
+host was tested, without forwarding an agent or copying key material. No VM/workload was
+started on that host. Detailed addresses, packets, screenshot and private access procedures
+stay outside Git; existing campaign priorities and authorizations are unchanged.
+
+These result records remain local on the follow-up branch until a new integration is
+explicitly authorized. No new PR, additional merge, release or Azure action is inferred.
+The existing merged PR summary and local map/pending list reflect the new verified result.

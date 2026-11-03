@@ -12,7 +12,7 @@ meets what the project is before its status history. The facts are unchanged. Th
 human review of the kernel code yet, only automated tools and AI-assisted reviews ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): two source reviews by AI assistants, journals 0111 and 0114;
 an external reviewer's AI-assisted private reports, triaged and reproduced by the reviewer, found three kernel defects, and the reviewer wrote the fix of one, F16, journals 0215, 0216 and 0218;
 an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163. The last
-tag, `v0.5.0-experimental` (2026-10-28), carries every correction below; the previous one,
+tag, `v0.5.0-experimental` (2026-10-28), contains the corrections made before that tag; later changes below identify their own publication state; the previous one,
 `v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch.
 The two findings of the [independent review](history/0144-independent-review.md)
 have corrections on `main`; the review batch passed the full integrated VM suite
@@ -52,7 +52,7 @@ unmount) is fixed in the same batch.
 counted elapsed time, so a slow lower alone could refuse a build that fits `index_build_work`
 (also journal 0238). ADR-0031 (accepted 2026-10-30) counts the builder's CPU time against the ten seconds,
 with a 120 s elapsed backstop; its VM step, negative round and KASAN/lockdep run passed on
-2026-10-30, and the ADR waits for the maintainer.
+2026-10-30, and the maintainer accepted the ADR on 2026-10-30.
 *Update, 2026-10-28 ([journal 0219](history/0219-security-batch-checks.md)):* a second security
 batch fixes three private reports from an external reviewer, each with a test and a negative
 round: `QUERY2` naming files under a search-only directory (F15 of ADR-0011,

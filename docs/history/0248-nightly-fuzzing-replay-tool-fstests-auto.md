@@ -508,3 +508,143 @@ The existing sole observer was stopped, its lock checked free, and restarted in 
 helper terminal with dated daytime-marker discovery, preserving all receipts. Exactly one
 observer was verified; no test or guest was interrupted. No Azure use or main merge.
 PR 181 publication/updates are authorized; the separate merge decision remains pending.
+
+
+## November 2 daytime continuation complete (2026-11-02 08:19:20 Brasília)
+
+The pending-only replay begun at 05:04:43 completed at 08:19:20, exit 0, hash checks 0.
+The original November 1 night report is byte-identical to its preserved copy and remains
+incomplete. This separate daytime completion does not create an accepted night: **0/7**.
+
+Actual result: **1,116/1,116 programs**, 857 newly executed and 259 reused, zero failed and
+zero not reached, 1,827 module-text PCs. The cache union was independently recomputed from
+all 1,116 SHA-1-addressed program entries, with exactly the corpus/seed content hashes;
+all 259 earlier cache files are unchanged. The call-site report reproduces byte for byte:
+**689/781 (88.2%)**, all 23 reported functions positive, `moobl_xattr_get` 4/4. This is a
+new corpus result, distinct from the November 1 daytime 1,261-program run and its 88.1%.
+
+All 1,812 source hashes match the before-run manifest and the freshly recomputed post-run
+manifest. Compared with Git `06e4a65`, only the already-generated description constants
+file differs; no tracked source changed during the daytime run. Module/kernel hashes were
+verified against copied binaries; image hash before/after passed on the host, but the private
+image is not copied into the archive. The reused-cache checks also passed after execution.
+Completion and exit markers were checked against actual logs and data, not accepted alone.
+
+Both guest consoles retain only the known Linux `mand` mount-option deprecation warning
+(previous source review in references §45); no other matching kernel/sanitizer/lockdep
+finding appears in the capture. Raw serial bytes are preserved. Seventy-four invalid-UTF-8
+replacement characters were used only for viewing, not to rewrite the saved console.
+
+Evidence is retained locally as day-replay-20261102-final.tar.gz, SHA-256
+`eee715f7daf3542f585b1d1acf53cb6ab9c11d4b236f6178c7894c24f6e4fa3e`, with verification JSON,
+corpus/programs/cache, source and binary manifests, module/kernel/config, raw consoles,
+original partial night report and independently reproduced union/call-site output. No private
+SSH key or guest image is included. The source snapshot remains `06e4a65`, module namespace
+`299a8521106e6a3f-4026582cc0cd60f7`; no cache identity check was weakened.
+
+Both slot locks were free and no QEMU/manager remained at 08:20:24. Peer fronts were notified
+of actual resource release; the existing 23:00 schedule and sole observer are preserved.
+No new test or observer was started. This continuation spans about 3 h 15 min of calendar
+machine time; engineering effort was not measured. Next: inspect the next scheduled night,
+keeping both incomplete reports and acceptance criteria intact; no new PR is authorized.
+
+## November 2 cache preflight (completed 09:37 Brasília)
+
+A build-only control on the same immutable runtime clone rebuilt the KASAN module and
+then the syzkaller module, holding slot B on CPUs 6–7 with bounded commands. Both builds
+exited 0, all 1,812 tracked-source hashes stayed unchanged, and the final module is
+byte-identical to the original `299a8521...` module. Thus this rebuild sequence preserves
+the warmed cache identity; it does not prove that future corpus additions fit the replay
+budget. No guest or replay was started, and slot B was free after the control.
+
+A raw comparison of the archived and live corpus databases failed, so the initial control
+stopped before its end marker. Follow-up unpacking found exactly the same 1,099 programs,
+with identical filenames and SHA-256 contents. Database container bytes differ; the cause
+is not established, and byte equality is not claimed. Both program manifests are retained.
+The completed evidence archive SHA-256 is
+`f5c5731b3ce2e64cb6a23a80319b0ce8fc6358bd5ad1626174989a674d6219e5`.
+No cache entries were transferred between module identities. The 23:00 schedule, replay
+budget and seven-complete-night criterion are unchanged. This is a build/cache preflight,
+not another accepted night or a new runtime test. Calendar completion is recorded; effort
+was not measured.
+
+## Additional daytime campaign (started 2026-11-02 10:16:24 Brasília; in progress)
+
+The maintainer requested using idle capacity immediately instead of waiting for cron. A
+separate full campaign started on the immutable `06e4a65` runtime, holding both slots,
+CPUs 4–7: extended permissions under KASAN (24 seeds starting 20261102, 96 steps), fuzzing
+until 16:00, then replay with a six-hour reserve until 22:00. The outer deadline is
+22:00:15 plus a 15-second kill grace; the existing 23:00 cron remains unchanged.
+Permissions execution was observed; no phase result or overall acceptance is claimed yet.
+Source manifests and exit markers are captured by the private host driver.
+
+Output is separate in `day-campaign-20261102/reports`. The unmodified runner assigns
+its pre-noon internal ID `2026-11-01`; this does not touch the original night directory
+or make this daytime campaign an accepted calendar night. The cache identity and shared
+slot locks are preserved. The seven-night criterion is unchanged.
+The G6 owner also resumed a complementary second-Debian guest build and offline-tool
+validation, after actual host inventory; no module load or mounted G6 campaign is authorized
+by this task. Results and completion remain pending. No new publication is authorized.
+
+## Maintainer scheduling/acceptance amendment (2026-11-02)
+
+The original S18 text required a week of nightly reports. The maintainer now directs
+acceptance by seven complete campaigns, with comparable workload, at any hour and on
+coordinated dedicated hosts in parallel. There is no night-time-dependent property in
+these tests; waiting for calendar nights wasted idle capacity. This replaces the earlier
+calendar-night restriction, including the statement above excluding daytime campaigns.
+The active daytime campaign becomes eligible after audit. Partial original reports remain
+unaltered, and prior composite campaigns are not counted without auditing their full
+phase/evidence chain. Resumptions, replay continuations and worker shards never add a
+campaign. No runtime result is newly accepted by this decision alone. The roadmap, test
+guide and local map/rules/pending list reflect the amendment; published main/GitHub/site
+remain at their dated checkpoint until a separate publication authorization. No kernel,
+UAPI, freeze, Azure or mounted G6 gate changed. The G6 owner is asked to prepare isolated
+second-host S18 capacity while the current Mac mini campaign continues unchanged.
+
+## Corrected campaign preparation and explicit windows (2026-11-03)
+
+Journal 0259 records the partition-accounting correction: old-code negative control,
+focused corrected KASAN and both full native/KASAN suites passed with reviewed artifacts.
+The two earlier complete campaigns remain warning-bearing, not newly approved as clean.
+
+The original calendar-derived end could not start an equivalent daytime campaign after
+noon. Two optional inputs now allow an explicit epoch deadline and a positive fuzzing
+duration cap, while retaining the original defaults and corpus/cache identity checks.
+Five Linux orchestration controls passed using fake phase tools (no guests/fuzzer):
+explicit deadline with/without cap, malformed deadline, zero cap and expired-window
+partial verdict. ShellCheck and shell syntax passed. This scheduling-only change does
+not alter the kernel/UAPI tested in `4f17fb4`. A separate corrected runtime and private
+cache/image/syzkaller copies are being prepared; no long corrected result is claimed.
+
+## First corrected long campaign (2026-11-03; started 13:03:36 Brasília)
+
+Snapshot `61ee4f7f40ce688c5c8c9bf8dd191e97e1865d13` contains the explicit-window runner;
+its kernel, UAPI, C regression and suite contents are identical to full-suite-tested
+`4f17fb4`. Source archive SHA-256:
+`b3474a10d32deeb0db6bbfa9e573e0deaef4908c5116fe2e51789e0c7addac96`.
+Preparation exited 0 at 13:02:44 in a separate source/syzkaller/cache/image copy. All
+1,815 tracked sources were checked; only extracted constants differ from the archive,
+matching the prior runtime constants. The original source/image/caches are retained.
+
+The starting archived corpus hash is
+`3dd6d3ffbd1a0df8fae9cc2d06e4eac456c6a15436bf5fb19af310ff8203502b`.
+No results were copied from the old module's cache namespace. The corrected syzkaller
+module SHA-256 is `f95469448e85bf5e751c66415062b40231170330aabedadb85b589f3f917d145`,
+with the unchanged kernel `4026582cc0cd60f7c22f25854fb33a21668aea40eed64eea74f726a769d40ae5`.
+
+The extended KASAN permission phase passed at 13:31:41: seeds 2026110301–2026110324
+on all three lowers, four mounts of 96 steps, 248,832 QUERY2 comparisons, no kernel
+diagnostics. Its raw consoles/dmesg/module/config were copied into the campaign directory
+before another run could overwrite the shared build output. Fuzzing began 13:32:43 for
+18,000 seconds, ending about 18:32:43, then full corpus replay. The explicit cutoff is
+November 4 at 03:00 with a 15-second outer margin and 15-second kill grace. At 14:17:28,
+81,265 executions, corpus 1,159 and zero crash directories were observed; no final clean
+verdict is inferred. Both slots, CPUs 4–7, remain reserved.
+
+The scheduled wrapper now uses the corrected source and private cache/image. Its previous
+bytes are backed up; nonblocking slot locks skip a scheduled start during an active
+campaign. The 23:00/@reboot entries remain; the fallback window extends to 07:00 with
+three hours reserved for replay and a five-hour fuzz cap. The daytime campaign has its
+own absolute deadline. The sole existing observer already discovers the dated campaign
+marker; no new monitor or test duplicate was started. No publication is authorized.

@@ -268,4 +268,14 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0247 — CI mutation and coverage passed; artifacts validated](0247-s14-s17-ci-mutation-and-coverage.md)
 - [0248 — Nightly fuzzing, the replay tool and fstests auto (in progress)](0248-nightly-fuzzing-replay-tool-fstests-auto.md)
 - [0250 — Randomized permission sequences against the lower kernel (S15, in progress)](0250-randomized-permission-sequences.md)
-- [0253 — Batch 11 local/CI validation passed; final documentation checks and merge decision pending](0253-batch11-local-integration.md)
+- [0253 — Batch 11 PR merged; local/CI and post-merge checks verified; nightly work open](0253-batch11-local-integration.md)
+
+- [0259 — Unbuilt-partition accounting warning](0259-unbuilt-partition-accounting-warning.md): in progress; campaign findings, source hypothesis and pending regression validation.
+
+- [0260 — Repository-wide pending-item audit; actual gaps and stale checkpoints](0260-repository-pending-item-audit.md)
+
+- [0261 — Private cursor output, current-state reconciliation and S20 assessment](0261-cursor-and-current-state-reconciliation.md)
+
+- [0262 — Existing scheduled fuzzing and weekly benchmark artifacts verified](0262-scheduled-fuzz-and-benchmark-evidence.md)
+
+- [0263 — Private cursor fixture ownership; real-VM validation queued](0263-private-cursor-fixture-validation.md)

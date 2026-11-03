@@ -664,3 +664,60 @@ dated follow-ups in journal 0247).
 Logs are temporary Actions artifacts; permanent conclusions belong
 in the journal with links to the run. The Pages workflow publishes only `site/`.
 Preview locally with `python3 -m http.server 8080 --directory site`.
+
+### S18 scheduling amendment (2026-11-02)
+
+The maintainer replaced the calendar-week requirement with **seven complete campaigns**.
+The nightly timer is an operational convenience: equivalent campaigns may run during idle
+daytime windows and on both dedicated hosts in parallel. Preserve comparable fuzzing
+workload, the extended KASAN permissions profile, complete corpus replay and audited
+source/binary identities, phase exit codes, crash findings and final reports. Use isolated
+outputs and corpus/cache namespaces, coordinated resource reservations and disposable
+guests; never load the test module on a physical host. A resumed campaign stays one
+campaign, and a replay-only continuation or worker shard is not another campaign.
+The November 2 daytime campaign is eligible after its final audit. Earlier partial reports
+remain preserved; joining evidence into a completed campaign requires an explicit audit
+before changing the accepted count. This change does not approve any pending result.
+
+### Cold-domain hard-link permission regression (journal 0259)
+
+The `permgaps` step first uses a fresh mount on each lower and runs
+`permission-gaps coldlink LAYER LOWER`: build A alone, add a hard-link alias in never-queried
+B, chmod through B, check QUERY2 exclusion, then remove the alias, restore mode and check
+that A contains the original file again. GET_INFO enforces a single built domain, no
+release and bounded accounting; the guest's diagnostic gate rejects kernel warnings.
+The fixture was designed separately from the implementation using spec §3 and §9.
+The old module triggers `part_rec` and fails the diagnostic gate; the correction passed
+focused KASAN/UBSAN/lockdep on ext4, btrfs and XFS on November 3. Full batch validation
+and subsequent long campaigns remain separate checks.
+
+### Explicit S18 campaign windows
+
+`NIGHT_DEADLINE=<epoch seconds>` overrides the default next-morning end, so an
+independent report root can run a campaign started after noon without waiting for night.
+`NIGHT_FUZZ_S=<positive seconds>` caps fuzzing within the available window; it never
+extends the hard deadline or starts replay before fuzzing completes. Use a separate report
+root per campaign and a distinct long permission seed range; resumed phases remain the
+same campaign. Existing nightly defaults and identity-based replay caches are unchanged.
+
+`python3 tests/syzkaller-nightly-test.py` runs five Linux-only orchestration controls with
+fake phase tools: explicit deadline/cap, deadline without cap, invalid deadline, zero cap
+and expired-window partial reporting. They do not run a VM/fuzzer and do not approve an
+S18 campaign. All five passed on the dedicated host; ShellCheck and `sh -n` passed.
+
+
+### Cursor-file output of the VM test client (2026-11-03, journal 0261)
+
+`tests/query.c --cursor-out` requests mode `0600` for new files before the umask,
+keeps existing-file overwrite semantics, and returns failure on buffered-write errors.
+It does not change an existing file's permissions or promise atomic/symlink-safe replacement;
+use a private test directory. The old/new binary controls used a deterministic ioctl shim:
+creation under umask000, exact 128-byte cursor roundtrip, overwrite, missing parent and
+`/dev/full` error propagation. They test userspace file handling, not kernel cursor validation.
+The active S18 snapshot is immutable and does not include this later test-tool change.
+
+
+The per-lower cursor fixtures use a private uid1001 directory and retain that ownership
+on root-made tampered copies (journal0263); they assert output mode0600 before continuing.
+The ownership controls with an ioctl shim passed, but that later harness change has not yet
+run in a real VM. Do not present it as validated by the earlier full native/KASAN runs.

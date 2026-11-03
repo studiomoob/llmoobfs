@@ -173,3 +173,9 @@ run locally; nothing ran on GitHub yet.
 - First run in the batch-9 pull request (all three filesystems); read the runner's CPU and disk
   from `system.txt` and record the numbers in this journal with the run's link.
 - Issue #68 stays open for a run on other physical hardware.
+
+
+## Later evidence audit — 2026-11-03
+Journal[0262](0262-scheduled-fuzz-and-benchmark-evidence.md) verifies existing scheduled
+fuzzing/benchmark artifacts, exact run identities, hashes and raw outputs. No new runtime
+execution was started by that audit; earlier checkpoints above retain their original dates.

@@ -18,13 +18,22 @@
 # and a night whose window has passed gets its report with what it has. The replay's cache
 # (<reports dir>/replay-cache) keeps each program's coverage, so later nights replay only new
 # programs. NIGHT_CPUS pins everything (taskset list, e.g. 4-7); REPLAY_GUESTS, SYZ_VMS and
-# SYZ_CACHE are passed on. Run from the repository root of a copy that is not being edited.
+# SYZ_CACHE are passed on. NIGHT_DEADLINE overrides the end with an epoch second;
+# NIGHT_FUZZ_S caps the fuzzing duration without shortening the replay window. Separate
+# report roots identify campaigns started on the same day. Run from an immutable copy.
 set -eu
 REP=${1:?reports dir}
 SYZ=${SYZ:?syzkaller checkout}
 : "${GO:?directory of the go binary}"
 END=${NIGHT_END:-05:00}
 REPLAY_S=${NIGHT_REPLAY_S:-3600}
+# Explicit windows allow complete campaigns outside the default nightly calendar.
+for seconds in "${NIGHT_DEADLINE:-}" "${NIGHT_FUZZ_S:-}"; do
+    if [ -n "$seconds" ]; then
+        case "$seconds" in *[!0-9]*) echo "syzkaller-nightly: invalid campaign seconds" >&2; exit 1 ;; esac
+        [ "$seconds" -gt 0 ] || { echo "syzkaller-nightly: campaign seconds must be positive" >&2; exit 1; }
+    fi
+done
 [ -f vm/syzkaller-local.sh ] || { echo "syzkaller-nightly: run from the repository root" >&2; exit 1; }
 mkdir -p "$REP"
 exec 9> "$REP/.lock"
@@ -50,7 +59,7 @@ fi
 N=$REP/$ID
 mkdir -p "$N"
 if [ -f "$N/report.txt" ]; then exit 0; fi
-WEND=$(night_end "$ID")
+WEND=${NIGHT_DEADLINE:-$(night_end "$ID")}
 FEND=$((WEND - REPLAY_S))
 echo "$(stamp) start (resume=${NIGHT_RESUME:-0})" >> "$N/events.txt"
 if [ ! -f "$N/start" ]; then stamp > "$N/start"; fi
@@ -89,6 +98,9 @@ if [ ! -f "$N/fuzz.done" ] && [ $((FEND - $(date +%s))) -gt 600 ]; then
         exit 1
     fi
     DUR=$((FEND - $(date +%s)))
+    if [ -n "${NIGHT_FUZZ_S:-}" ] && [ "$DUR" -gt "$NIGHT_FUZZ_S" ]; then
+        DUR=$NIGHT_FUZZ_S
+    fi
     if [ "$DUR" -le 0 ]; then
         echo "$(stamp) build used the fuzzing window" >> "$N/events.txt"
         DUR=0

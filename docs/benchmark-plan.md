@@ -161,3 +161,13 @@ harness itself: [benchmark-harness.md](benchmark-harness.md).
 A report in `docs/history/` with the four questions answered by numbers, including the
 cases in which the layer loses. If the layer shows no measurable advantage in any of the
 four, that is a valid result and changes the course of the project, as per ADR-0007.
+
+
+## Existing weekly trend run audited (2026-11-03, journal 0262)
+
+Run41454936109 on main e59a244 passed on ext4, btrfs and XFS under KVM on2026-11-02.
+ZIP hashes, raw markers and zero-error counts were checked; all five report rows per lower
+were recomputed from raw records and each summary regenerated from the exact source revision.
+There are three repetitions only;4/5 ext4,2/5 btrfs and3/5 XFS rows are flagged inconclusive.
+The hosted jobs use different CPU models and guest-only cold caches. This is a functioning
+trend monitor, not a reference comparison or the physical-hardware reproduction of issue68.
