@@ -1,6 +1,6 @@
 # 0264 — PR 182 merged; CI rerun of a probabilistic library test; coordination handover
 
-Date: 2026-11-03. Status: merged; post-merge checks recorded below when complete.
+Date: 2026-11-03. Status: merged; all 13 post-merge checks passed.
 Started about 18:00 and ended 20:20 Brasilia (calendar time, not measured effort).
 Estimated effort: S. Continues journals 0259 and 0263.
 
@@ -30,7 +30,9 @@ runs of the workflow this test never failed. Only the failed job was rerun, unch
 passed and all 19 checks were green on 2ad7412.
 
 The maintainer then authorized the merge. It was made with a merge commit, a1f313b, at
-20:19:41 Brasilia; parents e59a244 (main) and 2ad7412 (validated head).
+20:19:41 Brasilia; parents e59a244 (main) and 2ad7412 (validated head). All 13 checks of the
+merge commit (both native VMs, tools and sanitizers including the library test above, static
+analysis, compiler warnings, lint, CodeQL, Scorecard, site build and deploy) passed by 20:36.
 
 ## Limits and next steps
 
