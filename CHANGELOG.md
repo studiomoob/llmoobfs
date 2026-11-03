@@ -2,9 +2,10 @@
 
 ## Unreleased
 
-- Keep cursor-tampering fixtures private and readable by the test uid after the0600
-  output change; add an actual cursor-mode assertion. Userspace ownership controls pass;
-  real VM integration remains pending (journal0263).
+- Keep cursor-tampering fixtures private and readable by the test uid after the 0600
+  output change; add an actual cursor-mode assertion. Passed in a native VM and under
+  KASAN/UBSAN/lockdep on ext4, btrfs and XFS, and in the full native and KASAN suites of
+  the follow-up unit (journal 0263).
 
 - Verify existing first scheduled userspace-fuzzing and weekly benchmark artifacts,
   including ZIP digests, raw records and regenerated reports (journal 0262);

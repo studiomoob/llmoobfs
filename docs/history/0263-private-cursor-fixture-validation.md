@@ -127,8 +127,18 @@ checked against a manifest on both hosts before the runs and unchanged afterward
   console. MEMCG, memory-limit, memcg diagnostics and Landlock steps were skipped because this
   kernel lacks those features; they passed in the native suite, as in batch 11's earlier runs.
 
-## Remaining before publication
+## Pre-push checks (passed)
 
-Pre-push checks (make lint, checkpatch, clang/ASan build of the tools) and the maintainer's
-decision on a pull request for the batch 11 follow-up branch. The corrected S18 round r01
+The maintainer authorized pushing the follow-up branch and opening one pull request; merging
+needs a separate approval. On a git clone of cb47178 on the Mac mini: make lint (shellcheck,
+SPDX) exit 0; make checkpatch exit 0 with no findings on layer/ and kernel/ (terse output);
+make test exit 0; make test CC=clang BUILD=build/asan with the CI sanitizer flags exit 0;
+vm/build-tests.sh in an ubuntu:24.04 container with libsqlite3-dev, as the CI KASAN job uses,
+exit 0 and built query and permission-gaps. A first attempt on a git archive could not run
+lint/checkpatch (no repository) and linked tools without their common objects; it was
+discarded, not counted.
+
+## Remaining
+
+The pull request's CI, then the maintainer's separate decision on merging. The corrected S18 round r01
 continues on the Mac mini and is reviewed separately; S18 stays at 0 of 7 accepted rounds.
