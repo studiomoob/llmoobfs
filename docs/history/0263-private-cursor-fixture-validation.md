@@ -110,8 +110,25 @@ MOOBFS_ONLY_PASS and MOOBFS_KASAN_ONLY_PASS; zero lines matched BUG, Oops, WARNI
 UBSAN:, possible circular, Call Trace or general protection. This is the first KASAN run on
 the physical Debian; its cache now lets later runs there rebuild only the module.
 
+## Full suites of the final unit (passed)
+
+Snapshot: git archive of 060b2dd (only documentation changed after 47adf84), 1,819 files,
+checked against a manifest on both hosts before the runs and unchanged afterwards.
+
+- Native, Mac mini, container pinned to CPUs 0-3 with a 4 GB limit beside the running S18
+  round r01 on CPUs 4-7: MOOB_DEBIAN_KERNEL=6.12.113 MOOB_VM_KVM=1 make vm-test, 18:47:58 to
+  19:06:02 Brasilia, exit 0, source hashes 0. MOOBFS_VM_PASS, MOOBFS_ACCEPTANCE_PASS and
+  MOOBFS_LAYER_PASS; zero kernel diagnostics. PYLIB_SKIPPED (no python3 in this guest), as
+  in earlier native runs; the library ran in the KASAN suite below.
+- KASAN/UBSAN/lockdep, physical Debian, vm/kasan-local.sh with the cache built for this
+  journal: 18:48:07 to 19:07:33 Brasilia, exit 0, source hashes 0. MOOBFS_PYLIB_PASS,
+  MOOBFS_ACCEPTANCE_PASS, MOOBFS_LAYER_PASS, FAULT_INJECTION_PASS (operations 22, calls 323,
+  faults 301, unexpected 0) and MOOBFS_KASAN_PASS; zero kernel diagnostics in the 6,503-line
+  console. MEMCG, memory-limit, memcg diagnostics and Landlock steps were skipped because this
+  kernel lacks those features; they passed in the native suite, as in batch 11's earlier runs.
+
 ## Remaining before publication
 
-The full native `make vm-test` and full local KASAN/lockdep suite of the final unit, then the
-maintainer's decision on a pull request for the batch 11 follow-up branch. The corrected S18
-round r01 continues on the Mac mini and is reviewed separately.
+Pre-push checks (make lint, checkpatch, clang/ASan build of the tools) and the maintainer's
+decision on a pull request for the batch 11 follow-up branch. The corrected S18 round r01
+continues on the Mac mini and is reviewed separately; S18 stays at 0 of 7 accepted rounds.
