@@ -100,3 +100,21 @@ partition is eagerly allocated. The existing warning assertions remain intact.
 Next: full native Debian VM and full local KASAN/lockdep suites on this corrected unit,
 in separate source/build copies and dedicated slot reservations. Long campaign acceptance
 remains open; prior warning-bearing reports are not reclassified as clean.
+
+## Full batch gates started (2026-11-03 11:53:38 Brasília; in progress)
+
+Local DCO commit `4f17fb4` contains the correction, independent functional fixture and
+investigation record. Its Git source archive SHA-256 is
+`416292cd4bb53f9858440fe789e0779245217ffa8efe84deae2c06b1619f0323`.
+Two source/build copies run in parallel under separate slot locks: full KASAN/UBSAN/lockdep
+on CPUs 4–5 and `MOOB_DEBIAN_KERNEL=6.12.113 MOOB_VM_KVM=1 make vm-test` on CPUs 6–7.
+A private Docker wrapper supplies the container cpuset/name/label; the repository's VM
+runner is unchanged. Only the named container is stopped if its client times out. Both
+commands have a 22:00 deadline, source before/after manifests and separate exit markers.
+Actual KASAN QEMU and the native container were observed; no complete result is claimed.
+
+Focused old/new evidence archive SHA-256 (verified after local copy):
+`fff3ada692ed2b8a8a594b37e725db10914aeb19c00234d4ac2b59ea92fd2d6c`.
+The sole existing observer was restarted after adding these two completion paths; its
+prior receipts remain intact. No VM/test was interrupted or duplicated. Source corrections
+are local only; the immutable original campaign runtime has not been modified.
