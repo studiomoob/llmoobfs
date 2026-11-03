@@ -140,3 +140,25 @@ manifest, raw console, build log, source manifests and binaries:
 Slot B is free and its named container has ended. Slot A remains reserved for the full
 KASAN/UBSAN/lockdep suite; no final KASAN result is claimed. Peer fronts were notified
 without changing their tasks. The next clean long campaign waits for that gate.
+
+## Full KASAN/UBSAN/lockdep approved (2026-11-03 12:54:00 Brasília)
+
+The full suite on the same corrected snapshot exited 0 after 1 h 00 min 22 s of calendar
+machine time. All three lowers passed the cold-link regression and permission cases;
+`MOOBFS_KASAN_PASS` reports no kernel diagnostics. Allocation-failure injection completed
+22 operations, 326 calls and 304 injected faults, **unexpected=0**. The Python library
+passed its kernel/scan comparisons, complementing the native guest's Python skip.
+
+This KASAN kernel lacks the memory controller and Landlock: MEMCG_ACCOUNT, LIMITS_MEMCG,
+DIAG_MEMCG and LANDLOCK remain explicit skips here. All four have actual pass markers
+in the already-approved full native Debian suite; they were not rerun or silently waived.
+All 1,814 source hashes match before/after and the Git source archive independently.
+Evidence SHA-256, verified after local copy and internal-manifest checks:
+`6753e6bc16fc35fec817c055a7d3da5e7195ec66e10a22d9e70b49ceeb9f7c34`.
+KASAN module SHA-256:
+`68e37bde7d884eb6d3a14d615f47ab0f0db0c2cd6551a28bbf88f70a209f0eee`;
+boot kernel SHA-256:
+`06c3ce9a6541864834a2e92a6742013628c5a408ebc592ed35de715a92572ee3`.
+Both slots were free with no QEMU/manager when checked. Negative/positive regression,
+checkpatch and both full batch gates now pass. Long corrected-campaign validation and
+publication remain separate; no old warning-bearing report is reclassified as clean.
