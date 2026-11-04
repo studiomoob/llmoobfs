@@ -666,6 +666,8 @@ static int moobl_unlink(struct inode *dir, struct dentry *dentry)
 	moobl_unlock_parent(dentry, lower_dentry, lower_dir);
 	if (!err && !inode->i_nlink)
 		moobl_index_drop_inode(dir->i_sb, inode->i_ino);
+	else if (!err)
+		moobl_index_unlinked(dir->i_sb, dentry);	/* other names left (F2) */
 	return err;
 }
 
@@ -786,6 +788,8 @@ static int moobl_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	if (target && !(flags & RENAME_EXCHANGE) &&
 	    (S_ISDIR(target->i_mode) || !moobl_lower_inode(target)->i_nlink))
 		moobl_index_drop_inode(old_dir->i_sb, target->i_ino);
+	else if (target && !(flags & RENAME_EXCHANGE))
+		moobl_index_unlinked(old_dir->i_sb, new_dentry);	/* other names left (F2) */
 	/* The VFS moves the dentries after this returns: place each inode at its new name. */
 	moobl_index_renamed(old_dir->i_sb, old_dentry, new_dentry);
 	if ((flags & RENAME_EXCHANGE) && target)

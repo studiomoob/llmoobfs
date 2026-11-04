@@ -7,7 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test static mutants-check fstests-auto
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test static mutants-check fstests-auto tla-check
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
@@ -17,7 +17,8 @@ help:
 	@echo '  make checkpatch    kernel checkpatch.pl --no-tree on layer/ and kernel/ (required in CI; needs curl, perl)'
 	@echo '  make static        W=1, sparse, smatch, Coccinelle, clang analyzer, kernel-doc on the modules (S19); needs only Docker'
 	@echo '  make mutants-check the mutants of the homogeneity rule (S14) apply, build and change the code; needs only Docker'
-	@echo '  make man-lint      lint the manual pages in man/ with mandoc'
+	@echo '  make tla-check     TLC on the TLA+ model of index_load() and the hooks (S21), with its negative controls; needs Java 11+, curl'
+	@echo '  make man-lint     lint the manual pages in man/ with mandoc'
 	@echo '  make fuzz          libFuzzer over the attributes, the image parser and the tool parsers'
 	@echo 'Linux-only targets:'
 	@echo '  make attr-tools    moobfs, moobfs-attr, moobfs-check, moobfs-index'
@@ -129,7 +130,7 @@ fuzz: fuzz-build
 	  -artifact_prefix=$(BUILD)/fuzz-crashes/$(t)- $(FUZZ_FLAGS) $(BUILD)/fuzz-corpus/$(t) tests/fuzz-corpus/$(t) &&) true
 lint:
 	@command -v shellcheck >/dev/null 2>&1 || { echo 'shellcheck not found: apt install shellcheck, or brew install shellcheck'; exit 1; }
-	shellcheck --shell=sh $$(git ls-files 'vm/*.sh' 'scripts/*.sh')
+	shellcheck --shell=sh $$(git ls-files 'vm/*.sh' 'scripts/*.sh' 'formal/*.sh')
 	sh scripts/check-spdx.sh
 # Manual pages of the tools (issue #8): mandoc must report nothing at warning level.
 man-lint:
@@ -147,6 +148,10 @@ static:
 mutants-check:
 	docker build -q -t moobfs-static -f tests/static/Dockerfile tests/static
 	docker run --rm --user "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$(CURDIR):/src:ro" moobfs-static python3 /src/scripts/mutants.py check
+# Security roadmap S21: TLC, pinned and hash-checked by formal/tlc.sh, on every configuration of
+# formal/README.md. The PASS ones must find no violation, the negative controls must find one.
+tla-check:
+	sh formal/tlc.sh check
 module:
 	$(MAKE) -C $(KDIR) M=$(CURDIR)/kernel modules
 # The source root maps to the empty prefix, so neither __FILE__ nor the debug information

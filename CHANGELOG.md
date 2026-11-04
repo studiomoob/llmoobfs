@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- S21: a TLA+ model of the index loader and the update hooks (`formal/`), checked by a pinned
+  TLC with `make tla-check` and in CI (`tla.yml`). It found two completeness defects, both
+  corrected: a rename during a domain's first build could leave a record with part of the
+  file's attributes when the build ended before the rename's hook ran (F1), and an unlink
+  that left other names called no hook, so a build could record the removed name (F2). New
+  regression step `hookrace` (`tests/hookrace.c`) with the test-only module parameter
+  `rename_hook_delay_us`; passes on ext4, btrfs and XFS with the corrections and fails without
+  each. S18 counts again from the corrected code (journal 0266; full native and KASAN/UBSAN/lockdep
+  suites passed).
+
+- S20 done: `tests/coldmove.c`, written by a second model from the specification only
+  (receipt in `docs/s20/coldmove/`), runs in the `permgaps` suite step; it passes with
+  correction 4f17fb4 and, without it, the step fails on the kernel warnings the test
+  triggers (journal 0265).
+
+- Python library test: the racing-swap scan test checks that the walk finds the file after
+  the race instead of during it, which depended on scheduling; its security assertions are
+  unchanged (journal 0264).
+
 - Keep cursor-tampering fixtures private and readable by the test uid after the 0600
   output change; add an actual cursor-mode assertion. Passed in a native VM and under
   KASAN/UBSAN/lockdep on ext4, btrfs and XFS, and in the full native and KASAN suites of

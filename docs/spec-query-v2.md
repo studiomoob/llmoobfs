@@ -315,7 +315,13 @@ query answers does not change.
     built;
   - a **file renamed** during the build may have a record that holds only the attributes
     written since the build began (the scan had not reached it). The rename reads the file
-    whole from the lower filesystem;
+    whole from the lower filesystem, also when the build ends between the rename and its
+    update of the index: whether a record is whole is kept with the record, not taken from the
+    state of the domain (finding F1 of the TLA+ model, corrected on 2026-11-04, journal 0266);
+  - an **unlink of one of several names** (or a rename over one) while the build reads the file
+    through that name makes the reading be done again, so the record is not stored under the
+    removed name. A record already stored under it makes the build start again, or a built
+    domain be built again by its next query (finding F2, journal 0266);
   - a **write to a file that has just been unlinked** (the path was resolved before the
     unlink) is not indexed: the file has no name left.
 - **Where a file is** (its depth and its domain directory) is read as one consistent view

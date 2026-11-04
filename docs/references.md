@@ -1243,3 +1243,33 @@ hand and carries the same code paths:
 - Existing MoobFS on-demand write semantics: `docs/spec-query-v2.md` §9,
   `moobl_index_set()` and `moobl_index_renamed()`. Reused domain-liveness/drop/invalidation
   mechanisms; no new data structure or locking algorithm.
+
+## 47. A TLA+ model of the index loader and the update hooks (S21; formal/README.md)
+
+- Leslie Lamport. *Specifying Systems: The TLA+ Language and Tools for Hardware and Software
+  Engineers*. Addison-Wesley, 2002. ISBN 0-321-14306-X. The author's copy:
+  <https://lamport.azurewebsites.net/tla/book.html>. The language of `formal/IndexLoad.tla`
+  (actions, `UNCHANGED`, invariants checked as state predicates) and the style of one action
+  per atomic step of the code.
+- Yuan Yu, Panagiotis Manolios, Leslie Lamport. "Model Checking TLA+ Specifications". CHARME
+  1999, LNCS 1703, 54–66. <https://doi.org/10.1007/3-540-48153-2_6>. TLC, the explicit-state
+  model checker that explores every interleaving of the bounded configurations. Checked on
+  2026-11-04 (Crossref metadata).
+- tlaplus/tlaplus release `v1.7.4` (2024-08-05, not marked prerelease; TLC 2.19), asset
+  `tla2tools.jar`, SHA-256
+  `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`, computed from the
+  downloaded asset on 2026-11-04 (GitHub lists no digest for this asset). MIT license.
+  <https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4>. Pinned and verified by
+  `formal/tlc.sh`; not vendored. `v1.8.0` was published on 2026-11-03 as a prerelease and was
+  not used.
+- `actions/setup-java` `v6.1.0` (2026-10-14), commit
+  `b843ebf9b913146b38da2eaa7aeddf76074ae1ad`, Temurin 17, in `.github/workflows/tla.yml`.
+- Linux 6.12.112, exact sources read on 2026-11-04 for the lock claims of the model:
+  `fs/dcache.c:2739–2806`, `__d_move()` (the target is unhashed and the moved dentry takes
+  its name, so no hashed dentry is left under the old name); `fs/namei.c:2961–2976`,
+  `lookup_one_unlocked()` (a dcache hit takes no lock; otherwise `lookup_slow()`,
+  `fs/namei.c:1755–1761`, takes the directory's `i_rwsem` shared); `fs/readdir.c:85–113`,
+  `iterate_dir()` (the directory's `i_rwsem` shared for one call).
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs?h=v6.12.112>.
+- Mohan and Narang (SIGMOD 1992), already in "The index built on demand" above: the online
+  index build whose MoobFS variant the model checks.

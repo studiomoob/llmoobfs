@@ -278,4 +278,7 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 
 - [0262 — Existing scheduled fuzzing and weekly benchmark artifacts verified](0262-scheduled-fuzz-and-benchmark-evidence.md)
 
-- [0263 — Private cursor fixture ownership; real-VM validation queued](0263-private-cursor-fixture-validation.md)
+- [0263 — Private cursor fixture ownership; native and KASAN VM validation passed](0263-private-cursor-fixture-validation.md)
+- [0264 — PR 182 merged; CI rerun of a probabilistic library test; coordination handover](0264-pr182-merge-and-handover.md)
+- [0265 — S20: a regression test written by a second model from the specification](0265-s20-independent-test-coldmove.md)
+- [0266 — S21: TLA+ model of the index loader, and corrections of its two findings](0266-s21-tla-model-and-loader-hook-corrections.md)

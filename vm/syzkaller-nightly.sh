@@ -17,10 +17,10 @@
 # on for the time left from the kept corpus, what the first part found is kept in part<N>/,
 # and a night whose window has passed gets its report with what it has. The replay's cache
 # (<reports dir>/replay-cache) keeps each program's coverage, so later nights replay only new
-# programs. NIGHT_CPUS pins everything (taskset list, e.g. 4-7); REPLAY_GUESTS, SYZ_VMS and
-# SYZ_CACHE are passed on. NIGHT_DEADLINE overrides the end with an epoch second;
-# NIGHT_FUZZ_S caps the fuzzing duration without shortening the replay window. Separate
-# report roots identify campaigns started on the same day. Run from an immutable copy.
+# programs. NIGHT_CPUS pins everything (taskset list, e.g. 4-7); REPLAY_GUESTS, REPLAY_PORT,
+# SYZ_VMS, SYZ_HTTP and SYZ_CACHE are passed on. NIGHT_DEADLINE overrides the end with an
+# epoch second; NIGHT_FUZZ_S caps the fuzzing duration without shortening the replay window.
+# Separate report roots identify campaigns started on the same day. Run from an immutable copy.
 set -eu
 REP=${1:?reports dir}
 SYZ=${SYZ:?syzkaller checkout}

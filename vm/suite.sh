@@ -15,6 +15,8 @@
 #   casefold            a casefolded lower directory and lower root are refused (issue #95)
 #   faults              only under the KASAN harness: the fault-injection block of kasan-guest.sh
 #   buildrace           the first query on a domain racing with writes to it (journal 0098)
+#   hookrace            a build ending inside a rename hook, an unlink of one name during its
+#                       reading (findings F1 and F2 of the TLA+ model, journal 0266)
 #   release             built domains released by the budget and by the shrinker (journal 0101)
 #   sqlext              the moobfs SQLite virtual table against an ordinary table (journal 0108)
 #   permmatrix          QUERY2 against the lower's own permission decision, random modes (0116)
@@ -81,7 +83,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|release|sqlext|permmatrix|permchurn|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|release|sqlext|permmatrix|permchurn|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -1256,6 +1258,29 @@ for fs in ext4 btrfs xfs; do
     echo "BUILD_RACE_PASS: $fs, $(cut -d' ' -f2- /tmp/br.txt) readings_repeated=$retries; every domain equal to the oracle; chmod during a build: absent"
 done
 fi
+if want hookrace; then
+# Findings F1 and F2 of the TLA+ model of the index loader (formal/README.md, journal 0266).
+# F1: a write during the first build makes a record with one attribute, a rename leaves the file
+# to its hook, and the build ends before the hook runs (rename_hook_delay_us holds it), which
+# must still read the file whole. F2: an unlink of one of two names while the scan reads the file
+# through it; the record must not keep the removed name (the reading is repeated: the tracepoint
+# counts it, or the unlink missed the window and the test proved nothing).
+for fs in ext4 btrfs xfs; do
+    case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t $fs "$dev" "$LOWER" || fail "hr-lower-mount-$fs"
+    rm -rf "$LOWER/hr" && mkdir -m 755 "$LOWER/hr" || fail "hr-mkdir-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/hr",domain_depth=1 none "$LAYER" || fail "hr-mount-$fs"
+    "$BIN/hookrace" "$LAYER" mv rename || fail "hr-rename-$fs"
+    tr_on moobfs_scan_reread || fail "hr-trace-on-$fs"
+    "$BIN/hookrace" "$LAYER" ul unlink; rc=$?
+    hr_retries=$(tr_count moobfs_scan_reread)
+    tr_off moobfs_scan_reread
+    [ $rc -eq 0 ] || fail "hr-unlink-$fs"
+    [ "$hr_retries" -gt 0 ] || fail "hr-unlink-not-in-the-window-$fs (the test proved nothing)"
+    umount "$LAYER" && rm -rf "$LOWER/hr" && umount "$LOWER" || fail "hr-cleanup-$fs"
+    echo "HOOK_RACE_PASS: $fs, rename hook after the build: whole; unlink during the reading: readings_repeated=$hr_retries"
+done
+fi
 if want release; then
 # ADR-0012, second half: a built domain is released when a build needs its room in the index
 # budget, least recently queried first, and by the shrinker under memory pressure, except the
@@ -1711,6 +1736,11 @@ for fs in ext4 btrfs xfs; do
     mount -t moobfs_layer -o lower="$LOWER/pg-cold",domain_depth=1 none "$LAYER" || fail "pg-cold-mount-$fs"
     "$BIN/permission-gaps" coldlink "$LAYER" "$LOWER/pg-cold" || fail "pg-cold-link-$fs"
     umount "$LAYER" && rm -rf "$LOWER/pg-cold" || fail "pg-cold-unmount-$fs"
+    # S20: regression test written by a second model from the specification only (journal 0265).
+    rm -rf "$LOWER/pg-move" && mkdir -m 755 "$LOWER/pg-move" || fail "pg-move-directory-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pg-move",domain_depth=1 none "$LAYER" || fail "pg-move-mount-$fs"
+    "$BIN/coldmove" "$LAYER" "$LOWER/pg-move" || fail "pg-coldmove-$fs"
+    umount "$LAYER" && rm -rf "$LOWER/pg-move" || fail "pg-move-unmount-$fs"
     rm -rf "$LOWER/pg" && mkdir -m 755 "$LOWER/pg" || fail "pg-directory-$fs"
     "$BIN/permission-gaps" plant "$LOWER/pg" || fail "pg-plant-$fs"
     mount -t moobfs_layer -o lower="$LOWER/pg" none "$LAYER" || fail "pg-mount-$fs"
@@ -1719,7 +1749,7 @@ for fs in ext4 btrfs xfs; do
     mount -t moobfs_layer -o lower="$LOWER/pg",domain_depth=0 none "$LAYER" || fail "pg-v1-mount-$fs"
     "$BIN/permission-gaps" check "$LAYER" "$LOWER/pg" v1 || fail "pg-v1-$fs"
     umount "$LAYER" && rm -rf "$LOWER/pg" && umount "$LOWER" || fail "pg-cleanup-$fs"
-    echo "PERMISSION_GAPS_PASS: $fs (T5/T6/T8, independent T10 fixtures)"
+    echo "PERMISSION_GAPS_PASS: $fs (T5/T6/T8, independent T10 fixtures, S20 coldmove)"
 done
 fi
 if want rootpath; then

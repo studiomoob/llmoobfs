@@ -391,3 +391,12 @@ run so far only on the test host
 rodado até agora só na máquina de testes
 and the ADR waits for the maintainer
 e o ADR aguarda o mantenedor
+No clean corrected S18 campaign is approved yet
+Keep S20 partial
+full procedural closure remains pending
+S18 stands at 2 of 7 complete campaigns
+S18 stands at 3 of 7 complete
+S16 and S21 not started
+Pending: KASAN and the full suites before publication
+in progress until the KASAN and full suites pass
+KASAN and full suites pending

@@ -758,7 +758,7 @@ static int depth_below_root(const char *real, const struct mnt *m)
 
 /* Test-only parameters of the module (layer/index.c); not 0 means a build is slowed or fails. */
 static const char *const test_params[] = { "scan_delay_us", "scan_hold_us",
-					   "scan_getxattr_errno_once" };
+					   "scan_getxattr_errno_once", "rename_hook_delay_us" };
 #define NTEST_PARAMS (sizeof test_params / sizeof test_params[0])
 
 static void json_ull_or_null(int has, unsigned long long v)

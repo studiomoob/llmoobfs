@@ -161,6 +161,7 @@ int moobl_index_set(struct super_block *sb, struct dentry *dentry, const char *n
 		    const void *value, size_t size);
 void moobl_index_remove(struct super_block *sb, u64 ino, const char *name);
 void moobl_index_drop_inode(struct super_block *sb, u64 ino);
+void moobl_index_unlinked(struct super_block *sb, struct dentry *dentry);
 void moobl_index_dir_removed(struct super_block *sb, u64 ino);
 void moobl_index_renamed(struct super_block *sb, struct dentry *moved, struct dentry *where);
 void moobl_index_linked(struct super_block *sb, struct dentry *new_dentry);

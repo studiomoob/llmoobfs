@@ -95,6 +95,12 @@ struct moobl_ix_inode {
 	char *path;			/* mount-relative path recorded at scan or write time */
 	u64 domain;			/* partition key of all its entries */
 	bool hetero;
+	/*
+	 * Holds every typed attribute of its file: set when the file was read whole from the
+	 * lower filesystem, or when the record was made by a write in a built domain. A write
+	 * in a domain being built makes a record with that attribute only (F1, journal 0266).
+	 */
+	bool whole;
 };
 
 /* Where an inode's entries belong (docs/spec-query-v2.md §2, §3). */
@@ -923,6 +929,15 @@ static void scan_spin(unsigned int us)
 }
 
 /*
+ * For tests only (vm/suite.sh step hookrace, journal 0266): microseconds the rename hook of a
+ * file waits after the lower rename and before it takes the index lock, so that a test can end
+ * a build inside that window. Same rules as above.
+ */
+static unsigned int rename_hook_delay_us;
+module_param(rename_hook_delay_us, uint, 0644);
+MODULE_PARM_DESC(rename_hook_delay_us, "tests only: microseconds the rename hook of a file waits before it takes the index lock");
+
+/*
  * For tests only (vm/suite.sh step ixlock, issue #117): microseconds the index scan sleeps
  * with the index lock held for writing, once per file, so that a test can show which paths
  * wait for that lock and which do not.
@@ -961,6 +976,15 @@ static bool domain_live(struct moobl_index *ix, u64 domain)
 
 	lockdep_assert_held(&ix->lock);
 	return dom && dom->state != MOOBL_DOM_NONE;
+}
+
+static bool domain_built(struct moobl_index *ix, u64 domain)
+{
+	struct moobl_domain *dom = domain ? xa_load(&ix->domains, (unsigned long)domain)
+					  : &ix->outside;
+
+	lockdep_assert_held(&ix->lock);
+	return dom && dom->state == MOOBL_DOM_BUILT;
 }
 
 /*
@@ -1654,6 +1678,8 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 		list_del(&ld.list);
 		err = index_replace(ix, li->i_ino, READ_ONCE(li->i_generation), &cur, b);
 		rec = err ? NULL : xa_load(&ix->inodes, li->i_ino);
+		if (rec)
+			rec->whole = true;	/* everything the file held when it was read */
 		if (rec && path)
 			err = index_set_path(ix, rec, path);	/* a scan has no other source of the name */
 		else if (rec)
@@ -2513,6 +2539,8 @@ int moobl_index_set(struct super_block *sb, struct dentry *dentry, const char *n
 	struct inode *inode = d_inode(dentry);
 	struct moobl_ix_inode *rec;
 	struct moobl_place pl;
+	bool made;
+	u32 gen;
 	int err;
 
 	if (!ix->enabled)
@@ -2536,14 +2564,22 @@ int moobl_index_set(struct super_block *sb, struct dentry *dentry, const char *n
 		ix_write_unlock(ix, nofs);
 		return 0;
 	}
-	err = index_put(ix, inode->i_ino, READ_ONCE(moobl_lower_inode(inode)->i_generation), &pl,
-			name, value, size);
+	gen = READ_ONCE(moobl_lower_inode(inode)->i_generation);
+	rec = xa_load(&ix->inodes, inode->i_ino);
+	made = !rec || rec->gen != gen;	/* index_put() makes a new record */
+	err = index_put(ix, inode->i_ino, gen, &pl, name, value, size);
 	if (err) {
 		/* the lower write already succeeded: the domain is built again by the next query */
 		domain_lost(ix, pl.domain, err);
 	} else {
 		rec = xa_load(&ix->inodes, inode->i_ino);
 		if (rec) {
+			/*
+			 * A built domain read every file, so a file with no record had no typed
+			 * attribute; one being built may not have read this file yet (F1).
+			 */
+			if (made && domain_built(ix, pl.domain))
+				rec->whole = true;
 			rec->upper = inode;
 			record_dentry_path(ix, rec, dentry);
 		}
@@ -2594,6 +2630,43 @@ void moobl_index_drop_inode(struct super_block *sb, u64 ino)
 }
 
 /*
+ * One name of a file that keeps others went: an unlink, or a rename over it. Called before the
+ * VFS unhashes dentry. A loader of the file reads it again and finds that name gone. A record
+ * already stored under it, by a build that read the file through it, would make QUERY omit the
+ * file once the dentry cache drops it (R2-2), so its domain is built again (F2, journal 0266).
+ */
+void moobl_index_unlinked(struct super_block *sb, struct dentry *dentry)
+{
+	struct moobl_index *ix = IX(sb);
+	struct moobl_ix_inode *rec;
+	struct moobl_domain *dom;
+	char *buf, *p;
+	unsigned int nofs;
+
+	if (!ix->enabled || d_really_is_negative(dentry))
+		return;
+	buf = (char *)__get_free_page(GFP_KERNEL_ACCOUNT);
+	p = buf ? dentry_path_raw(dentry, buf, PAGE_SIZE) : ERR_PTR(-ENOMEM);
+	if (!IS_ERR(p) && *p == '/')
+		p++;
+	nofs = ix_write_lock(ix);
+	index_touched(ix, d_inode(dentry)->i_ino);
+	rec = xa_load(&ix->inodes, d_inode(dentry)->i_ino);
+	/* without the name to compare, as if it were the recorded one */
+	if (rec && rec->path && (IS_ERR(p) || !strcmp(rec->path, p))) {
+		dom = rec->domain ? xa_load(&ix->domains, (unsigned long)rec->domain)
+				  : &ix->outside;
+		if (dom && dom->state == MOOBL_DOM_BUILDING)
+			dom->restart = true;
+		else if (dom && dom->state == MOOBL_DOM_BUILT)
+			dom->paths_stale = true;	/* the next query builds it again */
+	}
+	ix_write_unlock(ix, nofs);
+	if (buf)
+		free_page((unsigned long)buf);
+}
+
+/*
  * A directory was removed (rmdir). If it was a domain, its fallback mark and its record go: until
  * issue #113 both stayed until unmount, so creating, querying and removing domain directories in a
  * loop grew the index outside its budget. The record is dropped at once when nobody holds it, and
@@ -2621,13 +2694,15 @@ void moobl_index_dir_removed(struct super_block *sb, u64 ino)
 		domain_reap(ix, ino);	/* dom may be gone by now: only the key is used */
 }
 
-/* Whether rec holds every attribute of its file: true once the domain it is in is built. */
+/*
+ * Whether rec holds every attribute of its file and its domain is built. The state of the
+ * domain alone is not enough: a write in a domain being built makes a record with one
+ * attribute, and if a rename then leaves the file to its hook (index_load() finds the name
+ * changed), the build can end before the hook runs (F1, journal 0266).
+ */
 static bool rec_whole(struct moobl_index *ix, const struct moobl_ix_inode *rec)
 {
-	struct moobl_domain *dom = rec->domain ? xa_load(&ix->domains, (unsigned long)rec->domain)
-					       : &ix->outside;
-
-	return dom && dom->state == MOOBL_DOM_BUILT;
+	return rec->whole && domain_built(ix, rec->domain);
 }
 
 /*
@@ -2759,6 +2834,8 @@ void moobl_index_renamed(struct super_block *sb, struct dentry *moved, struct de
 		return;
 	}
 	place_dentry(ix, where, inode, &pl);	/* a file may change domain: move its entries */
+	if (unlikely(READ_ONCE(rename_hook_delay_us)))
+		fsleep(READ_ONCE(rename_hook_delay_us));
 	nofs = ix_write_lock(ix);
 	index_touched(ix, inode->i_ino);
 	ix->move_gen++;

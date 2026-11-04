@@ -648,3 +648,135 @@ campaign. The 23:00/@reboot entries remain; the fallback window extends to 07:00
 three hours reserved for replay and a five-hour fuzz cap. The daytime campaign has its
 own absolute deadline. The sole existing observer already discovers the dated campaign
 marker; no new monitor or test duplicate was started. No publication is authorized.
+
+### 2026-11-03 — corrected campaign r01 completed and accepted (1 of 7)
+
+The daytime campaign r01 on the Mac mini (source `61ee4f7`, CPUs 4–7, two guests) ended at
+23:07:53 Brasília time with `runner_exit=0`; the audit was done before acceptance:
+
+- Phases: permissions exit 0 (13:03–13:31, KASAN/UBSAN/lockdep config verified in the saved
+  `kernel.config`, `MOOBFS_KASAN_ONLY_PASS`), fuzzing exit 0 for the full 18,000 s
+  (13:32:43–18:32:46), replay exit 0 (18:32:46–23:07:51).
+- Fuzzing: corpus 1,190, coverage 16,734, 420,211 executions; the manager work directory has
+  no `crashes` directory and the report lists `crash_dirs=0`.
+- Replay: 1,207/1,207 programs replayed, run now 1,207, failed 0, not reached 0; 693 of 781
+  call sites (88.7 %); 1,853 module text PCs.
+- Consoles: no `BUG:`, KASAN, UBSAN, lockdep, Oops or call-trace line in the permission or
+  replay consoles. The single `WARNING:` match is the kernel's deprecation notice for the
+  `mand` mount option, triggered by a fuzzed `mount` call; it is not a kernel diagnostic.
+- Integrity: the source hash lists before and after are byte-identical (1,815 files), and the
+  syzkaller module (`f9546944…`) and kernel image (`4026582c…`) hashes are unchanged.
+
+r01 is the first accepted complete corrected campaign: **S18 stands at 1 of 7**. Round r02
+runs on the Debian host from `a1f313b` (identical kernel code) with permission profile
+`24,96,2026110302` and an absolute deadline of November 4 at 10:30.
+
+### 2026-11-04 — campaign r02 on the Debian host completed and accepted (2 of 7)
+
+r02 (source `a1f313b`, kernel code identical to r01, CPUs 4–7, two guests, permission profile
+`24,96,2026110302`) ran from 20:45:19 to 05:18:26 Brasília time with `runner_exit=0`:
+
+- Phases: permissions exit 0 (20:45–20:56; `MOOBFS_KASAN_ONLY_PASS`, kernel config with
+  KASAN, UBSAN, LOCKDEP and PROVE_LOCKING; the xfs step alone reports 82,944 QUERY2 answers
+  equal to the lower's decision), fuzzing exit 0 for 18,000 s (21:09:59–02:09:59), replay
+  exit 0 (02:09:59–05:18:26).
+- Fuzzing: corpus 1,288, coverage 16,651, 697,413 executions; no `crashes` directory,
+  `crash_dirs=0`.
+- Replay: 1,305/1,305 programs, failed 0, not reached 0; 688 of 781 call sites (88.1 %).
+- Consoles: the replay consoles' only `WARNING:` lines are the `mand` deprecation notice;
+  the permission-phase console had no diagnostic line when scanned at 05:27. That raw
+  console was then overwritten by r04, which reuses the same build directory; the phase
+  verdict lines remain in the r02 `permchurn.log`.
+- Integrity: the driver reported `source_hashes=1`. The only mismatching file of 1,819 is
+  `vm/syzkaller/moobfs.txt.const`, which the runner regenerates from the descriptions at
+  fuzz start (21:09:59); the regenerated file is byte-identical to r01's runtime constants
+  (`35478995…`). The r02 driver recorded no binary hashes; the module (`e5d4f245…`) and kernel
+  image were last written at 21:05:58 and 21:05:54, before fuzzing started, and not after.
+
+r02 is accepted with those two recorded limitations: **S18 stands at 2 of 7**. The r04 driver
+on the Debian host excludes the generated constants file from the source check, compares it
+with the reference hash, and records binary hashes and timestamps before and after.
+
+### 2026-11-04 — round r04 interrupted; restarted as r04b
+
+r04 started on the Debian host at 05:28:10. The host's journal stops at 05:30:34 with no
+shutdown sequence, and the host booted again at 05:57; r04 was still building for its
+permission phase and left no result. It is not counted. After the restart all source files
+matched their reference hashes; r04b started from scratch at 06:24:05 with the same
+parameters and a deadline of 18:30. The permission phase rebuilds the module against the
+KASAN kernel and the fuzz phase rebuilds it for the syzkaller kernel, so the before/after
+module hash of the r04 driver differs by design; the audit compares the binaries' write
+times with the fuzz start instead.
+
+### 2026-11-04 — campaign r03 on the Mac mini completed and accepted (3 of 7)
+
+r03 (source `61ee4f7`, CPUs 4–7, two guests, permission profile `24,96,2026110303`,
+deadline November 4 at 11:00) ran from 23:13:29 to 09:14:07 Brasília time with
+`runner_exit=0 source_hashes=0`:
+
+- Phases: permissions exit 0 (23:13–23:43; `MOOBFS_KASAN_ONLY_PASS` under KASAN, UBSAN and
+  lockdep), fuzzing exit 0 for 18,000 s (23:44:22–04:44:25), replay exit 0
+  (04:44:25–09:14:06).
+- Fuzzing: corpus 1,178, coverage 16,723, 398,288 executions; `crash_dirs=0`.
+- Replay: 1,195/1,195 programs, run now 1,195, failed 0, not reached 0; 693 of 781 call
+  sites (88.7 %); 1,848 module text PCs.
+- Consoles: the replay consoles' only `WARNING:` line is the `mand` deprecation notice, as
+  in r01; their lockdep matches are boot banners. The permission console (copied to the
+  campaign directory as `permchurn-console.log` before r05 reused the build directory) has
+  no `BUG:`, KASAN, UBSAN or call-trace line; its single `Warning:` is the firmware
+  "Processor Platform Limit event" notice at boot.
+- Integrity: source hash lists before and after are byte-identical, and the module and
+  kernel image hashes before and after are identical.
+
+r03 is accepted: **S18 stands at 3 of 7**. Round r05 started on the Mac mini at 09:15:27
+with the same driver, permission profile `24,96,2026110305` and a deadline of November 4 at
+21:30. At 08:57 the Debian host running r04b stopped answering (no route to host from the
+Mac mini); r04b's state is unknown until the host returns.
+
+### 2026-11-04 — count restarted on the code corrected in journal 0266
+
+The S21 model found two completeness defects of the index loader and its hooks (F1, F2), and
+both were corrected locally (journal 0266). By the maintainer's decision, the seven campaigns
+are counted again from the corrected code: **S18 stands at 0 of 7**. r01, r02 and r03 stay
+recorded as complete, accepted campaigns of the code before the correction. r05 (Mac mini,
+started 09:15, source `61ee4f7`) and r04b (Debian host, state unknown) run on that code too:
+they finish as planned as extra evidence and are not counted. Campaigns on the corrected code
+start after its full native and KASAN suites pass.
+
+### 2026-11-04 — round r04b lost to a second stop of the Debian host
+
+The Debian host answered again at 12:11 after a fresh boot. Its journal of the previous boot
+ends at 06:34:46, while r04b ran `vm/syzkaller/image-setup.sh` under `sudo` to build the fuzz
+image, with no kernel message and no shutdown sequence; the earlier stop, which ended r04 at
+05:30:34, looked the same. Correction of the entry above: the host stopped at 06:34, not at
+08:57; 08:57 is only when the Mac mini first found it unreachable. r04b left its reference
+hashes and the KASAN `permchurn` reports of the first phase, and no fuzz or replay result.
+It ran on the code before journal 0266 and would not have counted. Two abrupt stops in one
+morning, both without a kernel message, point at the host rather than at the module, which
+the guest never loaded on the host kernel; the cause is not known. The Debian host takes no
+new campaign until it runs one long job without stopping.
+
+### 2026-11-04 — first campaigns on the corrected code
+
+With the full native and KASAN/UBSAN/lockdep suites of the corrections passed (journal 0266),
+the campaigns that count start from a new snapshot of `9dce137`. That commit adds only test
+infrastructure to the corrected code: `SYZ_HTTP` and `REPLAY_PORT` set the manager's local
+address and the replay's first SSH port, which were fixed, so two campaigns can share the Mac
+mini; the defaults are unchanged.
+
+- Snapshot `corrected-9dce137` (archive SHA-256 `8cbb0279…c295ea`, 1,842 files) prepared at
+  13:20–13:25 with exit 0. As in earlier snapshots, only the regenerated
+  `vm/syzkaller/moobfs.txt.const` differs from the archive, and its constants match those of
+  the earlier snapshot. The module hash is `c7008a26…`.
+- Each campaign runs in its own copy of the prepared tree, so `build/syzkaller` and the
+  permission phase's console (`build/vng/console.log`) belong to one campaign; the driver
+  copies that console into the campaign directory at the end. The copy of c01 matches the
+  prepared tree's hashes.
+- **c01**: Mac mini CPUs 0–3, guests `0,1` and `2,3`, manager `127.0.0.1:56742`, replay
+  ports from 10200, permission profile `24,96,2026110401`, same workload as r01–r05 (one hour
+  of permissions, 18,000 s of fuzzing, 21,600 s reserved for replay). Started 13:26:25,
+  deadline November 5 at 01:41.
+- **c02**: starts on CPUs 4–7 when r05 writes its done marker (r05 deadline 21:30), with the
+  default ports and permission profile `24,96,2026110402`.
+- The scheduled fallback (`nightly-host.sh`, 23:00) now points at the new snapshot. It skips
+  while a campaign holds its slots, as before.
