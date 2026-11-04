@@ -732,3 +732,13 @@ r03 is accepted: **S18 stands at 3 of 7**. Round r05 started on the Mac mini at 
 with the same driver, permission profile `24,96,2026110305` and a deadline of November 4 at
 21:30. At 08:57 the Debian host running r04b stopped answering (no route to host from the
 Mac mini); r04b's state is unknown until the host returns.
+
+### 2026-11-04 — count restarted on the code corrected in journal 0266
+
+The S21 model found two completeness defects of the index loader and its hooks (F1, F2), and
+both were corrected locally (journal 0266). By the maintainer's decision, the seven campaigns
+are counted again from the corrected code: **S18 stands at 0 of 7**. r01, r02 and r03 stay
+recorded as complete, accepted campaigns of the code before the correction. r05 (Mac mini,
+started 09:15, source `61ee4f7`) and r04b (Debian host, state unknown) run on that code too:
+they finish as planned as extra evidence and are not counted. Campaigns on the corrected code
+start after its full native and KASAN suites pass.
