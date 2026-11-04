@@ -11,7 +11,9 @@
 # extracted, syzkaller rebuilt), run (syz-manager for <seconds>, then a summary). Results in
 # build/syzkaller/: manager.log, crashes/, summary.txt. SYZ_VMS sets the number of fuzzing VMs
 # (default 3, two vCPUs each), to leave room on a shared host; SYZ_CACHE replaces
-# ~/.cache/moobfs-syz, so a run can keep its kernel and image apart. Run from the repository root.
+# ~/.cache/moobfs-syz, so a run can keep its kernel and image apart; SYZ_HTTP sets the manager's
+# local address (default 127.0.0.1:56741), so two campaigns can share a host. Run from the
+# repository root.
 set -eu
 DUR=${1:?seconds}
 shift
@@ -26,6 +28,7 @@ C=${SYZ_CACHE:-$HOME/.cache/moobfs-syz}
 K=$C/linux-$KERNEL_VERSION
 IMG=$C/image
 B=$R/build/syzkaller
+HTTP=${SYZ_HTTP:-127.0.0.1:56741}
 mkdir -p "$C" "$B"
 want() { case " $STEPS " in *" $1 "*) return 0 ;; esac; return 1; }
 
@@ -81,7 +84,7 @@ if want run; then
     cat > "$B/manager.cfg" <<EOF
 {
 	"target": "linux/amd64",
-	"http": "127.0.0.1:56741",
+	"http": "$HTTP",
 	"workdir": "$B/workdir",
 	"kernel_obj": "$K",
 	"module_obj": ["$R/layer"],
@@ -111,7 +114,7 @@ EOF
     # end, since the page took 8 minutes to answer on a six-hour corpus (journal 0138; a minute
     # was not enough, so earlier runs saved an empty file); force=1: one PC of 14 587 had no
     # module of its own in the first run, and without it the page refuses to answer
-    ( sleep $((DUR > 2400 ? DUR - 1200 : DUR / 2)); curl -fs --max-time 1100 "http://127.0.0.1:56741/funccover?force=1" > "$B/funccover.csv" ) &
+    ( sleep $((DUR > 2400 ? DUR - 1200 : DUR / 2)); curl -fs --max-time 1100 "http://$HTTP/funccover?force=1" > "$B/funccover.csv" ) &
     timeout --signal=INT "$DUR" "$SYZ/bin/syz-manager" -config "$B/manager.cfg" > "$B/manager.log" 2>&1 || true
     wait
     {

@@ -15,10 +15,12 @@
 # a grown corpus replays only its new programs.
 #
 # REPLAY_GUESTS lists host CPUs per guest ("4,5 6,7": two guests of 2 vCPUs pinned there);
-# REPLAY_DEADLINE (epoch seconds) stops starting programs after that time; SYZ_CACHE as for
-# vm/syzkaller-local.sh. Results: <out>/replay.txt (counts), <out>/callsites.txt (per function,
-# missed sites with their source line, last line "CALLSITES covered/total percent"). Exit status
-# 0 when every program was replayed. Run from the repository root on the test host.
+# REPLAY_DEADLINE (epoch seconds) stops starting programs after that time; REPLAY_PORT is
+# the first host port forwarded to the guests' SSH (default 10100, one more per guest), so two
+# campaigns can share a host; SYZ_CACHE as for vm/syzkaller-local.sh. Results:
+# <out>/replay.txt (counts), <out>/callsites.txt (per function, missed sites with their source
+# line, last line "CALLSITES covered/total percent"). Exit status 0 when every program was
+# replayed. Run from the repository root on the test host.
 set -eu
 OUT=${1:?out dir}
 shift
@@ -47,7 +49,7 @@ rc=0
 python3 vm/syzkaller/replay.py --kernel "$K/arch/x86/boot/bzImage" --image "$IMG/trixie.img" \
     --key "$IMG/trixie.id_rsa" --bin "$SYZ/bin/linux_amd64" --ko "$KO" --progs "$OUT/progs" \
     --out "$OUT" --cache "${REPLAY_CACHE:-$OUT/cache}" --guests "${REPLAY_GUESTS:-}" \
-    --deadline "${REPLAY_DEADLINE:-0}" || rc=$?
+    --deadline "${REPLAY_DEADLINE:-0}" --port "${REPLAY_PORT:-10100}" || rc=$?
 python3 vm/syzkaller/callsites.py sites "$KO" "$OUT/union.txt" --lines > "$OUT/callsites.txt"
 tail -n 1 "$OUT/callsites.txt"
 exit "$rc"
