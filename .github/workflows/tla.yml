@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+name: TLA+ model
+# Security roadmap S21: TLC checks the TLA+ model of index_load()'s registration and retry
+# against the update hooks (formal/IndexLoad.tla) for every interleaving of each bounded
+# configuration of formal/README.md. The configurations that must pass find no violation; the
+# negative controls (retry removed, journal 0152's early classification, R2-2's missing name
+# check) must each find one. `make tla-check` runs formal/tlc.sh, which downloads the pinned
+# tla2tools.jar release and refuses it unless its SHA-256 matches; the same command runs
+# locally. Not a required check.
+on:
+  push:
+    branches: [main]
+    paths:
+      - formal/**
+      - layer/index.c
+      - layer/main.c
+      - Makefile
+      - .github/workflows/tla.yml
+  pull_request:
+    paths:
+      - formal/**
+      - layer/index.c
+      - layer/main.c
+      - Makefile
+      - .github/workflows/tla.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tla-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  tlc:
+    name: TLC on the loader and hook model, with negative controls
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Check every configuration against its expectation (same command as locally)
+        run: make tla-check
