@@ -755,3 +755,28 @@ It ran on the code before journal 0266 and would not have counted. Two abrupt st
 morning, both without a kernel message, point at the host rather than at the module, which
 the guest never loaded on the host kernel; the cause is not known. The Debian host takes no
 new campaign until it runs one long job without stopping.
+
+### 2026-11-04 — first campaigns on the corrected code
+
+With the full native and KASAN/UBSAN/lockdep suites of the corrections passed (journal 0266),
+the campaigns that count start from a new snapshot of `9dce137`. That commit adds only test
+infrastructure to the corrected code: `SYZ_HTTP` and `REPLAY_PORT` set the manager's local
+address and the replay's first SSH port, which were fixed, so two campaigns can share the Mac
+mini; the defaults are unchanged.
+
+- Snapshot `corrected-9dce137` (archive SHA-256 `8cbb0279…c295ea`, 1,842 files) prepared at
+  13:20–13:25 with exit 0. As in earlier snapshots, only the regenerated
+  `vm/syzkaller/moobfs.txt.const` differs from the archive, and its constants match those of
+  the earlier snapshot. The module hash is `c7008a26…`.
+- Each campaign runs in its own copy of the prepared tree, so `build/syzkaller` and the
+  permission phase's console (`build/vng/console.log`) belong to one campaign; the driver
+  copies that console into the campaign directory at the end. The copy of c01 matches the
+  prepared tree's hashes.
+- **c01**: Mac mini CPUs 0–3, guests `0,1` and `2,3`, manager `127.0.0.1:56742`, replay
+  ports from 10200, permission profile `24,96,2026110401`, same workload as r01–r05 (one hour
+  of permissions, 18,000 s of fuzzing, 21,600 s reserved for replay). Started 13:26:25,
+  deadline November 5 at 01:41.
+- **c02**: starts on CPUs 4–7 when r05 writes its done marker (r05 deadline 21:30), with the
+  default ports and permission profile `24,96,2026110402`.
+- The scheduled fallback (`nightly-host.sh`, 23:00) now points at the new snapshot. It skips
+  while a campaign holds its slots, as before.
