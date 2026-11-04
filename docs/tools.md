@@ -40,7 +40,8 @@ adds no kernel interface. Errors start with `moobfs:` and say what to do.
   or inside one; the index (on or off, budget, build work); the memory cgroup of the process
   and the smallest `memory.max` above it, with its usage and how often it was reached
   (`memory.events.local`: `max`, `oom`; `memory.events`: `oom_kill`); `RLIMIT_NOFILE`; the
-  test-only module parameters (`scan_delay_us`, `scan_hold_us`, `scan_getxattr_errno_once`) when
+  test-only module parameters (`scan_delay_us`, `scan_hold_us`, `scan_getxattr_errno_once`,
+  `rename_hook_delay_us`) when
   set; and for root the index's use of its budget and whether the `moobfs` tracepoints are on.
   Each finding is a `warning` or a `note` with a stable `code`: `no-memory-limit`,
   `oom-killed`, `near-limit`, `test-parameter` and `budget-near-full` are warnings;
