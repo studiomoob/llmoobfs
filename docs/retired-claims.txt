@@ -391,3 +391,4 @@ run so far only on the test host
 rodado até agora só na máquina de testes
 and the ADR waits for the maintainer
 e o ADR aguarda o mantenedor
+No clean corrected S18 campaign is approved yet

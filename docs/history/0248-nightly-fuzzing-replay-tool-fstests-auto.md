@@ -648,3 +648,25 @@ campaign. The 23:00/@reboot entries remain; the fallback window extends to 07:00
 three hours reserved for replay and a five-hour fuzz cap. The daytime campaign has its
 own absolute deadline. The sole existing observer already discovers the dated campaign
 marker; no new monitor or test duplicate was started. No publication is authorized.
+
+### 2026-11-03 — corrected campaign r01 completed and accepted (1 of 7)
+
+The daytime campaign r01 on the Mac mini (source `61ee4f7`, CPUs 4–7, two guests) ended at
+23:07:53 Brasília time with `runner_exit=0`; the audit was done before acceptance:
+
+- Phases: permissions exit 0 (13:03–13:31, KASAN/UBSAN/lockdep config verified in the saved
+  `kernel.config`, `MOOBFS_KASAN_ONLY_PASS`), fuzzing exit 0 for the full 18,000 s
+  (13:32:43–18:32:46), replay exit 0 (18:32:46–23:07:51).
+- Fuzzing: corpus 1,190, coverage 16,734, 420,211 executions; the manager work directory has
+  no `crashes` directory and the report lists `crash_dirs=0`.
+- Replay: 1,207/1,207 programs replayed, run now 1,207, failed 0, not reached 0; 693 of 781
+  call sites (88.7 %); 1,853 module text PCs.
+- Consoles: no `BUG:`, KASAN, UBSAN, lockdep, Oops or call-trace line in the permission or
+  replay consoles. The single `WARNING:` match is the kernel's deprecation notice for the
+  `mand` mount option, triggered by a fuzzed `mount` call; it is not a kernel diagnostic.
+- Integrity: the source hash lists before and after are byte-identical (1,815 files), and the
+  syzkaller module (`f9546944…`) and kernel image (`4026582c…`) hashes are unchanged.
+
+r01 is the first accepted complete corrected campaign: **S18 stands at 1 of 7**. Round r02
+runs on the Debian host from `a1f313b` (identical kernel code) with permission profile
+`24,96,2026110302` and an absolute deadline of November 4 at 10:30.
