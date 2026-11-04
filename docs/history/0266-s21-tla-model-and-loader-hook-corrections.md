@@ -102,7 +102,7 @@ later batch.
     `rename` passed, and `unlink` failed with `QUERY on x does not return the file: its record
     names the removed n2` (10:51).
   - **Without the F1 correction** (only `rec_whole()` reverted to the domain state): `HOOKRACE_FAIL: [rename] a query on x does not return the renamed file: its record holds
-  only y` (10:36; rerun with the final test bytes pending).
+  only y`, first at 10:36 and again with the final test bytes at 10:52.
 - Earlier attempts, kept in `~/b11night/f12/attempt*` on the test host, are errors of the test,
   not of the kernel:
   - (1) `-Wformat-truncation` stopped the build of the test.
