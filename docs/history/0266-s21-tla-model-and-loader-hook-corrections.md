@@ -2,8 +2,8 @@
 
 Date: 2026-11-04. Status: **in progress.** The model, the tooling and both kernel corrections are
 implemented. TLC passes on the corrected model, and the focused native VM runs passed with
-their negative controls. The focused KASAN run passed; the full suites before publication are
-pending. Calendar time: the model work started about 07:15 and its last commit was at 07:52
+their negative controls. The focused KASAN run and the full native suite passed; the full KASAN
+suite is pending. Calendar time: the model work started about 07:15 and its last commit was at 07:52
 Brasília time. The corrections started about 09:40 after the maintainer's decision, and the
 last focused native run ended at 10:51. Effort and calendar time are close for this work,
 because nothing waited on other jobs except the VM runs.
@@ -111,6 +111,9 @@ later batch.
   on ext4, btrfs and XFS (`HOOK_RACE_PASS` each with `readings_repeated=1`; `BUILD_RACE_PASS`;
   six `PERMCHURN_PASS` seeds per lower; `PERMISSION_GAPS_PASS`). The console has no `BUG:`,
   KASAN, UBSAN, lockdep or call-trace line; its only `Warning:` is the firmware notice at boot.
+- Full native suite (`make vm-test`, Debian 6.12.113 KVM guest, Mac mini CPUs 0–1, source
+  `baf00ef`, 10:54–11:16): exit 0, `MOOBFS_LAYER_PASS` and `MOOBFS_ACCEPTANCE_PASS`,
+  `HOOK_RACE_PASS` on all three lowers, no kernel diagnostic line, source hashes unchanged.
 - Earlier attempts, kept in `~/b11night/f12/attempt*` on the test host, are errors of the test,
   not of the kernel:
   - (1) `-Wformat-truncation` stopped the build of the test.
@@ -139,5 +142,5 @@ earlier local records changed (journal 0264 notes the one it cites).
 
 ## Next steps
 
-The full native suite (started 10:54 on `baf00ef`) and the full KASAN suite before
-publication, then the S18 campaigns on the corrected code.
+The full KASAN suite before publication (started 11:14 on `407a3d0`, same code as
+`baf00ef`), then the S18 campaigns on the corrected code.
