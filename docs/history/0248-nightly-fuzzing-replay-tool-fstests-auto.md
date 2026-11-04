@@ -696,3 +696,14 @@ r02 (source `a1f313b`, kernel code identical to r01, CPUs 4–7, two guests, per
 r02 is accepted with those two recorded limitations: **S18 stands at 2 of 7**. The r04 driver
 on the Debian host excludes the generated constants file from the source check, compares it
 with the reference hash, and records binary hashes and timestamps before and after.
+
+### 2026-11-04 — round r04 interrupted; restarted as r04b
+
+r04 started on the Debian host at 05:28:10. The host's journal stops at 05:30:34 with no
+shutdown sequence, and the host booted again at 05:57; r04 was still building for its
+permission phase and left no result. It is not counted. After the restart all source files
+matched their reference hashes; r04b started from scratch at 06:24:05 with the same
+parameters and a deadline of 18:30. The permission phase rebuilds the module against the
+KASAN kernel and the fuzz phase rebuilds it for the syzkaller kernel, so the before/after
+module hash of the r04 driver differs by design; the audit compares the binaries' write
+times with the fuzz start instead.
