@@ -11,9 +11,10 @@
 #
 # The jar is the official v1.7.4 release asset (2024-08-05, the latest release GitHub does not
 # mark as prerelease on 2026-11-04). Its SHA-256 was computed from the downloaded asset on
-# 2026-11-04; a jar with another hash is refused and removed. The cache directory is
-# $TLA_CACHE, default $XDG_CACHE_HOME/moobfs-tla or ~/.cache/moobfs-tla, never the repository.
-# Nothing is overwritten: an existing jar is only verified.
+# 2026-11-04; a jar with another hash is refused. The cache directory is $TLA_CACHE, default
+# $XDG_CACHE_HOME/moobfs-tla or ~/.cache/moobfs-tla, never the repository. Nothing is
+# overwritten or removed: an existing jar is only verified, a download goes to a temporary name
+# and is renamed only when no jar is there.
 set -eu
 
 TLA_VERSION=v1.7.4
@@ -40,13 +41,13 @@ fetch() {
 	mkdir -p "$cache"
 	if [ ! -f "$jar" ]; then
 		tmp="$jar.part.$$"
-		curl -sSfL --retry 3 -o "$tmp" "$TLA_URL"
-		mv "$tmp" "$jar"
+		curl -sSfL --retry 3 -o "$tmp" "$TLA_URL" || { rm -f "$tmp"; exit 1; }
+		mv -n "$tmp" "$jar"
+		rm -f "$tmp"	# left only if another run put a jar there first
 	fi
 	got=$(sha256 "$jar")
 	if [ "$got" != "$TLA_SHA256" ]; then
-		echo "tlc.sh: $jar has SHA-256 $got, expected $TLA_SHA256; removed" >&2
-		rm -f "$jar"
+		echo "tlc.sh: $jar has SHA-256 $got, expected $TLA_SHA256; refused (remove it to download again)" >&2
 		exit 1
 	fi
 }
