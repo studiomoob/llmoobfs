@@ -1,0 +1,8 @@
+8b9ca855945caa8a66188c60f2abbb9d362c24ab839d259b854ace18d36aeec0  ./HARNESS.md
+4564f8f425d7af8a98b5fc083789023b4affc661bd9c2b1943a02c96f5030ed8  ./include/moobfs_attr.h
+763cc0875e33dfec92fb40d3df1bc5ac0ceaf6b3debd90f5b9bf767aa78fc4d2  ./include/moobfs_format.h
+3ca11d64d50c31a178741fc03ba813e5dd6c08acecdf39947180b674c87d9e0b  ./include/moobfs_ioctl.h
+366bb200e8086bc2e78d92e140c7b76ede46ffec7f9385a91e85a9db685b5e63  ./spec-query-v2.md
+52f92b49308e57ad493c8ae842e7fa51a938f41b59cfcf7d4b0a351ce729b1d1  ./TASK.md
+fc19fb8e616536e1aa376a5844f7967526bd9d469360f13de5a8378c4cfa76ad  ./tests/asuid.c
+9a2474c89d487fb9b9c74d1554e74b1cd3943016259b5dd6d02f3620ca1d59be  ./tests/query.c

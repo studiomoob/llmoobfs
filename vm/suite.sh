@@ -1711,6 +1711,11 @@ for fs in ext4 btrfs xfs; do
     mount -t moobfs_layer -o lower="$LOWER/pg-cold",domain_depth=1 none "$LAYER" || fail "pg-cold-mount-$fs"
     "$BIN/permission-gaps" coldlink "$LAYER" "$LOWER/pg-cold" || fail "pg-cold-link-$fs"
     umount "$LAYER" && rm -rf "$LOWER/pg-cold" || fail "pg-cold-unmount-$fs"
+    # S20: regression test written by a second model from the specification only (journal 0265).
+    rm -rf "$LOWER/pg-move" && mkdir -m 755 "$LOWER/pg-move" || fail "pg-move-directory-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/pg-move",domain_depth=1 none "$LAYER" || fail "pg-move-mount-$fs"
+    "$BIN/coldmove" "$LAYER" "$LOWER/pg-move" || fail "pg-coldmove-$fs"
+    umount "$LAYER" && rm -rf "$LOWER/pg-move" || fail "pg-move-unmount-$fs"
     rm -rf "$LOWER/pg" && mkdir -m 755 "$LOWER/pg" || fail "pg-directory-$fs"
     "$BIN/permission-gaps" plant "$LOWER/pg" || fail "pg-plant-$fs"
     mount -t moobfs_layer -o lower="$LOWER/pg" none "$LAYER" || fail "pg-mount-$fs"
@@ -1719,7 +1724,7 @@ for fs in ext4 btrfs xfs; do
     mount -t moobfs_layer -o lower="$LOWER/pg",domain_depth=0 none "$LAYER" || fail "pg-v1-mount-$fs"
     "$BIN/permission-gaps" check "$LAYER" "$LOWER/pg" v1 || fail "pg-v1-$fs"
     umount "$LAYER" && rm -rf "$LOWER/pg" && umount "$LOWER" || fail "pg-cleanup-$fs"
-    echo "PERMISSION_GAPS_PASS: $fs (T5/T6/T8, independent T10 fixtures)"
+    echo "PERMISSION_GAPS_PASS: $fs (T5/T6/T8, independent T10 fixtures, S20 coldmove)"
 done
 fi
 if want rootpath; then

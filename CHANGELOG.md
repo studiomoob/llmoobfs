@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- S20 done: `tests/coldmove.c`, written by a second model from the specification only
+  (receipt in `docs/s20/coldmove/`), runs in the `permgaps` suite step; it passes with
+  correction 4f17fb4 and, without it, the step fails on the kernel warnings the test
+  triggers (journal 0265).
+
 - Python library test: the racing-swap scan test checks that the walk finds the file after
   the race instead of during it, which depended on scheduling; its security assertions are
   unchanged (journal 0264).
