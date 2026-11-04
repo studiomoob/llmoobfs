@@ -92,6 +92,8 @@ later batch.
   configurations as expected. `IndexLoad` passed with the state graph exhausted: 826,876
   distinct states, depth 59. `IndexLoadPreF1` violated `NoLostUpdate` and `IndexLoadPreF2`
   violated `FreshPath`, as required. The other controls failed as before.
+- Two-file run of `IndexLoad` with all four invariants (`Files = {f1, f2}`, `MaxOps = 2`,
+  outside CI, 10:35–10:59): no violation, 267,198,325 distinct states, depth 82.
 - `make checkpatch`: exit 0. `gcc -static -O2 -Wall -Wextra -Werror` of the test: clean.
   `shellcheck` of `formal/tlc.sh` and `vm/suite.sh`: clean.
 - Focused native VM runs: Mac mini, Debian 6.12.113 KVM guest, `MOOB_ONLY=hookrace`, CPUs 0–3

@@ -271,6 +271,9 @@ attempts. A two-file configuration of the safety invariants (`IndexLoadSafety` w
 `Files = {f1, f2}` and `MaxOps = 2`, not committed) was run once on 2026-11-04 on the same
 machine: no violation, state graph exhausted, 233,070,225 distinct states (606,699,135
 generated), depth 82, 16 minutes; TLC estimated the probability of a fingerprint collision
-between 0.003 and 0.0047. It is not in CI because it is too slow for a pull request check.
+between 0.003 and 0.0047. After the corrections of journal 0266, the same two-file bounds were run once with all four
+invariants of `IndexLoad` (`Files = {f1, f2}`, `MaxOps = 2`, not committed): no violation, state
+graph exhausted, 267,198,325 distinct states (694,074,968 generated), depth 82, 23 minutes;
+fingerprint collision probability 0.0062 to 0.0064. It is not in CI because it is too slow for a pull request check.
 Bugs that need more operations, more files or more retries than these bounds are outside what
 TLC checked.
