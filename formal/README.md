@@ -6,8 +6,9 @@ registration of a loader in `index_load()`, its reading of the lower file with n
 the retry when a hook marked it dirty, and the hooks of `layer/main.c` that change the index.
 TLC, the TLA+ model checker, explores every interleaving of a bounded configuration.
 
-Status, 2026-11-04: **model and tooling implemented; acceptance met with the corrections of
-journal 0266.** The first version of the model found two violations in the configuration that
+Status, 2026-11-04: **done (security roadmap S21; journals 0266 and 0267).** The acceptance is
+met with the corrections of journal 0266, and the first GitHub run of `tla.yml` (PR 183) checked
+every configuration below as expected. The first version of the model found two violations in the configuration that
 modeled the code as it was (findings F1 and F2 below). Both were completeness defects of the
 code, not modeling errors, and neither disclosed anything; the confidentiality property held in
 every configuration. The kernel corrections of journal 0266 fix both. The model now has a switch

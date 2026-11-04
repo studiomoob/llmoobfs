@@ -400,3 +400,6 @@ S16 and S21 not started
 Pending: KASAN and the full suites before publication
 in progress until the KASAN and full suites pass
 KASAN and full suites pending
+acceptance met locally, first CI run at publication
+acceptance is met locally, and the first GitHub run
+model and tooling implemented; acceptance met with the corrections

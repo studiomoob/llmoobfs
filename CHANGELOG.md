@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- S21 done: PR 183 merged (`d6ce35e`); the first GitHub run of `tla.yml` checked all eight
+  configurations of the model as expected, and every post-merge check passed (journal 0267).
+
 - S21: a TLA+ model of the index loader and the update hooks (`formal/`), checked by a pinned
   TLC with `make tla-check` and in CI (`tla.yml`). It found two completeness defects, both
   corrected: a rename during a domain's first build could leave a record with part of the
