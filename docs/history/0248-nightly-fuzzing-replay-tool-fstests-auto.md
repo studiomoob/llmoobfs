@@ -670,3 +670,29 @@ The daytime campaign r01 on the Mac mini (source `61ee4f7`, CPUs 4–7, two gues
 r01 is the first accepted complete corrected campaign: **S18 stands at 1 of 7**. Round r02
 runs on the Debian host from `a1f313b` (identical kernel code) with permission profile
 `24,96,2026110302` and an absolute deadline of November 4 at 10:30.
+
+### 2026-11-04 — campaign r02 on the Debian host completed and accepted (2 of 7)
+
+r02 (source `a1f313b`, kernel code identical to r01, CPUs 4–7, two guests, permission profile
+`24,96,2026110302`) ran from 20:45:19 to 05:18:26 Brasília time with `runner_exit=0`:
+
+- Phases: permissions exit 0 (20:45–20:56; `MOOBFS_KASAN_ONLY_PASS`, kernel config with
+  KASAN, UBSAN, LOCKDEP and PROVE_LOCKING; the xfs step alone reports 82,944 QUERY2 answers
+  equal to the lower's decision), fuzzing exit 0 for 18,000 s (21:09:59–02:09:59), replay
+  exit 0 (02:09:59–05:18:26).
+- Fuzzing: corpus 1,288, coverage 16,651, 697,413 executions; no `crashes` directory,
+  `crash_dirs=0`.
+- Replay: 1,305/1,305 programs, failed 0, not reached 0; 688 of 781 call sites (88.1 %).
+- Consoles: the replay consoles' only `WARNING:` lines are the `mand` deprecation notice;
+  the permission-phase console had no diagnostic line when scanned at 05:27. That raw
+  console was then overwritten by r04, which reuses the same build directory; the phase
+  verdict lines remain in the r02 `permchurn.log`.
+- Integrity: the driver reported `source_hashes=1`. The only mismatching file of 1,819 is
+  `vm/syzkaller/moobfs.txt.const`, which the runner regenerates from the descriptions at
+  fuzz start (21:09:59); the regenerated file is byte-identical to r01's runtime constants
+  (`35478995…`). The r02 driver recorded no binary hashes; the module (`e5d4f245…`) and kernel
+  image were last written at 21:05:58 and 21:05:54, before fuzzing started, and not after.
+
+r02 is accepted with those two recorded limitations: **S18 stands at 2 of 7**. The r04 driver
+on the Debian host excludes the generated constants file from the source check, compares it
+with the reference hash, and records binary hashes and timestamps before and after.
