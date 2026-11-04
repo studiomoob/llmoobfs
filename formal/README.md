@@ -6,12 +6,14 @@ registration of a loader in `index_load()`, its reading of the lower file with n
 the retry when a hook marked it dirty, and the hooks of `layer/main.c` that change the index.
 TLC, the TLA+ model checker, explores every interleaving of a bounded configuration.
 
-Status, 2026-11-04: **proposal, model and tooling implemented; acceptance not met.** TLC finds
-two violations in the configuration that models the code as it is (findings F1 and F2 below).
-Both are completeness defects of the code, not modeling errors, and neither discloses anything.
-The confidentiality property holds in every configuration. The kernel, the UAPI and the format
-are frozen (ADR-0022), so the model was not changed to hide the findings. `make tla-check`
-fails until they are fixed or a decision changes what the model must show.
+Status, 2026-11-04: **model and tooling implemented; acceptance met with the corrections of
+journal 0266.** The first version of the model found two violations in the configuration that
+modeled the code as it was (findings F1 and F2 below). Both were completeness defects of the
+code, not modeling errors, and neither disclosed anything; the confidentiality property held in
+every configuration. The kernel corrections of journal 0266 fix both. The model now has a switch
+for each (`WholeFlag`, `UnlinkHook`): with both on it models the corrected code, and TLC finds no
+violation; with either off it finds the original violation again (`IndexLoadPreF1`,
+`IndexLoadPreF2`).
 
 ## Running
 
@@ -37,12 +39,18 @@ an Apple M-series laptop):
 
 | Configuration | Expectation | Invariants | Result | Distinct states / depth / time |
 | --- | --- | --- | --- | --- |
-| `IndexLoad` | pass (S21 acceptance) | all four | **violated: `NoLostUpdate` (F1)** | trace of 13 states, under 1 s |
-| `IndexLoadSafety` | pass | `TypeOK`, `NoStaleHomogeneity` | passed, state graph exhausted | 714,649 / 59 / 3 s (1,312,030 generated) |
-| `IndexLoadNoLinks` | pass | `TypeOK`, `NoStaleHomogeneity`, `FreshPath` | passed, state graph exhausted | 71,478 / 47 / under 1 s (126,204 generated) |
-| `IndexLoadNoRetry` | violation (S21 negative control) | as `IndexLoadSafety` | violated: `NoStaleHomogeneity` | trace of 14 states, under 1 s |
-| `IndexLoadPre0152` | violation (journal 0152) | as `IndexLoadSafety` | violated: `NoStaleHomogeneity` | trace of 13 states, under 1 s |
-| `IndexLoadPreR22` | violation (R2-2, journal 0155) | `TypeOK`, `FreshPath` | violated: `FreshPath` | trace of 18 states, under 1 s |
+| `IndexLoad` | pass (S21 acceptance) | all four | passed, state graph exhausted | 826,876 / 59 / 3 s (1,504,544 generated) |
+| `IndexLoadSafety` | pass | `TypeOK`, `NoStaleHomogeneity` | passed, state graph exhausted | 826,876 / 59 / 2 s (1,504,544 generated) |
+| `IndexLoadNoLinks` | pass | `TypeOK`, `NoStaleHomogeneity`, `FreshPath` | passed, state graph exhausted | 71,923 / 47 / under 1 s (126,835 generated) |
+| `IndexLoadNoRetry` | violation (S21 negative control) | as `IndexLoadSafety` | violated: `NoStaleHomogeneity` | under 1 s |
+| `IndexLoadPre0152` | violation (journal 0152) | as `IndexLoadSafety` | violated: `NoStaleHomogeneity` | under 1 s |
+| `IndexLoadPreR22` | violation (R2-2, journal 0155) | `TypeOK`, `FreshPath` | violated: `FreshPath` | under 1 s |
+| `IndexLoadPreF1` | violation (F1, journal 0266) | `TypeOK`, `NoLostUpdate` | violated: `NoLostUpdate` | under 1 s |
+| `IndexLoadPreF2` | violation (F2, journal 0266) | `TypeOK`, `FreshPath` | violated: `FreshPath` | 1 s |
+
+The results above are of the corrected model, after journal 0266. Before it, `IndexLoad`
+violated `NoLostUpdate` (F1, a trace of 13 states) and, with that invariant left out,
+`FreshPath` (F2, 20 states); `IndexLoadSafety` passed with 714,649 distinct states.
 
 The negative controls check an invariant that holds in the corresponding positive
 configuration, so the violation they find comes from the switch that was turned off:
@@ -53,6 +61,10 @@ configuration, so the violation they find comes from the switch that was turned 
 - `IndexLoadPre0152` (`ClassifyAfterRegister = FALSE`): the file's homogeneity is computed at
   lookup, before registration; a chmod completes before the loader exists, and the old
   classification is stored. This is the defect fixed in journal 0152.
+- `IndexLoadPreF1` (`WholeFlag = FALSE`): `rec_whole()` asks only whether the domain is built,
+  as before journal 0266; TLC finds the F1 trace below.
+- `IndexLoadPreF2` (`UnlinkHook = FALSE`): an unlink that leaves other names calls no hook, as
+  before journal 0266; TLC finds the F2 trace below.
 - `IndexLoadPreR22` (`CheckName = FALSE`): a same-directory rename lands after the scan looked
   the name up; the rename hook adopts the file under its new name, and the scan, which no
   longer checks the name, stores the old one over it. This is R2-2 (journals 0155 and 0156);
@@ -83,6 +95,14 @@ change and its hook the index lags by design.
 ## Findings
 
 ### F1. A partial record is taken as whole when the build ends between a rename and its hook
+
+**Fixed in journal 0266.** A record now carries a flag that says it holds every attribute of its
+file: set when `index_load()` stores what it read, or when `moobl_index_set()` makes the record
+in a domain that is already built (a built domain read every file, so a file with no record had
+no typed attribute). `rec_whole()` asks that flag as well as the state of the domain, so the
+rename hook in step 7 below adopts the file. Regression test: `tests/hookrace.c rename`, suite
+step `hookrace`, with the test-only module parameter `rename_hook_delay_us` that holds the hook
+until the build has ended. The text below describes the code before the correction.
 
 Code: `layer/index.c` `moobl_index_renamed()` (file branch: `rec && rec_whole(ix, rec)`),
 `rec_whole()` (true once the domain is `BUILT`), `index_load()` (the `name_is()` break),
@@ -126,6 +146,14 @@ Not reproduced in a VM; the trace is from the model and was checked by hand agai
 above.
 
 ### F2. An unlink that leaves other names calls no hook, so a loader can store a removed name
+
+**Fixed in journal 0266.** `moobl_unlink()`, and `moobl_rename()` over a file that keeps other
+names, now call `moobl_index_unlinked()`. It calls `index_touched()`, so a loader reading the
+file through the removed name reads again and finds it gone. If the record was already stored
+under the removed name (the store came between the lower unlink and the hook), the build in
+progress starts again (`restart`), or a built domain is built again by its next query
+(`paths_stale`). Regression test: `tests/hookrace.c unlink`, suite step `hookrace`. The text
+below describes the code before the correction.
 
 Code: `layer/main.c` `moobl_unlink()` calls `moobl_index_drop_inode()` only when `i_nlink`
 becomes 0, so with other names left nothing calls `index_touched()`. `layer/index.c`
@@ -171,13 +199,14 @@ is its own action. A lower change made through the layer is one action and its h
 | `BStore` | `index_load()` under the lock: `ld.dirty` then retry, else `list_del()`, `index_replace()`, `index_set_path()` |
 | `BUnregister` | `index_load()` after the loop: `list_del()`; returns 0 or `-EAGAIN` |
 | `BFail` | `domain_ensure_dom()`: `domain_drop()`, `state = MOOBL_DOM_NONE`, next attempt |
-| `BFinish` | `domain_ensure_dom()`: side list empty, `state = MOOBL_DOM_BUILT` under the same lock |
+| `BFinish` | `domain_ensure_dom()`: side list empty, `state = MOOBL_DOM_BUILT` and `paths_stale = false` under the same lock; with `restart`, `-EAGAIN` |
 | `WSetLower` / `WSetHook` | `moobl_xattr_set()` `vfs_setxattr()` / `moobl_index_set()` (`place_and_lock()`, `index_touched()`, `domain_live()`, `index_put()`, `record_dentry_path()`) |
 | `WRemoveLower` / `WRemoveHook` | `vfs_removexattr()` / `moobl_index_remove()` |
 | `WChmodLower` / `WPermHook` | `moobl_setattr()` `notify_change()`, `moobl_set_acl()` / `moobl_index_perm_changed()` (file case) |
 | `WRenameLower` / `WRenameHook` | `moobl_rename()` `lock_rename()` + `vfs_rename()` / `moobl_index_renamed()` file branch |
 | `WLinkLower` / `WLinkHook` | `moobl_link()` `vfs_link()` / `moobl_index_linked()`, then `moobl_index_perm_changed()` |
 | `WUnlinkLower` / `WDropHook` | `moobl_unlink()` `vfs_unlink()` / `moobl_index_drop_inode()` when nlink reaches 0 |
+| `WUnlinkedHook` | `moobl_index_unlinked()` when other names are left (journal 0266): `index_touched()`, then `restart` or `paths_stale` if the record carries the removed name |
 | `WAdoptRegister`, `WAdoptRead`, `WAdoptStore` | `index_adopt()` → `index_load(sb, lower, NULL, pl, NULL, NULL, where)` |
 
 Reductions, each argued from the code:
@@ -208,17 +237,21 @@ Reductions, each argued from the code:
 These are limitations of the model. A defect that needs one of them can be missed.
 
 - **Directories.** Directory renames, the side list `dom->moved` and `scan_moved()`,
-  `paths_stale`, `top_gen` and `rename_gen()`, the per-domain fallback set by a chmod of a
+  `paths_stale` other than the one `moobl_index_unlinked()` sets (modeled as `stale`; the
+  invariants hold in a built domain that is not stale, since a stale one is built again before
+  it answers), `top_gen` and `rename_gen()`, the per-domain fallback set by a chmod of a
   directory, `inner_ok` and intermediate directories, and depth beyond `MOOBL_MAX_DEPTH`. All
   files are directly inside the domain directory.
 - **More than one domain.** No rename or link across domains (refused with `EXDEV` for
   directories; for files the hook moves the record), no "outside" unit, no mount-wide `QUERY`,
   and no release by the budget or the shrinker (`domain_release()`, `domain_takedown()`). A
   domain that is `BUILT` is never taken down again.
-- **Failures.** No `ENOMEM`, budget refusal (`charge()`), `domain_lost()`, `restart`, ACL
+- **Failures.** No `ENOMEM`, budget refusal (`charge()`), `domain_lost()`, `restart` other than
+  the one `moobl_index_unlinked()` sets, ACL
   read error or lower I/O error. A build attempt fails only by `-EAGAIN` after `MaxTries`
   readings.
-- **Rename over an existing file, `RENAME_EXCHANGE`, `O_TMPFILE`, writes directly to the lower
+- **Rename over an existing file** (its call of `moobl_index_unlinked()` for a target that keeps
+  other names is the unlink case and is not modeled separately), **`RENAME_EXCHANGE`, `O_TMPFILE`, writes directly to the lower
   filesystem behind the layer**, inode number reuse and `i_generation`, `rec->upper`, and the
   instantiation and eviction hooks (`moobl_index_inode_cached()`,
   `moobl_index_inode_evicted()`). Queries are not modeled; the invariants state what a query

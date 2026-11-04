@@ -23,7 +23,7 @@ TLA_SHA256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
 
 # Configurations and what TLC must answer for each (formal/README.md, "Configurations").
 TLA_PASS=${TLA_PASS:-"IndexLoad IndexLoadSafety IndexLoadNoLinks"}
-TLA_FAIL=${TLA_FAIL:-"IndexLoadNoRetry IndexLoadPre0152 IndexLoadPreR22"}
+TLA_FAIL=${TLA_FAIL:-"IndexLoadNoRetry IndexLoadPre0152 IndexLoadPreR22 IndexLoadPreF1 IndexLoadPreF2"}
 
 here=$(cd "$(dirname "$0")" && pwd)
 cache=${TLA_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/moobfs-tla}

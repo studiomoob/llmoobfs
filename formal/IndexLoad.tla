@@ -52,11 +52,14 @@ CONSTANTS
     Retry,                  \* index_load() reads again when ld.dirty is set (the S21 control)
     ClassifyAfterRegister,  \* target_ok() inside index_load(), after registration (journal 0152)
     CheckName,              \* name_is() check of the scanned name (R2-2, journal 0156)
-    ListMayMiss             \* readdir may miss a name renamed or linked during the listing
+    ListMayMiss,            \* readdir may miss a name renamed or linked during the listing
+    WholeFlag,              \* rec_whole() also asks the record's own flag (F1, journal 0266)
+    UnlinkHook              \* an unlink that leaves other names calls a hook (F2, journal 0266)
 
 ASSUME NAttrs \in Nat \ {0} /\ NNames \in Nat \ {0} /\ MaxLinks \in Nat
 ASSUME MaxOps \in Nat /\ MaxTries \in Nat \ {0} /\ MaxBuilds \in Nat \ {0}
-ASSUME {Retry, ClassifyAfterRegister, CheckName, ListMayMiss} \subseteq BOOLEAN
+ASSUME {Retry, ClassifyAfterRegister, CheckName, ListMayMiss, WholeFlag, UnlinkHook}
+           \subseteq BOOLEAN
 
 B == "builder"                 \* the task that runs domain_ensure_dom()
 Procs == {B} \cup Files        \* every task that may own a struct moobl_loader
@@ -65,7 +68,7 @@ Names == 1..NNames
 D == 1..(MaxLinks + 1)         \* dentry slots of one file; slot 1 is its initial name
 NoName == 0
 Zero == [i \in A |-> 0]
-NoRec == [a |-> Zero, het |-> FALSE, path |-> NoName]
+NoRec == [a |-> Zero, het |-> FALSE, path |-> NoName, whole |-> FALSE]
 
 VARIABLES
     low,        \* the lower filesystem: low[f] = [a, perm, dn, next]
@@ -78,7 +81,9 @@ VARIABLES
                 \* (unlock_rename()) only after moobl_index_renamed() and index_adopt()
                 \* returned. "none", or the file whose writer holds it.
     dstate,    \* struct moobl_domain .state: "NONE", "BUILDING", "BUILT"
-    rec,        \* ix->inodes: rec[f] = [a, het, path]; NoRec when there is none
+    stale,      \* struct moobl_domain .paths_stale: the next query builds the domain again
+    restart,    \* struct moobl_domain .restart: the attempt in progress ends with -EAGAIN
+    rec,        \* ix->inodes: rec[f] = [a, het, path, whole]; NoRec when there is none
     reg, dirty, \* struct moobl_loader on ix->loaders, per owning task
     changed,    \* dentries of f renamed or linked since the attempt began (readdir may miss them)
     \* builder (domain_ensure_dom() -> scan_run() -> scan_file() -> index_load())
@@ -90,7 +95,8 @@ lowerVars == <<low, dirLock>>
 ixVars == <<dstate, rec, reg, dirty, changed>>
 bVars == <<bpc, bAttempt, bTodo, bFile, bNames, bD, bPath, bHet, bBuf, bIdx, bTries>>
 wVars == <<wpc, wOps, wI, wD, wPath, wHet, wBuf, wIdx, wAfter>>
-vars == <<lowerVars, ixVars, bVars, wVars>>
+domVars == <<stale, restart>>
+vars == <<lowerVars, ixVars, domVars, bVars, wVars>>
 
 LiveD(f) == {d \in D : low[f].dn[d] # NoName}
 NamesOf(f) == {low[f].dn[d] : d \in LiveD(f)}
@@ -99,7 +105,8 @@ NLink(f) == Cardinality(LiveD(f))
 Ok(f) == low[f].perm /\ NLink(f) <= 1
 Present(r) == \E i \in A : r.a[i] = 1
 Live == dstate # "NONE"                         \* domain_live()
-Whole(f) == Present(rec[f]) /\ dstate = "BUILT" \* rec && rec_whole()
+\* rec && rec_whole(): before journal 0266 only the state of the domain was asked.
+Whole(f) == Present(rec[f]) /\ dstate = "BUILT" /\ (WholeFlag => rec[f].whole)
 
 \* index_touched(): every loader of this inode is marked dirty. Caller holds the lock.
 Touch(f) == [p \in Procs |-> IF reg[p] /\ (p = B => bFile = f) /\ (p # B => p = f)
@@ -107,11 +114,13 @@ Touch(f) == [p \in Procs |-> IF reg[p] /\ (p = B => bFile = f) /\ (p # B => p = 
 
 \* index_replace(): the record becomes exactly what was read (none if nothing was).
 Replace(r, buf, het, path) == IF \E i \in A : buf[i] = 1
-                              THEN [a |-> buf, het |-> het, path |-> path]
+                              THEN [a |-> buf, het |-> het, path |-> path, whole |-> TRUE]
                               ELSE NoRec
 \* index_put() + record_dentry_path(): one attribute, the record moved to the
 \* placement given (rec_set_partition()), the name of the dentry written through.
-Put(r, i, het, path) == [a |-> [r.a EXCEPT ![i] = 1], het |-> het, path |-> path]
+\* A record made by the write is whole only in a built domain (moobl_index_set()).
+Put(r, i, het, path) == [a |-> [r.a EXCEPT ![i] = 1], het |-> het, path |-> path,
+                         whole |-> IF Present(r) THEN r.whole ELSE dstate = "BUILT"]
 \* entry_free() + inode_rec_put_if_empty()
 RemoveEntry(r, i) == IF \E j \in A \ {i} : r.a[j] = 1
                      THEN [r EXCEPT !.a[i] = 0] ELSE NoRec
@@ -126,6 +135,7 @@ Init ==
                                 next |-> 2]]
     /\ dirLock = "none"
     /\ dstate = "NONE"          \* nothing is indexed at mount (ADR-0012)
+    /\ stale = FALSE /\ restart = FALSE
     /\ rec = [f \in Files |-> NoRec]
     /\ reg = [p \in Procs |-> FALSE]
     /\ dirty = [p \in Procs |-> FALSE]
@@ -146,6 +156,7 @@ Init ==
 BStart ==
     /\ bpc = "start"
     /\ dstate' = "BUILDING"
+    /\ restart' = FALSE /\ UNCHANGED stale
     /\ changed' = [f \in Files |-> {}]
     /\ bTodo' = Files
     /\ bpc' = "list"
@@ -169,14 +180,16 @@ BList ==
     /\ UNCHANGED <<lowerVars, ixVars, bAttempt, bD, bPath, bHet, bBuf, bIdx, bTries, wVars>>
 
 \* Every file listed: the side-list rounds find nothing (no directory in this model),
-\* and under the same lock the domain becomes BUILT (domain_ensure_dom()).
+\* and under the same lock the domain becomes BUILT with fresh names
+\* (domain_ensure_dom()), unless a hook asked for a restart: -EAGAIN.
 BFinish ==
     /\ bpc = "list"
     /\ bTodo = {}
-    /\ dstate' = "BUILT"
-    /\ bpc' = "done"
-    /\ UNCHANGED <<lowerVars, rec, reg, dirty, changed, bAttempt, bTodo, bFile, bNames,
-                   bD, bPath, bHet, bBuf, bIdx, bTries, wVars>>
+    /\ IF restart
+       THEN /\ bpc' = "fail" /\ UNCHANGED <<dstate, stale>>
+       ELSE /\ dstate' = "BUILT" /\ stale' = FALSE /\ bpc' = "done"
+    /\ UNCHANGED <<lowerVars, rec, reg, dirty, changed, restart, bAttempt, bTodo, bFile,
+                   bNames, bD, bPath, bHet, bBuf, bIdx, bTries, wVars>>
 
 \* scan_child(): lookup_one_len_unlocked() of a listed name. A negative dentry is
 \* skipped. A positive answer may come from the dcache with no lock (d_lookup() under
@@ -275,8 +288,11 @@ BFail ==
     /\ UNCHANGED <<lowerVars, reg, dirty, changed, bTodo, bFile, bNames, bD, bPath, bHet,
                    bBuf, bIdx, bTries, wVars>>
 
-Builder == BStart \/ BList \/ BFinish \/ BLookup \/ BRegister \/ BCheck \/ BClassify
-           \/ BRead \/ BStore \/ BUnregister \/ BFail
+\* Actions that leave paths_stale and restart alone; BStart, BFinish and WUnlinkedHook
+\* say what they do with them.
+Builder == BStart \/ BFinish
+           \/ ((BList \/ BLookup \/ BRegister \/ BCheck \/ BClassify \/ BRead \/ BStore
+               \/ BUnregister \/ BFail) /\ UNCHANGED domVars)
 
 -----------------------------------------------------------------------------
 (* The writers: a lower change, then its hook.                             *)
@@ -407,16 +423,32 @@ WLinkHook(f) ==
        ELSE /\ WGo(f, "linkperm") /\ UNCHANGED <<wPath, wHet, wAfter>>
     /\ UNCHANGED <<lowerVars, dstate, rec, reg, changed, bVars, wOps, wI, wD, wBuf, wIdx>>
 
-\* moobl_unlink(): vfs_unlink() unhashes dentry d. Only when the last name goes does
-\* main.c call moobl_index_drop_inode(); with other names left there is no hook.
+\* moobl_unlink(): vfs_unlink() unhashes dentry d. When the last name goes, main.c calls
+\* moobl_index_drop_inode(); with other names left, moobl_index_unlinked() with the name
+\* removed (before journal 0266, with UnlinkHook FALSE, no hook at all).
 WUnlinkLower(f) ==
     /\ Begin(f)
     /\ dirLock = "none"   \* moobl_lock_parent() around vfs_unlink() only
     /\ \E d \in LiveD(f) :
           /\ low' = [low EXCEPT ![f].dn[d] = NoName]
-          /\ WGo(f, IF NLink(f) = 1 THEN "drop" ELSE "idle")
+          /\ wPath' = [wPath EXCEPT ![f] = low[f].dn[d]]
+          /\ WGo(f, IF NLink(f) = 1 THEN "drop" ELSE IF UnlinkHook THEN "unlinked" ELSE "idle")
     /\ Op(f)
-    /\ UNCHANGED <<dirLock, ixVars, bVars, wI, wD, wPath, wHet, wBuf, wIdx, wAfter>>
+    /\ UNCHANGED <<dirLock, ixVars, bVars, wI, wD, wHet, wBuf, wIdx, wAfter>>
+
+\* moobl_index_unlinked(): index_touched(); a record that carries the removed name makes
+\* the attempt in progress start again, or the built domain be built again by the next
+\* query (paths_stale).
+WUnlinkedHook(f) ==
+    /\ wpc[f] = "unlinked"
+    /\ dirty' = Touch(f)
+    /\ IF Present(rec[f]) /\ rec[f].path = wPath[f]
+       THEN /\ restart' = (restart \/ dstate = "BUILDING")
+            /\ stale' = (stale \/ dstate = "BUILT")
+       ELSE UNCHANGED domVars
+    /\ WGo(f, "idle")
+    /\ UNCHANGED <<lowerVars, dstate, rec, reg, changed, bVars, wOps, wI, wD, wPath, wHet,
+                   wBuf, wIdx, wAfter>>
 
 \* moobl_index_drop_inode(): index_touched(); the record goes.
 WDropHook(f) ==
@@ -462,10 +494,11 @@ WAdoptStore(f) ==
     /\ UNCHANGED <<low, dstate, changed, bVars, wOps, wI, wD, wPath, wHet, wBuf,
                    wAfter>>
 
-Writer(f) == WSetLower(f) \/ WSetHook(f) \/ WRemoveLower(f) \/ WRemoveHook(f)
-             \/ WChmodLower(f) \/ WPermHook(f) \/ WRenameLower(f) \/ WRenameHook(f)
-             \/ WLinkLower(f) \/ WLinkHook(f) \/ WUnlinkLower(f) \/ WDropHook(f)
-             \/ WAdoptRegister(f) \/ WAdoptRead(f) \/ WAdoptStore(f)
+Writer(f) == WUnlinkedHook(f)
+             \/ ((WSetLower(f) \/ WSetHook(f) \/ WRemoveLower(f) \/ WRemoveHook(f)
+                 \/ WChmodLower(f) \/ WPermHook(f) \/ WRenameLower(f) \/ WRenameHook(f)
+                 \/ WLinkLower(f) \/ WLinkHook(f) \/ WUnlinkLower(f) \/ WDropHook(f)
+                 \/ WAdoptRegister(f) \/ WAdoptRead(f) \/ WAdoptStore(f)) /\ UNCHANGED domVars)
 
 \* Every bounded run ends here; keeps TLC's deadlock check meaningful.
 Terminated == /\ bpc = "done"
@@ -480,8 +513,9 @@ Spec == Init /\ [][Next]_vars
 (* Properties.                                                             *)
 
 TypeOK ==
-    /\ dstate \in {"NONE", "BUILDING", "BUILT"}
+    /\ dstate \in {"NONE", "BUILDING", "BUILT"} /\ stale \in BOOLEAN /\ restart \in BOOLEAN
     /\ \A f \in Files : rec[f].a \in [A -> 0..1] /\ rec[f].het \in BOOLEAN
+                        /\ rec[f].whole \in BOOLEAN
                         /\ rec[f].path \in Names \cup {NoName}
     /\ reg \in [Procs -> BOOLEAN] /\ dirty \in [Procs -> BOOLEAN]
 
@@ -490,29 +524,33 @@ TypeOK ==
 \* index lags by design, as in any write-behind of the lower call.
 Quiescent == bpc \in {"start", "done"} /\ \A f \in Files : wpc[f] = "idle"
 
+\* A domain QUERY answers from: built, and its names not stale (domain_fresh()); a stale
+\* one is taken down and built again first (domain_ensure_dom()).
+Fresh == dstate = "BUILT" /\ ~stale
+
 \* "A file is absent from the index or whole in it" (spec section 9): once the domain
 \* is BUILT and nothing is in flight, every file has exactly its lower attributes.
 \* A lost hook update, or a stale reading stored over it, violates this.
 NoLostUpdate ==
-    (dstate = "BUILT" /\ Quiescent) =>
+    (Fresh /\ Quiescent) =>
         \A f \in Files : rec[f].a = IF LiveD(f) # {} THEN low[f].a ELSE Zero
 
 \* A record answered as homogeneous really passes target_ok() now (spec section 3):
 \* a classification computed before a registration must not outlive a chmod.
 NoStaleHomogeneity ==
-    (dstate = "BUILT" /\ Quiescent) =>
+    (Fresh /\ Quiescent) =>
         \A f \in Files : (Present(rec[f]) /\ ~rec[f].het) => Ok(f)
 
 \* A homogeneous record carries a name the file has now (QUERY2 resolves it and
 \* silently omits the file otherwise; R2-2).
 FreshPath ==
-    (dstate = "BUILT" /\ Quiescent) =>
+    (Fresh /\ Quiescent) =>
         \A f \in Files : (Present(rec[f]) /\ ~rec[f].het) => rec[f].path \in NamesOf(f)
 
 \* Stronger, for observation only (not part of the S21 acceptance; see README):
 \* every record, heterogeneous ones too, is classified exactly and carries a live name.
 ExactRecord ==
-    (dstate = "BUILT" /\ Quiescent) =>
+    (Fresh /\ Quiescent) =>
         \A f \in Files : Present(rec[f]) =>
             /\ rec[f].het = ~Ok(f)
             /\ rec[f].path \in NamesOf(f)
