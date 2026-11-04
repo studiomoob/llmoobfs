@@ -9,7 +9,8 @@
   that left other names called no hook, so a build could record the removed name (F2). New
   regression step `hookrace` (`tests/hookrace.c`) with the test-only module parameter
   `rename_hook_delay_us`; passes on ext4, btrfs and XFS with the corrections and fails without
-  each. S18 counts again from the corrected code (journal 0266; KASAN and full suites pending).
+  each. S18 counts again from the corrected code (journal 0266; full native and KASAN/UBSAN/lockdep
+  suites passed).
 
 - S20 done: `tests/coldmove.c`, written by a second model from the specification only
   (receipt in `docs/s20/coldmove/`), runs in the `permgaps` suite step; it passes with

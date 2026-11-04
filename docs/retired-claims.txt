@@ -397,3 +397,6 @@ full procedural closure remains pending
 S18 stands at 2 of 7 complete campaigns
 S18 stands at 3 of 7 complete
 S16 and S21 not started
+Pending: KASAN and the full suites before publication
+in progress until the KASAN and full suites pass
+KASAN and full suites pending
