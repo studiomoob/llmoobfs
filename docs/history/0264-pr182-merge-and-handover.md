@@ -43,3 +43,13 @@ analysis, compiler warnings, lint, CodeQL, Scorecard, site build and deploy) pas
   pylib-test` passed 5 of 5 runs and the test alone 30 of 30 (not skipped). Not yet run in CI.
 - S18 stays at 0 of 7 accepted rounds; round r01 with the correction is running.
 - S20 remains partial (journal 0261).
+
+### 2026-11-04 — pre-push checks of the records branch
+
+On the Mac mini (CPUs 0–3, beside S18 r03), a clone of `21df27d` passed `make lint`,
+`make checkpatch`, `make test` (9 tests) and `make pylib-test` (43 tests, 13 skipped for
+missing root, `langgraph` or `mcp`) between 06:46 and 06:48 Brasília time, plus the
+retired-claims check. The installed package was then rerun from a separate venv with the
+`langgraph` and `mcp` extras (langgraph 1.2.19, mcp 2.3.0, Python 3.13.5): 42 passed, one
+skipped for root; `test_linux` under root then passed 11/11, including
+`test_group_domain_and_other_caller`.
