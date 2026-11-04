@@ -742,3 +742,16 @@ recorded as complete, accepted campaigns of the code before the correction. r05 
 started 09:15, source `61ee4f7`) and r04b (Debian host, state unknown) run on that code too:
 they finish as planned as extra evidence and are not counted. Campaigns on the corrected code
 start after its full native and KASAN suites pass.
+
+### 2026-11-04 — round r04b lost to a second stop of the Debian host
+
+The Debian host answered again at 12:11 after a fresh boot. Its journal of the previous boot
+ends at 06:34:46, while r04b ran `vm/syzkaller/image-setup.sh` under `sudo` to build the fuzz
+image, with no kernel message and no shutdown sequence; the earlier stop, which ended r04 at
+05:30:34, looked the same. Correction of the entry above: the host stopped at 06:34, not at
+08:57; 08:57 is only when the Mac mini first found it unreachable. r04b left its reference
+hashes and the KASAN `permchurn` reports of the first phase, and no fuzz or replay result.
+It ran on the code before journal 0266 and would not have counted. Two abrupt stops in one
+morning, both without a kernel message, point at the host rather than at the module, which
+the guest never loaded on the host kernel; the cause is not known. The Debian host takes no
+new campaign until it runs one long job without stopping.
