@@ -707,3 +707,28 @@ parameters and a deadline of 18:30. The permission phase rebuilds the module aga
 KASAN kernel and the fuzz phase rebuilds it for the syzkaller kernel, so the before/after
 module hash of the r04 driver differs by design; the audit compares the binaries' write
 times with the fuzz start instead.
+
+### 2026-11-04 — campaign r03 on the Mac mini completed and accepted (3 of 7)
+
+r03 (source `61ee4f7`, CPUs 4–7, two guests, permission profile `24,96,2026110303`,
+deadline November 4 at 11:00) ran from 23:13:29 to 09:14:07 Brasília time with
+`runner_exit=0 source_hashes=0`:
+
+- Phases: permissions exit 0 (23:13–23:43; `MOOBFS_KASAN_ONLY_PASS` under KASAN, UBSAN and
+  lockdep), fuzzing exit 0 for 18,000 s (23:44:22–04:44:25), replay exit 0
+  (04:44:25–09:14:06).
+- Fuzzing: corpus 1,178, coverage 16,723, 398,288 executions; `crash_dirs=0`.
+- Replay: 1,195/1,195 programs, run now 1,195, failed 0, not reached 0; 693 of 781 call
+  sites (88.7 %); 1,848 module text PCs.
+- Consoles: the replay consoles' only `WARNING:` line is the `mand` deprecation notice, as
+  in r01; their lockdep matches are boot banners. The permission console (copied to the
+  campaign directory as `permchurn-console.log` before r05 reused the build directory) has
+  no `BUG:`, KASAN, UBSAN or call-trace line; its single `Warning:` is the firmware
+  "Processor Platform Limit event" notice at boot.
+- Integrity: source hash lists before and after are byte-identical, and the module and
+  kernel image hashes before and after are identical.
+
+r03 is accepted: **S18 stands at 3 of 7**. Round r05 started on the Mac mini at 09:15:27
+with the same driver, permission profile `24,96,2026110305` and a deadline of November 4 at
+21:30. At 08:57 the Debian host running r04b stopped answering (no route to host from the
+Mac mini); r04b's state is unknown until the host returns.
