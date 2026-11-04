@@ -113,6 +113,12 @@ later batch.
     negative log of attempt 4 was overwritten by attempt 5, which ran the same code with more
     diagnostics.
 
+## Branch
+
+`claudiofp/b12-records` (not pushed) was rebased on its own base `a1f313b` with `--signoff`,
+which added the missing DCO trailers; every tree is unchanged, and the commit hashes cited by
+earlier local records changed (journal 0264 notes the one it cites).
+
 ## Limitations
 
 - F2 for a homogeneous record needs the unlink between the loop-head check and the

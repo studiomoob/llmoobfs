@@ -46,7 +46,7 @@ analysis, compiler warnings, lint, CodeQL, Scorecard, site build and deploy) pas
 
 ### 2026-11-04 — pre-push checks of the records branch
 
-On the Mac mini (CPUs 0–3, beside S18 r03), a clone of `21df27d` passed `make lint`,
+On the Mac mini (CPUs 0–3, beside S18 r03), a clone of `21df27d` (`ceb3b65` after the sign-off rebase of 2026-11-04, same tree) passed `make lint`,
 `make checkpatch`, `make test` (9 tests) and `make pylib-test` (43 tests, 13 skipped for
 missing root, `langgraph` or `mcp`) between 06:46 and 06:48 Brasília time, plus the
 retired-claims check. The installed package was then rerun from a separate venv with the
