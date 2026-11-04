@@ -2,7 +2,7 @@
 
 Date: 2026-11-04. Status: **in progress.** The model, the tooling and both kernel corrections are
 implemented. TLC passes on the corrected model, and the focused native VM runs passed with
-their negative controls. The focused KASAN run and the full suites before publication are
+their negative controls. The focused KASAN run passed; the full suites before publication are
 pending. Calendar time: the model work started about 07:15 and its last commit was at 07:52
 Brasília time. The corrections started about 09:40 after the maintainer's decision, and the
 last focused native run ended at 10:51. Effort and calendar time are close for this work,
@@ -105,6 +105,12 @@ later batch.
     names the removed n2` (10:51).
   - **Without the F1 correction** (only `rec_whole()` reverted to the domain state): `HOOKRACE_FAIL: [rename] a query on x does not return the renamed file: its record holds
   only y`, first at 10:36 and again with the final test bytes at 10:52.
+- Focused KASAN/UBSAN/lockdep run (`vm/kasan-local.sh`, kernel 6.12.112 with the pinned
+  config, Mac mini CPUs 2–3, 10:52–11:13): `MOOB_ONLY="hookrace buildrace permchurn permgaps"`
+  ended in `MOOBFS_KASAN_ONLY_PASS` with exit 0 and unchanged source hashes. Every step passed
+  on ext4, btrfs and XFS (`HOOK_RACE_PASS` each with `readings_repeated=1`; `BUILD_RACE_PASS`;
+  six `PERMCHURN_PASS` seeds per lower; `PERMISSION_GAPS_PASS`). The console has no `BUG:`,
+  KASAN, UBSAN, lockdep or call-trace line; its only `Warning:` is the firmware notice at boot.
 - Earlier attempts, kept in `~/b11night/f12/attempt*` on the test host, are errors of the test,
   not of the kernel:
   - (1) `-Wformat-truncation` stopped the build of the test.
@@ -133,6 +139,5 @@ earlier local records changed (journal 0264 notes the one it cites).
 
 ## Next steps
 
-Focused KASAN/UBSAN/lockdep run of `hookrace buildrace permchurn permgaps` (started 10:52),
-the full native suite and the full KASAN suite before publication, then the S18 campaigns on
-the corrected code.
+The full native suite (started 10:54 on `baf00ef`) and the full KASAN suite before
+publication, then the S18 campaigns on the corrected code.
