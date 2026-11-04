@@ -121,6 +121,13 @@ later batch.
   three lowers, no `_FAIL` marker, no `BUG:`, KASAN, UBSAN, lockdep, call-trace or `WARNING: CPU`
   line, source hashes unchanged. The only warnings in the console are the expected JSON
   notices of `moobfs diagnose` (no memory limit; a test parameter set by the step under test).
+- Pre-push checks (Mac mini, a clone of `24a04ce`, at low priority beside the S18 campaigns,
+  13:34–13:40): `make lint`, `make checkpatch`, `make test` (9 tests), the same under clang
+  with address and undefined-behavior sanitizers, `make hostile-test` under sanitizers (50
+  trees, `HOSTILE_USER_PASS`), `make pylib-test` (43 tests, 13 skipped for missing root or
+  optional packages, as before) and the retired-claims check all passed, with no sanitizer
+  report. `tests/hookrace.c` and `tests/coldmove.c` build with the suite's flags on Ubuntu
+  24.04, the CI KASAN job's userland.
 - Earlier attempts, kept in `~/b11night/f12/attempt*` on the test host, are errors of the test,
   not of the kernel:
   - (1) `-Wformat-truncation` stopped the build of the test.
@@ -149,5 +156,5 @@ earlier local records changed (journal 0264 notes the one it cites).
 
 ## Next steps
 
-The S18 campaigns on the corrected code, from a new source snapshot; the pre-push checks and
-the publication of the batch, with the maintainer's approval.
+The S18 campaigns on the corrected code (journal 0248); the pull request of the batch, merged
+only with the maintainer's approval after its checks pass.
