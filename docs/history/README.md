@@ -283,3 +283,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0265 — S20: a regression test written by a second model from the specification](0265-s20-independent-test-coldmove.md)
 - [0266 — S21: TLA+ model of the index loader, and corrections of its two findings](0266-s21-tla-model-and-loader-hook-corrections.md)
 - [0267 — PR 183 merged; post-merge checks; S21 done](0267-pr-183-merge-and-s21-close.md)
+- [0268 — hookrace: a test of the rename path of finding F2](0268-hookrace-rename-over-test.md)

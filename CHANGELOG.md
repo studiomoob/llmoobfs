@@ -14,6 +14,9 @@
   `rename_hook_delay_us`; passes on ext4, btrfs and XFS with the corrections and fails without
   each. S18 counts again from the corrected code (journal 0266; full native and KASAN/UBSAN/lockdep
   suites passed).
+- `hookrace` gains the mode `renameover`: the rename path of finding F2, a file renamed over
+  one of two names during its reading. It passes on ext4, btrfs and XFS, and fails without
+  the rename's hook call (journal 0268).
 - S18 on the corrected code: campaigns c01 and c02 passed all phases (2 of 7). Campaigns on the test
   host run one at a time, since its CPUs 4–7 are hyperthread siblings of 0–3 (journal 0248).
 

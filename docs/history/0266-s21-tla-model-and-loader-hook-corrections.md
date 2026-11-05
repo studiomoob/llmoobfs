@@ -153,6 +153,7 @@ earlier local records changed (journal 0264 notes the one it cites).
 - The model's bounds are those of `formal/README.md`: one file in CI, and a two-file run once,
   outside CI.
 - Rename over a file that keeps other names calls the new hook but has no test of its own.
+  (2026-11-05: tested since journal 0268, mode `renameover`.)
 
 ## Next steps
 
