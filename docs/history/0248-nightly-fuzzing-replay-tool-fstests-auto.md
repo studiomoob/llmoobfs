@@ -852,3 +852,13 @@ without an answer, 1,878 module-text PCs, 687/781 call sites (88.0%). No kernel 
 the replay or permission consoles. The kernel hash is unchanged; the module was rebuilt in
 the campaign's copy, with the same `srcversion` and vermagic as the prepared one, as in c01.
 The checks were made with a local audit script that reads every criterion above.
+
+### 2026-11-05 — c03 lost to a power failure, started again
+
+c03 started at 11:12:52 after the focused runs of journal 0268, passed its permission phase
+(11:40) and was 3 h 10 min into fuzzing when the building lost power: the Mac mini's journal
+ends at 14:51:01, and it booted again at 14:58:15. The campaign has no result and is not
+counted; it is kept as `campaign-c03-lost-power-20261105`. Before the `@reboot` fallback ran
+(five minutes after boot), the coordinator held the slot locks so that it skipped, then
+started c03 again from scratch at 14:59:17 with the same parameters, followed by c04–c07 one
+at a time as before.
