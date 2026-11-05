@@ -830,3 +830,14 @@ unchanged.
 c02 started alone at 00:59:14 on CPUs 4–7 (deadline 13:14). A chain on the test host starts
 c03–c07 one at a time, each when the previous writes its done marker, with the same
 workload and permission seeds `2026110403`–`2026110407`.
+
+### 2026-11-04 — the Debian host leaves the campaigns
+
+After the boot of 12:11 the Debian host stopped answering again at about 13:00, this time
+without a new boot being recorded before access was lost: the path through the Mac mini
+failed with `No route to host`. A read-only diagnosis, kept outside the repository, found no
+cause for the stops of 05:30 and 06:34. It found real but earlier USB and Wi-Fi errors on
+the root hub shared with the host's USB Wi-Fi adapter, and NVMe thermal-management counters
+that are not zero, without showing that either ended a boot. In the afternoon the maintainer
+reported the host as dead. S18 continues on the Mac mini alone. The host may come back only
+after it runs one long job without stopping, and it holds no campaign that counts.
