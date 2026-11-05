@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * hookrace LAYER DIR rename|unlink
+ * hookrace LAYER DIR rename|unlink|renameover
  *
  * Regression tests for the two findings of the TLA+ model of the index loader (formal/README.md,
  * journal 0266). Both are completeness defects: a QUERY2 left a file out.
@@ -15,6 +15,12 @@
  *   not keep the removed name: once the dentry cache is dropped, the mount-wide QUERY, which
  *   checks each result by its recorded name, must return it. (With two names the file is
  *   heterogeneous, and QUERY2 leaves it out in any case.)
+ *
+ * renameover (F2, the rename path): as unlink, but n2 is removed by renaming another file over
+ *   it, from DIR-src, a domain no query builds. The lower rename unhashes the dentry of n2 as an
+ *   unlink does, and only the hook of the rename (moobl_index_unlinked() for the replaced name)
+ *   tells the scan to read again. Without it the record keeps n2, which now names the other
+ *   file: QUERY resolves the name, finds another inode number and leaves the file out.
  *
  * LAYER is the mounted layer (domain_depth=1); DIR a directory directly under it that no query
  * has touched since the mount, and that does not exist yet. Runs as root: it writes the module
@@ -292,9 +298,10 @@ static uint64_t make_pair(const char *dir, char *n1, char *n2)
 
 #define UL_DELAY_MS 500
 
-static void test_unlink(const char *dir)
+/* over: remove n2 by renaming a file of DIR-src over it instead of unlinking it */
+static void test_unlink(const char *dir, int over)
 {
-	char cal[4096], n1[4096], n2[4096];
+	char cal[4096], n1[4096], n2[4096], sdir[4096], src[4096];
 	long long t0, built;
 	uint64_t ino;
 	pid_t pid;
@@ -309,6 +316,14 @@ static void test_unlink(const char *dir)
 		fail("mkdir %s", cal);
 	make_pair(cal, n1, n2);
 	ino = make_pair(dir, n1, n2);
+	if (over) {	/* no attribute: it adds no entry, and its domain is not built */
+		if (snprintf(sdir, sizeof sdir, "%s-src", dir) >= (int)sizeof sdir)
+			fail("path too long");
+		if (mkdir(sdir, 0755) || chmod(sdir, 0755))
+			fail("mkdir %s", sdir);
+		join(src, sizeof src, sdir, "f");
+		make_file(src);
+	}
 	param("scan_delay_us", UL_DELAY_MS * 1000);
 	t0 = now_ms();
 	reap(build_in_child(cal));
@@ -318,9 +333,11 @@ static void test_unlink(const char *dir)
 	param("scan_delay_us", UL_DELAY_MS * 1000);
 	pid = build_in_child(dir);
 	ms((unsigned int)(built - UL_DELAY_MS / 2));
-	if (unlink(n2))		/* during the reading through n2 */
-		fail("unlink %s", n2);
+	if (over ? rename(src, n2) : unlink(n2))	/* during the reading through n2 */
+		fail("%s %s", over ? "rename over" : "unlink", n2);
 	reap(pid);
+	if (over && (ino_of(n1) != ino || ino_of(n2) == ino))
+		fail("the rename over %s left the names in an unexpected state", n2);
 	if (!query1_has("x", ino, 0)) {
 		query1_has("x", ino, 1);
 		fail("QUERY on x does not return the file while it is cached");
@@ -328,7 +345,8 @@ static void test_unlink(const char *dir)
 	drop_caches();		/* the answer now comes from the recorded name */
 	if (!query1_has("x", ino, 0)) {
 		query1_has("x", ino, 1);
-		fail("QUERY on x does not return the file: its record names the removed n2");
+		fail("QUERY on x does not return the file: its record names the %s n2",
+		     over ? "replaced" : "removed");
 	}
 }
 
@@ -337,7 +355,7 @@ int main(int argc, char **argv)
 	char dir[4096];
 
 	if (argc != 4) {
-		fprintf(stderr, "usage: hookrace LAYER DIR rename|unlink\n");
+		fprintf(stderr, "usage: hookrace LAYER DIR rename|unlink|renameover\n");
 		return 2;
 	}
 	mode = argv[3];
@@ -348,7 +366,9 @@ int main(int argc, char **argv)
 	if (!strcmp(mode, "rename"))
 		test_rename(dir);
 	else if (!strcmp(mode, "unlink"))
-		test_unlink(dir);
+		test_unlink(dir, 0);
+	else if (!strcmp(mode, "renameover"))
+		test_unlink(dir, 1);
 	else
 		fail("unknown mode");
 	printf("HOOKRACE_PASS: %s\n", mode);

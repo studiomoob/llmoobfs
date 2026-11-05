@@ -16,7 +16,8 @@
 #   faults              only under the KASAN harness: the fault-injection block of kasan-guest.sh
 #   buildrace           the first query on a domain racing with writes to it (journal 0098)
 #   hookrace            a build ending inside a rename hook, an unlink of one name during its
-#                       reading (findings F1 and F2 of the TLA+ model, journal 0266)
+#                       reading, and a rename over that name during its reading (findings F1
+#                       and F2 of the TLA+ model, journal 0266)
 #   release             built domains released by the budget and by the shrinker (journal 0101)
 #   sqlext              the moobfs SQLite virtual table against an ordinary table (journal 0108)
 #   permmatrix          QUERY2 against the lower's own permission decision, random modes (0116)
@@ -1264,7 +1265,8 @@ if want hookrace; then
 # to its hook, and the build ends before the hook runs (rename_hook_delay_us holds it), which
 # must still read the file whole. F2: an unlink of one of two names while the scan reads the file
 # through it; the record must not keep the removed name (the reading is repeated: the tracepoint
-# counts it, or the unlink missed the window and the test proved nothing).
+# counts it, or the unlink missed the window and the test proved nothing). The same with the name
+# removed by a rename of another file over it, which has its own call of the hook.
 for fs in ext4 btrfs xfs; do
     case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
     mount -t $fs "$dev" "$LOWER" || fail "hr-lower-mount-$fs"
@@ -1277,8 +1279,15 @@ for fs in ext4 btrfs xfs; do
     tr_off moobfs_scan_reread
     [ $rc -eq 0 ] || fail "hr-unlink-$fs"
     [ "$hr_retries" -gt 0 ] || fail "hr-unlink-not-in-the-window-$fs (the test proved nothing)"
+    tr_on moobfs_scan_reread || fail "hr-trace-on-rv-$fs"
+    "$BIN/hookrace" "$LAYER" rv renameover; rc=$?
+    hr_rv_retries=$(tr_count moobfs_scan_reread)
+    tr_off moobfs_scan_reread
+    [ $rc -eq 0 ] || fail "hr-renameover-$fs"
+    [ "$hr_rv_retries" -gt 0 ] || fail "hr-renameover-not-in-the-window-$fs (the test proved nothing)"
     umount "$LAYER" && rm -rf "$LOWER/hr" && umount "$LOWER" || fail "hr-cleanup-$fs"
     echo "HOOK_RACE_PASS: $fs, rename hook after the build: whole; unlink during the reading: readings_repeated=$hr_retries"
+    echo "HOOK_RACE_RENAMEOVER_PASS: $fs, rename over one name during the reading: readings_repeated=$hr_rv_retries"
 done
 fi
 if want release; then
