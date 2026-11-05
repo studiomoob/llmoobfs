@@ -807,3 +807,26 @@ the 23:00 fallback skips, and starts c02 with the same parameters when c01 write
 marker. c01 (1,244 programs to replay) may not finish its replay before its deadline;
 missing programs are then replayed by a continuation on the same snapshot and cache, which
 completes c01 and does not add a campaign.
+
+### 2026-11-05 — c01 accepted (1/7 on the corrected code)
+
+c01 (source `9dce137`) wrote its done marker at 00:58:03: runner exit 0, source hashes
+unchanged.
+
+- Permissions (13:26–14:17): `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Fuzzing (14:19:43–19:19:46, 18,000 s): corpus 1,227, coverage 16,454, 580,902 executions,
+  `crash_dirs=0`.
+- Replay (19:19:46–00:58:01): exit 0, 1,244/1,244 programs replayed and run, failed 0, not
+  reached 0, 1,901 module-text PCs, 689/781 call sites (88.2%). The replay consoles hold no
+  `BUG:`, KASAN, UBSAN, lockdep, call-trace or `WARNING:` line other than the `mand`
+  deprecation notice.
+- The module hash at the end (`fb2b4b6b…`) differs from the one recorded at the start
+  (`c7008a26…`, the prepared tree). The build step before fuzzing (14:17:52) rebuilt it in the
+  campaign's copy of the tree. Both have `srcversion` `59D13055A101135D1688AF8` and the same
+  vermagic, and they differ only in the embedded build path (`corrected-9dce137/source`
+  against `campaign-c01/source`). The replay cache is keyed by the rebuilt module, so fuzzing
+  and replay used the same binary. The kernel hash is unchanged.
+
+c02 started alone at 00:59:14 on CPUs 4–7 (deadline 13:14). A chain on the test host starts
+c03–c07 one at a time, each when the previous writes its done marker, with the same
+workload and permission seeds `2026110403`–`2026110407`.
