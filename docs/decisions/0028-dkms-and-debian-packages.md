@@ -1,6 +1,6 @@
 # ADR-0028 — DKMS and Debian packages, signed with the host's own MOK, built and tested in VMs only
 
-Date: 2026-10-29. Status: **implemented; the design awaits the maintainer's review** (item C6 of
+Date: 2026-10-29. Status: **implemented; accepted by the maintainer on 2026-11-05** (journal 0269) (item C6 of
 `ROADMAP.md`, started with the maintainer's go-ahead on 2026-10-29, journal 0229). Estimated
 effort: L (a week or more). Implements the DKMS, package and signing rows of
 `docs/distribution-strategy.md` §2.6 and §6, which were FUTURE. User space and packaging only

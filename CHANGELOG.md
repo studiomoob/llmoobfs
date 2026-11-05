@@ -14,6 +14,8 @@
   `rename_hook_delay_us`; passes on ext4, btrfs and XFS with the corrections and fails without
   each. S18 counts again from the corrected code (journal 0266; full native and KASAN/UBSAN/lockdep
   suites passed).
+- ADR-0028 (DKMS and Debian packages, item C6) accepted by the maintainer as implemented;
+  publishing the packages still waits for stage 2 (journal 0269).
 - `hookrace` gains the mode `renameover`: the rename path of finding F2, a file renamed over
   one of two names during its reading. It passes on ext4, btrfs and XFS, and fails without
   the rename's hook call (journal 0268).
