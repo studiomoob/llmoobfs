@@ -780,3 +780,30 @@ mini; the defaults are unchanged.
   default ports and permission profile `24,96,2026110402`.
 - The scheduled fallback (`nightly-host.sh`, 23:00) now points at the new snapshot. It skips
   while a campaign holds its slots, as before.
+
+### 2026-11-04 — r05 audit, and campaigns one at a time
+
+r05 (old code `61ee4f7`, extra evidence, not counted) wrote its done marker at 21:29:33:
+runner and driver exit 0, source and binary hashes unchanged. The permission phase passed
+(`MOOBFS_KASAN_ONLY_PASS`, 09:15–09:41) and fuzzing ran 18,000 s (09:42–14:43; corpus 1,167,
+coverage 16,808, 358,887 executions, `crash_dirs=0`). The replay did **not** complete:
+exit 1, 1,184 programs, 354 replayed, 119 failed, 711 not reached, 623/781 call sites. The
+replay consoles hold no `BUG:`, KASAN, UBSAN, lockdep or call-trace line; the one `WARNING:`
+is the kernel's deprecation notice for the `mand` mount option.
+
+Every failure is a program with no answer within its time limit, after which the guest was
+restarted. They run from 14:45 to 19:19 without a single success, and stop when c01's
+fuzzing ended (19:19:46); from 19:20 every program was answered. The Mac mini's CPU (Intel
+i7-2635QM) has four cores, and CPUs 4–7 are the hyperthread siblings of CPUs 0–3
+(`lscpu -e`), so pinning two campaigns to 0–3 and 4–7 does not isolate them. Fuzzing on one
+set slowed the replay guests on the other beyond the 60 s limit per program. This is a
+limit of the host, not a kernel finding. c01's replay, which ran beside r05's replay and no
+fuzzing, had no failure by 21:30.
+
+Decision: campaigns on the Mac mini run one at a time. c02 had started at 21:30 and was
+stopped at 21:32, still building its permission phase, and is kept as
+`campaign-c02-stopped-20261104` (it counts as nothing). A launcher holds slots A and B, so
+the 23:00 fallback skips, and starts c02 with the same parameters when c01 writes its done
+marker. c01 (1,244 programs to replay) may not finish its replay before its deadline;
+missing programs are then replayed by a continuation on the same snapshot and cache, which
+completes c01 and does not add a campaign.
