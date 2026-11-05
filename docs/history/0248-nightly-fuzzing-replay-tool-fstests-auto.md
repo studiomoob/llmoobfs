@@ -841,3 +841,14 @@ the root hub shared with the host's USB Wi-Fi adapter, and NVMe thermal-manageme
 that are not zero, without showing that either ended a boot. In the afternoon the maintainer
 reported the host as dead. S18 continues on the Mac mini alone. The host may come back only
 after it runs one long job without stopping, and it holds no campaign that counts.
+
+### 2026-11-05 — c02 accepted (2/7 on the corrected code)
+
+c02 (source `9dce137`, CPUs 4–7, the only campaign on the host) ran 00:59:15–11:09:09:
+runner exit 0, source hashes unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (00:59–01:25);
+fuzzing 18,000 s (01:27–06:27; corpus 1,260, coverage 16,415, 576,181 executions,
+`crash_dirs=0`); replay exit 0, 1,277/1,277 programs, failed 0, not reached 0, no program
+without an answer, 1,878 module-text PCs, 687/781 call sites (88.0%). No kernel diagnostic in
+the replay or permission consoles. The kernel hash is unchanged; the module was rebuilt in
+the campaign's copy, with the same `srcversion` and vermagic as the prepared one, as in c01.
+The checks were made with a local audit script that reads every criterion above.

@@ -404,3 +404,5 @@ acceptance met locally, first CI run at publication
 acceptance is met locally, and the first GitHub run
 model and tooling implemented; acceptance met with the corrections
 0 of 7, with r01–r03 kept
+the first campaign on the corrected code (c01) passed all phases: 1 of 7
+campaign c01 passed all phases (1 of 7)
