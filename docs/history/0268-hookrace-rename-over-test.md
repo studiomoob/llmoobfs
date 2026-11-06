@@ -47,6 +47,22 @@ coordinator reviewed the diff and ran it.
 - No KASAN run: the change is a test, with no locking or lifetime change in the module. The
   full suites of the next batch run it.
 
+## Batch suites before publication (2026-11-06)
+
+Run on the test host on `44ac807` (two separate copies of the tree, source hashes checked
+after each run), during S18 campaign c04's fuzzing on the other CPUs. Since then the code
+changed only in a comment of `include/moobfs_ioctl.h` (`8f9ce8c`).
+
+- Full native suite (`make vm-test`, Debian 6.12.113 KVM guest, CPUs 0–1), 01:36–01:59
+  Brasília time: exit 0, no `_FAIL`; `HOOK_RACE_PASS` and `HOOK_RACE_RENAMEOVER_PASS` on ext4,
+  btrfs and XFS; source hashes unchanged.
+- Full KASAN/UBSAN/lockdep suite (`vm/kasan-local.sh`, CPUs 2–3), 01:38–03:41: exit 0,
+  `MOOBFS_KASAN_PASS`, the same `hookrace` markers on all three lowers, no kernel diagnostic
+  in the console; source hashes unchanged.
+- Pre-push checks, 03:41–03:46: `make lint`, `make checkpatch`, `make test`, the same under
+  clang ASan/UBSan, `make hostile-test`, `make pylib-test`, `scripts/check-retired-claims.sh`
+  and the build of the suite's test programs on Ubuntu 24.04: all pass.
+
 ## Limitations
 
 - As with `unlink`, the homogeneous case (the replace between the loop-head check and the
