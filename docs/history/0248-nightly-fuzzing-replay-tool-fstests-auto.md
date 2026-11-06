@@ -873,3 +873,19 @@ reached 0, no program without an answer, 1,884 module-text PCs, 693/781 call sit
 kernel diagnostic in the replay or permission consoles. The kernel hash is unchanged; the module
 was rebuilt in the campaign's copy with the same `srcversion` and vermagic, as in c01 and c02.
 c04 started at 01:06:20.
+
+### 2026-11-06 — c04 accepted (4/7 on the corrected code)
+
+c04 (source `9dce137`, CPUs 4–7) ran 01:06:20–10:24:01: runner exit 0, source hashes
+unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (01:06–01:34); fuzzing 18,000 s (01:35–06:35;
+corpus 1,010, coverage 16,012, 366,415 executions, `crash_dirs=0`); replay exit 0, 1,027/1,027
+programs, failed 0, not reached 0, no program without an answer, 1,779 module-text PCs,
+684/781 call sites (87.6%). No kernel diagnostic in the replay or permission consoles; kernel
+hash unchanged, module rebuilt with the same `srcversion` and vermagic.
+
+During its fuzzing the batch's full native and KASAN suites ran on CPUs 0–3 (01:36–03:46,
+journal 0268), the hyperthread siblings of the campaign's CPUs. The campaign kept its full
+18,000 s and every phase, but ran 366,415 executions against 576,181–733,021 in c01–c03, and
+its corpus and coverage are a little smaller. The acceptance criteria (complete phases, zero
+crashes, complete replay, no diagnostic) are met, so it is counted; the lower throughput is
+recorded here. c05 started at 10:24:31.
