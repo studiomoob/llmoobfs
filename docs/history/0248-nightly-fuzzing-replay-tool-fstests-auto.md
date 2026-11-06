@@ -889,3 +889,13 @@ journal 0268), the hyperthread siblings of the campaign's CPUs. The campaign kep
 its corpus and coverage are a little smaller. The acceptance criteria (complete phases, zero
 crashes, complete replay, no diagnostic) are met, and the maintainer decided that it counts;
 the lower throughput is recorded here. Later campaigns run with nothing else on the host. c05 started at 10:24:31.
+
+### 2026-11-06 — c05 accepted (5/7 on the corrected code)
+
+c05 (source `9dce137`, CPUs 4–7, the only job on the host) ran 10:24:31–20:14:33: runner exit
+0, source hashes unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (10:24–10:53); fuzzing 18,000 s
+(10:54–15:54; corpus 1,197, coverage 16,311, 540,987 executions, `crash_dirs=0`); replay exit
+0, 1,214/1,214 programs, failed 0, not reached 0, no program without an answer, 1,882
+module-text PCs, 693/781 call sites (88.7%). No kernel diagnostic in the replay or permission
+consoles; kernel hash unchanged, module rebuilt with the same `srcversion` and vermagic. c06
+started at 20:15:04.

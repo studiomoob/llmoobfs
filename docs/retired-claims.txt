@@ -411,3 +411,5 @@ the first two campaigns on the corrected code (c01, c02) passed all phases: 2 of
 campaigns c01 and c02 passed all phases (2 of 7)
 the first three campaigns on the corrected code (c01–c03) passed all phases: 3 of 7
 campaigns c01, c02 and c03 passed all phases (3 of 7)
+the first four campaigns on the corrected code (c01–c04) passed all phases: 4 of 7
+campaigns c01–c04 passed all phases (4 of 7)
