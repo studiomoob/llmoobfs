@@ -63,6 +63,10 @@ changed only in a comment of `include/moobfs_ioctl.h` (`8f9ce8c`).
   clang ASan/UBSan, `make hostile-test`, `make pylib-test`, `scripts/check-retired-claims.sh`
   and the build of the suite's test programs on Ubuntu 24.04: all pass.
 
+By the maintainer's decision (2026-11-06), these runs are the batch's full suites for its
+pull request: they are not repeated after the last S18 campaign, and only the pre-push checks
+run again after the rebase.
+
 ## Limitations
 
 - As with `unlink`, the homogeneous case (the replace between the loop-head check and the
