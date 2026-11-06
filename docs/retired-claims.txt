@@ -407,3 +407,5 @@ model and tooling implemented; acceptance met with the corrections
 the first campaign on the corrected code (c01) passed all phases: 1 of 7
 campaign c01 passed all phases (1 of 7)
 the design awaits the maintainer's review
+the first two campaigns on the corrected code (c01, c02) passed all phases: 2 of 7
+campaigns c01 and c02 passed all phases (2 of 7)

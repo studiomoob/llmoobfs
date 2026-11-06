@@ -862,3 +862,14 @@ counted; it is kept as `campaign-c03-lost-power-20261105`. Before the `@reboot` 
 (five minutes after boot), the coordinator held the slot locks so that it skipped, then
 started c03 again from scratch at 14:59:17 with the same parameters, followed by c04–c07 one
 at a time as before.
+
+### 2026-11-06 — c03 accepted (3/7 on the corrected code)
+
+c03 (second attempt; source `9dce137`, CPUs 4–7, the only campaign on the host) ran
+2026-11-05 14:59:19 – 2026-11-06 01:05:50: runner exit 0, source hashes unchanged. Permissions
+`MOOBFS_KASAN_ONLY_PASS` (14:59–15:26); fuzzing 18,000 s (15:28–20:28; corpus 1,230, coverage
+16,429, 733,021 executions, `crash_dirs=0`); replay exit 0, 1,247/1,247 programs, failed 0, not
+reached 0, no program without an answer, 1,884 module-text PCs, 693/781 call sites (88.7%). No
+kernel diagnostic in the replay or permission consoles. The kernel hash is unchanged; the module
+was rebuilt in the campaign's copy with the same `srcversion` and vermagic, as in c01 and c02.
+c04 started at 01:06:20.
