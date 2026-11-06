@@ -887,5 +887,5 @@ During its fuzzing the batch's full native and KASAN suites ran on CPUs 0–3 (0
 journal 0268), the hyperthread siblings of the campaign's CPUs. The campaign kept its full
 18,000 s and every phase, but ran 366,415 executions against 576,181–733,021 in c01–c03, and
 its corpus and coverage are a little smaller. The acceptance criteria (complete phases, zero
-crashes, complete replay, no diagnostic) are met, so it is counted; the lower throughput is
-recorded here. c05 started at 10:24:31.
+crashes, complete replay, no diagnostic) are met, and the maintainer decided that it counts;
+the lower throughput is recorded here. Later campaigns run with nothing else on the host. c05 started at 10:24:31.
