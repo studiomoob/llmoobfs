@@ -481,7 +481,7 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   request passaram antes do merge desse lote. A `v0.4.1-experimental` ainda
   contém os dois defeitos; a `v0.5.0-experimental` tem as correções.
 
-- Uma série de kernel testada (Debian 6.12.111, 6.12.112 upstream sob KASAN), x86-64, em VM; as
+- Uma série de kernel testada (Debian 6.12.111, 6.12.116 upstream sob KASAN), x86-64, em VM; as
   APIs do kernel dependem da versão, e o alvo de teste fixado não é promessa de compatibilidade. Em
   outra arquitetura, o módulo só rodou no job exploratório de arm64 (com emulação, três sistemas de
   arquivos de baixo, diário 0137); os testes da codificação, em espaço de usuário, também rodaram em

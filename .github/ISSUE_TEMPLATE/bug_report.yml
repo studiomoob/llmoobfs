@@ -20,7 +20,7 @@ body:
     id: kernel
     attributes:
       label: Kernel version
-      description: "`uname -r` inside the VM or host where the module ran. Say if it is the harness kernel (Debian 6.12.111+deb13-amd64 or upstream 6.12.112 under KASAN) or another."
+      description: "`uname -r` inside the VM or host where the module ran. Say if it is the harness kernel (Debian 6.12.111+deb13-amd64 or upstream 6.12.116 under KASAN) or another."
     validations:
       required: true
   - type: dropdown

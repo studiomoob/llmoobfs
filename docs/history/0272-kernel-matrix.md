@@ -25,9 +25,50 @@ tracepoints, after `modules_prepare`; tarballs from cdn.kernel.org checked again
 A first run of the probe failed on 6.12.116 because the copy lacked `common/`; it was a fault of
 the probe, corrected by copying the tree as the build expects.
 
+## The upstream test kernel moves to 6.12.116 (2026-11-07)
+
+ADR-0034, point 5. The full KASAN/UBSAN/lockdep suite (`vm/kasan-local.sh` with `kasan.yml`'s
+pin set to 6.12.116 in a copy of the tree, its own kernel cache) ran on the test host, CPUs 0–3,
+18:55–20:30 Brasília time (kernel build until 19:24): `MOOBFS_ACCEPTANCE_PASS`,
+`MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS`, no `_FAIL`, no kernel diagnostic in the console;
+`SELFCHECK_PASS` and `HOOK_RACE_RENAMEOVER_PASS` on the three lowers. The tarball's SHA-256
+(`cb3ed3dfdd47e6ade49dc933db334fd86e24cadee920da612c262b0e9b6a511b`) is kernel.org's.
+
+Every copy of the pin moves together, as `scripts/check-pins.sh` requires: `kasan.yml`,
+`kasan-arm64.yml`, `kcsan.yml`, `interop.yml`, `coverage.yml`, `docs/development.md` and
+`tests/static/Dockerfile`, and the checkpatch tag in `scripts/checkpatch.sh` (`v6.12.116`; the
+three files it fetches have the same SHA-256 as at `v6.12.112`). `sh scripts/check-pins.sh`:
+`PINS_OK`, the tarball checked against kernel.org; `sh scripts/checkpatch.sh`: clean. Only the x86
+KASAN suite ran locally on 6.12.116; the arm64 KASAN, KCSAN, coverage, interop and static-analysis
+jobs first run on it in CI. Current-state documents name 6.12.116 for the harness; records of
+earlier runs keep their version.
+
+## Port map to 7.3.3 (read from the sources, nothing changed yet)
+
+The 66 errors come from 21 interfaces in `layer/main.c`, read against the 7.3.3 tree and its
+`Documentation/filesystems/porting.rst`, with overlayfs (`fs/overlayfs/`) and
+`fs/backing-file.c` of 7.3.3 as the model. Most are renames or signature changes:
+`inode_state_read_once()`, `inode_generic_drop()`, `lookup_one*()` with a qstr,
+`delegated_inode` arguments of `vfs_create`, `vfs_rmdir` and `vfs_symlink`, `struct file_kattr`,
+`.create` without `excl`, `.mkdir` returning a dentry, `struct backing_file_ctx` without
+`user_file` and with `end_write(kiocb, ssize_t)`, the backing-file splice helpers taking a
+kiocb, `set_default_d_op()`. Five change semantics or locking and are ported one by one:
+
+1. `vfs_mkdir()` returns a dentry and, on error, has already unlocked the parent and dropped the
+   dentry (porting.rst); the module's own unlock would be a second one.
+2. `lock_rename()`/`unlock_rename()` are gone; `start_renaming_dentry()`/`end_renaming()` lock,
+   look up the target and check the trap. Two rare races change errno: `RENAME_NOREPLACE` onto a
+   lower that became positive gives `EEXIST`, `RENAME_EXCHANGE` onto one that became negative
+   `ENOENT`, where the module returns `ESTALE` on 6.12.
+3. `AT_GETATTR_NOSEC` is gone: the module keeps calling `vfs_getattr_nosec()` on the lower, as
+   overlayfs does, which is what every call did on 6.12.
+4. The `lookup_noperm*()` forms skip the parent's search check; `lookup_one*()` keeps it.
+5. The lower's `d_revalidate()` needs a stable parent and name (overlayfs takes a name snapshot).
+
+Also: without `->setlease`, 7.3 refuses leases with `EINVAL`; the port sets `generic_setlease`,
+as overlayfs does, so that leases behave as on 6.12.
+
 ## Next steps
 
-1. The KASAN kernel from 6.12.112 to 6.12.116 (pin and hash in `kasan.yml`), with a full KASAN
-   run.
-2. The port to 7.3 within ADR-0034, read against the 7.3.3 sources, then the suite and KASAN on
+1. The port to 7.3 within ADR-0034, read against the 7.3.3 sources, then the suite and KASAN on
    a 7.3 kernel.

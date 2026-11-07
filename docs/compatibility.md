@@ -16,7 +16,7 @@ There are three interfaces, each with its own version and its own rule.
 | --- | --- | --- | --- |
 | Debian 6.12.111+deb13-amd64 | yes, every pull request | no (distribution kernel) | yes, three lower filesystems, by hand |
 | Debian 6.12.113+deb13-amd64 | yes, every pull request (first passed in PR 148) | no (distribution kernel) | yes, three lower filesystems, on the dedicated host (journal 0206) |
-| Upstream 6.12.112, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` | yes | no |
+| Upstream 6.12.116, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` | yes | no |
 | Anything else | no | no | no |
 
 **Rules.**

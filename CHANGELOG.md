@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The upstream test kernel (KASAN, KCSAN, coverage, interop, arm64 KASAN, static analysis and the
+  checkpatch tag) moves from 6.12.112 to 6.12.116; the full KASAN/UBSAN/lockdep suite passed on it
+  (journal 0272).
 - ADR-0034: a second narrow exception to the kernel freeze, for adaptations to newer kernel
   interfaces only; a compile-only probe found the module builds on 6.12.116 and needs a port for
   7.3 (journal 0272, in progress).

@@ -7,7 +7,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-TAG=v6.12.112
+TAG=v6.12.116
 DIR=build/checkpatch-$TAG
 # sha256 of each file at $TAG (same bytes from git.kernel.org and from the GitHub mirror)
 SUMS='fa54defb8bc0f8ad4dd34885f6f486243d4e2f71d32d76f8768aa5376f3f188a  checkpatch.pl

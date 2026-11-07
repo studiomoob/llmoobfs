@@ -140,7 +140,7 @@ other hardware remain open. There is no independent reproduction yet (issue #68 
 
 ## 14. Which kernels are supported?
 One series: Debian kernels 6.12.111 and 6.12.113 in a QEMU VM (both accepted by `make install`;
-fstests `quick` passed on both with the three lower filesystems), and upstream 6.12.112 with KASAN, UBSAN and
+fstests `quick` passed on both with the three lower filesystems), and upstream 6.12.116 with KASAN, UBSAN and
 lockdep on every pull request that touches the module and weekly. x86-64 for the module, plus an
 exploratory arm64 job under emulation where the ext4, btrfs and XFS steps pass under KASAN
 (journal 0137); the attribute encoding's user-space tests also run on big-endian s390x under

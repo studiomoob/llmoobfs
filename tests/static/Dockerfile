@@ -7,8 +7,8 @@
 # checked by scripts/check-pins.sh.
 FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f
 ARG DEBIAN_KERNEL=6.12.113
-ARG KERNEL_VERSION=6.12.112
-ARG KERNEL_SHA256=164dc9d1f6c93c61a15e1f071c48379b467f2b17c469cce7223471968208ed03
+ARG KERNEL_VERSION=6.12.116
+ARG KERNEL_SHA256=cb3ed3dfdd47e6ade49dc933db334fd86e24cadee920da612c262b0e9b6a511b
 ARG SMATCH_COMMIT=5189e3fb018b783a26dcb45c02c114c1d1aad290
 RUN arch=$(dpkg --print-architecture) && \
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
