@@ -31,6 +31,11 @@ exception to the kernel freeze, and stop running a campaign every night.
   kernel frozen and seven clean campaigns on the same code, a nightly campaign mostly held the
   host. It still runs the snapshot `9dce137`, which differs from the head only in documents and
   one UAPI comment.
+- **Dependabot PR 185** (`actions/setup-java` 6.1.0 → 6.2.0 in `tla.yml`, the only workflow
+  that uses it): the pinned commit is the `v6.2.0` tag's commit, the release is not a
+  prerelease, and all of the PR's checks passed, `tla.yml` included. The change is taken into
+  this batch with its `docs/references.md` entry, as with the Dependabot updates of journal
+  0228, and PR 185 is closed when the batch is merged.
 
 ## Changes
 

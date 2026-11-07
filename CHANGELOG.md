@@ -7,6 +7,7 @@
 - ADR-0033: a narrow exception to the kernel freeze lets S16 add its self-check, a test-only
   module parameter, off by default, that only reads and warns (journal 0270).
 - The test host's S18 schedule runs weekly instead of nightly (journal 0270).
+- `actions/setup-java` 6.1.0 → 6.2.0 in `tla.yml` (Dependabot PR 185), pinned by commit.
 
 - S21 done: PR 183 merged (`d6ce35e`); the first GitHub run of `tla.yml` checked all eight
   configurations of the model as expected, and every post-merge check passed (journal 0267).
