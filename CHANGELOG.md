@@ -19,7 +19,7 @@
 - `hookrace` gains the mode `renameover`: the rename path of finding F2, a file renamed over
   one of two names during its reading. It passes on ext4, btrfs and XFS, and fails without
   the rename's hook call (journal 0268).
-- S18 on the corrected code: campaigns c01–c05 passed all phases (5 of 7). Campaigns on the test
+- S18 on the corrected code: campaigns c01–c06 passed all phases (6 of 7). Campaigns on the test
   host run one at a time, since its CPUs 4–7 are hyperthread siblings of 0–3 (journal 0248).
 
 - S20 done: `tests/coldmove.c`, written by a second model from the specification only

@@ -899,3 +899,21 @@ c05 (source `9dce137`, CPUs 4–7, the only job on the host) ran 10:24:31–20:1
 module-text PCs, 693/781 call sites (88.7%). No kernel diagnostic in the replay or permission
 consoles; kernel hash unchanged, module rebuilt with the same `srcversion` and vermagic. c06
 started at 20:15:04.
+
+### 2026-11-07 — c06 accepted (6/7 on the corrected code)
+
+c06 (source `9dce137`, CPUs 4–7, the only job on the host; the 23:00 schedule skipped on the
+held slot) ran 2026-11-06 20:15:03 – 2026-11-07 05:48:21: runner exit 0, source hashes
+unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (20:15–20:40); fuzzing 18,000 s (20:41–01:41;
+corpus 1,064, coverage 15,966, 363,776 executions, `crash_dirs=0`); replay exit 0, 1,081/1,081
+programs, failed 0, not reached 0, no program without an answer, 1,854 module-text PCs,
+687/781 call sites (88.0%). No kernel diagnostic in the replay or permission consoles; kernel
+hash unchanged, module rebuilt with the same `srcversion` and vermagic. c07 started at 05:48:51.
+
+*Note on c04 (2026-11-07):* c06 ran alone and had as few executions as c04 (363,776 against
+366,415). The syzkaller manager logs show the rate falling within each campaign by different
+amounts (c03 about 50 per second throughout; c05 from 59 to about 33; c06 from 54 to about
+25), with the same number of VM restarts, so the throughput varies between campaigns of the
+same code without another job. The full suites that ran during c04's fuzzing are therefore
+not shown to have lowered its count; the earlier wording above stands as what was then
+believed.
