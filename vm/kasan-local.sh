@@ -9,7 +9,7 @@
 # vm/kasan-requirements.txt). Exit status 0 only on MOOBFS_KASAN_PASS. HOSTILE_SEEDS=N plants N adversarial
 # lower trees per filesystem instead of 3 (security roadmap S4). MOOB_ONLY="xfs ioerror" runs only those
 # suite steps and ends in MOOBFS_KASAN_ONLY_PASS. MOOB_PERMCHURN=SEEDS,STEPS[,FIRST] lengthens the
-# permchurn step (vm/suite.sh). This is a faster loop
+# permchurn step (vm/suite.sh). MOOB_SELFCHECK=1 runs it with the index self-check on (S16). This is a faster loop
 # for development; the required check is still the workflow on the pull request.
 set -eu
 PATH=$PATH:/usr/sbin:/sbin   # mke2fs, mkfs.btrfs, mkfs.xfs and dmsetup for a non-root user
@@ -62,7 +62,7 @@ for attempt in 1 2; do
         --rwdir "$R/build" \
         --disk "$R/build/vng/lower-ext4.img" --disk "$R/build/vng/lower-btrfs.img" \
         --disk "$R/build/vng/lower-xfs.img" --disk "$R/build/vng/scratch.img" --disk "$R/build/vng/log.img" \
-        --exec "HOSTILE_SEEDS=${HOSTILE_SEEDS:-3} MOOB_ONLY='${MOOB_ONLY:-}' MOOB_PERMCHURN='${MOOB_PERMCHURN:-}' sh $R/vm/kasan-guest.sh") > "build/vng/console-$attempt.log" 2>&1 || true
+        --exec "HOSTILE_SEEDS=${HOSTILE_SEEDS:-3} MOOB_ONLY='${MOOB_ONLY:-}' MOOB_PERMCHURN='${MOOB_PERMCHURN:-}' MOOB_SELFCHECK='${MOOB_SELFCHECK:-}' sh $R/vm/kasan-guest.sh") > "build/vng/console-$attempt.log" 2>&1 || true
     cp "build/vng/console-$attempt.log" build/vng/console.log
     grep -q '^MOOBFS_VM_ENV_FAIL:' build/vng/console.log || break
     echo "kasan-local: attempt $attempt hit a boot-time diagnostic; retrying once"

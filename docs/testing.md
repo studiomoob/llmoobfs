@@ -307,6 +307,29 @@ guest by `make vm-test` and `vm/kasan-local.sh`) runs a longer one.
 | `PERMCHURN_PASS seed=... mismatching_steps=0` | For one seed: after every operation, no identity got a path the lower would not let it reach or a path naming another inode, and none missed a reachable homogeneous file outside the history-dependent cases; the counts say how many operations were done, by users, during builds | Operations other than the six; more than one domain; default ACLs; concurrency between users other than during a build |
 | `PERMCHURN_STEP_PASS: <fs>, ...` | On that lower: every seed passed, and some operations were done by users and some during a build | A complete suite by itself |
 
+### The index compared with the lower after every change (security roadmap S16, journal 0271)
+
+The module parameter `selfcheck` (ADR-0033; tests only, off by default, writable by root) makes
+the module read a file again from the lower filesystem after each update main.c applies to the
+index (a typed attribute set or removed, a rename, a link, a chmod, chown or access ACL) and after
+each file a build or an adoption reads. It compares the file's typed attributes and its
+partition, computed from the lower tree alone rather than by the code that placed it, with its
+record, logs `moobfs_layer: selfcheck: ...` on a difference and counts in the read-only
+parameter `selfcheck_counts` (`checks=... differences=... inconclusive=...`). A reading that an
+update of the same file or a rename overtakes is not conclusive; a difference counts only when
+three readings in a row show it. The partition is not compared while the domain says its
+placements are not current (a directory renamed since or during its build, before the build
+scans it again), when no answer comes from the partition. It never changes the index.
+
+`MOOB_ONLY=selfcheck make vm-test` runs the permchurn workload (seeds 1 to 3, 24 steps per mount)
+on ext4, btrfs and XFS with it on; the full suite includes the step. `MOOB_SELFCHECK=1` (passed
+by `make vm-test` and `vm/kasan-local.sh`) turns it on for the whole suite.
+
+| Marker | Proves | Does not prove |
+| --- | --- | --- |
+| `SELFCHECK_PASS: ... N self-checks, no difference, M not conclusive` | Under the permchurn workload, every record checked after an update or a build had the lower's typed attributes and a partition the rule allows, and more checks were conclusive than not | Defects inside `reach_ok()`, `target_ok()` or `ext_acl()`, which the check shares (mutant M01 passes it, journal 0271); updates it does not follow (an unlink that leaves other names); records it is not shown |
+| `SELFCHECK_SUITE_PASS: ...` | The whole suite ran with the check on and found no difference | The same limits |
+
 ### Decisive permission and independent-oracle checks (journal 0172)
 
 `MOOB_ONLY=permgaps make vm-test` runs `tests/permission-gaps.c` on ext4,

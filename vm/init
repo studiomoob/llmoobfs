@@ -47,6 +47,9 @@ export MOOB_ONLY
 # moob_permchurn=SEEDS,STEPS[,FIRST]: a longer permchurn run (vm/suite.sh, journal 0250)
 MOOB_PERMCHURN=$(sed -n 's/.*moob_permchurn=\([0-9,]*\).*/\1/p' /proc/cmdline)
 export MOOB_PERMCHURN
+# moob_selfcheck=1: the whole suite with the index self-check on (S16, journal 0271)
+MOOB_SELFCHECK=$(sed -n 's/.*moob_selfcheck=\([01]\).*/\1/p' /proc/cmdline)
+export MOOB_SELFCHECK
 MOOB_EXPECT_MEMCG=1 # the pinned Debian guest has CONFIG_MEMCG=y
 export MOOB_EXPECT_MEMCG
 . /suite.sh

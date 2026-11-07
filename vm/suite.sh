@@ -25,6 +25,9 @@
 #                       between QUERY2 calls, from several uids, some during a build, against
 #                       the lower's own permission decision (S15, journal 0250);
 #                       MOOB_PERMCHURN=SEEDS,STEPS[,FIRST] (default 6,24,1) for a longer run
+#   selfcheck           the permchurn workload with the index self-check on (S16, ADR-0033):
+#                       every record compared with the lower after each update and each build;
+#                       MOOB_SELFCHECK=1 turns it on for the whole suite instead (journal 0271)
 #   permgaps            decisive search, truncation, directory and encoding checks (0172)
 #   rootpath            a domain directory renamed while a build waits to start (issue #110)
 #   overbudget          builds over the budget while other domains are built (issue #111)
@@ -79,12 +82,15 @@ run_logged() (
     return "$rc"
 )
 want() {
+    # with MOOB_SELFCHECK=1, the self-check's counts where each step begins (journal 0271)
+    [ "${MOOB_SELFCHECK:-0}" = 1 ] && [ -r /sys/module/moobfs_layer/parameters/selfcheck_counts ] &&
+        echo "selfcheck at $1: $(cat /sys/module/moobfs_layer/parameters/selfcheck_counts)"
     [ -z "${MOOB_ONLY:-}" ] && return 0
     case " $MOOB_ONLY " in *" $1 "*) return 0 ;; esac
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|release|sqlext|permmatrix|permchurn|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -93,6 +99,16 @@ mkdir -p "$LOWER" "$LAYER" /tmp
 # shellcheck disable=SC2153   # MODS comes from the environment (vm/init, vm/kasan-guest.sh)
 if [ -f "$MODS/order" ]; then while read -r m; do insmod "$MODS/$m" || fail "lower module $m"; done < "$MODS/order"; fi
 insmod "$BIN/moobfs_layer.ko" || fail layer-module
+# S16 (ADR-0033, journal 0271): MOOB_SELFCHECK=1 runs the whole suite with the self-check on.
+sc_param=/sys/module/moobfs_layer/parameters/selfcheck
+sc_field() { sed -n "s/.*$1=\([0-9]*\).*/\1/p" /sys/module/moobfs_layer/parameters/selfcheck_counts; }
+# the kinds of difference logged so far, with their counts (the log is rate-limited)
+sc_kinds() { dmesg | sed -n 's/.*selfcheck: ino [0-9]*: //p' | sort | uniq -c; }
+case "${MOOB_SELFCHECK:-}" in
+    ''|0) MOOB_SELFCHECK=0 ;;
+    1) echo 1 > "$sc_param" || fail selfcheck-on ;;
+    *) fail "MOOB_SELFCHECK must be 0 or 1" ;;
+esac
 mount -t moobfs_layer none "$LAYER" && fail layer-mount-without-lower
 mount -t moobfs_layer -o lower=/nonexistent none "$LAYER" && fail layer-mount-bad-lower
 run_lower() {
@@ -1736,6 +1752,34 @@ for fs in ext4 btrfs xfs; do
     echo "PERMCHURN_STEP_PASS: $fs, seeds $pc_first to $pc_last, 4 mounts of $pc_steps steps; $pc_ops operations done ($pc_uid by users, $pc_during during $pc_builds builds), $pc_checks QUERY2 answers equal to the lower's decision, $pc_expected expected files found"
 done
 fi
+if want selfcheck; then
+# Security roadmap S16 (ADR-0033, journal 0271): the permchurn workload (chmod, chown, setfacl,
+# rename, link and unlink between QUERY2 calls, some during builds) with the self-check on. After
+# each update and each file a build reads, the module reads the file again from the lower and
+# compares its attributes and its partition, computed from the lower tree, with its record. The
+# step fails on any difference, and proves something only if checks ran.
+echo 1 > "$sc_param" || fail sc-on
+sc_c0=$(sc_field checks) sc_d0=$(sc_field differences) sc_o0=$(sc_field inconclusive)
+for fs in ext4 btrfs xfs; do
+    case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t "$fs" "$dev" "$LOWER" || fail "sc-lower-mount-$fs"
+    for seed in 1 2 3; do
+        rm -rf "$LOWER/scx" && mkdir -m 755 "$LOWER/scx" || fail "sc-mkdir-$fs-$seed"
+        "$BIN/permmatrix" plant "$LOWER/scx" "$seed" || fail "sc-plant-$fs-$seed"
+        "$BIN/permmatrix" churn "$LAYER" "$LOWER/scx" "$seed" 4 24 3000 > /tmp/sc.txt; rc=$?
+        echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "sc-delay-off-$fs-$seed"
+        grep '^PERMCHURN' /tmp/sc.txt || tail -n 1 /tmp/sc.txt
+        echo "selfcheck after $fs seed $seed: $(cat /sys/module/moobfs_layer/parameters/selfcheck_counts)"
+        [ "$(sc_field differences)" -eq "$sc_d0" ] || { dmesg | grep 'selfcheck:' | tail -n 5; sc_kinds; fail "sc-difference-$fs-$seed"; }
+        [ $rc -eq 0 ] || fail "sc-churn-$fs-$seed"
+    done
+    rm -rf "$LOWER/scx" && umount "$LOWER" || fail "sc-cleanup-$fs"
+done
+sc_c=$(( $(sc_field checks) - sc_c0 )) sc_o=$(( $(sc_field inconclusive) - sc_o0 ))
+[ "$sc_c" -gt "$sc_o" ] || fail "sc-no-conclusive-check ($sc_c checks, $sc_o inconclusive)"
+[ "$MOOB_SELFCHECK" = 1 ] || echo 0 > "$sc_param" || fail sc-off
+echo "SELFCHECK_PASS: permchurn seeds 1 to 3 on ext4, btrfs and xfs: $sc_c self-checks, no difference, $sc_o not conclusive"
+fi
 if want permgaps; then
 for fs in ext4 btrfs xfs; do
     case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
@@ -2902,6 +2946,12 @@ cat /tmp/pylib.txt
 grep -q '^MOOBFS_PYLIB_PASS:' /tmp/pylib.txt && [ $rc -eq 0 ] || fail "pylib (python/tests/kernel_equal.py)"
 umount "$LAYER" && rm -rf "$LOWER/py" "$LOWER/py-refusal" && umount "$LOWER" || fail "py-cleanup"
 rmdir "$LAYER-refusal" 2>/dev/null || true
+fi
+if [ "$MOOB_SELFCHECK" = 1 ]; then
+    sc_counts=$(cat /sys/module/moobfs_layer/parameters/selfcheck_counts)
+    [ "$(sc_field differences)" -eq 0 ] || { dmesg | grep 'selfcheck:' | tail -n 10; sc_kinds; fail "selfcheck-suite ($sc_counts)"; }
+    [ "$(sc_field checks)" -gt 0 ] || fail "selfcheck-suite-no-check ($sc_counts)"
+    echo "SELFCHECK_SUITE_PASS: the suite ran with the self-check on: $sc_counts"
 fi
 rmmod moobfs_layer || fail layer-unload
 "$BIN/moobfs" query /tmp kind eq string note > /dev/null 2> /tmp/e.txt; [ $? -eq 69 ] || fail cli-unloaded-status

@@ -6,6 +6,10 @@
   seven S18 campaigns, 1,741,824 `QUERY2` checks with zero mismatches (journal 0270).
 - ADR-0033: a narrow exception to the kernel freeze lets S16 add its self-check, a test-only
   module parameter, off by default, that only reads and warns (journal 0270).
+- S16 done: the module parameter `selfcheck` (tests only, off by default) reads each file again
+  from the lower after every update and every build reading and compares its record; the suite
+  step `selfcheck` and `MOOB_SELFCHECK=1` for the whole suite. The full suite ran with it on with
+  no difference; three S14 mutants make it warn (journal 0271).
 - The test host's S18 schedule runs weekly instead of nightly (journal 0270).
 - `actions/setup-java` 6.1.0 → 6.2.0 in `tla.yml` (Dependabot PR 185), pinned by commit.
 

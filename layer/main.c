@@ -796,6 +796,11 @@ static int moobl_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		moobl_index_renamed(old_dir->i_sb, new_dentry, old_dentry);
 out_unlock:
 	unlock_rename(lower_old_dir, lower_new_dir);
+	if (!err) {
+		moobl_index_selfcheck(old_dir->i_sb, old_dentry);
+		if ((flags & RENAME_EXCHANGE) && target)
+			moobl_index_selfcheck(old_dir->i_sb, new_dentry);
+	}
 out_drop:
 	moobl_drop_write(old_dir->i_sb);
 out_put:
@@ -830,6 +835,8 @@ static int moobl_link(struct dentry *old_dentry, struct inode *dir, struct dentr
 		moobl_index_linked(dir->i_sb, new_dentry);
 	if (linked)
 		moobl_index_perm_changed(dir->i_sb, old_dentry);	/* nlink > 1: heterogeneous */
+	if (!err)
+		moobl_index_selfcheck(dir->i_sb, new_dentry);
 	if (err && d_really_is_negative(new_dentry))
 		d_drop(new_dentry);	/* the next lookup finds the new lower link (R2-4) */
 	return err;
@@ -940,8 +947,10 @@ static int moobl_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	moobl_drop_write(dentry->d_sb);
 	if (!err) {
 		moobl_copy_attr(d_inode(dentry), d_inode(lower));
-		if (type == ACL_TYPE_ACCESS)
+		if (type == ACL_TYPE_ACCESS) {
 			moobl_index_perm_changed(dentry->d_sb, dentry);
+			moobl_index_selfcheck(dentry->d_sb, dentry);
+		}
 	}
 	return err;
 }
@@ -1088,6 +1097,7 @@ static int moobl_xattr_set(const struct xattr_handler *handler, struct mnt_idmap
 			moobl_index_set(inode->i_sb, dentry, full + MOOB_ATTR_PREFIX_LEN, value, size);
 		else
 			moobl_index_remove(inode->i_sb, inode->i_ino, full + MOOB_ATTR_PREFIX_LEN);
+		moobl_index_selfcheck(inode->i_sb, dentry);
 	}
 	return 0;
 }
@@ -1204,8 +1214,10 @@ static int moobl_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	moobl_drop_write(dentry->d_sb);
 	if (!err) {
 		moobl_copy_attr(inode, lower_inode);
-		if (ia->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
+		if (ia->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID)) {
 			moobl_index_perm_changed(dentry->d_sb, dentry);
+			moobl_index_selfcheck(dentry->d_sb, dentry);
+		}
 	}
 	return err;
 }
