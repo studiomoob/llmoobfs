@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- PR 186 merged (`26d18a8`): S18 done; every post-merge check passed (journal 0270).
 - S15 done: the longer permission-churn profile passed under KASAN/UBSAN/lockdep in each of the
   seven S18 campaigns, 1,741,824 `QUERY2` checks with zero mismatches (journal 0270).
 - ADR-0033: a narrow exception to the kernel freeze lets S16 add its self-check, a test-only

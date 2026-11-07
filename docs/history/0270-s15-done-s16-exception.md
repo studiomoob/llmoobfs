@@ -9,6 +9,14 @@ After S18 (journal 0248), plan the phases toward stage 2 (ADR-0030). The maintai
 the recommended order: close S15 on the evidence of the S18 campaigns, allow S16 by a narrow
 exception to the kernel freeze, and stop running a campaign every night.
 
+## Batch 13 merged
+
+PR 186 (S18 done, `hookrace renameover`, ADR-0028 accepted, the UAPI comment) passed its 15
+checks, the KASAN/lockdep suite included, and was merged by the maintainer's approval on
+2026-11-07 at 16:36 Brasília time with a merge commit (`26d18a8`). The post-merge runs on
+`main` (CI, static analysis, TLA+ model, CodeQL, OpenSSF Scorecard) all passed. This branch was
+rebased on it.
+
 ## Decisions
 
 - **S15 done.** Its "done when" is "a suite step with a fixed seed set; a longer run in the
