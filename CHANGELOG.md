@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- ADR-0034: a second narrow exception to the kernel freeze, for adaptations to newer kernel
+  interfaces only; a compile-only probe found the module builds on 6.12.116 and needs a port for
+  7.3 (journal 0272, in progress).
 - PR 186 merged (`26d18a8`): S18 done; every post-merge check passed (journal 0270).
 - S15 done: the longer permission-churn profile passed under KASAN/UBSAN/lockdep in each of the
   seven S18 campaigns, 1,741,824 `QUERY2` checks with zero mismatches (journal 0270).
