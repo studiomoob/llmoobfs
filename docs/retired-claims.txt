@@ -416,3 +416,6 @@ campaigns c01–c04 passed all phases (4 of 7)
 the first five campaigns on the corrected code (c01–c05) passed all phases: 5 of 7
 campaigns c01–c05 passed all phases (5 of 7)
 with fewer executions while the batch's full suites shared the host
+the first six campaigns on the corrected code (c01–c06) passed all phases: 6 of 7
+campaigns c01–c06 passed all phases (6 of 7)
+S15 and S18 are in progress

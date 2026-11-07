@@ -917,3 +917,34 @@ amounts (c03 about 50 per second throughout; c05 from 59 to about 33; c06 from 5
 same code without another job. The full suites that ran during c04's fuzzing are therefore
 not shown to have lowered its count; the earlier wording above stands as what was then
 believed.
+
+### 2026-11-07 — c07 accepted: S18 done (7/7 on the corrected code)
+
+c07 (source `9dce137`, CPUs 4–7, the only job on the host) ran 05:48:51–15:14:30: runner exit
+0, source hashes unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (05:48–06:14); fuzzing 18,000 s
+(06:15–11:16; corpus 1,079, coverage 16,374, 394,174 executions, `crash_dirs=0`); replay exit
+0, 1,096/1,096 programs, failed 0, not reached 0, no program without an answer, 1,809
+module-text PCs, 688/781 call sites (88.1%). No kernel diagnostic in the replay or permission
+consoles; kernel hash unchanged, module rebuilt with the same `srcversion` and vermagic. The
+campaign chain ended after c07.
+
+With c07, seven complete campaigns on the corrected code (journal 0266) passed every phase,
+each audited on the same criteria:
+
+| Campaign | Window (Brasília) | Corpus | Executions | Replay | Call sites |
+| --- | --- | --- | --- | --- | --- |
+| c01 | 11-04 13:26 – 11-05 00:58 | 1,227 | 580,902 | 1,244/1,244 | 689/781 (88.2%) |
+| c02 | 11-05 00:59 – 11:09 | 1,260 | 576,181 | 1,277/1,277 | 687/781 (88.0%) |
+| c03 | 11-05 14:59 – 11-06 01:05 | 1,230 | 733,021 | 1,247/1,247 | 693/781 (88.7%) |
+| c04 | 11-06 01:06 – 10:24 | 1,010 | 366,415 | 1,027/1,027 | 684/781 (87.6%) |
+| c05 | 11-06 10:24 – 20:14 | 1,197 | 540,987 | 1,214/1,214 | 693/781 (88.7%) |
+| c06 | 11-06 20:15 – 11-07 05:48 | 1,064 | 363,776 | 1,081/1,081 | 687/781 (88.0%) |
+| c07 | 11-07 05:48 – 15:14 | 1,079 | 394,174 | 1,096/1,096 | 688/781 (88.1%) |
+
+**S18 is done**, locally: its acceptance (seven complete campaign reports audited, by the
+maintainer's 2026-11-02 amendment) is met. Zero crashes in all seven. Limits: one host (the
+Mac mini, x86-64, a Debian 6.12 test kernel), one syzkaller description set, throughput that
+varies between campaigns (363,776 to 733,021 executions in the same 18,000 s). The nightly
+schedule stays installed and skips while a slot is held; whether it keeps running after S18 is
+a separate decision. Next step: the batch's pull request, opened only with the maintainer's
+approval.
