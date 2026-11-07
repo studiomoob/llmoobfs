@@ -1,10 +1,10 @@
 # 0266 — S21: TLA+ model of the index loader, and corrections of its two findings
 
-Date: 2026-11-04. Status: **acceptance met locally; not published.** The model, the tooling and
-both kernel corrections are implemented. TLC passes on the corrected model, and the focused
-native VM runs passed with their negative controls. The focused KASAN run, the full native
-suite and the full KASAN/UBSAN/lockdep suite passed. The first GitHub run of `tla.yml` waits
-for the publication of the batch. Calendar time: the model work started about 07:15 and its last commit was at 07:52
+Date: 2026-11-04. Status: **done; merged in PR 183 (`d6ce35e`, journal 0267).** The model, the
+tooling and both kernel corrections are implemented. TLC passes on the corrected model, and the
+focused native VM runs passed with their negative controls. The focused KASAN run, the full
+native suite and the full KASAN/UBSAN/lockdep suite passed, and the first GitHub run of
+`tla.yml` checked every configuration as expected (journal 0267). Calendar time: the model work started about 07:15 and its last commit was at 07:52
 Brasília time. The corrections started about 09:40 after the maintainer's decision, and the
 last focused native run ended at 10:51. Effort and calendar time are close for this work,
 because nothing waited on other jobs except the VM runs.
@@ -153,6 +153,7 @@ earlier local records changed (journal 0264 notes the one it cites).
 - The model's bounds are those of `formal/README.md`: one file in CI, and a two-file run once,
   outside CI.
 - Rename over a file that keeps other names calls the new hook but has no test of its own.
+  (2026-11-05: tested since journal 0268, mode `renameover`.)
 
 ## Next steps
 

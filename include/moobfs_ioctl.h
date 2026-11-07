@@ -4,8 +4,9 @@
  * descriptor of the mount root directory, QUERY2 and QUERY2_BATCH on one of a domain
  * directory. Unknown commands return ENOTTY; a request with
  * reserved fields set, an unknown version or an invalid term returns EINVAL.
- * Layout uses fixed-width little-endian fields and explicit padding; the same
- * header is compiled by the module and by the user-space tools.
+ * Layout uses fixed-width fields in the host's byte order and explicit padding; the same
+ * header is compiled by the module and by the user-space tools. Only the typed values in
+ * the terms (include/moobfs_attr.h) are little-endian on every architecture.
  */
 #ifndef MOOBFS_IOCTL_H
 #define MOOBFS_IOCTL_H

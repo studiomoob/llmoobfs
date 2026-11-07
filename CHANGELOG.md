@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- S21 done: PR 183 merged (`d6ce35e`); the first GitHub run of `tla.yml` checked all eight
+  configurations of the model as expected, and every post-merge check passed (journal 0267).
+
 - S21: a TLA+ model of the index loader and the update hooks (`formal/`), checked by a pinned
   TLC with `make tla-check` and in CI (`tla.yml`). It found two completeness defects, both
   corrected: a rename during a domain's first build could leave a record with part of the
@@ -11,6 +14,14 @@
   `rename_hook_delay_us`; passes on ext4, btrfs and XFS with the corrections and fails without
   each. S18 counts again from the corrected code (journal 0266; full native and KASAN/UBSAN/lockdep
   suites passed).
+- ADR-0028 (DKMS and Debian packages, item C6) accepted by the maintainer as implemented;
+  publishing the packages still waits for stage 2 (journal 0269).
+- `hookrace` gains the mode `renameover`: the rename path of finding F2, a file renamed over
+  one of two names during its reading. It passes on ext4, btrfs and XFS, and fails without
+  the rename's hook call (journal 0268).
+- S18 done: seven complete syzkaller campaigns on the corrected code (c01–c07) passed all
+  phases, with zero crashes and complete corpus replays. Campaigns on the test
+  host run one at a time, since its CPUs 4–7 are hyperthread siblings of 0–3 (journal 0248).
 
 - S20 done: `tests/coldmove.c`, written by a second model from the specification only
   (receipt in `docs/s20/coldmove/`), runs in the `permgaps` suite step; it passes with

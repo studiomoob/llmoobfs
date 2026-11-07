@@ -705,6 +705,12 @@ fake phase tools: explicit deadline/cap, deadline without cap, invalid deadline,
 and expired-window partial reporting. They do not run a VM/fuzzer and do not approve an
 S18 campaign. All five passed on the dedicated host; ShellCheck and `sh -n` passed.
 
+`SYZ_HTTP` (manager address, default `127.0.0.1:56741`) and `REPLAY_PORT` (first replay SSH
+port, default 10100) let two campaigns share a host without port clashes. Sharing a host also
+needs CPU sets on separate physical cores: check `lscpu -e`. On the Mac mini test host CPUs
+4–7 are the hyperthread siblings of 0–3, and fuzzing on one set made every replay program on
+the other time out (journal 0248), so campaigns there run one at a time.
+
 
 ### Cursor-file output of the VM test client (2026-11-03, journal 0261)
 

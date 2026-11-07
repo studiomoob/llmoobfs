@@ -780,3 +780,171 @@ mini; the defaults are unchanged.
   default ports and permission profile `24,96,2026110402`.
 - The scheduled fallback (`nightly-host.sh`, 23:00) now points at the new snapshot. It skips
   while a campaign holds its slots, as before.
+
+### 2026-11-04 — r05 audit, and campaigns one at a time
+
+r05 (old code `61ee4f7`, extra evidence, not counted) wrote its done marker at 21:29:33:
+runner and driver exit 0, source and binary hashes unchanged. The permission phase passed
+(`MOOBFS_KASAN_ONLY_PASS`, 09:15–09:41) and fuzzing ran 18,000 s (09:42–14:43; corpus 1,167,
+coverage 16,808, 358,887 executions, `crash_dirs=0`). The replay did **not** complete:
+exit 1, 1,184 programs, 354 replayed, 119 failed, 711 not reached, 623/781 call sites. The
+replay consoles hold no `BUG:`, KASAN, UBSAN, lockdep or call-trace line; the one `WARNING:`
+is the kernel's deprecation notice for the `mand` mount option.
+
+Every failure is a program with no answer within its time limit, after which the guest was
+restarted. They run from 14:45 to 19:19 without a single success, and stop when c01's
+fuzzing ended (19:19:46); from 19:20 every program was answered. The Mac mini's CPU (Intel
+i7-2635QM) has four cores, and CPUs 4–7 are the hyperthread siblings of CPUs 0–3
+(`lscpu -e`), so pinning two campaigns to 0–3 and 4–7 does not isolate them. Fuzzing on one
+set slowed the replay guests on the other beyond the 60 s limit per program. This is a
+limit of the host, not a kernel finding. c01's replay, which ran beside r05's replay and no
+fuzzing, had no failure by 21:30.
+
+Decision: campaigns on the Mac mini run one at a time. c02 had started at 21:30 and was
+stopped at 21:32, still building its permission phase, and is kept as
+`campaign-c02-stopped-20261104` (it counts as nothing). A launcher holds slots A and B, so
+the 23:00 fallback skips, and starts c02 with the same parameters when c01 writes its done
+marker. c01 (1,244 programs to replay) may not finish its replay before its deadline;
+missing programs are then replayed by a continuation on the same snapshot and cache, which
+completes c01 and does not add a campaign.
+
+### 2026-11-05 — c01 accepted (1/7 on the corrected code)
+
+c01 (source `9dce137`) wrote its done marker at 00:58:03: runner exit 0, source hashes
+unchanged.
+
+- Permissions (13:26–14:17): `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
+- Fuzzing (14:19:43–19:19:46, 18,000 s): corpus 1,227, coverage 16,454, 580,902 executions,
+  `crash_dirs=0`.
+- Replay (19:19:46–00:58:01): exit 0, 1,244/1,244 programs replayed and run, failed 0, not
+  reached 0, 1,901 module-text PCs, 689/781 call sites (88.2%). The replay consoles hold no
+  `BUG:`, KASAN, UBSAN, lockdep, call-trace or `WARNING:` line other than the `mand`
+  deprecation notice.
+- The module hash at the end (`fb2b4b6b…`) differs from the one recorded at the start
+  (`c7008a26…`, the prepared tree). The build step before fuzzing (14:17:52) rebuilt it in the
+  campaign's copy of the tree. Both have `srcversion` `59D13055A101135D1688AF8` and the same
+  vermagic, and they differ only in the embedded build path (`corrected-9dce137/source`
+  against `campaign-c01/source`). The replay cache is keyed by the rebuilt module, so fuzzing
+  and replay used the same binary. The kernel hash is unchanged.
+
+c02 started alone at 00:59:14 on CPUs 4–7 (deadline 13:14). A chain on the test host starts
+c03–c07 one at a time, each when the previous writes its done marker, with the same
+workload and permission seeds `2026110403`–`2026110407`.
+
+### 2026-11-04 — the Debian host leaves the campaigns
+
+After the boot of 12:11 the Debian host stopped answering again at about 13:00, this time
+without a new boot being recorded before access was lost: the path through the Mac mini
+failed with `No route to host`. A read-only diagnosis, kept outside the repository, found no
+cause for the stops of 05:30 and 06:34. It found real but earlier USB and Wi-Fi errors on
+the root hub shared with the host's USB Wi-Fi adapter, and NVMe thermal-management counters
+that are not zero, without showing that either ended a boot. In the afternoon the maintainer
+reported the host as dead. S18 continues on the Mac mini alone. The host may come back only
+after it runs one long job without stopping, and it holds no campaign that counts.
+
+### 2026-11-05 — c02 accepted (2/7 on the corrected code)
+
+c02 (source `9dce137`, CPUs 4–7, the only campaign on the host) ran 00:59:15–11:09:09:
+runner exit 0, source hashes unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (00:59–01:25);
+fuzzing 18,000 s (01:27–06:27; corpus 1,260, coverage 16,415, 576,181 executions,
+`crash_dirs=0`); replay exit 0, 1,277/1,277 programs, failed 0, not reached 0, no program
+without an answer, 1,878 module-text PCs, 687/781 call sites (88.0%). No kernel diagnostic in
+the replay or permission consoles. The kernel hash is unchanged; the module was rebuilt in
+the campaign's copy, with the same `srcversion` and vermagic as the prepared one, as in c01.
+The checks were made with a local audit script that reads every criterion above.
+
+### 2026-11-05 — c03 lost to a power failure, started again
+
+c03 started at 11:12:52 after the focused runs of journal 0268, passed its permission phase
+(11:40) and was 3 h 10 min into fuzzing when the building lost power: the Mac mini's journal
+ends at 14:51:01, and it booted again at 14:58:15. The campaign has no result and is not
+counted; it is kept as `campaign-c03-lost-power-20261105`. Before the `@reboot` fallback ran
+(five minutes after boot), the coordinator held the slot locks so that it skipped, then
+started c03 again from scratch at 14:59:17 with the same parameters, followed by c04–c07 one
+at a time as before.
+
+### 2026-11-06 — c03 accepted (3/7 on the corrected code)
+
+c03 (second attempt; source `9dce137`, CPUs 4–7, the only campaign on the host) ran
+2026-11-05 14:59:19 – 2026-11-06 01:05:50: runner exit 0, source hashes unchanged. Permissions
+`MOOBFS_KASAN_ONLY_PASS` (14:59–15:26); fuzzing 18,000 s (15:28–20:28; corpus 1,230, coverage
+16,429, 733,021 executions, `crash_dirs=0`); replay exit 0, 1,247/1,247 programs, failed 0, not
+reached 0, no program without an answer, 1,884 module-text PCs, 693/781 call sites (88.7%). No
+kernel diagnostic in the replay or permission consoles. The kernel hash is unchanged; the module
+was rebuilt in the campaign's copy with the same `srcversion` and vermagic, as in c01 and c02.
+c04 started at 01:06:20.
+
+### 2026-11-06 — c04 accepted (4/7 on the corrected code)
+
+c04 (source `9dce137`, CPUs 4–7) ran 01:06:20–10:24:01: runner exit 0, source hashes
+unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (01:06–01:34); fuzzing 18,000 s (01:35–06:35;
+corpus 1,010, coverage 16,012, 366,415 executions, `crash_dirs=0`); replay exit 0, 1,027/1,027
+programs, failed 0, not reached 0, no program without an answer, 1,779 module-text PCs,
+684/781 call sites (87.6%). No kernel diagnostic in the replay or permission consoles; kernel
+hash unchanged, module rebuilt with the same `srcversion` and vermagic.
+
+During its fuzzing the batch's full native and KASAN suites ran on CPUs 0–3 (01:36–03:46,
+journal 0268), the hyperthread siblings of the campaign's CPUs. The campaign kept its full
+18,000 s and every phase, but ran 366,415 executions against 576,181–733,021 in c01–c03, and
+its corpus and coverage are a little smaller. The acceptance criteria (complete phases, zero
+crashes, complete replay, no diagnostic) are met, and the maintainer decided that it counts;
+the lower throughput is recorded here. Later campaigns run with nothing else on the host. c05 started at 10:24:31.
+
+### 2026-11-06 — c05 accepted (5/7 on the corrected code)
+
+c05 (source `9dce137`, CPUs 4–7, the only job on the host) ran 10:24:31–20:14:33: runner exit
+0, source hashes unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (10:24–10:53); fuzzing 18,000 s
+(10:54–15:54; corpus 1,197, coverage 16,311, 540,987 executions, `crash_dirs=0`); replay exit
+0, 1,214/1,214 programs, failed 0, not reached 0, no program without an answer, 1,882
+module-text PCs, 693/781 call sites (88.7%). No kernel diagnostic in the replay or permission
+consoles; kernel hash unchanged, module rebuilt with the same `srcversion` and vermagic. c06
+started at 20:15:04.
+
+### 2026-11-07 — c06 accepted (6/7 on the corrected code)
+
+c06 (source `9dce137`, CPUs 4–7, the only job on the host; the 23:00 schedule skipped on the
+held slot) ran 2026-11-06 20:15:03 – 2026-11-07 05:48:21: runner exit 0, source hashes
+unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (20:15–20:40); fuzzing 18,000 s (20:41–01:41;
+corpus 1,064, coverage 15,966, 363,776 executions, `crash_dirs=0`); replay exit 0, 1,081/1,081
+programs, failed 0, not reached 0, no program without an answer, 1,854 module-text PCs,
+687/781 call sites (88.0%). No kernel diagnostic in the replay or permission consoles; kernel
+hash unchanged, module rebuilt with the same `srcversion` and vermagic. c07 started at 05:48:51.
+
+*Note on c04 (2026-11-07):* c06 ran alone and had as few executions as c04 (363,776 against
+366,415). The syzkaller manager logs show the rate falling within each campaign by different
+amounts (c03 about 50 per second throughout; c05 from 59 to about 33; c06 from 54 to about
+25), with the same number of VM restarts, so the throughput varies between campaigns of the
+same code without another job. The full suites that ran during c04's fuzzing are therefore
+not shown to have lowered its count; the earlier wording above stands as what was then
+believed.
+
+### 2026-11-07 — c07 accepted: S18 done (7/7 on the corrected code)
+
+c07 (source `9dce137`, CPUs 4–7, the only job on the host) ran 05:48:51–15:14:30: runner exit
+0, source hashes unchanged. Permissions `MOOBFS_KASAN_ONLY_PASS` (05:48–06:14); fuzzing 18,000 s
+(06:15–11:16; corpus 1,079, coverage 16,374, 394,174 executions, `crash_dirs=0`); replay exit
+0, 1,096/1,096 programs, failed 0, not reached 0, no program without an answer, 1,809
+module-text PCs, 688/781 call sites (88.1%). No kernel diagnostic in the replay or permission
+consoles; kernel hash unchanged, module rebuilt with the same `srcversion` and vermagic. The
+campaign chain ended after c07.
+
+With c07, seven complete campaigns on the corrected code (journal 0266) passed every phase,
+each audited on the same criteria:
+
+| Campaign | Window (Brasília) | Corpus | Executions | Replay | Call sites |
+| --- | --- | --- | --- | --- | --- |
+| c01 | 11-04 13:26 – 11-05 00:58 | 1,227 | 580,902 | 1,244/1,244 | 689/781 (88.2%) |
+| c02 | 11-05 00:59 – 11:09 | 1,260 | 576,181 | 1,277/1,277 | 687/781 (88.0%) |
+| c03 | 11-05 14:59 – 11-06 01:05 | 1,230 | 733,021 | 1,247/1,247 | 693/781 (88.7%) |
+| c04 | 11-06 01:06 – 10:24 | 1,010 | 366,415 | 1,027/1,027 | 684/781 (87.6%) |
+| c05 | 11-06 10:24 – 20:14 | 1,197 | 540,987 | 1,214/1,214 | 693/781 (88.7%) |
+| c06 | 11-06 20:15 – 11-07 05:48 | 1,064 | 363,776 | 1,081/1,081 | 687/781 (88.0%) |
+| c07 | 11-07 05:48 – 15:14 | 1,079 | 394,174 | 1,096/1,096 | 688/781 (88.1%) |
+
+**S18 is done**, locally: its acceptance (seven complete campaign reports audited, by the
+maintainer's 2026-11-02 amendment) is met. Zero crashes in all seven. Limits: one host (the
+Mac mini, x86-64, a Debian 6.12 test kernel), one syzkaller description set, throughput that
+varies between campaigns (363,776 to 733,021 executions in the same 18,000 s). The nightly
+schedule stays installed and skips while a slot is held; whether it keeps running after S18 is
+a separate decision. Next step: the batch's pull request, opened only with the maintainer's
+approval.
