@@ -72,6 +72,20 @@ went with the same change. The module's behavior was not wrong; the check was.
 - `MOOB_ONLY=selfcheck` under KASAN/UBSAN/lockdep (`vm/kasan-local.sh`, kernel 6.12.112):
   `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic.
 
+## Batch validation (2026-11-07)
+
+On `97f9f88`, the head of the batch, in separate copies of the tree on the test host:
+
+- Full native suite (`make vm-test`, Debian 6.12.113 KVM guest, CPUs 0–1), 17:11–17:32: exit 0,
+  `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, no `_FAIL`; `SELFCHECK_PASS` (2,978 checks);
+  `HOOK_RACE_PASS` and `HOOK_RACE_RENAMEOVER_PASS` on all three lowers.
+- Full KASAN/UBSAN/lockdep suite (`vm/kasan-local.sh`, 6.12.112, CPUs 2–3), 17:11–18:12:
+  `MOOBFS_KASAN_PASS`, no kernel diagnostic in the console, the same step markers.
+- Pre-push checks, 18:12–18:24: `make lint`, `make checkpatch`, `make test`, the same under clang
+  ASan/UBSan, `make hostile-test`, `make pylib-test`, `scripts/check-retired-claims.sh`,
+  `make mutants-check` (the 23 mutants still apply once each and change the object code) and the
+  build of the suite's test programs on Ubuntu 24.04: all pass.
+
 ## Limitations
 
 - The check shares `reach_ok()`, `target_ok()` and `ext_acl()` with the code it checks: a defect
@@ -81,12 +95,8 @@ went with the same change. The module's behavior was not wrong; the check was.
   index's contract.
 - 24,037 of the full suite's checks (1.4%) were not conclusive, mostly readings overtaken by
   an update of the same file.
-- The full native suite and the full KASAN suite without the check, required once per batch,
-  have not run yet on this code.
 
 ## Next step
 
-The batch's full native and KASAN/UBSAN/lockdep suites, `make mutants-check` (the catalogue
-must still apply once each) and the pre-push checks; then the batch's pull request, with the
-maintainer's approval. With S16, the S14–S21 block of ADR-0030 is done; the remaining
+The batch's pull request, opened with the maintainer's approval; its merge waits for his. With S16, the S14–S21 block of ADR-0030 is done; the remaining
 deliverables of `docs/distribution-strategy.md` §8 decide stage 2.
