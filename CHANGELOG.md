@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- S15 done: the longer permission-churn profile passed under KASAN/UBSAN/lockdep in each of the
+  seven S18 campaigns, 1,741,824 `QUERY2` checks with zero mismatches (journal 0270).
+- ADR-0033: a narrow exception to the kernel freeze lets S16 add its self-check, a test-only
+  module parameter, off by default, that only reads and warns (journal 0270).
+- The test host's S18 schedule runs weekly instead of nightly (journal 0270).
+
 - S21 done: PR 183 merged (`d6ce35e`); the first GitHub run of `tla.yml` checked all eight
   configurations of the model as expected, and every post-merge check passed (journal 0267).
 

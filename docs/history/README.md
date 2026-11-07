@@ -285,3 +285,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0267 — PR 183 merged; post-merge checks; S21 done](0267-pr-183-merge-and-s21-close.md)
 - [0268 — hookrace: a test of the rename path of finding F2](0268-hookrace-rename-over-test.md)
 - [0269 — ADR-0028 accepted](0269-adr-0028-accepted.md)
+- [0270 — S15 done; a freeze exception for S16; a weekly S18 schedule](0270-s15-done-s16-exception.md)

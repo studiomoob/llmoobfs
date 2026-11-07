@@ -1273,3 +1273,12 @@ hand and carries the same code paths:
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs?h=v6.12.112>.
 - Mohan and Narang (SIGMOD 1992), already in "The index built on demand" above: the online
   index build whose MoobFS variant the model checks.
+
+## 48. Debug-only consistency checks in the lower filesystems (ADR-0033)
+
+- Linux 6.12.112, exact sources read on 2026-11-07: `fs/xfs/Kconfig` (`XFS_DEBUG`, "extra
+  sanity-checking functions in various code paths", and `XFS_DEBUG_EXPENSIVE`),
+  `fs/btrfs/Kconfig` (`BTRFS_DEBUG`, "additional and expensive checks", and `BTRFS_ASSERT`),
+  `fs/ext4/Kconfig` (`EXT4_DEBUG`). The pattern ADR-0033 follows for S16: a check compiled
+  only by a build option that production kernels leave off.
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs?h=v6.12.112>.

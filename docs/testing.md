@@ -679,6 +679,12 @@ The November 2 daytime campaign is eligible after its final audit. Earlier parti
 remain preserved; joining evidence into a completed campaign requires an explicit audit
 before changing the accepted count. This change does not approve any pending result.
 
+### S18 schedule after S18 (2026-11-07)
+
+With S18 done (journal 0248), the test host's schedule runs one campaign a week, on Sunday at
+23:00 Brasília time, instead of every night; the `@reboot` resume stays. It watches for
+regressions and counts toward nothing (journal 0270).
+
 ### Cold-domain hard-link permission regression (journal 0259)
 
 The `permgaps` step first uses a fresh mount on each lower and runs

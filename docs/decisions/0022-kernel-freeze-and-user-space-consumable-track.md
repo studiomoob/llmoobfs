@@ -5,6 +5,9 @@ recorded in journal 0196. Estimated effort of the decision itself: S (hours). Th
 opens is estimated per item in the "Consumable path" section of `ROADMAP.md`.
 This is ADR-0022 because ADR-0021 is the latest on `main` at `4f5148f`.
 
+*Note, 2026-11-07:* [ADR-0033](0033-s16-freeze-exception.md) makes one narrow exception, for
+S16's self-check in a test build only; the freeze otherwise stays.
+
 ## Context
 
 Since 2026-10-14 the maintainer has held a stabilization rule: no new features until what
