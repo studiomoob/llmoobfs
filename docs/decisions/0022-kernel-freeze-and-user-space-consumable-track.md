@@ -6,7 +6,8 @@ opens is estimated per item in the "Consumable path" section of `ROADMAP.md`.
 This is ADR-0022 because ADR-0021 is the latest on `main` at `4f5148f`.
 
 *Note, 2026-11-07:* [ADR-0033](0033-s16-freeze-exception.md) makes one narrow exception, for
-S16's self-check in a test build only; the freeze otherwise stays.
+S16's self-check, a test-only parameter that is off by default and only reads and warns; the
+freeze otherwise stays.
 
 ## Context
 
