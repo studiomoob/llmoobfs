@@ -17,7 +17,7 @@ edge, detectors in CI, continuous fuzzing, a minimal surface and a written threa
 crash triggerable by an ordinary user is a vulnerability (denial of service), even without an
 exploit, as the XFS and ext4 maintainers treat it.
 
-## Where each item stands (2026-11-03; published baseline and local follow-up)
+## Where each item stands (2026-11-07; published baseline and local follow-up)
 
 <!-- current-state -->
 Published baseline: `main` at `e59a244`, the authorized merge of PR181. All 19 pre-merge
