@@ -63,7 +63,17 @@ build the module for it, as ADR-0028 states for any unlisted kernel. Adding it f
 - The full native suite on it (`vm/run.sh`, KVM, CPUs 4–7), 11:41–12:01: `MOOBFS_LAYER_PASS`,
   `MOOBFS_ACCEPTANCE_PASS`, no `_FAIL`.
 - fstests `quick` with `vm/fstests/exclude-quick.txt` on ext4, btrfs and XFS, booted by
-  `vm/fstests-local.sh` with `MOOB_KVER=6.12.115+deb13.1-amd64` (journal 0206's method): running.
+  `vm/fstests-local.sh` with `MOOB_KVER=6.12.115+deb13.1-amd64` (journal 0206's method), in
+  parallel on CPU pairs, 12:06–14:33: ext4 and XFS passed all 631 tests; btrfs failed one,
+  `generic/301` ("file2 badly fragmented": 1 378 extents after random CoW, threshold 1 365).
+  Run alone three more times: 1 425 (fail), 1 072 (pass), 1 466 (fail). It is the failure of
+  journal 0239: fstests skips that threshold when `FSTYP` is btrfs, because btrfs's CoW extent
+  allocation depends on transaction commits, but over the layer `FSTYP` is `moobfs_layer` and the
+  check runs; on 6.12.113 the count happened to stay under it. `generic/301` is in
+  `vm/fstests/exclude-auto-btrfs.txt` for the `auto` group and not in the `quick` list.
+- **Not added to `scripts/supported-kernels`**: rule 3 asks for the `quick` runs with the
+  exclusion list and no failure. Whether to exclude `generic/301` on btrfs for `quick` too, as for
+  `auto`, is the maintainer's decision.
 - Test host: to install that kernel and its headers without changing what the host boots, its
   `GRUB_DEFAULT` changed from the position `"1>2"` (which a new kernel shifts) to the entry's
   name for 6.12.111, the kernel it was booting; the old `/etc/default/grub` is kept on the host.
