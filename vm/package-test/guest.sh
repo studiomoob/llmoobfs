@@ -76,12 +76,14 @@ verify() {   # verify <label>
 }
 
 # What a backup must keep, listed from inside <dir>: every name with its type, owner, group and
-# mode; every extended attribute of every name (user.moob.*, POSIX ACLs) in getfattr's dump form;
-# and the files' contents, compared by the caller with cmp.
+# mode; the user, system (POSIX ACLs) and security attributes of every name in getfattr's dump
+# form; and the files' contents, compared by the caller with cmp. trusted.* is left out: XFS
+# shows root its ACLs a second time as trusted.SGI_ACL_FILE and trusted.SGI_ACL_DEFAULT, which
+# ext4 and btrfs do not have (journal 0273).
 tree_meta() {   # tree_meta <dir>
 	# names sorted: readdir order differs from one filesystem to another
 	(cd "$1" && find . -printf '%p %y %U %G %m\n' | sort &&
-		find . | sort | while IFS= read -r p; do getfattr -h -d -m - -e hex "$p" 2>/dev/null; done)
+		find . | sort | while IFS= read -r p; do getfattr -h -d -m '^(user|system|security)\.' -e hex "$p" 2>/dev/null; done)
 }
 
 # Stage 2 acceptance step 3 (docs/distribution-strategy.md §8): back up the lower with the
