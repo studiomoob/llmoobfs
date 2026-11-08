@@ -7,7 +7,9 @@
 #            an unlisted one; the module is refused while its key is not enrolled
 #   (the host then powers the guest off and enrols /var/lib/dkms/mok.pub in the MokList)
 #   phase 1: key enrolled; an unsigned build is refused, the signed module loads; two users;
-#            upgrade and roll back against the oracle; purge; make install copy refused
+#            upgrade and roll back against the oracle; backup and restore with rsync onto ext4,
+#            XFS and btrfs, each restored copy mounted and checked; purge; make install copy
+#            refused
 set -eu
 cd /home/tester
 KVER=6.12.113+deb13-amd64   # the kernel of the 2026-10-21 cloud image (journal 0206)
@@ -42,9 +44,9 @@ installed() {   # installed <version>
 	[ "$(modinfo -F signer "$ko")" = "DKMS module signing key" ] || fail "$ko is not signed by the DKMS key"
 }
 
-mount_layer() {
+mount_layer() {   # mount_layer [lower]
 	modprobe moobfs_layer
-	mount -t moobfs_layer -o lower=/srv/moobfs/lower,nolinks none /srv/memory
+	mount -t moobfs_layer -o "lower=${1:-/srv/moobfs/lower},nolinks" none /srv/memory
 }
 
 unmount_layer() {
@@ -73,6 +75,61 @@ verify() {   # verify <label>
 	mark "VERIFIED: $1; $(wc -l <"query-$1.txt") decisions equal to the oracle, bob refused, moobfs-check unchanged"
 }
 
+# What a backup must keep, listed from inside <dir>: every name with its type, owner, group and
+# mode; every extended attribute of every name (user.moob.*, POSIX ACLs) in getfattr's dump form;
+# and the files' contents, compared by the caller with cmp.
+tree_meta() {   # tree_meta <dir>
+	# names sorted: readdir order differs from one filesystem to another
+	(cd "$1" && find . -printf '%p %y %U %G %m\n' | sort &&
+		find . | sort | while IFS= read -r p; do getfattr -h -d -m - -e hex "$p" 2>/dev/null; done)
+}
+
+# Stage 2 acceptance step 3 (docs/distribution-strategy.md §8): back up the lower with the
+# command of docs/operations.md, restore it onto each lower filesystem, compare, and mount the
+# layer on the restored copy.
+backup_restore() {
+	# access and default ACLs on the way, besides user.moob.*; the entry grants nothing
+	setfacl -m u:nobody:--- /srv/moobfs/lower/bob
+	setfacl -d -m u:nobody:--- /srv/moobfs/lower/bob
+	install -d -m 0700 /srv/backup
+	rsync -aHAX --numeric-ids /srv/moobfs/lower/ /srv/backup/lower/ || fail "rsync backup"
+	tree_meta /srv/moobfs/lower >meta-source.txt
+	grep -q 'user.moob.kind=' meta-source.txt || fail "no user.moob.kind in the source listing"
+	grep -q 'system.posix_acl_access=' meta-source.txt || fail "no ACL in the source listing"
+	for fs in ext4 xfs btrfs; do
+		img=/srv/restore-$fs.img
+		truncate -s 1G "$img"
+		case $fs in
+		ext4) mkfs.ext4 -q -F "$img" ;;
+		xfs) mkfs.xfs -q -f "$img" ;;
+		btrfs) mkfs.btrfs -q -f "$img" >/dev/null ;;
+		esac
+		mnt=/srv/restore-$fs
+		install -d -m 0700 "$mnt"
+		mount -o loop "$img" "$mnt" || fail "mount $fs"
+		rsync -aHAX --numeric-ids /srv/backup/lower/ "$mnt/lower/" || fail "rsync restore onto $fs"
+		tree_meta "$mnt/lower" >"meta-$fs.txt"
+		cmp -s meta-source.txt "meta-$fs.txt" || {
+			diff meta-source.txt "meta-$fs.txt" | head -n 20
+			fail "$fs: owners, modes, attributes or ACLs differ after restore"
+		}
+		n=0
+		for f in $(cd /srv/moobfs/lower && find . -type f | sort); do
+			cmp -s "/srv/moobfs/lower/$f" "$mnt/lower/$f" || fail "$fs: $f differs after restore"
+			n=$((n + 1))
+		done
+		mount_layer "$mnt/lower"
+		verify "restored-$fs"
+		unmount_layer
+		umount "$mnt"
+		rm -f "$img"
+		mark "BACKUP_RESTORED: $fs; $(wc -l <"meta-$fs.txt") lines of names and attributes and $n files equal to the source"
+	done
+	setfacl -b /srv/moobfs/lower/bob
+	setfacl -k /srv/moobfs/lower/bob
+	rm -r /srv/backup
+}
+
 phase0() {
 	[ "$(uname -r)" = "$KVER" ] || fail "the image booted $(uname -r), not $KVER"
 	# The cloud image installs Debian's security kernels by itself (unattended-upgrades): on
@@ -87,7 +144,7 @@ phase0() {
 		fail "grub-set-default $KVER"
 	grep -q "with Linux $KVER'" /boot/grub/grub.cfg || fail "no GRUB entry for $KVER"
 	apt-get update -q >/dev/null
-	apt-get install -y -q mokutil attr "linux-headers-$KVER" >/dev/null
+	apt-get install -y -q mokutil attr acl rsync xfsprogs btrfs-progs "linux-headers-$KVER" >/dev/null
 	secure_boot
 	tar -xf debs.tar
 	# section "Packages": apt resolves dkms and the compiler
@@ -158,6 +215,7 @@ phase1() {
 	mount_layer
 	verify "rolled-back"
 	unmount_layer
+	backup_restore
 	apt-get purge -y -q moobfs-dkms moobfs-tools >purge.log 2>&1 || { tail -n 30 purge.log; fail "purge"; }
 	if modinfo -k "$KVER" moobfs_layer >/dev/null 2>&1; then fail "module still installed after purge"; fi
 	[ -z "$(dkms status moobfs)" ] || fail "dkms still lists moobfs"
