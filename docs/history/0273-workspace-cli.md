@@ -160,6 +160,30 @@ Correction (ADR-0035 amended with a dated note that quotes the wrong sentences):
   install, upgrade and roll back with 20 decisions equal to the oracle, `make install` copy
   refused), and `make install-test` in `MOOBFS_INSTALL_PASS`, both on the image's 6.12.113.
 
+## Stage 2 acceptance step 3: backup and restore (2026-11-08)
+
+`docs/distribution-strategy.md` §8, step 3: "backup and restore with `rsync -aHAX`:
+`getfattr -R` and `cmp` identical". `make package-test` (`vm/package-test/guest.sh`, phase 1)
+now does it with the module installed by the package, after the roll-back: it adds an access and
+a default ACL that grant nothing (`u:nobody:---`) to bob's directory, backs up the lower with the
+command of `docs/operations.md` (`rsync -aHAX --numeric-ids`), and restores the backup onto a
+fresh ext4, XFS and btrfs loop filesystem. For each one it compares, name by name in sorted
+order, type, owner, group, mode and the `user.`, `system.` and `security.` attributes
+(`getfattr -h -d -e hex`), `cmp`s every file, then mounts the layer on the restored copy and runs
+the same check as after the upgrade (alice's query equal to the oracle, bob refused, the
+`moobfs-check` report unchanged).
+
+- First run: ext4 passed; XFS differed by two attributes that the source does not show,
+  `trusted.SGI_ACL_FILE` and `trusted.SGI_ACL_DEFAULT`. XFS shows root the ACLs it stores a
+  second time under those names; its `system.posix_acl_*` matched. The comparison now leaves
+  `trusted.*` out, as the module neither reads nor writes it.
+- Second run, `3b2f5d9`, on the test host: `MOOBFS_PACKAGE_PASS`;
+  `BACKUP_RESTORED: ext4|xfs|btrfs; 487 lines of names and attributes and 120 files equal to the
+  source` and `VERIFIED: restored-<fs>` for each.
+
+Limit: the tree is small (two users, 120 files, no hard links, since the layer is mounted with
+`nolinks`), and backup and restore run with the layer unmounted, as `docs/operations.md` asks.
+
 ## Next step
 
 The pre-push checks, then the maintainer's review of ADR-0035 before any pull request.
