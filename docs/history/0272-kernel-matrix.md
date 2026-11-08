@@ -51,6 +51,23 @@ KASAN suite ran locally on 6.12.116; the arm64 KASAN, KCSAN, coverage, interop a
 jobs first run on it in CI. Current-state documents name 6.12.116 for the harness; records of
 earlier runs keep their version.
 
+## Debian 13 moved to 6.12.115 (2026-11-08)
+
+The package test of journal 0273 booted `6.12.115+deb13.1-amd64`: Debian published it in
+`trixie-security` (package version `6.12.115-2`), and the cloud image installs it by itself. A
+Debian 13 host that updates is then outside the matrix (6.12.111, 6.12.113), and DKMS does not
+build the module for it, as ADR-0028 states for any unlisted kernel. Adding it follows rule 3 of
+`docs/compatibility.md`:
+
+- `vm/Dockerfile` and `vm/in-container.sh` accept `MOOB_DEBIAN_KERNEL=6.12.115` (`fa5391e`).
+- The full native suite on it (`vm/run.sh`, KVM, CPUs 4–7), 11:41–12:01: `MOOBFS_LAYER_PASS`,
+  `MOOBFS_ACCEPTANCE_PASS`, no `_FAIL`.
+- fstests `quick` with `vm/fstests/exclude-quick.txt` on ext4, btrfs and XFS, booted by
+  `vm/fstests-local.sh` with `MOOB_KVER=6.12.115+deb13.1-amd64` (journal 0206's method): running.
+- Test host: to install that kernel and its headers without changing what the host boots, its
+  `GRUB_DEFAULT` changed from the position `"1>2"` (which a new kernel shifts) to the entry's
+  name for 6.12.111, the kernel it was booting; the old `/etc/default/grub` is kept on the host.
+
 ## Port map to 7.3.3 (read from the sources, nothing changed yet)
 
 The 66 errors come from 21 interfaces in `layer/main.c`, read against the 7.3.3 tree and its
