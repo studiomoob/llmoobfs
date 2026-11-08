@@ -40,6 +40,8 @@ rmmod moobfs || fail unload
 if dmesg | grep -E 'BUG:|Oops:|\] WARNING:|^WARNING:|Kernel panic|KASAN:'; then fail kernel-diagnostic; fi
 echo "MOOBFS_VM_PASS: shared extents, independent inodes, reads, readonly, remount, 15 malformed images"
 else
+# the first console line follows the firmware's escape codes: start the marker on a line of its own
+echo
 echo "MOOBFS_VM_SKIPPED: the M1 module is not built for $(uname -r)"
 fi
 
