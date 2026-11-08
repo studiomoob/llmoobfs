@@ -155,7 +155,11 @@ Correction (ADR-0035 amended with a dated note that quotes the wrong sentences):
   `grub-set-default`), whatever else is installed. The matrix itself
   lags Debian 13 since that release; adding 6.12.115+deb13.1 is work for journal 0272.
 
+- With the GRUB pin (`976d146`'s content), `make package-test` ends in `MOOBFS_PACKAGE_PASS`
+  (Secure Boot, DKMS refusal of an unlisted kernel, key enrollment, unsigned build refused,
+  install, upgrade and roll back with 20 decisions equal to the oracle, `make install` copy
+  refused), and `make install-test` in `MOOBFS_INSTALL_PASS`, both on the image's 6.12.113.
+
 ## Next step
 
-`make package-test` (the package now installs the list), the pre-push checks, then the
-maintainer's review of ADR-0035 before any pull request.
+The pre-push checks, then the maintainer's review of ADR-0035 before any pull request.
