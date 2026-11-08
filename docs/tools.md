@@ -77,7 +77,8 @@ adds no kernel interface. Errors start with `moobfs:` and say what to do. `mount
   69.
 - `workspace create` (root only, unless `--dry-run`) makes the layout of ADR-0035 on a mount
   whose domain depth (`GET_INFO`) is 2: `<ns>` `root:moob-<ns>` `0750`; `<ns>/shared`
-  `root:moob-<ns>` `2770` with the default ACL `u::rwx,g::rwx,o::---`, written as the
+  `root:moob-<ns>` `2770` with the default ACL `u::rwx,g::rwx,o::r-x` (new files `0664`, readable
+  by every class so that they pass the homogeneity rule; others cannot enter `<ns>`), written as the
   `system.posix_acl_default` xattr; `<ns>/<agent>` `<agent>:<its primary group>` `0700`; and adds
   each agent to `moob-<ns>` (`gpasswd -a`). Names are `[a-z_][a-z0-9_-]{0,31}`, a namespace at
   most 27 bytes so that `moob-<ns>` fits 32; the agent name `shared` is refused. It checks
@@ -92,14 +93,14 @@ adds no kernel interface. Errors start with `moobfs:` and say what to do. `mount
   `dry_run`, `complete`, `steps` (each `step` text and `done`), `error`.
 - `workspace grant|revoke ... rw` adds the user to `moob-<ns>` or removes it (`gpasswd -a`/`-d`);
   the change takes effect at the user's next login, which the command says. `ro` adds or removes
-  the named entry `u:<user>:r-x` in the access ACL of `<ns>` and `<ns>/shared` and in the default
-  ACL of `shared`, read and written as `system.posix_acl_access` and `system.posix_acl_default`,
-  with the mask recomputed as `setfacl` does (the union of the owning group and every named
-  entry). When no named entry is left, the access ACL is removed and the mode set from its base
-  entries, so `<ns>` is `0750` and `shared` `2770` again. Files created in `shared` before an
-  `ro` grant keep their ACLs (the user cannot read them); files created during it keep the
-  entry after `revoke`, unreachable since the user can no longer enter `<ns>`. No agent area is
-  opened to another user.
+  the named entry `u:<user>:r-x` in the access ACL of `<ns>` and of the directory `<ns>/shared`
+  (not in its default ACL, so shared files stay without ACLs and in the partition), read and
+  written as `system.posix_acl_access`, with the mask recomputed as `setfacl` does (the union of
+  the owning group and every named entry). The user then reads the shared files of the default
+  mode as "other". When no named entry is left, the access ACL is removed and the mode set from
+  its base entries, so `<ns>` is `0750` and `shared` `2770` again. No agent area is opened to
+  another user. (Corrected 2026-11-08, journal 0273: the first version also changed the default
+  ACL, which made new shared files extended and so left out of queries.)
 - `workspace list` prints the namespaces (directories one level below the mount root whose
   group is `moob-<name>`), each area's owner, group, mode and ACLs, and with `--count NAME` the
   number of its files carrying the typed attribute `NAME` (`QUERY2` `NAME exists`, as the

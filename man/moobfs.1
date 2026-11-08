@@ -118,7 +118,9 @@ makes, as root, the namespace
 on a mount whose domain depth is 2:
 .Ar ns
 owned by root and the group moob-ns, mode 0750; its area shared, mode 2770 with the default ACL
-u::rwx,g::rwx,o::---; and one area per agent, owned by the agent, mode 0700.
+u::rwx,g::rwx,o::r-x, so that new files are 0664 and found by queries; and one area per agent,
+owned by the agent, mode 0700.
+A shared file made narrower than 0644 is left out of queries.
 It adds the agents to the group.
 With
 .Fl -create-users
@@ -133,9 +135,9 @@ gives or takes
 .Ar user
 write access to the shared area through the group
 .Pq Cm rw ,
-effective at the next login, or read access through named ACL entries on
-.Ar ns ,
-shared and the default ACL of shared
+effective at the next login, or read access through a named ACL entry on
+.Ar ns
+and on shared
 .Pq Cm ro .
 .It Cm workspace list
 prints the namespaces, their areas, owners, modes and ACLs and, with

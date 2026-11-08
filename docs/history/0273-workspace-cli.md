@@ -55,10 +55,8 @@ the CLI is not implemented and describe the older layout) until the maintainer a
   failed step.
 - An existing group `moob-<ns>` is reused; a missing user whose name is already a group is
   refused, since `useradd --user-group` would fail.
-- `grant ro` changes `<ns>`, `shared` and the default ACL only, as the ADR says: files already in
-  `shared` stay unreadable to the user, and files created during the grant keep the entry after
-  `revoke` (unreachable, the user can no longer enter `<ns>`). Both are stated in
-  `docs/operations.md`; a recursive `setfacl` is not done.
+- `grant ro` changed `<ns>`, `shared` and the default ACL only, as the ADR then said
+  (superseded by the correction below).
 - `status` without a mount point lists the layer mounts whose root is the filesystem's root and
   exits 69 when the module is not loaded.
 
@@ -86,6 +84,47 @@ workspace subsection of section 5), `man/moobfs.1`, `docs/references.md` §49, `
 
 Not tested yet: nothing has run against a mounted layer. The VM acceptance (`make
 workspace-test`), `make lint`, `make checkpatch` and the build on the test host are pending.
+
+## Correction, 2026-11-08: shared files were never found by queries
+
+The first VM run of `make workspace-test` on the test host (with `bab0f82`, which only adds
+diagnostics to the guest script) failed at the shared-area query: `a2`, a member of
+`moob-proj`, read `shared/s1.md` (`a1:moob-proj 0660`, no ACL), and `moobfs query` of `shared` as
+`a2` exited 0 with no result.
+
+The error was in ADR-0035, not in the code: it said files failing the homogeneity rule "are
+answered with per-result checks". `docs/spec-query-v2.md` §3 says such a file "does not appear in
+v2 queries", and `QUERY2` reads only the homogeneous partition of the domain (`layer/index.c`,
+`query_run()`, `name_find(..., false)`); fallback mode adds per-result checks to that partition and
+never adds heterogeneous files. With the default ACL `u::rwx,g::rwx,o::---`, every shared file was
+`0660`, owned by an agent in a root-owned domain, so it failed both branches of `reach_ok()` and no
+shared file could ever be queried. The unit tests could not see this; the VM run did.
+
+Correction (ADR-0035 amended with a dated note that quotes the wrong sentences):
+
+- The shared area's default ACL is `u::rwx,g::rwx,o::r-x`: files `0664`, subdirectories `2775`,
+  no access ACL. They pass `reach_ok()`'s first branch (`layer/index.c:659–679`: every class
+  reads, no extended ACL), which does not look at the domain directory. The read bit for others
+  opens nothing: others cannot traverse `<ns>` (`0750`), and `shared` itself stays `2770`.
+- `grant ro` adds `u:<user>:r-x` to the access ACL of `<ns>` and of `shared` only; the default
+  ACL is untouched, so files made during a grant are not extended. The ACL on `shared` does not
+  change its files' homogeneity (first branch again).
+- Agent areas re-checked against spec §3 and `reach_ok()`: a `0600` file `<a>:<a>` in an area
+  `<a>:<a>` `0700` passes the second branch (same owner and group, no extended ACL, the area lets
+  only the owner class traverse and the file grants it read); a `0644` file passes the first.
+- The documented cost is now a shared file made narrower than `0644` (an explicit `0600`, a
+  later `chmod`): it is left out of queries and listed by `moobfs-check`.
+- Found while checking: a change of mode, owner, group or access ACL of a domain directory puts
+  the domain in fallback mode until the next mount (`moobl_index_perm_changed()`,
+  `layer/index.c:3106–3122`). `workspace create` does it to every area and `grant`/`revoke ro` to
+  `shared`; answers are unchanged, with a permission check per result. Stated in the ADR and
+  `docs/operations.md`; the VM script prints `fallback_domains`.
+- `vm/workspace-test/guest.sh`: `s1.md` is `a1:moob-proj 664` and found by `a2`; a file made
+  during the `ro` grant is `0664` without ACL, found by `a2` and by the `ro` user; a `0600` shared
+  file is left out of queries and listed in `left_out`; shared files of the default mode are not.
+  Query checks print the exit status, output, error and permissions on failure, as in `bab0f82`.
+- `tests/workspace_test.c` checks the new default ACL bytes and text; it passes on macOS (also
+  under ASan/UBSan). ShellCheck 0.10.0 and `mandoc -Tlint` clean. The VM run is pending again.
 
 ## Next step
 

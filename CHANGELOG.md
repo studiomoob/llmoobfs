@@ -16,6 +16,10 @@
   and `list`. Unit tests `workspace_test` in `make test`; VM acceptance `make workspace-test`
   written, not yet run. `make install` and the `moobfs-tools` package now install the
   supported-kernels list under `share/moobfs/` (journal 0273, in progress).
+- ADR-0035 corrected after its first VM run: files that fail the homogeneity rule are left out
+  of `QUERY2`, not answered with per-result checks as the ADR said, so shared files (`0660`)
+  were never found. The shared area's default ACL is now `u::rwx,g::rwx,o::r-x` (files `0664`,
+  in the partition) and `grant ro` no longer touches it (journal 0273).
 - PR 186 merged (`26d18a8`): S18 done; every post-merge check passed (journal 0270).
 - S15 done: the longer permission-churn profile passed under KASAN/UBSAN/lockdep in each of the
   seven S18 campaigns, 1,741,824 `QUERY2` checks with zero mismatches (journal 0270).
