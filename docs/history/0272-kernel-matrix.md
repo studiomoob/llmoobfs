@@ -8,6 +8,14 @@ The second phase agreed on 2026-11-07 (journal 0270): run the module on more tha
 series. The maintainer confirmed the matrix (6.12 plus newer series) and, once the probe below
 showed the module must change for them, a second narrow exception to the freeze (ADR-0034).
 
+## Batch 14 merged
+
+PR 187 (S15 and S16 done, ADR-0033, the weekly S18 schedule, `actions/setup-java` 6.2.0) passed
+its 19 checks, the mutation shards and KASAN/lockdep included, and was merged by the
+maintainer's approval on 2026-11-08 at 09:39 Brasília time with a merge commit (`1cac601`); the
+post-merge runs on `main` (CI, static analysis, TLA+ model, CodeQL, OpenSSF Scorecard) all
+passed. Dependabot's PR 185 was closed with a pointer to it. This branch was rebased on it.
+
 ## Compile-only probe (2026-11-07, 18:40–18:50, test host)
 
 The `layer/` of `claudiofp/b14-stage2` (with `common/` and `include/`), unchanged, built with
