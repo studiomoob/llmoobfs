@@ -124,10 +124,27 @@ Correction (ADR-0035 amended with a dated note that quotes the wrong sentences):
   file is left out of queries and listed in `left_out`; shared files of the default mode are not.
   Query checks print the exit status, output, error and permissions on failure, as in `bab0f82`.
 - `tests/workspace_test.c` checks the new default ACL bytes and text; it passes on macOS (also
-  under ASan/UBSan). ShellCheck 0.10.0 and `mandoc -Tlint` clean. The VM run is pending again.
+  under ASan/UBSan). ShellCheck 0.10.0 and `mandoc -Tlint` clean.
+
+## Evidence on the test host (2026-11-08)
+
+- On `7d4240a`'s content (before the correction): `make test`, `make attr-tools`, `make lint`,
+  `make checkpatch`, `make install-unit` and `make json-test` pass; `make man-lint` could not run
+  (no `mandoc` on the host; it passed where it was available). The first `make workspace-test`
+  failed at "a2's query of shared": the query exited 0 with no result while `a2`, a member of
+  `moob-proj`, could read `s1.md` (`a1:moob-proj` `0660`, no ACL); with the diagnostics of
+  `bab0f82` this is the left-out heterogeneous file described above.
+- On `c984496` (the correction): `make test` passes and `MOOB_HOST_QEMU=1 make workspace-test`
+  ends in `MOOBFS_WORKSPACE_PASS` after 412 s under KVM (Debian 13, kernel 6.12.113, after
+  `make install`): the refusals (open lower, unlisted kernel, a layer as the lower, depth 1); the
+  layout and default ACL `u::rwx,g::rwx,o::r-x`; each agent sees its own area only; `a1`'s shared
+  file `0664` without ACL is found by `a2`'s query and read and written by `a2` through the group; a
+  `0600` shared file is left out; `grant ro` lets the auditor read and query the shared files,
+  including one made during the grant, and nothing else; `revoke ro` restores minimal ACLs;
+  `grant rw`/`revoke rw`; `list` counts; `status` (`fallback_domains=3`, as stated above);
+  `moobfs-check` clean, with only `narrow.md` left out.
 
 ## Next step
 
-Run on the test host: `make test`, `make attr-tools`, `make lint`, `make checkpatch`,
-`make install-unit`, then `make workspace-test` (and `make package-test`, since the package now
-installs the list); record the results here, then the maintainer's review of ADR-0035.
+`make package-test` (the package now installs the list), the pre-push checks, then the
+maintainer's review of ADR-0035 before any pull request.
