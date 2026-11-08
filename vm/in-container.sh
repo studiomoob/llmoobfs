@@ -47,7 +47,10 @@ def visit(m):
     if m not in order:
         order.append(m)
 # Filesystems request the crc32c shash through the crypto API; modules.dep does not record that.
-for m in ('kernel/crypto/crc32c_generic.ko.xz', 'kernel/drivers/block/virtio_blk.ko.xz',
+# Its module is crc32c_generic on 6.12 and crc32c-cryptoapi on 7.3 (journal 0275).
+crc = next(m for m in ('kernel/crypto/crc32c_generic.ko.xz', 'kernel/crypto/crc32c-cryptoapi.ko.xz')
+           if (base / m).exists())
+for m in (crc, 'kernel/drivers/block/virtio_blk.ko.xz',
           'kernel/fs/ext4/ext4.ko.xz', 'kernel/fs/btrfs/btrfs.ko.xz', 'kernel/fs/xfs/xfs.ko.xz',
           'kernel/drivers/md/dm-mod.ko.xz', 'kernel/drivers/md/dm-log-writes.ko.xz',
           'kernel/drivers/md/dm-flakey.ko.xz'):
