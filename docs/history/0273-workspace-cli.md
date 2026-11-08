@@ -144,6 +144,17 @@ Correction (ADR-0035 amended with a dated note that quotes the wrong sentences):
   `grant rw`/`revoke rw`; `list` counts; `status` (`fallback_domains=3`, as stated above);
   `moobfs-check` clean, with only `narrow.md` left out.
 
+- `make package-test` (in its container; with `MOOB_HOST_QEMU=1` the host lacks `debhelper`)
+  failed in phase 1, not on this change: the guest booted `6.12.115+deb13.1-amd64`, a Debian 13
+  security kernel that the cloud image's `unattended-upgrades` installed after phase 0
+  (`DKMS` refused it, as it must for an unlisted kernel). The kernel was already installed on
+  the image's first boot, so holding the packages did not help (a second run failed the same
+  way); removing the other kernel packages failed too (a third run: the
+  filter took the image's own `-unsigned` package and 6.12.115 still booted). Phase 0 now turns
+  automatic upgrades off and tells GRUB to boot the image's kernel (`GRUB_DEFAULT=saved`,
+  `grub-set-default`), whatever else is installed. The matrix itself
+  lags Debian 13 since that release; adding 6.12.115+deb13.1 is work for journal 0272.
+
 ## Next step
 
 `make package-test` (the package now installs the list), the pre-push checks, then the

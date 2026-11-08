@@ -75,6 +75,17 @@ verify() {   # verify <label>
 
 phase0() {
 	[ "$(uname -r)" = "$KVER" ] || fail "the image booted $(uname -r), not $KVER"
+	# The cloud image installs Debian's security kernels by itself (unattended-upgrades): on
+	# 2026-11-08 the guest booted 6.12.115+deb13.1, which the matrix does not list, at the next
+	# reboot (journal 0273). The test keeps the image's kernel: automatic upgrades off, and GRUB
+	# told to boot $KVER whatever else gets installed.
+	systemctl disable --now unattended-upgrades.service apt-daily.timer apt-daily-upgrade.timer \
+		>/dev/null 2>&1 || true
+	sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=saved/' /etc/default/grub
+	update-grub >update-grub.log 2>&1 || { tail -n 20 update-grub.log; fail "update-grub"; }
+	grub-set-default "Advanced options for Debian GNU/Linux>Debian GNU/Linux, with Linux $KVER" ||
+		fail "grub-set-default $KVER"
+	grep -q "with Linux $KVER'" /boot/grub/grub.cfg || fail "no GRUB entry for $KVER"
 	apt-get update -q >/dev/null
 	apt-get install -y -q mokutil attr "linux-headers-$KVER" >/dev/null
 	secure_boot
