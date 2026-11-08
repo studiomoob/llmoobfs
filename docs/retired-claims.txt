@@ -419,3 +419,8 @@ with fewer executions while the batch's full suites shared the host
 the first six campaigns on the corrected code (c01–c06) passed all phases: 6 of 7
 campaigns c01–c06 passed all phases (6 of 7)
 S15 and S18 are in progress
+S15 is in progress (journal 0250)
+S16 not started; journal
+Not started (frozen kernel).
+S16 not started, allowed by a narrow exception to the freeze
+Not started. The maintainer granted a narrow exception to the freeze on 2026-11-07

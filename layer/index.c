@@ -1532,8 +1532,12 @@ static int attr_buf_add(struct attr_buf *b, const char *name, size_t n)
 	return 0;
 }
 
-/* Reads the valid typed attributes of one lower dentry into b. No lock of ours is held. */
-static int attrs_read(struct dentry *lower, struct attr_buf *b)
+/*
+ * Reads the valid typed attributes of one lower dentry into b. No lock of ours is held. Only a
+ * reading for the index (inject) takes the fault of scan_getxattr_errno_once; the self-check's
+ * does not, so that it leaves the fault to the reading a test aims it at.
+ */
+static int attrs_read(struct dentry *lower, struct attr_buf *b, bool inject)
 {
 	ssize_t len;
 	char *p;
@@ -1555,7 +1559,7 @@ static int attrs_read(struct dentry *lower, struct attr_buf *b)
 			continue;
 		if (moob_attr_name_reserved(name, strlen(name)) || !moob_attr_name_ok(name, strlen(name)))
 			continue;
-		n = xchg(&scan_getxattr_errno_once, 0);
+		n = inject ? xchg(&scan_getxattr_errno_once, 0) : 0;
 		n = n > 0 ? -n : vfs_getxattr(&nop_mnt_idmap, lower, p, b->value,
 						  MOOB_ATTR_VALUE_MAX + 1);
 		if (n == -ENODATA || n == -ERANGE)
@@ -1595,6 +1599,210 @@ static int index_replace(struct moobl_index *ix, u64 ino, u32 gen, const struct 
 		off += sizeof(size) + nl + size;
 	}
 	return err;
+}
+
+/* ---- S16: a self-check of the index against the lower filesystem (ADR-0033) ---- */
+
+/*
+ * For tests only (vm/suite.sh step selfcheck, security roadmap S16, ADR-0033), under the rules of
+ * scan_delay_us above. When set, each update that main.c applies to the index and each file a
+ * build or an adoption reads is followed by a second reading of the file from the lower
+ * filesystem: its typed attributes, and its partition computed from the lower tree alone rather
+ * than by place_dentry_above() or the scan, are compared with its record. A difference is logged
+ * and counted; the index is never changed. A reading overtaken by an update of the file or by a
+ * rename is not conclusive and is counted as such. A difference counts only when
+ * MOOBL_SELFCHECK_TRIES readings in a row show one, since a chmod of a directory reaches the
+ * lower filesystem before its hook marks the domain (journal 0271).
+ * It shares reach_ok(), target_ok() and ext_acl() with the code it checks, so it cannot see a
+ * defect inside them; it can see one in where and when they are applied.
+ */
+bool moobl_selfcheck;
+module_param_named(selfcheck, moobl_selfcheck, bool, 0644);
+MODULE_PARM_DESC(selfcheck, "tests only: read each updated or built file again from the lower filesystem and warn if its record differs");
+
+static atomic64_t selfcheck_runs = ATOMIC64_INIT(0);
+static atomic64_t selfcheck_diffs = ATOMIC64_INIT(0);
+static atomic64_t selfcheck_open = ATOMIC64_INIT(0);
+
+static int selfcheck_counts_get(char *buf, const struct kernel_param *kp)
+{
+	return sysfs_emit(buf, "checks=%lld differences=%lld inconclusive=%lld\n",
+			  (long long)atomic64_read(&selfcheck_runs),
+			  (long long)atomic64_read(&selfcheck_diffs),
+			  (long long)atomic64_read(&selfcheck_open));
+}
+
+static const struct kernel_param_ops selfcheck_counts_ops = { .get = selfcheck_counts_get };
+module_param_cb(selfcheck_counts, &selfcheck_counts_ops, NULL, 0444);
+MODULE_PARM_DESC(selfcheck_counts, "tests only: self-checks done, differences found, readings that were not conclusive");
+
+#define MOOBL_SELFCHECK_TRIES 3
+
+/*
+ * The partition of lower from the lower tree: its depth below the lower root, the directory at
+ * domain_depth on its path, and the homogeneity rule applied to every directory between the two
+ * and to lower itself. False when that is not conclusive: a rename meanwhile, a path deeper than
+ * the write paths place, an ACL that could not be read.
+ */
+static bool selfcheck_place(struct moobl_index *ix, struct dentry *root, struct dentry *lower,
+			    struct moobl_place *pl)
+{
+	unsigned int n = ix->domain_depth, k, i, seq;
+	struct dentry **chain, *d;
+	struct inode *dom;
+	bool done, ok = true;
+	int err = 0;
+
+	pl->domain = 0;
+	pl->hetero = false;
+	chain = kcalloc(MOOBL_MAX_DEPTH + 1, sizeof(*chain), GFP_KERNEL);
+	if (!chain)
+		return false;
+	rcu_read_lock();
+	seq = read_seqbegin(&rename_lock);
+	/* chain[0] is lower, chain[j] its ancestor j levels up, the lower root excluded */
+	for (k = 0, d = lower; d != root; k++) {
+		if (IS_ROOT(d) || k > MOOBL_MAX_DEPTH || !lockref_get_not_dead(&d->d_lockref))
+			break;
+		chain[k] = d;
+		d = READ_ONCE(d->d_parent);
+	}
+	done = d == root;
+	rcu_read_unlock();
+	if (read_seqretry(&rename_lock, seq))
+		done = false;
+	if (done && n && k > n) {
+		dom = d_inode(chain[k - n]);
+		for (i = 1; i < k - n && ok; i++)
+			ok = reach_ok(d_inode(chain[i]), dom, MOOBL_REACH_DIR, &err);
+		if (ok)
+			ok = target_ok(d_inode(lower), dom, &err);
+		pl->domain = dom->i_ino;
+		pl->hetero = !ok;
+		done = !err;
+	}
+	for (i = 0; i < k; i++)
+		dput(chain[i]);
+	kfree(chain);
+	return done;
+}
+
+/*
+ * What differs between the record of ino and its reading (pl, b), or NULL. A record that holds
+ * part of its file (a write in a domain being built), a domain already known to be stale, and a
+ * file the rule keeps out of its partition while the domain answers with per-result checks are
+ * not compared: the index says nothing there that could be wrong. Caller holds the write lock.
+ */
+static const char *selfcheck_compare(struct moobl_index *ix, u64 ino, u32 gen,
+				     const struct moobl_place *pl, const struct attr_buf *b)
+{
+	struct moobl_ix_inode *rec = xa_load(&ix->inodes, ino);
+	struct moobl_domain *dom;
+	struct moobl_ix_entry *e;
+	size_t off = 0, have = 0, seen = 0;
+
+	lockdep_assert_held_write(&ix->lock);
+	if (!domain_live(ix, pl->domain))
+		return NULL;
+	dom = pl->domain ? xa_load(&ix->domains, (unsigned long)pl->domain) : &ix->outside;
+	if (!dom || READ_ONCE(dom->lost) || dom->restart)
+		return NULL;	/* the next query builds it again */
+	if (rec && rec->gen != gen)
+		rec = NULL;	/* the record of an earlier inode with this number */
+	if (!rec)
+		return domain_built(ix, pl->domain) && b->len ?
+		       "a file with typed attributes has no record in its built domain" : NULL;
+	if (!rec->whole)
+		return NULL;
+	/*
+	 * The partition is compared only while the domain says its placements are current: after a
+	 * directory rename (paths_stale, top_gen) the files below keep their old placement until the
+	 * build scans the directory again (dom->moved) or the next query builds the domain again,
+	 * and no answer comes from the partition meanwhile (domain_fresh()).
+	 */
+	if (dom->paths_stale || dom->top_gen != ix->top_gen || !list_empty(&dom->moved))
+		goto attributes;
+	if (!pl->hetero && !rec->hetero && rec->domain != pl->domain)
+		return "the record is in another domain's partition";
+	/* only the unsafe direction: a record kept out of a partition it could join is not wrong */
+	if (pl->hetero && !rec->hetero && !READ_ONCE(ix->fallback_all) &&
+	    !xa_load(&ix->fallback, (unsigned long)pl->domain))
+		return "a file that fails the homogeneity rule is in its domain's partition";
+attributes:
+	list_for_each_entry(e, &rec->entries, by_ino)
+		have++;
+	while (off < b->len) {
+		const char *name = (const char *)b->data + off + sizeof(u16);
+		size_t nl = strlen(name) + 1;
+		const u8 *v;
+		u16 size;
+
+		memcpy(&size, b->data + off, sizeof(size));
+		v = b->data + off + sizeof(size) + nl;
+		e = entry_find(rec, name);
+		if (!e || e->type != v[0] || e->len != size - 1 || memcmp(e->value, v + 1, e->len))
+			return "an attribute differs from the lower filesystem";
+		seen++;
+		off += sizeof(size) + nl + size;
+	}
+	return seen == have ? NULL : "the record holds an attribute the lower filesystem does not";
+}
+
+/* The self-check of one lower dentry. Takes the mounter's credentials; no lock may be held. */
+static void selfcheck_run(struct super_block *sb, struct dentry *lower)
+{
+	struct moobl_sb *sbi = MOOBL_SB(sb);
+	struct moobl_index *ix = &sbi->index;
+	struct inode *li = d_inode(lower);
+	struct moobl_loader ld = { .ino = li ? li->i_ino : 0 };
+	const char *what = NULL;
+	const struct cred *old;
+	struct moobl_place pl;
+	struct attr_buf b;
+	unsigned int nofs, tries;
+	bool ok = false;
+	u64 gen;
+
+	if (!ix->enabled || !li || moobl_other_device(sb, lower) || attr_buf_init(&b))
+		return;
+	old = override_creds(sbi->creds);
+	for (tries = 0; tries < MOOBL_SELFCHECK_TRIES; tries++) {
+		if (tries)
+			fsleep(1000);
+		ok = false;
+		if (!IS_ROOT(lower) && d_unhashed(lower))
+			break;	/* removed: its hook dropped the record */
+		nofs = ix_write_lock(ix);
+		ld.dirty = false;
+		list_add(&ld.list, &ix->loaders);
+		gen = ix->move_gen;
+		ix_write_unlock(ix, nofs);
+		ok = selfcheck_place(ix, sbi->lower.dentry, lower, &pl) && !attrs_read(lower, &b, false);
+		nofs = ix_write_lock(ix);
+		list_del(&ld.list);
+		ok = ok && !ld.dirty && ix->move_gen == gen;
+		what = ok ? selfcheck_compare(ix, li->i_ino, READ_ONCE(li->i_generation), &pl, &b)
+			  : NULL;
+		ix_write_unlock(ix, nofs);
+		if (!ok || !what)
+			break;
+	}
+	revert_creds(old);
+	attr_buf_free(&b);
+	atomic64_inc(&selfcheck_runs);
+	if (!ok) {
+		atomic64_inc(&selfcheck_open);
+	} else if (what) {
+		atomic64_inc(&selfcheck_diffs);
+		pr_warn_ratelimited("moobfs_layer: selfcheck: ino %lu: %s\n", li->i_ino, what);
+	}
+}
+
+/* For main.c, through moobl_index_selfcheck(): dentry is a layer dentry, after its update. */
+void moobl_index_selfcheck_run(struct super_block *sb, struct dentry *dentry)
+{
+	if (d_really_is_positive(dentry))
+		selfcheck_run(sb, moobl_lower_dentry(dentry));
 }
 
 static void record_dentry_path(struct moobl_index *ix, struct moobl_ix_inode *rec,
@@ -1657,7 +1865,7 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 			if (err)	/* an ACL that could not be read is not an answer */
 				break;
 		}
-		err = attrs_read(lower, b);
+		err = attrs_read(lower, b, true);
 		if (err)
 			break;
 		if (unlikely(READ_ONCE(scan_delay_us)) && path)
@@ -1701,6 +1909,8 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 			ix_write_unlock(ix, nofs);
 			iput(upper);	/* outside the lock: the last reference evicts, which takes it */
 		}
+		if (unlikely(READ_ONCE(moobl_selfcheck)))
+			selfcheck_run(sb, lower);
 		return 0;
 	}
 	nofs = ix_write_lock(ix);

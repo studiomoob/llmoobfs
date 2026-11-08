@@ -171,5 +171,17 @@ long moobl_root_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 void moobl_index_perm_changed(struct super_block *sb, struct dentry *dentry);
 bool moobl_rename_crosses_domain(struct super_block *sb, struct dentry *old_dentry,
 				 struct dentry *new_dentry);
+extern bool moobl_selfcheck;
+void moobl_index_selfcheck_run(struct super_block *sb, struct dentry *dentry);
+
+/*
+ * S16 (ADR-0033), tests only: after an update of dentry, read its file again from the lower
+ * filesystem and compare it with its record. While the parameter is off, one predicted branch.
+ */
+static inline void moobl_index_selfcheck(struct super_block *sb, struct dentry *dentry)
+{
+	if (unlikely(READ_ONCE(moobl_selfcheck)))
+		moobl_index_selfcheck_run(sb, dentry);
+}
 
 #endif

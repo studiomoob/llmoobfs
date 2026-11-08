@@ -128,7 +128,7 @@ timeout 3600 qemu-system-x86_64 \
     -drive file=build/vm/scratch.img,format=raw,if=virtio \
     -drive file=build/vm/log.img,format=raw,if=virtio \
     -kernel "/boot/vmlinuz-$KERNEL" -initrd build/vm/initramfs.cpio.gz \
-    -append "console=ttyS0 rdinit=/init panic=-1 loglevel=4${MOOB_ONLY:+ moob_only=$(echo "$MOOB_ONLY" | tr ' ' ',')}${MOOB_PERMCHURN:+ moob_permchurn=$MOOB_PERMCHURN}" \
+    -append "console=ttyS0 rdinit=/init panic=-1 loglevel=4${MOOB_ONLY:+ moob_only=$(echo "$MOOB_ONLY" | tr ' ' ',')}${MOOB_PERMCHURN:+ moob_permchurn=$MOOB_PERMCHURN}${MOOB_SELFCHECK:+ moob_selfcheck=$MOOB_SELFCHECK}" \
     -nographic -no-reboot -nic none > build/vm/console.log 2>&1
 RESULT=$?
 set -e
