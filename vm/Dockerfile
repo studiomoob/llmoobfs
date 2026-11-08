@@ -5,6 +5,8 @@ RUN case "$MOOB_DEBIAN_KERNEL" in \
         linux-headers-6.12.111+deb13-amd64=6.12.111-1 ;; \
       6.12.113) set -- linux-image-6.12.113+deb13-amd64=6.12.113-1 \
         linux-headers-6.12.113+deb13-amd64=6.12.113-1 ;; \
+      6.12.115) set -- linux-image-6.12.115+deb13.1-amd64=6.12.115-2 \
+        linux-headers-6.12.115+deb13.1-amd64=6.12.115-2 ;; \
       *) echo "Unsupported Debian VM kernel: $MOOB_DEBIAN_KERNEL" >&2; exit 1 ;; \
     esac && \
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
