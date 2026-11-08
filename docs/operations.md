@@ -151,6 +151,17 @@ mount root needs to enter it.
 No option can change on remount. The full semantics are in [spec-m2.md](spec-m2.md) and
 [spec-query-v2.md](spec-query-v2.md).
 
+`moobfs mount` does the same after three checks: the running kernel is in the installed
+`supported-kernels` list, the lower is not itself a layer, and a directory above the lower keeps
+everyone but root out (`/srv/moobfs` at `0700` above). Its default domain depth is 2, the
+workspace layout's (below); `--domain-depth 1` gives the layout of section 5
+([tools.md](tools.md#moobfs); ADR-0035, proposed, not yet run in a VM):
+
+```sh
+sudo moobfs mount /srv/moobfs/lower /srv/memory --nolinks     # domain_depth=2
+sudo moobfs status /srv/memory                                # module version and GET_INFO
+```
+
 ## 4. Mount at boot
 
 With `/etc/fstab`:
@@ -211,6 +222,55 @@ sudo -u alice moobfs query /srv/memory/alice kind eq string decision   # note.md
 sudo -u bob moobfs query /srv/memory/alice kind eq string decision     # permission denied (exit 77)
 moobfs info /srv/memory                                                # the mount's settings
 ```
+
+### Workspaces: agents and a shared area (ADR-0035, proposed)
+
+On a mount with `domain_depth=2`, `moobfs workspace create` makes a namespace whose areas are
+each a domain ([ADR-0035](decisions/0035-workspace-layout-and-cli.md); implemented locally,
+the VM run is pending, journal 0273):
+
+| Path | Owner:group | Mode / ACL |
+| --- | --- | --- |
+| `<ns>` | `root:moob-<ns>` | `0750` |
+| `<ns>/shared` | `root:moob-<ns>` | `2770`, default ACL `u::rwx,g::rwx,o::---` (base entries only) |
+| `<ns>/<agent>` | `<agent>:<agent's group>` | `0700` |
+
+```sh
+sudo moobfs workspace create /srv/memory proj --agents planner,coder --dry-run   # the steps
+sudo moobfs workspace create /srv/memory proj --agents planner,coder --create-users
+sudo moobfs workspace list /srv/memory --count kind
+```
+
+`--create-users` makes the group `moob-<ns>` and system users without a home or a login shell;
+without it they must exist. Nothing existing is overwritten: an existing `<ns>` is refused,
+and a failure midway stops with the list of steps done, undoing nothing.
+
+What it costs. An agent's files (its own owner and group, in its `0700` area) pass the
+homogeneity rule and are answered from the domain's partition of the index. Files in `shared`
+are owned by the agent that wrote them and the group `moob-<ns>`, `0660` (the base-only default
+ACL gives the group write access without making them extended, Linux `posix_acl_create()`),
+while `shared` is owned by root: they fail the rule's same-owner condition and every query of
+`shared` checks them one by one, as the caller. Answers stay correct; the index saves nothing
+for them. `moobfs-check --domain-depth 2 /srv/memory` lists them in `left_out`.
+
+Giving and taking access:
+
+```sh
+sudo moobfs workspace grant /srv/memory proj auditor ro    # u:auditor:r-x on proj, shared and its default ACL
+sudo moobfs workspace revoke /srv/memory proj auditor ro   # removes them; ACLs back to minimal
+sudo moobfs workspace grant /srv/memory proj alice rw      # gpasswd -a alice moob-proj
+sudo moobfs workspace revoke /srv/memory proj alice rw     # gpasswd -d alice moob-proj
+```
+
+- `rw` is group membership, effective at the user's next login (a running session keeps its
+  groups).
+- `ro` reaches files created in `shared` after the grant: they get the named entry from the
+  default ACL, which makes them extended (per-result checks, as above). Files made before keep
+  their mode and stay unreadable to the user; `setfacl -R -m u:<user>:rX` on `shared` would
+  open them too, and is not done by the command.
+- `revoke ro` removes the entries from `<ns>`, `shared` and the default ACL; the user can no
+  longer enter `<ns>`. Entries on files created during the grant stay, unreachable.
+- No command opens an agent's area to another user.
 
 ### Limits for a shared mount
 

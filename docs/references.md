@@ -1295,3 +1295,28 @@ hand and carries the same code paths:
 - Debian package pools, read on 2026-11-07: `linux-image-6.12.113+deb13-amd64` (Debian 13),
   `linux-image-7.2.12+deb13-*` (trixie-backports), `linux-image-7.3.3+deb14-amd64` (Debian 14).
   <https://deb.debian.org/debian/pool/main/l/linux-signed-amd64/>.
+
+## 50. The workspace commands of the moobfs CLI (ADR-0035, journal 0273)
+
+- Linux 6.12.116, exact sources read on 2026-11-08: `fs/posix_acl.c:641–681`,
+  `posix_acl_create()` (a directory's default ACL is cloned and passed to
+  `posix_acl_create_masq()`; when that returns 0 no access ACL is stored on the new inode, and a
+  new directory inherits the default ACL); `fs/posix_acl.c:460–509`, `posix_acl_create_masq()`
+  (returns 1 only for a named user, named group or mask entry; otherwise the owner, group and
+  other entries simply restrict the creation mode; the umask applies only to a directory
+  without a default ACL, lines 653–656);
+  `fs/posix_acl.c:244–303`, `posix_acl_valid()` (the entry order and the mask required with a
+  named entry, which `tools/workspace.h` checks before writing); `fs/posix_acl.c:713–729`,
+  `posix_acl_update_mode()` (setting an access ACL equivalent to the mode stores none).
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs/posix_acl.c?h=v6.12.116>.
+  Why the shared area's default ACL holds only base entries: files written there get the
+  group's write access and no extended ACL.
+- shadow-utils, as Debian 13 ships it in the package `passwd` `1:4.17.4-2` (checked in a
+  `debian:13` container on 2026-11-08): `groupadd --system`, `useradd --system --user-group
+  --no-create-home --shell /usr/sbin/nologin`, and `gpasswd -a`/`-d`, the commands
+  `moobfs workspace` runs; in that build `groupadd` refuses a 33-byte group name, hence the
+  27-byte limit on a namespace (`moob-<ns>`). Manual pages groupadd(8), useradd(8) and
+  gpasswd(1). <https://github.com/shadow-maint/shadow>.
+- setfacl(1) of the `acl` package (<https://savannah.nongnu.org/projects/acl>): the mask it
+  recomputes after a change, the union of the owning group's and every named entry's
+  permissions, which `ws_acl_fix_mask()` reproduces.

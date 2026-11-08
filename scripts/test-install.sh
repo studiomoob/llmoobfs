@@ -102,6 +102,7 @@ outside_intact "uninstall"
 	MODDIR=$DESTDIR/lib/modules/$KVER/updates/moobfs
 	BINDIR=$DESTDIR$PREFIX/bin
 	MANDIR=$DESTDIR$PREFIX/share/man/man1
+	SHAREDIR=$DESTDIR$PREFIX/share/moobfs
 	mkdir -p "$BINDIR"
 	printf 'tool\n' >"$BINDIR/moobfs"
 	printf 'decoy\n' >"$T/with"

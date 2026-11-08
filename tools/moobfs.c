@@ -8,6 +8,10 @@
  *                <dir> [terms...]
  *   moobfs check [moobfs-check arguments]
  *   moobfs diagnose [--json] <path>
+ *   moobfs mount <lower> <mountpoint> [--domain-depth N] [--nolinks] [--noindex]
+ *                [--index-budget B] [--unsupported] [--allow-open-lower]
+ *   moobfs status [--json] [mountpoint]
+ *   moobfs workspace create|grant|revoke|list ...   (tools/moobfs-workspace.c)
  *   moobfs --help
  *
  * info finds the layer mount that holds <path> (/proc/self/mountinfo) and prints GET_INFO of
@@ -22,6 +26,15 @@
  * administrator, the index counters and the tracepoints (roadmap item G2, journal 0243). When a
  * query fails with ENOMEM, query reads the caller's memory cgroups again and says whether one of
  * their limits or the index budget refused it (tools/diag.h).
+ *
+ * mount (ADR-0035 item 5, journal 0273) checks the running kernel against the installed
+ * supported-kernels list (/usr/share/moobfs, from the moobfs-tools package, or
+ * /usr/local/share/moobfs, from make install; --unsupported mounts without it), refuses a lower
+ * that is itself a layer or that users other than root can reach (distribution strategy section
+ * 2.3, item 1: some directory above it must be root's alone; --allow-open-lower mounts anyway),
+ * then calls mount(2) with the options of docs/operations.md, section 3; the default domain
+ * depth is 2, the workspace layout's. status prints info for one mount, or for every layer
+ * mount, after the loaded module's version and srcversion (/sys/module/moobfs_layer).
  *
  * Exit status (docs/tools.md): 0 success; 1 a system call failed; 64 usage; 65 invalid terms or
  * a query the kernel refused as invalid; 69 no layer at <path> (module not loaded, another
@@ -41,24 +54,19 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
+#include <sys/utsname.h>
 #include <sys/vfs.h>
+#include <sys/xattr.h>
 #include <time.h>
 #include <unistd.h>
 #include "query-common.h"
 #include "diag.h"
-
-#define EX_INCOMPLETE 3
-#define EX_USAGE 64
-#define EX_DATAERR 65
-#define EX_UNAVAILABLE 69
-#define EX_TEMPFAIL 75
-#define EX_NOPERM 77
-
-/* statfs f_type of a moobfs_layer mount (docs/client-contract.md, section 7) */
-#define LAYER_FS_TYPE 0x4d4f4f42
+#include "moobfs-cli.h"
+#include "workspace.h"
 
 static const char synopsis[] =
 	"usage: moobfs info [--json] <path>\n"
@@ -66,6 +74,13 @@ static const char synopsis[] =
 	"                    <dir> [name op type value]...\n"
 	"       moobfs check [moobfs-check arguments]\n"
 	"       moobfs diagnose [--json] <path>\n"
+	"       moobfs mount <lower> <mountpoint> [--domain-depth N] [--nolinks] [--noindex]\n"
+	"                    [--index-budget B] [--unsupported] [--allow-open-lower]\n"
+	"       moobfs status [--json] [mountpoint]\n"
+	"       moobfs workspace create <mount> <ns> [--agents a,b] [--create-users] [--dry-run]\n"
+	"                    [--json]\n"
+	"       moobfs workspace grant|revoke <mount> <ns> <user> rw|ro\n"
+	"       moobfs workspace list <mount> [--count NAME] [--json]\n"
 	"       moobfs --help\n"
 	"Terms: op is eq lt le gt ge prefix exists (exists takes - - as type and value); an op\n"
 	"ending in ? also matches files without the attribute. Type: string int64 double bool time.\n"
@@ -75,6 +90,11 @@ static int usage(void)
 {
 	fputs(synopsis, stderr);
 	return EX_USAGE;
+}
+
+int moobfs_usage(void)
+{
+	return usage();
 }
 
 /* The layer mount that holds a path, from /proc/self/mountinfo. */
@@ -241,58 +261,48 @@ static void json_str(const char *s)
 	putchar('"');
 }
 
-static int cmd_info(int argc, char **argv)
+/* GET_INFO of the mount m found; with json one object without a newline. 0 or exit status. */
+static int show_info(const struct mnt *m, int json)
 {
 	struct moob_info info;
-	struct mnt m;
-	int json = 0, fd, rc;
+	int fd;
 	unsigned int f;
 	/* only the mount record shows these two options; without it they are unknown */
 	char work[16] = "null", idle[16] = "null";
 
-	if (argc >= 2 && !strcmp(argv[1], "--json")) {
-		json = 1;
-		argv++;
-		argc--;
-	}
-	if (argc != 2)
-		return usage();
-	rc = find_mount(argv[1], &m);
-	if (rc)
-		return rc;
-	if (m.record && strcmp(m.root, "/")) {
+	if (m->record && strcmp(m->root, "/")) {
 		fprintf(stderr, "moobfs: %s is a bind mount of %s inside a layer; GET_INFO needs the "
 			"mount root, which is not reachable through it (docs/client-contract.md, 7)\n",
-			m.point, m.root);
+			m->point, m->root);
 		return EX_UNAVAILABLE;
 	}
-	fd = open(m.point, O_RDONLY | O_DIRECTORY);
+	fd = open(m->point, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	if (fd < 0) {
-		fprintf(stderr, "moobfs: %s: %s\n", m.point, strerror(errno));
+		fprintf(stderr, "moobfs: %s: %s\n", m->point, strerror(errno));
 		return errno == EACCES ? EX_NOPERM : 1;
 	}
 	memset(&info, 0, sizeof info);
 	if (ioctl(fd, MOOB_IOC_GET_INFO, &info)) {
-		if (!m.record && errno == ENOTTY) {
+		if (!m->record && errno == ENOTTY) {
 			fprintf(stderr, "moobfs: %s is not the root of its layer mount (a bind mount of a "
 				"directory inside a layer?); /proc/self/mountinfo, which would tell, is not "
-				"readable, and GET_INFO needs the mount root\n", m.point);
+				"readable, and GET_INFO needs the mount root\n", m->point);
 			close(fd);
 			return EX_UNAVAILABLE;
 		}
-		fprintf(stderr, "moobfs: GET_INFO on %s: %s\n", m.point, strerror(errno));
+		fprintf(stderr, "moobfs: GET_INFO on %s: %s\n", m->point, strerror(errno));
 		close(fd);
 		return 1;
 	}
 	close(fd);
 	f = info.flags;
-	if (m.record) {
-		snprintf(work, sizeof work, "%u", opt_uint(m.opts, "index_build_work", 32768));
-		snprintf(idle, sizeof idle, "%u", opt_uint(m.opts, "index_idle", 60));
+	if (m->record) {
+		snprintf(work, sizeof work, "%u", opt_uint(m->opts, "index_build_work", 32768));
+		snprintf(idle, sizeof idle, "%u", opt_uint(m->opts, "index_idle", 60));
 	}
 	if (json) {
 		printf("{\"mount\": ");
-		json_str(m.point);
+		json_str(m->point);
 		printf(", \"lower_fs\": ");
 		json_str(info.lower_fs);
 		printf(", \"uapi_version\": %u, \"format_version\": %u, \"domain_depth\": %u,"
@@ -315,10 +325,10 @@ static int cmd_info(int argc, char **argv)
 			       info.domain_builds, info.domain_releases);
 		else
 			printf(", \"counters\": null");
-		printf("}\n");
+		printf("}");
 		return 0;
 	}
-	printf("mount:            %s\n", m.point);
+	printf("mount:            %s\n", m->point);
 	printf("lower filesystem: %s\n", info.lower_fs);
 	printf("interface:        UAPI %u, attribute format %u\n", info.uapi_version,
 	       info.format_version);
@@ -326,12 +336,12 @@ static int cmd_info(int argc, char **argv)
 	       (f & MOOB_FLAG_ON_DEMAND) ? "on, built per domain by its first query" : "on");
 	if (info.domain_depth)
 		printf("domains:          directories %u level%s below %s; query them with "
-		       "moobfs query\n", info.domain_depth, info.domain_depth > 1 ? "s" : "", m.point);
+		       "moobfs query\n", info.domain_depth, info.domain_depth > 1 ? "s" : "", m->point);
 	else
 		printf("domains:          off; the mount-wide query is the only one\n");
 	printf("links:            %s\n", (f & MOOB_FLAG_NOLINKS) ? "refused (nolinks)" : "allowed");
 	printf("index budget:     %" PRIu64 " MiB\n", (uint64_t)info.index_budget >> 20);
-	if (m.record)
+	if (m->record)
 		printf("build work:       %s units per first query of a domain\n", work);
 	else
 		printf("build work:       unknown (/proc/self/mountinfo is not readable)\n");
@@ -346,6 +356,26 @@ static int cmd_info(int argc, char **argv)
 	else
 		printf("counters:         shown to administrators only (they sum every user's memories)\n");
 	return 0;
+}
+
+static int cmd_info(int argc, char **argv)
+{
+	struct mnt m;
+	int json = 0, rc;
+
+	if (argc >= 2 && !strcmp(argv[1], "--json")) {
+		json = 1;
+		argv++;
+		argc--;
+	}
+	if (argc != 2)
+		return usage();
+	rc = find_mount(argv[1], &m);
+	if (!rc)
+		rc = show_info(&m, json);
+	if (!rc && json)
+		putchar('\n');
+	return rc;
 }
 
 static int by_ino(const void *a, const void *b)
@@ -498,6 +528,62 @@ static int run_query2(int fd, const struct moob_query2 *proto, size_t max, __u32
 		if (errno != ESTALE || ++restarts > 3)
 			return errno;
 	}
+}
+
+int moobfs_count_exists(int fd, const char *name, size_t *count)
+{
+	struct moob_query2 q;
+	struct results res = { NULL, 0, 0 };
+	struct moob_query_result *buf = calloc(MOOB_QUERY_MAX_LIMIT, sizeof *buf);
+	size_t len = strlen(name);
+	int rc;
+
+	*count = 0;
+	if (!buf)
+		return ENOMEM;
+	if (!len || len > MOOB_QUERY_NAME_MAX) {
+		free(buf);
+		return EINVAL;
+	}
+	memset(&q, 0, sizeof q);
+	q.version = MOOB_QUERY2_VERSION;
+	q.nterms = 1;
+	memcpy(q.terms[0].name, name, len);
+	q.terms[0].op = MOOB_OP_EXISTS;
+	rc = run_query2(fd, &q, 0, MOOB_QUERY_MAX_LIMIT, buf, &res);
+	if (!rc)
+		*count = res.n;
+	free(res.v);
+	free(buf);
+	return rc;
+}
+
+int moobfs_layer_root(const char *mount, struct moob_info *info)
+{
+	struct statfs sf;
+	int fd = open(mount, O_RDONLY | O_DIRECTORY | O_CLOEXEC), err;
+
+	if (fd < 0) {
+		err = errno;
+		fprintf(stderr, "moobfs: %s: %s\n", mount, strerror(err));
+		return err == EACCES ? EX_NOPERM : err == ENOENT || err == ENOTDIR ? EX_UNAVAILABLE : 1;
+	}
+	if (fstatfs(fd, &sf) || sf.f_type != LAYER_FS_TYPE) {
+		fprintf(stderr, "moobfs: %s is not a moobfs_layer mount (findmnt -t moobfs_layer)\n",
+			mount);
+		close(fd);
+		return EX_UNAVAILABLE;
+	}
+	memset(info, 0, sizeof *info);
+	if (ioctl(fd, MOOB_IOC_GET_INFO, info)) {
+		err = errno;
+		fprintf(stderr, "moobfs: %s: %s\n", mount, err == ENOTTY ? "not the root of its layer "
+			"mount; give the mount point" : strerror(err));
+		close(fd);
+		return err == ENOTTY ? EX_UNAVAILABLE : 1;
+	}
+	close(fd);
+	return 0;
 }
 
 #define PROC_CGROUP "/proc/self/cgroup"
@@ -1012,6 +1098,299 @@ static int cmd_diagnose(int argc, char **argv)
 	return rc;
 }
 
+/* ---- mount and status (ADR-0035 item 5) ------------------------------------------------- */
+
+static const char *const kernel_lists[] = { "/usr/share/moobfs/supported-kernels",
+					    "/usr/local/share/moobfs/supported-kernels" };
+
+/* The first list found, read into buf (NUL-terminated); its path, or NULL. */
+static const char *read_kernel_list(char *buf, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < sizeof kernel_lists / sizeof kernel_lists[0]; i++) {
+		int fd = open(kernel_lists[i], O_RDONLY | O_CLOEXEC);
+		ssize_t n;
+
+		if (fd < 0)
+			continue;
+		n = read(fd, buf, len - 1);
+		close(fd);
+		if (n >= 0) {
+			buf[n] = 0;
+			return kernel_lists[i];
+		}
+	}
+	return NULL;
+}
+
+/* The running kernel against the installed list (docs/compatibility.md). 0 or exit status. */
+static int check_kernel(int unsupported)
+{
+	static char list[65536];
+	struct utsname u;
+	const char *path;
+
+	if (uname(&u)) {
+		fprintf(stderr, "moobfs: uname: %s\n", strerror(errno));
+		return 1;
+	}
+	path = read_kernel_list(list, sizeof list);
+	if (path && ws_kernel_listed(list, u.release))
+		return 0;
+	if (!path)
+		fprintf(stderr, "moobfs: %s: no supported-kernels list at %s or %s (the moobfs-tools "
+			"package and make install put it there)\n", unsupported ? "warning" : "refused",
+			kernel_lists[0], kernel_lists[1]);
+	else
+		fprintf(stderr, "moobfs: %s: kernel %s is not in %s; the module was never tested on "
+			"it (docs/compatibility.md)\n", unsupported ? "warning" : "refused", u.release,
+			path);
+	if (unsupported)
+		return 0;
+	fprintf(stderr, "moobfs: --unsupported mounts anyway, at your own risk\n");
+	return EX_UNAVAILABLE;
+}
+
+/*
+ * Can users other than root reach real (a real path)? Some directory above it must keep them
+ * out (ws_dir_blocks_others). The lower itself becomes the mount root, which stays 0755.
+ */
+static int lower_reachable(const char *real)
+{
+	char dir[PATH_MAX];
+
+	snprintf(dir, sizeof dir, "%s", real);
+	for (;;) {
+		char *slash = strrchr(dir, '/');
+		struct stat st;
+
+		if (!slash || (slash == dir && !dir[1]))
+			return 1;	/* nothing above "/" */
+		slash[slash == dir] = 0;	/* the parent; "/" stays "/" */
+		if (stat(dir, &st))
+			return -1;
+		if (ws_dir_blocks_others((unsigned int)st.st_mode, (unsigned int)st.st_uid,
+					 (unsigned int)st.st_gid,
+					 getxattr(dir, WS_XATTR_ACCESS, NULL, 0) > 0))
+			return 0;
+	}
+}
+
+/* The lower: a directory, not a layer, out of reach of other users. 0 or exit status. */
+static int check_lower(const char *lower, char *real, int allow_open)
+{
+	struct statfs sf;
+	struct stat st;
+	int r;
+
+	if (!realpath(lower, real) || stat(real, &st)) {
+		fprintf(stderr, "moobfs: %s: %s\n", lower, strerror(errno));
+		return errno == EACCES ? EX_NOPERM : 1;
+	}
+	if (!S_ISDIR(st.st_mode)) {
+		fprintf(stderr, "moobfs: %s is not a directory\n", lower);
+		return EX_DATAERR;
+	}
+	if (statfs(real, &sf)) {
+		fprintf(stderr, "moobfs: %s: %s\n", lower, strerror(errno));
+		return 1;
+	}
+	if (sf.f_type == LAYER_FS_TYPE) {
+		fprintf(stderr, "moobfs: %s is itself on a moobfs_layer mount; the lower must be "
+			"another filesystem\n", lower);
+		return EX_DATAERR;
+	}
+	r = lower_reachable(real);
+	if (r < 0) {
+		fprintf(stderr, "moobfs: %s: %s\n", real, strerror(errno));
+		return 1;
+	}
+	if (r && !allow_open) {
+		fprintf(stderr, "moobfs: refused: users other than root can reach %s: no directory "
+			"above it is root's alone (owner root, no search permission for others or for "
+			"a group other than root's, no ACL). Writes there would bypass the layer "
+			"(distribution strategy, section 2.3). Put it below one, for example "
+			"install -d -m 0700 /srv/moobfs; or pass --allow-open-lower\n", real);
+		return EX_DATAERR;
+	}
+	if (r)
+		fprintf(stderr, "moobfs: warning: users other than root can reach %s\n", real);
+	if ((st.st_mode & 07777) != 0755)
+		fprintf(stderr, "moobfs: note: the mount root takes the lower's mode %04o; clients "
+			"that open it need 0755 (docs/operations.md, section 3)\n",
+			(unsigned int)st.st_mode & 07777U);
+	return 0;
+}
+
+static int mount_error(int err, const char *point)
+{
+	switch (err) {
+	case ENODEV:
+		fprintf(stderr, "moobfs: the moobfs_layer module is not installed or cannot load "
+			"(docs/operations.md, section 2)\n");
+		return EX_UNAVAILABLE;
+	case EINVAL:
+		fprintf(stderr, "moobfs: the layer refused the mount; the kernel log says why "
+			"(dmesg | tail)\n");
+		return EX_DATAERR;
+	case EPERM:
+	case EACCES:
+		fprintf(stderr, "moobfs: mount on %s: %s\n", point, strerror(err));
+		return EX_NOPERM;
+	default:
+		fprintf(stderr, "moobfs: mount on %s: %s\n", point, strerror(err));
+		return 1;
+	}
+}
+
+static int cmd_mount(int argc, char **argv)
+{
+	char real[PATH_MAX], point[PATH_MAX], data[PATH_MAX + 128];
+	struct ws_args a;
+	struct stat st;
+	int rc;
+
+	if (ws_parse_args(argc - 1, argv + 1, WS_OPT_DEPTH | WS_OPT_NOLINKS | WS_OPT_NOINDEX |
+			  WS_OPT_BUDGET | WS_OPT_UNSUPPORTED | WS_OPT_OPEN_LOWER, &a) || a.npos != 2)
+		return usage();
+	if (geteuid()) {
+		fprintf(stderr, "moobfs: mounting needs root\n");
+		return EX_NOPERM;
+	}
+	if ((rc = check_kernel(!!(a.seen & WS_OPT_UNSUPPORTED))))
+		return rc;
+	if ((rc = check_lower(a.pos[0], real, !!(a.seen & WS_OPT_OPEN_LOWER))))
+		return rc;
+	if (!realpath(a.pos[1], point) || stat(point, &st)) {
+		fprintf(stderr, "moobfs: %s: %s\n", a.pos[1], strerror(errno));
+		return 1;
+	}
+	if (!S_ISDIR(st.st_mode)) {
+		fprintf(stderr, "moobfs: %s is not a directory\n", a.pos[1]);
+		return EX_DATAERR;
+	}
+	if (ws_mount_data(real, &a, data, sizeof data)) {
+		fprintf(stderr, "moobfs: %s: a lower path with a comma cannot be given to mount\n",
+			real);
+		return EX_DATAERR;
+	}
+	if (mount("none", point, "moobfs_layer", 0, data))
+		return mount_error(errno, point);
+	printf("mounted %s on %s (%s)\n", real, point, data);
+	return 0;
+}
+
+/* /sys/module/moobfs_layer/<name> into buf; 0, or -1 when it cannot be read. */
+static int module_attr(const char *name, char *buf, size_t len)
+{
+	char file[128];
+
+	snprintf(file, sizeof file, LAYER_SYSMOD "/%s", name);
+	return diag_line(file, buf, len);
+}
+
+/* The layer mounts whose root is the filesystem's root, from /proc/self/mountinfo. */
+static int each_layer_mount(int json, int *shown)
+{
+	char line[4 * PATH_MAX];
+	FILE *f = fopen("/proc/self/mountinfo", "re");
+	int rc = 0;
+
+	if (!f)
+		return 1;
+	while (fgets(line, sizeof line, f)) {
+		char point[PATH_MAX], root[PATH_MAX], fstype[64], opts[1024];
+		const char *sep = strstr(line, " - ");
+		struct mnt m;
+
+		if (!sep || sscanf(line, "%*s %*s %*s %4095s %4095s", root, point) != 2 ||
+		    sscanf(sep + 3, "%63s %*s %1023s", fstype, opts) != 2 ||
+		    strcmp(fstype, "moobfs_layer"))
+			continue;
+		unescape(point);
+		unescape(root);
+		if (strcmp(root, "/"))
+			continue;	/* a bind mount of a directory inside a layer */
+		memset(&m, 0, sizeof m);
+		m.record = 1;
+		snprintf(m.point, sizeof m.point, "%s", point);
+		snprintf(m.root, sizeof m.root, "/");
+		snprintf(m.opts, sizeof m.opts, "%s", opts);
+		if (json)
+			printf("%s\n  ", *shown ? "," : "");
+		else if (*shown)
+			printf("\n");
+		if (show_info(&m, json)) {
+			if (json)
+				printf("null");
+			rc = 1;
+		}
+		(*shown)++;
+	}
+	fclose(f);
+	return rc;
+}
+
+static int cmd_status(int argc, char **argv)
+{
+	char version[64] = "", srcversion[64] = "";
+	int json = 0, loaded, rc = 0, shown = 0;
+	struct mnt m;
+
+	if (argc >= 2 && !strcmp(argv[1], "--json")) {
+		json = 1;
+		argv++;
+		argc--;
+	}
+	if (argc > 2)
+		return usage();
+	loaded = !access(LAYER_SYSMOD, F_OK);
+	if (loaded) {
+		(void)module_attr("version", version, sizeof version);
+		(void)module_attr("srcversion", srcversion, sizeof srcversion);
+	}
+	if (argc == 2 && (rc = find_mount(argv[1], &m)))
+		return rc;
+	if (json) {
+		printf("{\"module\": {\"loaded\": %s, \"version\": ", loaded ? "true" : "false");
+		if (version[0])
+			json_str(version);
+		else
+			printf("null");
+		printf(", \"srcversion\": ");
+		if (srcversion[0])
+			json_str(srcversion);
+		else
+			printf("null");
+		printf("}, \"mounts\": [");
+	} else {
+		printf("module:           %s", loaded ? "moobfs_layer loaded" : "moobfs_layer not loaded");
+		if (version[0])
+			printf(", version %s", version);
+		if (srcversion[0])
+			printf(", srcversion %s", srcversion);
+		printf("\n\n");
+	}
+	if (argc == 2) {
+		if (json)
+			printf("\n  ");
+		rc = show_info(&m, json);
+		if (rc && json)
+			printf("null");
+		shown = 1;
+	} else {
+		rc = each_layer_mount(json, &shown);
+	}
+	if (json)
+		printf("%s]}\n", shown ? "\n" : "");
+	else if (!shown)
+		printf("no moobfs_layer mount\n");
+	if (!loaded && argc < 2)
+		return EX_UNAVAILABLE;
+	return rc;
+}
+
 /* moobfs-check from the directory of this program, else from PATH. */
 static int cmd_check(char **argv)
 {
@@ -1052,5 +1431,11 @@ int main(int argc, char **argv)
 		return cmd_check(argv + 1);
 	if (!strcmp(argv[1], "diagnose"))
 		return cmd_diagnose(argc - 1, argv + 1);
+	if (!strcmp(argv[1], "mount"))
+		return cmd_mount(argc - 1, argv + 1);
+	if (!strcmp(argv[1], "status"))
+		return cmd_status(argc - 1, argv + 1);
+	if (!strcmp(argv[1], "workspace"))
+		return moobfs_workspace(argc - 1, argv + 1);
 	return usage();
 }
