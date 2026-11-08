@@ -103,7 +103,13 @@ isolation_checks() {
 	expect 77 a2-on-a1.log 'permission denied' as a2 moobfs query "$W/a1" kind exists - -
 	if as a2 cat "$W/a1/m1.md" 2>/dev/null; then fail "a2 read a1's file"; fi
 	if as a1 ls "$W/a2" 2>/dev/null; then fail "a1 listed a2's area"; fi
-	[ "$(as a2 moobfs query "$W/shared" kind exists - -)" = s1.md ] || fail "a2's query of shared"
+	got=$(as a2 moobfs query "$W/shared" kind exists - - 2>/tmp/a2q.err) rc=$? || true
+	[ "$got" = s1.md ] || {
+		echo "a2 query: exit $rc, output '$got', error: $(cat /tmp/a2q.err)"
+		echo "id a2: $(id a2); group: $(getent group moob-proj)"
+		ls -la "$W" "$W/shared"; getfacl -p "$W/shared" "$W/shared/s1.md" 2>&1
+		fail "a2's query of shared"
+	}
 	as a2 cat "$W/shared/s1.md" | grep -q 'shared by a1' || fail "a2 cannot read s1.md"
 	as a2 sh -c "echo 'a2 adds' >>$W/shared/s1.md" || fail "a2 cannot write s1.md"
 	if as auditor ls "$W" 2>/dev/null; then fail "auditor listed the namespace"; fi
