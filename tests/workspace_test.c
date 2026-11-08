@@ -76,15 +76,18 @@ static void acl_codec(void)
 	char text[256];
 	long n;
 
-	/* the default ACL of shared: three base entries, no mask */
-	ws_acl_from_mode(&a, 0770);
+	/* the default ACL of shared: three base entries, no mask, others r-x */
+	ws_acl_from_mode(&a, WS_SHARED_DEFAULT);
 	n = ws_acl_encode(&a, buf, sizeof buf);
 	CHECK(n == 28);
 	CHECK(buf[0] == 2 && buf[4] == 0x01 && buf[6] == 7 && buf[12] == 0x04 && buf[14] == 7 &&
-	      buf[20] == 0x20 && buf[22] == 0 && buf[8] == 0xff && buf[27] == 0xff);
+	      buf[20] == 0x20 && buf[22] == 5 && buf[8] == 0xff && buf[27] == 0xff);
 	ws_acl_text(&a, text, sizeof text);
-	CHECK(!strcmp(text, "u::rwx,g::rwx,o::---"));
-	CHECK(ws_acl_mode(&a) == 0770);
+	CHECK(!strcmp(text, "u::rwx,g::rwx,o::r-x") && !strcmp(text, WS_SHARED_DEFAULT_TEXT));
+	CHECK(ws_acl_mode(&a) == 0775);
+	ws_acl_from_mode(&a, 0770);
+	ws_acl_text(&a, text, sizeof text);
+	CHECK(!strcmp(text, "u::rwx,g::rwx,o::---") && ws_acl_mode(&a) == 0770);
 
 	/* decode what the kernel returns, and encode it back byte for byte */
 	CHECK(!ws_acl_decode(named_bytes, sizeof named_bytes, &a) && a.n == 5);
@@ -213,7 +216,7 @@ static void plan(void)
 	CHECK(!strcmp(text, "mkdir proj, owner root:moob-proj, mode 0750"));
 	ws_step_text(&p.s[6], text, sizeof text);
 	CHECK(!strcmp(text, "mkdir proj/shared, owner root:moob-proj, mode 2770, default ACL "
-		      "u::rwx,g::rwx,o::---"));
+		      "u::rwx,g::rwx,o::r-x"));
 	CHECK(p.s[6].default_acl && p.s[6].mode == 02770);
 	ws_step_text(&p.s[8], text, sizeof text);
 	CHECK(!strcmp(text, "mkdir proj/a2, owner a2:a2, mode 0700"));

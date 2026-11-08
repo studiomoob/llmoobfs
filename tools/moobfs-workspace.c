@@ -8,9 +8,10 @@
  *   moobfs workspace list <mount> [--count NAME] [--json]
  *
  * Layout (ADR-0035 item 1): <ns> root:moob-<ns> 0750; <ns>/shared root:moob-<ns> 2770 with the
- * default ACL u::rwx,g::rwx,o::--- (base entries only, so new files get the group's write
+ * default ACL u::rwx,g::rwx,o::r-x (base entries only, so new files get the group's write
  * access without an extended ACL: posix_acl_create() of Linux 6.12.116 fs/posix_acl.c stores no
- * access ACL when posix_acl_create_masq() returns 0); <ns>/<agent> <agent>:<its group> 0700.
+ * access ACL when posix_acl_create_masq() returns 0; and they are 0664, readable by every class,
+ * so they stay in the domain's partition); <ns>/<agent> <agent>:<its group> 0700.
  *
  * create checks everything first (names, the mount's domain depth from GET_INFO, that <ns> does
  * not exist, that users and the group exist unless --create-users), then runs its steps in
@@ -22,9 +23,10 @@
  * standard output sent to standard error so that --json stays one object.
  *
  * grant rw and revoke rw add the user to moob-<ns> or remove it (gpasswd); ro adds or removes
- * the named entry u:<user>:r-x on <ns>, on <ns>/shared and in the default ACL of shared, read
- * and written as system.posix_acl_access and system.posix_acl_default with the mask recomputed;
- * an access ACL left without named entries is removed and the mode set from its base entries.
+ * the named entry u:<user>:r-x in the access ACL of <ns> and of <ns>/shared, read and written as
+ * system.posix_acl_access with the mask recomputed; the default ACL of shared is left alone, so
+ * files created during a grant are not extended. An access ACL left without named entries is
+ * removed and the mode set from its base entries.
  *
  * list prints the namespaces (directories one level below the mount root whose group is
  * moob-<name>), their areas, owners, modes and ACLs, and with --count NAME the files of each
@@ -188,7 +190,7 @@ static int make_dir(int mfd, const struct ws_step *s, char *err, size_t errlen)
 		unsigned char buf[WS_ACL_BYTES];
 		long n;
 
-		ws_acl_from_mode(&acl, 0770);
+		ws_acl_from_mode(&acl, WS_SHARED_DEFAULT);
 		n = ws_acl_encode(&acl, buf, sizeof buf);
 		if (n < 0 || fsetxattr(fd, WS_XATTR_DEFAULT, buf, (size_t)n, 0)) {
 			snprintf(err, errlen, "default ACL: %s", n < 0 ? "encoding" : strerror(errno));
@@ -476,16 +478,13 @@ static int access_ro(int nsfd, int sfd, const char *ns, const char *user, uid_t 
 
 	snprintf(shared, sizeof shared, "%s/" WS_SHARED, ns);
 	if (acl_edit(nsfd, ns, WS_XATTR_ACCESS, uid, user, grant) ||
-	    acl_edit(sfd, shared, WS_XATTR_ACCESS, uid, user, grant) ||
-	    acl_edit(sfd, shared, WS_XATTR_DEFAULT, uid, user, grant))
+	    acl_edit(sfd, shared, WS_XATTR_ACCESS, uid, user, grant))
 		return 1;
 	if (grant)
-		printf("note: %s reads files created in %s from now on; files made before keep "
-		       "their ACLs, and files with this entry are answered with per-result checks\n",
-		       user, shared);
+		printf("note: %s reads the files of %s that others may read (0664, the default); a "
+		       "file made narrower stays closed to it\n", user, shared);
 	else
-		printf("note: %s can no longer enter %s; ACL entries on files created meanwhile "
-		       "stay, unreachable\n", user, ns);
+		printf("note: %s can no longer enter %s\n", user, ns);
 	return 0;
 }
 

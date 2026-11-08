@@ -29,6 +29,14 @@
 #define WS_GROUP_MAX (WS_NS_MAX + 5U)
 #define WS_MAX_AGENTS 64
 #define WS_SHARED "shared"
+/*
+ * The base entries of the shared area's default ACL, u::rwx,g::rwx,o::r-x (ADR-0035 as
+ * corrected): new files 0664 and subdirectories 2775, readable by every class, so they pass
+ * the first branch of the homogeneity rule; others still cannot enter <ns> (0750) or shared
+ * (2770).
+ */
+#define WS_SHARED_DEFAULT 0775U
+#define WS_SHARED_DEFAULT_TEXT "u::rwx,g::rwx,o::r-x"
 
 /* ---- names ---------------------------------------------------------------------------- */
 
@@ -381,7 +389,7 @@ struct ws_step {
 	char group[WS_NAME_MAX + 1];		/* groupadd, gpasswd; the group for mkdir */
 	char path[WS_NS_MAX + WS_NAME_MAX + 2];	/* mkdir, relative to the mount root */
 	unsigned int mode;			/* mkdir, with the setgid bit */
-	int default_acl;			/* mkdir: u::rwx,g::rwx,o::--- as the default ACL */
+	int default_acl;			/* mkdir: WS_SHARED_DEFAULT as the default ACL */
 };
 
 #define WS_PLAN_MAX (3 + 3 * WS_MAX_AGENTS)
@@ -502,7 +510,7 @@ static inline void ws_step_text(struct ws_step *s, char *buf, size_t len)
 	buf[0] = 0;
 	if (s->kind == WS_MKDIR) {
 		snprintf(buf, len, "mkdir %s, owner %s:%s, mode %04o%s", s->path, s->user, s->group,
-			 s->mode, s->default_acl ? ", default ACL u::rwx,g::rwx,o::---" : "");
+			 s->mode, s->default_acl ? ", default ACL " WS_SHARED_DEFAULT_TEXT : "");
 		return;
 	}
 	for (i = 0; i < n && off < len; i++) {
