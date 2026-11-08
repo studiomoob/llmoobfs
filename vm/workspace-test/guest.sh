@@ -24,6 +24,22 @@ expect() {
 }
 no_access_acl() { ! getfattr -n system.posix_acl_access "$1" >/dev/null 2>&1; }
 owner_mode() { stat -c '%U:%G %a' "$1"; }
+SHARED_DEFAULT=$(printf 'user::rwx\ngroup::rwx\nother::r-x')
+shared_default() { getfacl -cpd "$W/shared" | grep -v '^$'; }
+# query_is <user> <dir> <expected paths, one per line>: what moobfs query returns, sorted; on a
+# difference, the exit status, the error and the permissions involved (journal 0273)
+query_is() {
+	u=$1 dir=$2 want=$3
+	rc=0
+	got=$(as "$u" moobfs query "$dir" kind exists - - 2>query.err) || rc=$?
+	got=$(printf '%s\n' "$got" | sort)
+	[ "$got" = "$want" ] || {
+		echo "$u query of $dir: exit $rc, output '$got', expected '$want', error: $(cat query.err)"
+		echo "id $u: $(id "$u"); group: $(getent group moob-proj)"
+		ls -la "$W" "$dir"; getfacl -p "$dir" "$dir"/* 2>&1
+		fail "$u's query of $dir"
+	}
+}
 
 setup() {
 	[ "$(uname -r)" = "$KVER" ] || fail "the image booted $(uname -r), not $KVER"
@@ -83,11 +99,10 @@ create_checks() {
 	done
 	[ "$(owner_mode "$W")" = "root:moob-proj 750" ] || fail "$W: $(owner_mode "$W")"
 	[ "$(owner_mode "$W/shared")" = "root:moob-proj 2770" ] || fail "shared: $(owner_mode "$W/shared")"
-	[ "$(getfacl -cpd "$W/shared" | grep -v '^$')" = "$(printf 'user::rwx\ngroup::rwx\nother::---')" ] ||
-		{ getfacl -pd "$W/shared"; fail "default ACL of shared"; }
+	[ "$(shared_default)" = "$SHARED_DEFAULT" ] || { getfacl -pd "$W/shared"; fail "default ACL of shared"; }
 	no_access_acl "$W" && no_access_acl "$W/shared" || fail "an access ACL after create"
 	expect 1 again.log 'exists; nothing was changed' moobfs workspace create "$M" proj --agents a1
-	mark "CREATED: $(owner_mode "$W") / shared $(owner_mode "$W/shared") / a1 $(owner_mode "$W/a1"); default ACL u::rwx,g::rwx,o::---"
+	mark "CREATED: $(owner_mode "$W") / shared $(owner_mode "$W/shared") / a1 $(owner_mode "$W/a1"); default ACL u::rwx,g::rwx,o::r-x"
 }
 
 isolation_checks() {
@@ -97,44 +112,46 @@ isolation_checks() {
 	as a2 moobfs-attr set "$W/a2/m2.md" kind string note
 	as a1 sh -c "echo 'shared by a1' >$W/shared/s1.md"
 	as a1 moobfs-attr set "$W/shared/s1.md" kind string note
-	[ "$(owner_mode "$W/shared/s1.md")" = "a1:moob-proj 660" ] || fail "s1.md: $(owner_mode "$W/shared/s1.md")"
+	[ "$(owner_mode "$W/shared/s1.md")" = "a1:moob-proj 664" ] || fail "s1.md: $(owner_mode "$W/shared/s1.md")"
 	no_access_acl "$W/shared/s1.md" || fail "s1.md has an access ACL (extended)"
-	[ "$(as a1 moobfs query "$W/a1" kind exists - -)" = m1.md ] || fail "a1's query of its area"
+	# a shared file made narrower than the default: left out of every query (ADR-0035's cost)
+	as a1 sh -c ": >$W/shared/narrow.md && chmod 0600 $W/shared/narrow.md"
+	as a1 moobfs-attr set "$W/shared/narrow.md" kind string note
+	[ "$(owner_mode "$W/shared/narrow.md")" = "a1:moob-proj 600" ] || fail "narrow.md: $(owner_mode "$W/shared/narrow.md")"
+	query_is a1 "$W/a1" m1.md
 	expect 77 a2-on-a1.log 'permission denied' as a2 moobfs query "$W/a1" kind exists - -
 	if as a2 cat "$W/a1/m1.md" 2>/dev/null; then fail "a2 read a1's file"; fi
 	if as a1 ls "$W/a2" 2>/dev/null; then fail "a1 listed a2's area"; fi
-	got=$(as a2 moobfs query "$W/shared" kind exists - - 2>/tmp/a2q.err) rc=$? || true
-	[ "$got" = s1.md ] || {
-		echo "a2 query: exit $rc, output '$got', error: $(cat /tmp/a2q.err)"
-		echo "id a2: $(id a2); group: $(getent group moob-proj)"
-		ls -la "$W" "$W/shared"; getfacl -p "$W/shared" "$W/shared/s1.md" 2>&1
-		fail "a2's query of shared"
-	}
+	query_is a2 "$W/shared" s1.md
+	query_is a1 "$W/shared" s1.md	# its own narrow.md is left out too
 	as a2 cat "$W/shared/s1.md" | grep -q 'shared by a1' || fail "a2 cannot read s1.md"
 	as a2 sh -c "echo 'a2 adds' >>$W/shared/s1.md" || fail "a2 cannot write s1.md"
 	if as auditor ls "$W" 2>/dev/null; then fail "auditor listed the namespace"; fi
-	mark "ISOLATION: a1 and a2 see their own areas only; a1's shared file 0660 without ACL, read and written by a2 through moob-proj"
+	mark "ISOLATION: a1 and a2 see their own areas only; a1's shared file 0664 without ACL, found by a2's query, read and written by a2 through moob-proj; a 0600 shared file left out"
 }
 
 grant_checks() {
 	moobfs workspace grant "$M" proj auditor ro >grant-ro.log 2>&1 || { cat grant-ro.log; fail "grant ro"; }
 	getfacl -cp "$W" | grep -q '^user:auditor:r-x' || fail "no u:auditor:r-x on $W"
 	getfacl -cp "$W/shared" | grep -q '^user:auditor:r-x' || fail "no u:auditor:r-x on shared"
-	getfacl -cpd "$W/shared" | grep -q '^user:auditor:r-x' || fail "no default u:auditor:r-x"
+	[ "$(shared_default)" = "$SHARED_DEFAULT" ] || { getfacl -pd "$W/shared"; fail "grant ro changed the default ACL"; }
 	[ "$(stat -c %a "$W")" = 750 ] && [ "$(stat -c %a "$W/shared")" = 2770 ] || fail "modes changed by grant"
 	as a2 sh -c "echo 'after the grant' >$W/shared/s2.md"
 	as a2 moobfs-attr set "$W/shared/s2.md" kind string note
+	[ "$(owner_mode "$W/shared/s2.md")" = "a2:moob-proj 664" ] && no_access_acl "$W/shared/s2.md" ||
+		{ getfacl -p "$W/shared/s2.md"; fail "s2.md, made during the grant: $(owner_mode "$W/shared/s2.md")"; }
 	as auditor cat "$W/shared/s2.md" | grep -q 'after the grant' || fail "auditor cannot read s2.md"
+	as auditor cat "$W/shared/s1.md" | grep -q 'shared by a1' || fail "auditor cannot read s1.md"
 	if as auditor sh -c "echo x >>$W/shared/s2.md" 2>/dev/null; then fail "auditor wrote s2.md"; fi
-	if as auditor cat "$W/shared/s1.md" 2>/dev/null; then fail "auditor read s1.md, made before the grant"; fi
+	if as auditor cat "$W/shared/narrow.md" 2>/dev/null; then fail "auditor read narrow.md"; fi
 	if as auditor ls "$W/a1" 2>/dev/null; then fail "auditor listed a1's area"; fi
-	[ "$(as auditor moobfs query "$W/shared" kind exists - -)" = s2.md ] || fail "auditor's query of shared"
-	mark "GRANT_RO: auditor reads s2.md (made after the grant) and queries it, cannot write it, cannot read s1.md or a1's area"
+	query_is a2 "$W/shared" "$(printf 's1.md\ns2.md')"
+	query_is auditor "$W/shared" "$(printf 's1.md\ns2.md')"
+	mark "GRANT_RO: auditor reads and queries s1.md and s2.md, s2.md made during the grant is 0664 without ACL and found by a2; auditor cannot write, read narrow.md or a1's area"
 	moobfs workspace revoke "$M" proj auditor ro >revoke-ro.log 2>&1 || { cat revoke-ro.log; fail "revoke ro"; }
 	no_access_acl "$W" && no_access_acl "$W/shared" || fail "an access ACL left after revoke"
 	[ "$(stat -c %a "$W")" = 750 ] && [ "$(stat -c %a "$W/shared")" = 2770 ] || fail "modes after revoke"
-	[ "$(getfacl -cpd "$W/shared" | grep -v '^$')" = "$(printf 'user::rwx\ngroup::rwx\nother::---')" ] ||
-		{ getfacl -pd "$W/shared"; fail "default ACL after revoke"; }
+	[ "$(shared_default)" = "$SHARED_DEFAULT" ] || { getfacl -pd "$W/shared"; fail "default ACL after revoke"; }
 	if as auditor cat "$W/shared/s2.md" 2>/dev/null; then fail "auditor read s2.md after revoke"; fi
 	expect 77 revoked-query.log 'permission denied' as auditor moobfs query "$W/shared" kind exists - -
 	mark "REVOKE_RO: ACLs back to minimal, modes 750 and 2770, auditor refused"
@@ -181,12 +198,15 @@ assert [x["mount"] for x in d["mounts"]] == [sys.argv[2]] and d["mounts"][0]["do
 ' status.json "$M" "$(cat /sys/module/moobfs_layer/version)" "$(cat /sys/module/moobfs_layer/srcversion)" ||
 		{ cat status.json; fail "status JSON"; }
 	moobfs status "$M" | grep -q "^module: .*version $(cat /sys/module/moobfs_layer/version)" || fail "status text"
-	mark "STATUS: module $(cat /sys/module/moobfs_layer/version) srcversion $(cat /sys/module/moobfs_layer/srcversion), one mount at depth 2"
+	# informational: domains whose directory changed mode, owner or ACL answer with per-result
+	# checks until the next mount (ADR-0035, Consequences)
+	fallback=$(moobfs info --json "$M" | python3 -c 'import json,sys; print(json.load(sys.stdin)["counters"]["fallback_domains"])')
+	mark "STATUS: module $(cat /sys/module/moobfs_layer/version) srcversion $(cat /sys/module/moobfs_layer/srcversion), one mount at depth 2; fallback_domains=$fallback"
 }
 
-# The cost ADR-0035 states: the agents' files pass the homogeneity rule in their areas, shared
-# files do not (owned by an agent, the domain directory by root) and are answered with
-# per-result checks. moobfs-check's user-space oracle of the rule lists what is left out.
+# What ADR-0035 states: the agents' files and the shared files of the default mode (0664) pass
+# the homogeneity rule; a shared file made narrower (0600) fails it and is left out of QUERY2.
+# moobfs-check's user-space oracle of the rule lists what is left out.
 cost_checks() {
 	rc=0
 	moobfs-check --domain-depth 2 "$M" >check.json || rc=$?
@@ -195,10 +215,11 @@ cost_checks() {
 import json, sys
 left = [x["path"] for x in json.load(open(sys.argv[1]))["left_out"]]
 has = lambda p: any(x.endswith(p) for x in left)
-assert has("shared/s1.md") and has("shared/s2.md"), left
+assert has("shared/narrow.md"), left
+assert not has("shared/s1.md") and not has("shared/s2.md"), left
 assert not has("a1/m1.md") and not has("a2/m2.md"), left
 ' check.json || { cat check.json; fail "left_out"; }
-	mark "COST: moobfs-check clean; shared files left out of the partitions (per-result checks), agent files in"
+	mark "COST: moobfs-check clean; shared/narrow.md (0600) left out, s1.md, s2.md and the agents' files in their partitions"
 }
 
 phase0() {
