@@ -1320,3 +1320,27 @@ hand and carries the same code paths:
 - setfacl(1) of the `acl` package (<https://savannah.nongnu.org/projects/acl>): the mask it
   recomputes after a change, the union of the owning group's and every named entry's
   permissions, which `ws_acl_fix_mask()` reproduces.
+
+## 51. The port to Linux 7.3 (ADR-0034, journal 0275)
+
+- Linux 7.3.3, exact sources read on 2026-11-08 for the port of `layer/`:
+  `Documentation/filesystems/porting.rst` (`->d_revalidate()` with the parent and the name,
+  `->mkdir()` returning a dentry, `lookup_one*()` with a qstr and `lookup_noperm*()` without the
+  permission check, `set_default_d_op()`, `vfs_mkdir()` consuming the dentry on error, `->setlease()`
+  required, `lock_rename()` gone, `.create` without `excl`); `fs/namei.c` (`vfs_create()`,
+  `vfs_mkdir()`, `vfs_rmdir()`, `lookup_one_qstr_excl()`, `__start_renaming_dentry()`,
+  `start_renaming_dentry()`, `end_renaming()`); `fs/backing-file.c` and
+  `include/linux/backing-file.h` (`struct backing_file_ctx`, the splice helpers with a kiocb);
+  `fs/stat.c` (`vfs_getattr()`, `vfs_getattr_nosec()`); `fs/locks.c` (`kernel_setlease()`,
+  `generic_setlease()`, `fcntl_setlease()`); `include/linux/fs.h` (`inode_state_read_once()`,
+  `inode_generic_drop()`, `i_ino`); `include/linux/filelock.h` (`try_break_deleg()`); and
+  overlayfs as the model: `fs/overlayfs/overlayfs.h` (`ovl_do_mkdir()` and the other wrappers),
+  `dir.c` (`ovl_rename()`), `copy_up.c` and `super.c` (`start_renaming_dentry()`,
+  `ovl_revalidate_real()`), `inode.c` (`ovl_real_getattr_nosec()`), `file.c` (the backing-file
+  context, `ovl_splice_read/write()`, `.setlease`).
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/?h=v7.3.3>.
+- Linux 6.12.116, the same files for the forms the module had: `fs/backing-file.c`
+  (`file_remove_privs()` in the write helpers), `fs/locks.c` (`vfs_setlease()`,
+  `kernel_setlease()`), `fs/stat.c` (`AT_GETATTR_NOSEC`), and the `->create()` of ext4, btrfs and
+  XFS, which do not read `excl`.
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/?h=v6.12.116>.
