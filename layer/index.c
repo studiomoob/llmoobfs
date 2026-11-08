@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include "moobl.h"
+#include "moobl_compat.h"
 #include "moobfs_attr.h"
 #include "moobfs_ioctl.h"
 
@@ -1794,7 +1795,8 @@ static void selfcheck_run(struct super_block *sb, struct dentry *lower)
 		atomic64_inc(&selfcheck_open);
 	} else if (what) {
 		atomic64_inc(&selfcheck_diffs);
-		pr_warn_ratelimited("moobfs_layer: selfcheck: ino %lu: %s\n", li->i_ino, what);
+		pr_warn_ratelimited("moobfs_layer: selfcheck: ino %llu: %s\n",
+				    (unsigned long long)li->i_ino, what);	/* u64 on 7.3 */
 	}
 }
 
@@ -2163,7 +2165,7 @@ static int scan_file(struct scan_job *job, struct scan_dir *cur, struct dentry *
 /* One name read from a scanned directory: a directory is queued, a regular file indexed. */
 static int scan_child(struct scan_job *job, struct scan_dir *cur, struct scan_name *sn)
 {
-	struct dentry *child = lookup_one_len_unlocked(sn->name, cur->dentry, sn->len);
+	struct dentry *child = moobl_lookup_one_unlocked(sn->name, cur->dentry, sn->len);
 	char *cpath;
 	int err = 0;
 
