@@ -1,6 +1,6 @@
 # 0276 — Regression tests for review findings R2-1, R2-2, R2-12, V4/M5 and M8.7
 
-Date: 2026-11-09, 02:15 Brasília time to the end of the full suite below. Status: **done
+Date: 2026-11-09, 02:15–03:55 Brasília time. Status: **done
 locally**, not published. Calendar time, not effort; estimated effort S (hours).
 
 ## Goal
@@ -83,8 +83,10 @@ while a kernel build ran on the host; every run in a new clone under `~/b11night
 Offline: `shellcheck vm/suite.sh vm/build-tests.sh` clean (after SC2174 was fixed),
 `sh -n` of the changed scripts, `sh vm/build-tests.sh` with `-Wall -Wextra -Werror` (gcc 14).
 
+Commit hashes before the DCO sign-off rebase are given with the hash after it.
+
 **Positive** (`MOOB_ONLY="deeptree samedir attrlist limits ext4 btrfs xfs"`, source `101daaa`,
-whose code equals `7ab2652`; 02:26–02:37): exit 0, `MOOBFS_ONLY_PASS`.
+whose code equals `3ef8e4a`; 02:26–02:37): exit 0, `MOOBFS_ONLY_PASS`.
 - `LAYER_BEHIND_PASS` and `LAYER_LOWER_PASS` on ext4, btrfs and XFS.
 - `DEEP_TREE_PASS` on all three, each with the three expected `REVIEW2_RESULT` lines.
 - `SAMEDIR_RENAME_PASS: ext4|btrfs|xfs readings_repeated=1`, control and race both
@@ -109,7 +111,19 @@ Case (1b) of `behind`, the rename over a cached name, is caught by the same `d_u
 as case (1): the lower rename unhashes the replaced dentry, as in journal 0268. No single check
 isolates it from case (1).
 
-**Full suite**: see the section below.
+**Full suite** (`MOOB_VM_KVM=1 make vm-test`, no `MOOB_ONLY`, source `5ab7f88`, the same tree
+as `119429d`; 02:54–03:49, guest uptime 3,036 s of the harness's 3,600 s limit, the host loaded
+by three virtme-ng guests and two syzkaller guests): exit 0, no `_FAIL` line, `MOOBFS_VM_PASS`,
+`MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`; `LAYER_BEHIND_PASS` three times,
+`HOOK_RACE_PASS`, `DEEP_TREE_PASS` and `SAMEDIR_RENAME_PASS` (`readings_repeated=1`) on ext4,
+btrfs and XFS, `ATTRLIST_LIMIT_PASS` on btrfs and XFS, `LIMITS_BUDGET_PASS … 13 times, logged 0
+time(s) in all`, `LIMITS_MEMCG_PASS`. `make lint` passed on the same copy and
+`scripts/check-retired-claims.sh` locally (`RETIRED_CLAIMS_OK`).
+
+In the full suite the build-failure line counted 0 before and after the twelve refusals: the
+one line `pr_warn_once()` printed earlier in the run was no longer in the kernel's log buffer
+when `limits` ran, or no earlier build failed with a logged errno. Either way the check still
+fails on a line printed per failure, as round D shows (1 → 10 with `MOOB_ONLY=limits`).
 
 ## Limitations
 
@@ -117,7 +131,10 @@ isolates it from case (1).
 - `attrlist` cannot run on ext4; a list growing past 64 KiB after the build is not tested.
 - `behind` covers lowers without their own `d_revalidate` (ext4, btrfs, XFS), one process.
 - The M8.7 check reads the log of the whole module load; with `pr_warn_once` the message can
-  be printed by an earlier step, in which case the check sees no new line.
+  be printed by an earlier step, in which case the check sees no new line. It cannot tell
+  "logged once" from "never logged" (the full suite counted 0).
+- The full suite needed 3,036 s of the 3,600 s guest limit on a loaded host; a busier host can
+  hit the limit for reasons unrelated to these steps.
 - No KASAN run of these steps: they change no locking or lifetime in the module. The batch's
   KASAN suite will run them.
 
