@@ -234,7 +234,9 @@ no kernel diagnostic. The run does not print which offset it chose; the evidence
 user space under emulation (gcc, `moobfs-attr`, `moobfs-index`, `mkfs.moobfs`, `fsck.moobfs`
 built and run as x86-64), on Docker Desktop's Linux VM whose kernel is `7.0.14-linuxkit` for
 arm64 (little-endian). The attribute bytes are those encoded by x86-64 user space; the ext4,
-btrfs and XFS structures are those of trixie's mkfs tools and of that kernel. It makes:
+btrfs and XFS structures are those of trixie's mkfs tools and of that kernel. No native x86-64
+kernel took part: what this proves is a little-endian writer (x86-64 user space on an arm64
+little-endian kernel) to a big-endian reader (the s390x kernel and user space). It makes:
 
 - three lower images (ext4 64 MiB, btrfs 256 MiB, XFS 300 MiB), each with domain `da` (the
   suite's Q2b shapes: 30 files, time and int64 `created` with ties, `kind`, long `title`s; uid
@@ -276,3 +278,54 @@ hashes recomputed, fails with `MOOBFS_VM_FAIL: cx-mismatch-wasc-ext4`.
 
 One semantic worth stating, the same on both machines: `weight eq double 0` matches +0.0 only,
 not -0.0 (the kernel and both oracles agree; `layer/index.c:130` keys the two zeros apart).
+
+### KASAN, UBSAN and lockdep on s390x (commit `1784ba7`)
+
+Path: `vm/kasan-local.sh` with an architecture switch, not a separate script. It already builds
+the pinned upstream kernel with `vm/kasan.config` through virtme-ng and runs
+`vm/kasan-guest.sh` (the KASAN harness's own checks, the `faults` step, the final
+`MOOBFS_KASAN_PASS`); on s390x only, chosen by `uname -m`, it differs in four ways, and on any
+other host it does exactly what it did:
+
+- the image is `arch/s390/boot/bzImage`;
+- `vm/kasan-s390x.config` is applied after `vm/kasan.config`, with one line, `CONFIG_KVM=n`. It
+  concerns the guest kernel only (the debug kernel the suite runs in, which does not need to host
+  VMs); the instance's own kernel and the KVM that runs the guest are untouched. Reason: the first
+  build stopped in `arch/s390/kvm/kvm-s390.c` of 6.12.116 (lines 4776, 4786, 4806:
+  `__kvm_faultin_pfn()`, `KVM_PFN_ERR_NEEDS_IO`, `kvm_release_faultin_page()` undeclared), a
+  defect of that stable release on s390, not of this project;
+- `vng --no-virtme-ng-init`: the `virtme-ng-init` in virtme-ng 1.42's wheel is an x86-64 binary,
+  and the first boot panicked running it ("Requested init ... failed (error -8)"); the arm64
+  workflow uses the same option;
+- the disks are given to vng as links named `moob-ext4` etc. in the kernel tree, so their serials
+  are the names `vm/suite.sh` maps (vng uses the path as serial, and the CCW disks may probe in
+  any order; in this run they happened to come up in command-line order).
+
+Every option of `vm/kasan.config` (and the s390x line) was checked present in the resulting
+`.config` with its requested value: no other difference. The kernel: Linux 6.12.116, tarball
+SHA-256 `cb3ed3df…6a511b` verified, built on the instance with Ubuntu's GCC 13.3.0 at `nice 10`,
+2 jobs, 15:09–15:34 BRT (about 25 min); `CONFIG_MARCH_Z13=y` from virtme-ng's base.
+Prerequisites installed on the instance: build tools, `qemu-system-s390x` 1:8.2.2+ds-0ubuntu1.18 (Ubuntu), virtme-ng
+1.42 from `vm/kasan-requirements.txt` by hash in a venv. One more harness hiccup, not recorded
+in the scripts: the checkout had root-owned files from the Docker runs, and `make layer` as the
+user failed until they were given back (`chown`).
+
+**Per-lower steps**, `MOOB_ONLY="ext4 btrfs xfs"`, KVM, 2 CPUs, 3 GiB, 15:37–17:21 BRT (6231 s;
+ext4 about 34 min, btrfs 33, XFS 36): exit 0,
+`MOOBFS_KASAN_ONLY_PASS: steps ext4 btrfs xfs under KASAN, UBSAN and lockdep with no kernel
+diagnostics`, `MOOBFS_ONLY_PASS`, 95 pass lines; `QUERY2_PASS`, `HOSTILE_LOWER_PASS` and
+`LAYER_LOWER_PASS` on each lower; no `BUG`, `KASAN:`, `UBSAN:` or `WARNING` line. The boot log
+shows lockdep ("Lock dependency validator", "RCU lockdep checking is enabled") and KFENCE; s390's
+KASAN prints no "KernelAddressSanitizer initialized" line, so the evidence that KASAN is in is
+`CONFIG_KASAN=y`, `CONFIG_KASAN_GENERIC=y`, `CONFIG_KASAN_INLINE=y` in the built `.config`. The
+guest's first lines (the harness's `kernel:` summary) were lost in the console interleaving of
+the shell init. Taint: `E` from the guest kernel's own unsigned `vfio` module that udev loaded,
+and `O` from the layer module; neither is a diagnostic. One line differs from the native runs:
+`EQUIV_PASS ... SQLite SCAN plans to justify: 2` (1 natively), because this guest runs the
+host's SQLite (Ubuntu's), not Debian's. Once, during `BENCH_LAYER` on ext4 after a
+`drop_caches`, the kernel logged `moobfs_layer: building the index of a domain failed (-110)`:
+a build hit the CPU-time or wall-time bound of `scan_check()` (`layer/index.c:2066-2070`, journal
+0241) under KASAN's slowdown; the step still passed (why the bench tolerates it was not
+checked). Not a diagnostic; recorded as the one place where the debug kernel's speed showed.
+
+**Full suite** under KASAN: started 17:25 BRT, in progress (see below).
