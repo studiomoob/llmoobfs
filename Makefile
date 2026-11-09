@@ -7,12 +7,12 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test bench-test deb pylib-test repro-test static mutants-check fstests-auto tla-check
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test workspace-test bench-test deb pylib-test repro-test static mutants-check fstests-auto tla-check
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
 	@echo '  make / make tools  build mkfs.moobfs, fsck.moobfs and attr_test into $$(BUILD)'
-	@echo '  make test          attr_test and diag_test unit tests and malformed-image tests'
+	@echo '  make test          attr_test, diag_test and workspace_test unit tests and malformed-image tests'
 	@echo '  make lint          shellcheck on vm/ and scripts/ shell scripts, SPDX headers on C, shell and Python sources (same as CI)'
 	@echo '  make checkpatch    kernel checkpatch.pl --no-tree on layer/ and kernel/ (required in CI; needs curl, perl)'
 	@echo '  make static        W=1, sparse, smatch, Coccinelle, clang analyzer, kernel-doc on the modules (S19); needs only Docker'
@@ -37,12 +37,13 @@ help:
 	@echo '  make container-test  docs/container-integration.md with Docker and Podman in a disposable VM'
 	@echo '  make deb           experimental moobfs-dkms and moobfs-tools packages into build/deb (Debian; not published)'
 	@echo '  make package-test  the packages under Secure Boot in a disposable Debian 13 VM; needs only Docker'
+	@echo '  make workspace-test  moobfs mount, workspace and status after make install in that VM (ADR-0035)'
 	@echo '  make repro-test    build the module and the packages twice in clean containers; byte-identical or fail (Docker)'
 	@echo '  make bench-test    the on-demand index benchmark (issue #68) in that VM; MOOB_BENCH_FS=ext4|btrfs|xfs'
 	@echo 'Long runs on a Linux test host with KVM (docs/testing.md):'
 	@echo '  make fstests-auto  fstests group auto over the layer with the exclusion lists; LOWER=ext4|btrfs|xfs, FSTESTS=<built checkout> (6 to 11 hours)'
 	@echo 'Details: docs/development.md and docs/testing.md'
-tools: $(BUILD)/mkfs.moobfs $(BUILD)/fsck.moobfs $(BUILD)/attr_test $(BUILD)/diag_test
+tools: $(BUILD)/mkfs.moobfs $(BUILD)/fsck.moobfs $(BUILD)/attr_test $(BUILD)/diag_test $(BUILD)/workspace_test
 # SQL over a domain, no database (ADR-0013, journal 0108): load with .load or load_extension
 sqlite-ext: $(BUILD)/moobfs.so
 $(BUILD)/moobfs.so: sqlite/moobfs_vtab.c common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
@@ -58,6 +59,9 @@ $(BUILD)/attr_test: tests/attr_test.c common/attr.c include/moobfs_attr.h | $(BU
 # The cgroup and module-parameter readers of moobfs diagnose (tools/diag.h, journal 0243); portable.
 $(BUILD)/diag_test: tests/diag_test.c tools/diag.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) tests/diag_test.c $(LDFLAGS) -o $@
+# Names, ACL xattrs, the create plan and the options of moobfs workspace and mount (tools/workspace.h, ADR-0035); portable.
+$(BUILD)/workspace_test: tests/workspace_test.c tools/workspace.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) tests/workspace_test.c $(LDFLAGS) -o $@
 # Linux-only tools over the xattr API (built statically inside the VM container too).
 attr-tools: $(BUILD)/moobfs-attr $(BUILD)/moobfs-check $(BUILD)/moobfs-index $(BUILD)/moobfs
 $(BUILD)/moobfs-attr: tools/moobfs-attr.c common/attr.c include/moobfs_attr.h | $(BUILD)
@@ -66,8 +70,8 @@ $(BUILD)/moobfs-check: tools/moobfs-check.c tools/walk.h tools/ext-acl.h common/
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs-check.c common/attr.c $(LDFLAGS) -o $@
 $(BUILD)/moobfs-index: tools/moobfs-index.c tools/query-common.h tools/walk.h tools/ext-acl.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs-index.c common/attr.c $(LDFLAGS) -o $@
-$(BUILD)/moobfs: tools/moobfs.c tools/query-common.h tools/diag.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs.c common/attr.c $(LDFLAGS) -o $@
+$(BUILD)/moobfs: tools/moobfs.c tools/moobfs-workspace.c tools/moobfs-cli.h tools/workspace.h tools/query-common.h tools/diag.h common/attr.c include/moobfs_attr.h include/moobfs_ioctl.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARN) -Iinclude tools/moobfs.c tools/moobfs-workspace.c common/attr.c $(LDFLAGS) -o $@
 # M4 benchmark harness (docs/benchmark-harness.md). gen is portable; load is Linux-only.
 bench-tools: $(BUILD)/bench-gen $(BUILD)/bench-load $(BUILD)/bench-sqlclient $(BUILD)/bench-aimem-latency $(BUILD)/bench-readcost $(BUILD)/query
 $(BUILD)/bench-gen: bench/gen.c bench/common.h | $(BUILD)
@@ -106,6 +110,7 @@ json-test: attr-tools $(BUILD)/hostile
 test: tools
 	$(BUILD)/attr_test
 	$(BUILD)/diag_test
+	$(BUILD)/workspace_test
 	MOOB_BUILD_DIR=$(BUILD) python3 tests/test_images.py
 # libFuzzer runs (needs LLVM clang with libFuzzer, e.g. on Linux), FUZZ_TIME seconds per target:
 # attr (common/attr.c), image (the image parser common/format.c) and tools (query terms and ACL
@@ -186,6 +191,9 @@ deb:
 	sh scripts/build-debs.sh
 package-test:
 	MOOB_TEST=package sh vm/install-test/run.sh
+# ADR-0035 (journal 0273): the user-space workspace commands in the same disposable Debian 13 VM
+workspace-test:
+	MOOB_TEST=workspace sh vm/install-test/run.sh
 # Security roadmap S10 (journal 0236): reproducible module and packages, two clean containers.
 repro-test:
 	sh scripts/repro-ko.sh

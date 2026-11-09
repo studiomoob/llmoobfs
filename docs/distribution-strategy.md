@@ -137,6 +137,12 @@ Create with the layer mounted (or unmounted). The POSIX commands EXIST; automati
 | Private with auditor, or read-only shared (`2750`) | same | `0700` + `setfacl -m u:auditor:rX` and `-d -m u:auditor:rX` |
 | Shared with write access `/<ns>/shared` | `root:moob-<ns>` | `2770` (setgid: new files inherit the group) + `setfacl -d -m g:moob-<ns>:rwX` |
 
+*Amended, 2026-11-09 ([ADR-0035](decisions/0035-workspace-layout-and-cli.md), journal 0273):* the
+table above is kept. With per-domain queries and the homogeneity rule it leaves almost every file
+out of `QUERY2` answers. The layout is now `<ns>` (`root:moob-<ns>` `0750`), `<ns>/shared`
+(`root:moob-<ns>` `2770`, base-only default ACL `u::rwx,g::rwx,o::r-x`) and `<ns>/<agent>`
+(`<agent>:<agent>` `0700`), mounted with `domain_depth=2`; `moobfs workspace create` makes it.
+
 Facts: every directory in the path needs `x` for the caller, otherwise the `QUERY` result
 is omitted; changing `user.moob.namespace`/`agent` does not grant access; `chmod`/`setfacl` take effect on the
 next `QUERY`; POSIX ACLs pass through the layer since `d0c8911`; renaming a directory leaves
@@ -303,6 +309,12 @@ A single `moobfs` executable, no daemon, no state beyond a text manifest
 Principles: `--json` output, exit codes like those of `moobfs-check` (0 clean, 2 problems,
 1 error), nothing is overwritten, nothing destructive without `--yes`, no network.
 
+*Amended, 2026-11-09 ([ADR-0035](decisions/0035-workspace-layout-and-cli.md), journal 0273):* the
+table above is kept. `moobfs mount`, `status` and `workspace create`, `grant`, `revoke` and
+`list` exist, with the arguments of ADR-0035 (`workspace create <mount> <ns> [--agents a,b]
+[--create-users]`, no `--shared` and no `agents/` level), and pass in a disposable Debian 13 VM
+(`make workspace-test`); `check`, `query` and `info` existed already (C4, journal 0198).
+
 ## 4. Complete flow (target; today only steps 2 and 3, manual in a VM, are EXISTS)
 
 Scenario: Debian host with a kernel from the matrix, ext4 lower on `/dev/vdb`.
@@ -312,7 +324,7 @@ Scenario: Debian host with a kernel from the matrix, ext4 lower on `/dev/vdb`.
 3. **Mount (EXISTS; `moobfs mount` FUTURE):**
    `mount -t moobfs_layer -o lower=/var/lib/moobfs/store,nolinks,index_budget=256M none /srv/memory`;
    `chmod 0755 /srv/memory`; check `/proc/mounts` and `GET_INFO`.
-4. **Workspace (FUTURE; manual today):** `moobfs workspace create project-x --agents planner,coder --shared`
+4. **Workspace (EXISTS since ADR-0035, journal 0273, with the layout of 2.2's note; the command line below is the old proposal):** `moobfs workspace create project-x --agents planner,coder --shared`
    creates the group, users, `2770`/`0700` directories and default ACLs (2.2).
 5. **Integrate the agent:** it runs with its own uid; receives the path of its directory and that of the root;
    follows the contract in section 1.3 (write with `fsync` + `rename`, set `namespace`, `agent`,

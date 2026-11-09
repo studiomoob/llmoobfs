@@ -12,6 +12,8 @@ out=build/install-test
 [ "${MOOB_TEST:-install}" = package ] && out=build/package-test
 # MOOB_TEST=bench runs bench/ondemand.sh on a lower of MOOB_BENCH_FS (journal 0238, build/bench-test/)
 [ "${MOOB_TEST:-install}" = bench ] && out=build/bench-test
+# MOOB_TEST=workspace runs the moobfs mount, workspace and status commands (ADR-0035, build/workspace-test/)
+[ "${MOOB_TEST:-install}" = workspace ] && out=build/workspace-test
 mkdir -p "$out"
 # --no-xattrs: macOS tar would otherwise store its provenance attribute in every entry
 git ls-files -z --cached --others --exclude-standard |

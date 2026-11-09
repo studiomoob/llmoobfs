@@ -28,6 +28,9 @@ override_dh_auto_install:
 		install -m 0755 build/deb/$$t debian/moobfs-tools/usr/bin/$$t; \
 		install -m 0644 man/$$t.1 debian/moobfs-tools/usr/share/man/man1/$$t.1; \
 	done
+	# the list `moobfs mount` checks the running kernel against (ADR-0035)
+	install -d debian/moobfs-tools/usr/share/moobfs
+	install -m 0644 scripts/supported-kernels debian/moobfs-tools/usr/share/moobfs/supported-kernels
 	install -d $(SRC)/layer $(SRC)/include $(SRC)/common
 	install -m 0644 layer/*.c layer/*.h layer/Makefile $(SRC)/layer/
 	install -m 0644 include/*.h $(SRC)/include/

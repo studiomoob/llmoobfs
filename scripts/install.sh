@@ -22,6 +22,8 @@ BUILD=build/install
 MODDIR=$DESTDIR/lib/modules/$KVER/updates/moobfs
 BINDIR=$DESTDIR$PREFIX/bin
 MANDIR=$DESTDIR$PREFIX/share/man/man1
+# the list `moobfs mount` checks the running kernel against (ADR-0035)
+SHAREDIR=$DESTDIR$PREFIX/share/moobfs
 TOOLS='moobfs moobfs-attr moobfs-check moobfs-index'
 
 die() { echo "moobfs install: $*" >&2; exit 1; }
@@ -93,6 +95,7 @@ do_install() {
 		place "$BUILD/$t" "$BINDIR/$t" 755
 		place "man/$t.1" "$MANDIR/$t.1" 644
 	done
+	place scripts/supported-kernels "$SHAREDIR/supported-kernels" 644
 	if [ -z "$DESTDIR" ]; then
 		depmod -a "$KVER"
 		secure_boot_note
@@ -119,7 +122,8 @@ do_uninstall() {
 		remove_installed "$BINDIR/$t"
 		remove_installed "$MANDIR/$t.1"
 	done
-	rmdir "$MODDIR" 2>/dev/null || true
+	remove_installed "$SHAREDIR/supported-kernels"
+	rmdir "$MODDIR" "$SHAREDIR" 2>/dev/null || true
 	[ -n "$DESTDIR" ] || depmod -a "$KVER"
 	echo "moobfs uninstall: done for kernel $KVER; lower directories are untouched"
 }

@@ -13,11 +13,19 @@ moobfs info [--json] <path>
 moobfs query [--json] [--ino] [--order NAME TYPE asc|desc] [--limit N] [--page N] <dir> [terms...]
 moobfs check [moobfs-check arguments]
 moobfs diagnose [--json] <path>
+moobfs mount <lower> <mountpoint> [--domain-depth N] [--nolinks] [--noindex] [--index-budget B]
+             [--unsupported] [--allow-open-lower]
+moobfs status [--json] [mountpoint]
+moobfs workspace create <mount> <ns> [--agents a,b] [--create-users] [--dry-run] [--json]
+moobfs workspace grant|revoke <mount> <ns> <user> rw|ro
+moobfs workspace list <mount> [--count NAME] [--json]
 moobfs --help
 ```
 
 One command for a mounted layer (roadmap item C4, journal 0198), over the existing ioctls; it
-adds no kernel interface. Errors start with `moobfs:` and say what to do.
+adds no kernel interface. Errors start with `moobfs:` and say what to do. `mount`, `status` and
+`workspace` follow [ADR-0035](decisions/0035-workspace-layout-and-cli.md) (accepted 2026-11-09;
+journal 0273) and pass in a disposable Debian 13 VM (`make workspace-test`).
 
 - `info` finds the layer mount that holds `<path>` and prints its `GET_INFO`: lower filesystem,
   interface versions, whether the index is on, the domain depth, the index budget and build
@@ -51,6 +59,55 @@ adds no kernel interface. Errors start with `moobfs:` and say what to do.
   `module_parameters`, `tracepoints`, `warnings`, `findings`). Exit 0, or 2 when a warning was
   printed. Run it as the user and in the session that queries: the memory cgroup is the
   process's own, and `sudo -u` keeps the caller's.
+- `mount` (root only) checks the running kernel (`uname -r`) against the installed
+  `supported-kernels` list, `/usr/share/moobfs/supported-kernels` (package `moobfs-tools`) or
+  `/usr/local/share/moobfs/supported-kernels` (`make install`), and refuses another kernel, or
+  a missing list, unless `--unsupported`. It refuses a lower that is not a directory or is itself
+  on a layer, and a lower that users other than root can reach: some directory above it must be
+  owned by root, without search permission for others or for a group other than root's, and
+  without an access ACL (distribution strategy §2.3, item 1); `--allow-open-lower` mounts with a
+  warning. It notes a lower whose mode is not `0755`, since the mount root takes it. Then
+  `mount(2)` with `lower=<real path>,domain_depth=N` (default 2, the workspace layout's) and
+  `nolinks`, `noindex`, `index_budget=B` (`1M` to `4G`, as the option takes); a lower path with
+  a comma is refused, since the option parser would split it.
+- `status` prints whether `moobfs_layer` is loaded with its `version` and `srcversion`
+  (`/sys/module/moobfs_layer/`), then `info` for `<mountpoint>` or for every layer mount whose
+  root is the filesystem's root. `--json`: `{"module": {"loaded", "version", "srcversion"},
+  "mounts": [<info objects>]}`. Without a mountpoint and with the module not loaded it exits
+  69.
+- `workspace create` (root only, unless `--dry-run`) makes the layout of ADR-0035 on a mount
+  whose domain depth (`GET_INFO`) is 2: `<ns>` `root:moob-<ns>` `0750`; `<ns>/shared`
+  `root:moob-<ns>` `2770` with the default ACL `u::rwx,g::rwx,o::r-x` (new files `0664`, readable
+  by every class so that they pass the homogeneity rule; others cannot enter `<ns>`), written as the
+  `system.posix_acl_default` xattr; `<ns>/<agent>` `<agent>:<its primary group>` `0700`; and adds
+  each agent to `moob-<ns>` (`gpasswd -a`). Names are `[a-z_][a-z0-9_-]{0,31}`, a namespace at
+  most 27 bytes so that `moob-<ns>` fits 32; the agent name `shared` is refused. It checks
+  everything before it changes anything: the names, the depth, that `<ns>` does not exist, and
+  that the group and users exist, unless `--create-users`, which runs `groupadd --system
+  moob-<ns>` and `useradd --system --user-group --no-create-home --shell /usr/sbin/nologin
+  <agent>`. The commands run from `/usr/sbin`, `/sbin`, `/usr/bin` or `/bin` with an argument
+  vector (no shell), their output on standard error. Directories are made at `0700`, then given
+  their owner, mode and ACL through a descriptor opened with `O_NOFOLLOW`. `--dry-run` prints
+  each step (`would: ...`) and changes nothing. On a failure it stops, prints the step and how
+  many were done, and undoes nothing. `--json` prints one object: `mount`, `namespace`,
+  `dry_run`, `complete`, `steps` (each `step` text and `done`), `error`.
+- `workspace grant|revoke ... rw` adds the user to `moob-<ns>` or removes it (`gpasswd -a`/`-d`);
+  the change takes effect at the user's next login, which the command says. `ro` adds or removes
+  the named entry `u:<user>:r-x` in the access ACL of `<ns>` and of the directory `<ns>/shared`
+  (not in its default ACL, so shared files stay without ACLs and in the partition), read and
+  written as `system.posix_acl_access`, with the mask recomputed as `setfacl` does (the union of
+  the owning group and every named entry). The user then reads the shared files of the default
+  mode as "other". When no named entry is left, the access ACL is removed and the mode set from
+  its base entries, so `<ns>` is `0750` and `shared` `2770` again. No agent area is opened to
+  another user. (Corrected 2026-11-08, journal 0273: the first version also changed the default
+  ACL, which made new shared files extended and so left out of queries.)
+- `workspace list` prints the namespaces (directories one level below the mount root whose
+  group is `moob-<name>`), each area's owner, group, mode and ACLs, and with `--count NAME` the
+  number of its files carrying the typed attribute `NAME` (`QUERY2` `NAME exists`, as the
+  caller); an area the caller cannot query shows the error instead. `--json`: `mount`,
+  `domain_depth`, `count_attribute`, `namespaces` (`name`, `owner`, `group`, `mode`, `acl`,
+  `areas`, `error`; each area `name`, `owner`, `group`, `mode`, `acl`, `default_acl`, `count`,
+  `error`).
 - When a query fails with `ENOMEM`, `query` reads the caller's memory cgroups again and says
   which bound refused it: a cgroup whose own limit was reached during the query (its local
   `max` or `oom` count grew; on a systemd host usually `user-<uid>.slice`, above the session
@@ -79,14 +136,14 @@ directory listing (`READ_DIR` under Landlock) on `<dir>`, `info` on the mount ro
 | Exit | Meaning |
 | --- | --- |
 | 0 | success |
-| 1 | a system call failed (the reason is printed) |
+| 1 | a system call failed (the reason is printed); `workspace create`: the namespace exists, or a step failed (the steps done are printed) |
 | 2 | `diagnose`: at least one warning was printed |
 | 3 | `query`: the mount-wide `QUERY` had more than 4096 results and cannot return the rest; those returned were printed |
 | 64 | usage |
-| 65 | invalid terms, or a query the kernel refused as invalid (`EINVAL`) |
-| 69 | no layer there: the module is not loaded, `<path>` is on another filesystem, `<dir>` is not a domain directory (`ENOTTY`), or the index is off (`noindex`) |
+| 65 | invalid terms, or a query the kernel refused as invalid (`EINVAL`); `workspace`: an invalid name, a missing user or group, or a namespace that is not a workspace; `mount`: a lower refused (a layer, reachable by others, a comma in its path) or options the layer refused |
+| 69 | no layer there: the module is not loaded, `<path>` is on another filesystem, `<dir>` is not a domain directory (`ENOTTY`), or the index is off (`noindex`); `workspace create`: the mount's domain depth is not 2; `mount`: a kernel outside the list, or no list |
 | 75 | temporary: the domain does not fit `index_budget`, or the caller's memory cgroup reached its `memory.max` (`ENOMEM`; the message says which), too many first queries in a minute (`EDQUOT`), the build needs more than `index_build_work` (`E2BIG`) or took longer than its deadline (`ETIMEDOUT`), or the domain kept changing (`EAGAIN`) |
-| 77 | permission denied (`EACCES`, or `EPERM` for the mount-wide `QUERY` of a user when domains are on) |
+| 77 | permission denied (`EACCES`, or `EPERM` for the mount-wide `QUERY` of a user when domains are on); `mount`, `workspace create`, `grant` and `revoke` run by a user other than root |
 
 ## moobfs-attr
 

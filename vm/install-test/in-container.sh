@@ -12,6 +12,8 @@
 #     on a lower of MOOB_BENCH_FS (ext4, btrfs or xfs, default ext4) made on a second virtual
 #     disk; KVM is required (emulated timings mean nothing) and the results are copied out to
 #     build/bench-test/results/
+#   MOOB_TEST=workspace          vm/workspace-test/guest.sh, phase 0 (ADR-0035, journal 0273):
+#     make install, then moobfs mount, workspace create, grant, revoke and list, and status
 # With /dev/kvm writable the guest runs under KVM, otherwise under TCG emulation. MOOB_WORK is the
 # repository root (default /work, the container's bind mount; run.sh sets it for MOOB_HOST_QEMU=1).
 set -eu
@@ -26,6 +28,7 @@ install) OUT=build/install-test GUEST=vm/install-test/guest.sh PHASES="0 1 2" NA
 container) OUT=build/container-test GUEST=vm/container-test/guest.sh PHASES="0 1" NAME=CONTAINER ;;
 package) OUT=build/package-test GUEST=vm/package-test/guest.sh PHASES="0 1" NAME=PACKAGE ;;
 bench) OUT=build/bench-test GUEST=vm/bench-test/guest.sh PHASES=0 NAME=BENCH ;;
+workspace) OUT=build/workspace-test GUEST=vm/workspace-test/guest.sh PHASES=0 NAME=WORKSPACE ;;
 *) echo "unknown MOOB_TEST ${MOOB_TEST}" >&2; exit 64 ;;
 esac
 CACHE=build/install-test	# the base image is shared by both tests
@@ -196,5 +199,6 @@ case $NAME in
 INSTALL) log "MOOBFS_INSTALL_PASS: docs/operations.md followed on Debian 13; refused an unlisted kernel release, installed on the image's 6.12.113, mounted by hand, by fstab at boot and by a mount unit, two users isolated, MemoryMax= set on their slices by the drop-in and read by moobfs diagnose, uninstalled with the lower readable" ;;
 PACKAGE) log "MOOBFS_PACKAGE_PASS: moobfs-dkms and moobfs-tools on Debian 13 under Secure Boot; DKMS refused an unlisted kernel, the module was refused before its key was enrolled and loaded after, an unsigned build was refused, two users isolated, upgrade and roll back with the query and moobfs-check equal to the oracle, purge left the lower readable" ;;
 BENCH) log "MOOBFS_BENCH_PASS: bench/ondemand.sh on a $BENCH_FS lower, Debian 13, kernel 6.12.113, under KVM; results in $OUT/results" ;;
+WORKSPACE) log "MOOBFS_WORKSPACE_PASS: moobfs mount, workspace and status on Debian 13, kernel 6.12.113, after make install; an open lower, an unlisted kernel, a layer as lower and a depth-1 mount refused; create with --create-users made the ADR-0035 layout and default ACL; agents isolated, shared files written through the group; ro and rw grants given and revoked; list counted per area as the caller; status matched /sys/module" ;;
 CONTAINER) log "MOOBFS_CONTAINER_PASS: docs/container-integration.md followed on Debian 13 with Docker and Podman" ;;
 esac

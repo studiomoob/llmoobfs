@@ -1,10 +1,10 @@
 .\" SPDX-License-Identifier: GPL-2.0-only
-.Dd October 29, 2026
+.Dd November 8, 2026
 .Dt MOOBFS 1
 .Os
 .Sh NAME
 .Nm moobfs
-.Nd query and inspect a mounted MoobFS layer
+.Nd mount, query and inspect a MoobFS layer and its workspaces
 .Sh SYNOPSIS
 .Nm
 .Cm info
@@ -26,6 +26,35 @@
 .Cm diagnose
 .Op Fl -json
 .Ar path
+.Nm
+.Cm mount
+.Ar lower mountpoint
+.Op Fl -domain-depth Ar N
+.Op Fl -nolinks
+.Op Fl -noindex
+.Op Fl -index-budget Ar B
+.Op Fl -unsupported
+.Op Fl -allow-open-lower
+.Nm
+.Cm status
+.Op Fl -json
+.Op Ar mountpoint
+.Nm
+.Cm workspace create
+.Ar mount ns
+.Op Fl -agents Ar a,b
+.Op Fl -create-users
+.Op Fl -dry-run
+.Op Fl -json
+.Nm
+.Cm workspace grant | revoke
+.Ar mount ns user
+.Cm rw | ro
+.Nm
+.Cm workspace list
+.Ar mount
+.Op Fl -count Ar name
+.Op Fl -json
 .Sh DESCRIPTION
 .Nm
 answers attribute queries from the MoobFS layer's index and reports the state of a mount.
@@ -60,6 +89,62 @@ limit, test-only module parameters left set and, for root, the index's use of it
 the tracepoints.
 Each finding is a warning or a note; the exit status is 2 when a warning was printed.
 Run it as the user, in the session that queries.
+.It Cm mount
+mounts the layer over
+.Ar lower
+at
+.Ar mountpoint
+with
+.Xr mount 2 ,
+as root, after checking the running kernel against the installed supported-kernels list, that
+.Ar lower
+is not itself a layer, and that a directory above it keeps every user but root out.
+.Fl -unsupported
+and
+.Fl -allow-open-lower
+skip the first and the last check.
+The domain depth is 2 unless
+.Fl -domain-depth
+says otherwise.
+.It Cm status
+prints whether the module is loaded, its version and srcversion, and
+.Cm info
+for
+.Ar mountpoint
+or for every layer mount.
+.It Cm workspace create
+makes, as root, the namespace
+.Ar ns
+on a mount whose domain depth is 2:
+.Ar ns
+owned by root and the group moob-ns, mode 0750; its area shared, mode 2770 with the default ACL
+u::rwx,g::rwx,o::r-x, so that new files are 0664 and found by queries; and one area per agent,
+owned by the agent, mode 0700.
+A shared file made narrower than 0644 is left out of queries.
+It adds the agents to the group.
+With
+.Fl -create-users
+it creates the group and the agents as system users without a login shell.
+.Fl -dry-run
+prints the steps and does nothing.
+It refuses an existing
+.Ar ns
+and never deletes anything.
+.It Cm workspace grant | revoke
+gives or takes
+.Ar user
+write access to the shared area through the group
+.Pq Cm rw ,
+effective at the next login, or read access through a named ACL entry on
+.Ar ns
+and on shared
+.Pq Cm ro .
+.It Cm workspace list
+prints the namespaces, their areas, owners, modes and ACLs and, with
+.Fl -count ,
+how many files of each area carry the typed attribute
+.Ar name ,
+counted by a query as the caller.
 .El
 .Pp
 When a query fails with ENOMEM,
@@ -115,20 +200,43 @@ results
 .It Fl -page Ar N
 results per call, 1 to 4096 (default 4096)
 .El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa /usr/share/moobfs/supported-kernels , Pa /usr/local/share/moobfs/supported-kernels
+the kernel releases
+.Cm mount
+accepts, installed by the moobfs-tools package and by make install
+.El
 .Sh EXIT STATUS
 0 on success; 1 a system call failed; 2
 .Cm diagnose
 printed a warning; 3 the mount-wide query had more results than it can
 return; 64 usage; 65 invalid terms or a query the kernel refused; 69 no layer there, a directory
-that is not a domain, or the index off; 75 a temporary refusal (index budget, a memory cgroup limit,
-build limits, a domain that kept changing); 77 permission denied.
+that is not a domain, or the index off, a kernel outside the supported list, or a mount whose
+domain depth is not 2 for
+.Cm workspace create ;
+75 a temporary refusal (index budget, a memory cgroup limit,
+build limits, a domain that kept changing); 77 permission denied, or a command that needs root
+run by another user.
+For
+.Cm workspace
+and
+.Cm mount ,
+65 also means an invalid name, a missing user or group, or a refused lower, and 1 an existing
+namespace or a step that failed.
 The message on standard error names the cause.
 .Sh EXAMPLES
 .Dl $ moobfs info /srv/memory
 .Dl $ moobfs query /srv/memory/alice kind eq string decision
 .Dl $ moobfs query --order created time desc --limit 10 /srv/memory/alice
 .Dl $ moobfs diagnose /srv/memory/alice
+.Dl # moobfs mount /srv/moobfs/lower /srv/memory --nolinks
+.Dl # moobfs workspace create /srv/memory proj --agents planner,coder --create-users
+.Dl # moobfs workspace grant /srv/memory proj auditor ro
+.Dl $ moobfs workspace list /srv/memory --count kind
 .Sh SEE ALSO
+.Xr getfacl 1 ,
+.Xr gpasswd 1 ,
 .Xr moobfs-attr 1 ,
 .Xr moobfs-check 1 ,
 .Xr moobfs-index 1

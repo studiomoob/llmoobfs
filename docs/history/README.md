@@ -288,3 +288,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0270 — S15 done; a freeze exception for S16; a weekly S18 schedule](0270-s15-done-s16-exception.md)
 - [0271 — S16: the index compared with the lower after every change](0271-s16-selfcheck.md)
 - [0272 — Widening the kernel matrix (in progress)](0272-kernel-matrix.md)
+- [0273 — The workspace commands of the moobfs CLI (ADR-0035; in progress)](0273-workspace-cli.md)
+- [0274 — KCSAN on the code corrected in November](0274-kcsan-corrected-code.md)
