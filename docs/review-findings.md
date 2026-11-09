@@ -105,8 +105,8 @@ for the deferred items.
 
 | ID | Finding | Triage | Fix | Regression test | Notes |
 | --- | --- | --- | --- | --- | --- |
-| R2-1 (F14) | A directory 65+ components deep is placed nowhere by the write paths | fixed (deeper names not indexed, documented limit) | journal 0156, `dd4ee3a`; PR 109 | `tests/review-deep-tree.c` via `tests/review-3627172-vm.sh` [standalone]; in the suite only the write-path half: tag `s14-deep-not-heterogeneous-$fs` in `HOMOGENEITY_GAPS_PASS` [suite], mutant M16 | Reproduced. See Gaps. Advisory GHSA-qgjj-2f2p-q82m |
-| R2-2 | Same-directory rename during a reading keeps the scan's listing name | fixed | journal 0156, `dd4ee3a`; PR 109 | `tests/review-samedir-rename.c` via `tests/review-3627172-vm.sh` [standalone] | Reproduced. Not in any suite step; see Gaps |
+| R2-1 (F14) | A directory 65+ components deep is placed nowhere by the write paths | fixed (deeper names not indexed, documented limit) | journal 0156, `dd4ee3a`; PR 109 | step `deeptree`, `tests/review-deep-tree.c`, `DEEP_TREE_PASS`, tags `dt-control-$fs`, `dt-deep-indexed-$fs`, `dt-value-indexed-$fs` [suite] (journal 0276); the write-path half also: tag `s14-deep-not-heterogeneous-$fs` in `HOMOGENEITY_GAPS_PASS` [suite], mutant M16 | Reproduced. Negative round without the scan's depth guard (journal 0276). Advisory GHSA-qgjj-2f2p-q82m |
+| R2-2 | Same-directory rename during a reading keeps the scan's listing name | fixed | journal 0156, `dd4ee3a`; PR 109 | step `samedir`, `tests/review-samedir-rename.c`, `SAMEDIR_RENAME_PASS`, tags `sd-control-$fs`, `sd-race-keeps-listing-name-$fs`, `sd-not-in-the-window-$fs` [suite] (journal 0276) | Reproduced. Negative round without the loader's `name_is()` check (journal 0276) |
 | R2-3 | A record left partial by a failed update counts as whole for a later rename/link | fixed | journal 0156, `281a719` | `tests/failnth.c` operation `setxattr-then-move`, `FAULT_INJECTION_PASS` [KASAN] | Negative at `905c4e7` (journal 0170) |
 | R2-4 | Failed upper-inode creation leaves the lower object behind a valid negative dentry; `link` skips hooks | fixed | journal 0156, `d7f244d` | `tests/failnth.c` operations `create`, `mkdir`, `link`, `FAULT_INJECTION_PASS` [KASAN] | Negative `c0be08b` detected by create and mkdir; the `link` branch is not isolated (journal 0170) |
 | R2-5 | Build root path captured before the `top_gen` snapshot | fixed | journal 0174 (issue 110); PR 126 | step `rootpath`, `tests/rootpath-race.c`, `ROOTPATH_PASS` [suite] | Reproduced by the negative round `1297710` (journal 0174) |
@@ -116,7 +116,7 @@ for the deferred items.
 | R2-9 | `QUERY2_BATCH`: a runtime failure leaves earlier arrays written, headers not | accepted limit (behaviour stated in the spec, §4.3) | journal 0173 (issue 112); PR 125 | `tests/batch-errors.c`, `BATCH_VALIDATION_ATOMIC_PASS`, `BATCH_LATE_RESULT_FAULT_PASS`, `BATCH_HEADER_FAULT_PASS`, `BATCH_RUNTIME_ERRORS_PASS` [suite] | No code change; the test pins the documented behaviour |
 | R2-10 | A build fails with `ENOENT` when a directory dies after its names were read | fixed | journal 0156, `fb602d8`; test in journal 0170 | `tests/deadscan.c`, `DEADSCAN_PASS`, tag `r210-dead-directory` [KASAN] | Negative `7a8bd7f`; ext4 and root only |
 | R2-11 | `ix->domains` and `ix->fallback` grow without bound | fixed | journal 0210 (issue 113); PR 160 (git) | step `domainrecs`, `DOMAINRECS_PASS`, tags `dr-records-btrfs`, `dr-dead-query-btrfs` [suite] | Two negative rounds (journal 0210) |
-| R2-12 | A file whose attribute list exceeds `XATTR_LIST_MAX` is left out silently | accepted limit (written in spec §9; `moobfs-check` reports it) | journal 0156, `3237804` | none | See Gaps |
+| R2-12 | A file whose attribute list exceeds `XATTR_LIST_MAX` is left out silently | accepted limit (written in spec §9; `moobfs-check` reports it) | journal 0156, `3237804` | step `attrlist` (btrfs and XFS), `ATTRLIST_LIMIT_PASS`, tags `r212-check-status-$fs`, `r212-check-message-$fs`, `r212-answer-$fs` [suite] (journal 0276) | Negative round without the check in `tools/moobfs-check.c` (journal 0276); ext4 cannot hold such a list |
 
 **Test gaps T2 to T11** (T1 was the finding of round 1, A4)
 
@@ -140,7 +140,7 @@ for the deferred items.
 | V1 | `posix_fadvise`, `readahead(2)`, `cachestat(2)` are no-ops | fixed, partial (`cachestat` stays an accepted limit) | journal 0224 (issue 115); PR 170 (git) | `tests/passthrough.c`, `PASSTHROUGH_PASS` (`PT_FADVISE_PASS`, `PT_READAHEAD_PASS`) [suite] | Negative round on `neg/b3d` (journal 0224) |
 | V2 | `sync_file_range(2)` succeeds without writing | accepted limit (README) | journal 0156, `cfed44b` | none | Not fixable without the lower's mapping |
 | V3 | `statx` drops lower-provided fields | fixed | journal 0224; PR 170 (git) | `tests/passthrough.c`, `PT_STATX_PASS` [suite] | |
-| V4 | Ref-walk `d_revalidate` checks less than RCU path | fixed | journal 0156, `d7f244d` | none dedicated ("the suite, end to end", journal 0156) | Same as M5 |
+| V4 | Ref-walk `d_revalidate` checks less than RCU path | fixed | journal 0156, `d7f244d` | `tests/layer.c behind`, `LAYER_BEHIND_PASS`, tag `layer-behind-$fs`, in `run_lower` [suite] (journal 0276) | Same as M5. Negative round with the ref-walk checks removed (journal 0276) |
 | V5 | Default `drop_inode` pins deleted lower inodes | fixed | journal 0224; PR 170 (git) | `tests/passthrough.c`, `PT_DROP_INODE_PASS` [suite] | |
 | V6 | `RENAME_WHITEOUT` forwarded | fixed (refused, `EINVAL`) | journal 0156, `fb602d8` | `tests/query.c` mode `whiteout`, tag `v6-rename-whiteout-not-refused-$fs` [suite] | |
 | V7 | `F_SETFL` bits other than `O_APPEND` never reach the lower | fixed | journals 0149, 0224; PR 170 (git) | `tests/passthrough.c`, `PT_NOATIME_PASS` [suite]; `tests/fcntl-flags.c` | |
@@ -158,7 +158,7 @@ for the deferred items.
 | M5 | Two halves of `d_revalidate` disagree | duplicate of V4 | journal 0156, `d7f244d` | see V4 | |
 | M6 | Ioctl magic `'M'` shared in-tree; implicit tail padding | fixed (ADR-0026: magic kept, padding named and checked) | journal 0222; PR 170 (git) | `tests/query.c` refuses `pad[3]` (in `LAYER_LOWER_PASS`) [suite] | Negative round `term_check()` without `pad[3]` (journal 0222) |
 | M7 | `capable()` and `ns_capable_noaudit()` gate related things | fixed (one privilege test) | journal 0222; PR 170 (git) | steps `demo` (`DEMO_PASS`) [suite] and `buildlimit` [opt-in] | No negative round: no allowed/denied outcome changes (journal 0222) |
-| M8 | Seven one-line items (build guard, `getattr`, `flush`, `fileattr_set`, `SB_I_NOEXEC` doc, `scan_delay_us`, `pr_warn_ratelimited`) | fixed or answered item by item | journal 0221; PR 170 (git) | M8.1: `static_assert` in `layer/main.c` (build-time); others none | See Gaps |
+| M8 | Seven one-line items (build guard, `getattr`, `flush`, `fileattr_set`, `SB_I_NOEXEC` doc, `scan_delay_us`, `pr_warn_ratelimited`) | fixed or answered item by item | journal 0221; PR 170 (git) | M8.1: `static_assert` in `layer/main.c` (build-time); M8.7: tag `lm-build-failure-logged-repeatedly` in `LIMITS_BUDGET_PASS`, step `limits` [suite] (journal 0276); others none | See Gaps |
 
 **Design opinions D1 to D4**
 
@@ -314,20 +314,17 @@ Part A (inside the criterion as worded):
 3. **0114 item 8** (directory reads with the caller's credentials): no test; differs only under
    an LSM policy, which `make vm-test` does not load.
 4. **0114 V-c** (suspected wait on a layer directory lock): no test of its own.
-5. **R2-1 (F14)**: the reproducer `tests/review-deep-tree.c` runs only through
-   `tests/review-3627172-vm.sh`, which no make target or workflow runs. The suite checks the
-   write-path half (tag `s14-deep-not-heterogeneous-$fs`, mutant M16), not that the scan leaves
-   out names beyond 64 components.
-6. **R2-2**: `tests/review-samedir-rename.c` runs only through `tests/review-3627172-vm.sh`
-   [standalone]. Not checked whether `hookrace` or `selfcheck` cover the same interleaving.
-7. **R2-12**: no test that `moobfs-check` reports a file with an oversized attribute list.
-8. **V4 / M5**: no dedicated test (journal 0156: "the suite, end to end").
+5. **R2-1 (F14)**: closed by journal 0276, step `deeptree` in the full suite.
+6. **R2-2**: closed by journal 0276, step `samedir` in the full suite.
+7. **R2-12**: closed by journal 0276, step `attrlist` (btrfs and XFS).
+8. **V4 / M5**: closed by journal 0276, `tests/layer.c behind` in `run_lower`.
 9. **V8**: no dedicated test (journal 0156).
 10. **V2** and the `cachestat(2)` part of **V1**: accepted limits, no test.
 11. **M7**: no negative round; the outcome is checked by `demo` and by `buildlimit`, which is
     opt-in.
-12. **M8** items 2 to 7: no test (journal 0221 states for item 2 that no test can tell the two
-    paths apart on 6.12). Item 1 is a build-time `static_assert`, not a test.
+12. **M8** items 2 to 6: no test (journal 0221 states for item 2 that no test can tell the two
+    paths apart on 6.12). Item 1 is a build-time `static_assert`, not a test. Item 7 (the
+    build-failure warning logged once) is checked in step `limits` since journal 0276.
 13. **D4**: no triage, hence no test (see section 2).
 
 Part B (outside the criterion as worded, listed for the maintainer):
