@@ -293,3 +293,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0275 — The port to Linux 7.3 (in progress)](0275-port-7-3.md)
 - [0276 — Regression tests for review findings R2-1, R2-2, R2-12, V4/M5 and M8.7](0276-review-gap-tests.md)
 - [0277 — Debian 6.12.115 and 7.3.3 become supported kernels (in progress)](0277-kernels-6-12-115-and-7-3-supported.md)
+- [0278 — A test of its own for finding V-c: a reader stalled inside a directory read](0278-directory-reader-stall-test.md)

@@ -1352,3 +1352,31 @@ hand and carries the same code paths:
   `kernel_setlease()`), `fs/stat.c` (`AT_GETATTR_NOSEC`), and the `->create()` of ext4, btrfs and
   XFS, which do not read `excl`.
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/?h=v6.12.116>.
+
+## 52. A reader stalled inside a directory read (finding V-c of journal 0114, journal 0278)
+
+- Linux 6.12.116, exact sources read on 2026-11-09 in the KASAN harness's kernel tree:
+  `fs/readdir.c:85–116`, `iterate_dir()` (the directory's `i_rwsem` taken for reading with
+  `down_read_killable()` and held across `->iterate_shared()`), and `fs/readdir.c:348–390`,
+  `filldir64()` (each entry written to the caller's buffer with `unsafe_put_user()` while that
+  lock is held, so a fault on the buffer waits with the lock held); `fs/namei.c:1755–1765`,
+  `lookup_slow()` (a dentry-cache miss takes the parent's `i_rwsem` shared);
+  `kernel/locking/rwsem.c:1006–1007`, `rwsem_down_read_slowpath()` (a reader queues when the
+  semaphore is owned by readers and a writer waits); `fs/userfaultfd.c:404–405`,
+  `handle_userfault()` (a kernel-mode fault is not handled by a `UFFD_USER_MODE_ONLY` context),
+  and `fs/userfaultfd.c:2161–2176`, `userfaultfd_syscall_allowed()` (kernel-mode faults need
+  `CAP_SYS_PTRACE` or `vm.unprivileged_userfaultfd=1`); `fs/btrfs/delayed-inode.c:1701–1702` and
+  `1752–1755`, `btrfs_readdir_get_delayed_items()` and `btrfs_readdir_put_delayed_items()` (with
+  delayed items pending, btrfs upgrades the directory's lock to exclusive for the read and
+  downgrades it after); `mm/Kconfig`, `USERFAULTFD` (off unless a configuration selects it).
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/?h=v6.12.116>.
+- `Documentation/admin-guide/mm/userfaultfd.rst` and `Documentation/admin-guide/sysctl/vm.rst`
+  (`unprivileged_userfaultfd`), Linux 6.12.116: `UFFDIO_REGISTER_MODE_MISSING`, `UFFDIO_COPY`,
+  and which callers may trap kernel-mode faults. The sysctl's own text names the use made here:
+  stalling a kernel copy to or from user memory "may make certain vulnerabilities more difficult
+  to exploit" when forbidden; holding a kernel path at a chosen copy for as long as needed is
+  the known technique for widening a race window, and `tests/dirstall.c` uses it to hold a
+  directory lock deterministically. Already cited in "Copies to user space under a lock"
+  (journal 0105) for the same reason.
+- `userfaultfd(2)` and `ioctl_userfaultfd(2)`, Linux man-pages 6.9 (the `UFFD_API` handshake,
+  `uffd_msg` and `UFFD_EVENT_PAGEFAULT`).

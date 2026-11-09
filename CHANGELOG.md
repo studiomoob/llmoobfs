@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Review finding V-c of journal 0114 has a test of its own: suite step `dirstall`
+  (`tests/dirstall.c`) stalls root's `getdents64` of a checked domain's directory on a
+  userfaultfd fault in its buffer, with a creation queued behind it, on ext4, btrfs and XFS; the
+  query whose per-result check walks that directory waits, and a query of another domain by
+  another user still answers. A negative round with `query_sem` held across the checks, as before
+  journal 0116, fails the step. `vm/kasan.config` gains `CONFIG_USERFAULTFD=y` so the KASAN guest
+  runs it (journal 0278).
 - Regression tests for five review findings that had none in a gate, all in the full
   `make vm-test`: steps `deeptree` (R2-1) and `samedir` (R2-2) run the reproducers of journal
   0153 on ext4, btrfs and XFS; `tests/layer.c behind` in `run_lower` checks names changed on the
