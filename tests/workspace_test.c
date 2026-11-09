@@ -51,8 +51,16 @@ static void names(void)
 		size_t off = 0;
 		int k;
 
-		for (k = 0; k < 65; k++)
-			off += (size_t)snprintf(list + off, sizeof list - off, "%sa%d", k ? "," : "", k);
+		for (k = 0; k < 65; k++) {
+			int w = snprintf(list + off, sizeof list - off, "%sa%d", k ? "," : "", k);
+
+			/* the 65 names take 249 bytes; stop rather than step past the buffer */
+			if (w < 0 || (size_t)w >= sizeof list - off) {
+				CHECK(w >= 0 && (size_t)w < sizeof list - off);
+				break;
+			}
+			off += (size_t)w;
+		}
 		CHECK(ws_parse_agents(list, &ag, &why) && strstr(why, "64"));
 		list[strlen(list) - 4] = 0;	/* drop ",a64": 64 agents */
 		CHECK(!ws_parse_agents(list, &ag, &why) && ag.n == 64);
