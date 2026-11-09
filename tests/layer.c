@@ -14,6 +14,11 @@
  *   layer svcheck <mount> <name>    the btrfs subvolume <name> below the root: listed, refused (EXDEV)
  *   layer typed <mount> <lower>     every refusal of a typed attribute write, with its errno, and
  *                                   the per-file limit of 64; a refused write leaves the lower as it was
+ *   layer behind <mount> <lower>    names changed on the lower behind the layer: a cached positive
+ *                                   name whose lower name was unlinked or renamed over, and a cached
+ *                                   negative name created on the lower (V4/M5, journal 0276)
+ *   layer padattrs <file> <count>   <count> user.pad.* attributes with 255-byte names on <file>
+ *                                   (a lower file), so that its attribute list passes 64 KiB (R2-12)
  */
 #define _GNU_SOURCE
 #include <sys/types.h>
@@ -385,6 +390,61 @@ int main(int argc, char **argv)
 		snprintf(mnt, sizeof mnt, "%s", argv[2]);
 		snprintf(low, sizeof low, "%s", argv[3]);
 		return typed_limits();
+	}
+	if (argc == 4 && !strcmp(argv[1], "behind")) {
+		struct stat old;
+
+		/* V4/M5 (journal 0156): the ref-walk half of d_revalidate checks what the RCU half
+		 * checks, so a lower name changed behind the layer is looked up again. Each name is
+		 * first cached through the layer; another link keeps the old inode alive, so only the
+		 * lower dentry's removal, not the link count, tells the layer the name is gone. */
+		snprintf(mnt, sizeof mnt, "%s", argv[2]);
+		snprintf(low, sizeof low, "%s", argv[3]);
+		/* 1. unlinked on the lower */
+		fd = open(up("behind-f"), O_WRONLY | O_CREAT | O_EXCL, 0644); CHECK(fd >= 0);
+		CHECK(write(fd, "f", 1) == 1); close(fd);
+		CHECK(!link(lo("behind-f"), lo("behind-h")));
+		CHECK(!stat(up("behind-f"), &st) && st.st_nlink == 2);
+		CHECK(!unlink(lo("behind-f")));
+		errno = 0;
+		CHECK(stat(up("behind-f"), &st) == -1 && errno == ENOENT);
+		CHECK(!stat(up("behind-h"), &st) && st.st_nlink == 1);
+		/* 1b. another file renamed over it on the lower */
+		fd = open(up("behind-r"), O_WRONLY | O_CREAT | O_EXCL, 0644); CHECK(fd >= 0);
+		CHECK(write(fd, "r", 1) == 1); close(fd);
+		CHECK(!link(lo("behind-r"), lo("behind-rh")));
+		CHECK(!stat(up("behind-r"), &old));
+		fd = open(lo("behind-new"), O_WRONLY | O_CREAT | O_EXCL, 0644); CHECK(fd >= 0);
+		CHECK(write(fd, "new", 3) == 3); close(fd);
+		CHECK(!rename(lo("behind-new"), lo("behind-r")));
+		CHECK(!stat(lo("behind-r"), &lst) && lst.st_ino != old.st_ino);
+		CHECK(!stat(up("behind-r"), &st) && st.st_ino == lst.st_ino && st.st_size == 3);
+		/* 2. a cached negative name created on the lower */
+		errno = 0;
+		CHECK(stat(up("behind-x"), &st) == -1 && errno == ENOENT);
+		fd = open(lo("behind-x"), O_WRONLY | O_CREAT | O_EXCL, 0644); CHECK(fd >= 0); close(fd);
+		CHECK(!stat(lo("behind-x"), &lst));
+		CHECK(!stat(up("behind-x"), &st) && st.st_ino == lst.st_ino);
+		CHECK(!unlink(up("behind-h")) && !unlink(up("behind-r")) && !unlink(up("behind-rh")) &&
+		      !unlink(up("behind-x")));
+		puts("LAYER_BEHIND_PASS");
+		return 0;
+	}
+	if (argc == 4 && !strcmp(argv[1], "padattrs")) {
+		char name[256];
+		int count = atoi(argv[3]);
+		ssize_t len;
+
+		for (i = 0; i < count; i++) {
+			n = snprintf(name, sizeof name, "user.pad.%04d", i);
+			memset(name + n, 'p', sizeof name - 1 - (size_t)n);
+			name[sizeof name - 1] = 0;	/* 255 bytes, XATTR_NAME_MAX */
+			CHECK(!setxattr(argv[2], name, "x", 1, 0));
+		}
+		len = listxattr(argv[2], NULL, 0);
+		CHECK(len > 65536);
+		printf("PADATTRS list=%zd\n", len);
+		return 0;
 	}
 	if (argc == 3 && !strcmp(argv[1], "cfsetup")) {
 		int f;
