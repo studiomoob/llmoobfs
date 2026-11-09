@@ -125,6 +125,15 @@ one line `pr_warn_once()` printed earlier in the run was no longer in the kernel
 when `limits` ran, or no earlier build failed with a logged errno. Either way the check still
 fails on a line printed per failure, as round D shows (1 → 10 with `MOOB_ONLY=limits`).
 
+## The batch's KASAN/UBSAN/lockdep suite
+
+`sh vm/kasan-local.sh` at `98d20f3` (the tests above, before the D4 note), test host, KVM, two
+CPUs, 2026-11-09 06:08–07:39 BRT (calendar time): exit 0, `MOOBFS_KASAN_PASS` with no kernel
+diagnostic, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_PYLIB_PASS`; 296 pass markers.
+The new steps ran under it: `DEEP_TREE_PASS` and `SAMEDIR_RENAME_PASS` on ext4, btrfs and XFS,
+`ATTRLIST_LIMIT_PASS` on btrfs and XFS, `layer behind` inside `run_lower` (no `layer-behind-*`
+failure) and `LIMITS_BUDGET_PASS` with the M8.7 check.
+
 ## Decision on D4 (2026-11-09)
 
 The maintainer triaged 0155 D4 (the `index_idle` floor lets a hot mount opt out of reclaim) as a
@@ -144,10 +153,8 @@ exceed `index_budget` may still release a domain used a moment ago. No test, as 
   "logged once" from "never logged" (the full suite counted 0).
 - The full suite needed 3,036 s of the 3,600 s guest limit on a loaded host; a busier host can
   hit the limit for reasons unrelated to these steps.
-- No KASAN run of these steps: they change no locking or lifetime in the module. The batch's
-  KASAN suite will run them.
 
 ## Next step
 
-The maintainer reviews the register's remaining gaps; the batch's KASAN suite runs the new
-steps before publication.
+The maintainer reviews the register's remaining gaps; the batch's pull request after PR 189 and
+the 7.3 batch, with the maintainer's agreement.
