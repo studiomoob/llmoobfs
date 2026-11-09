@@ -644,9 +644,16 @@ run_lower() {
     [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --cursor-in "$q2_cursors/c1" --order created time asc kind eq string note)" = "q2 116" ] || fail "q2b-cursor-other-order-$fs"
     # T2 (journal 0155): the MAC alone must refuse a cursor whose fields changed while its query
     # hash (offset 16 of struct moobl_cursor) stayed valid: the pad (5), the high byte of the
-    # inode (15) and the last inline value byte (119), all zero in this cursor
-    for off in 5 15 119; do
-        cp "$q2_cursors/c1" "$q2_cursors/ct" && printf '\377' | dd of="$q2_cursors/ct" bs=1 seek=$off conv=notrunc 2>/dev/null || fail "t2-patch-$fs"
+    # inode and the last inline value byte (119), all zero in this cursor. The inode is a native
+    # u64 at offsets 8-15: its high byte is at 15 on little-endian and at 8 on big-endian, read
+    # from the guest's byte order (journal 0280)
+    case "$(printf '\001\000' | od -An -tx2 | tr -d ' \n')" in
+        0001) t2_hi=15 ;;
+        0100) t2_hi=8 ;;
+        *) fail "t2-byte-order-$fs" ;;
+    esac
+    for off in 5 $t2_hi 119; do
+        cp "$q2_cursors/c1" "$q2_cursors/ct" && printf '\377' | dd of="$q2_cursors/ct" bs=1 seek="$off" conv=notrunc 2>/dev/null || fail "t2-patch-$fs"
         # Cursor files are private (0600); root's copy must remain readable by the test uid.
         chown 1001:1001 "$q2_cursors/ct" || fail "t2-cursor-owner-$fs"
         cmp -s "$q2_cursors/c1" "$q2_cursors/ct" && fail "t2-patch-changed-nothing-$off-$fs"
