@@ -1295,6 +1295,14 @@ hand and carries the same code paths:
 - Debian package pools, read on 2026-11-07: `linux-image-6.12.113+deb13-amd64` (Debian 13),
   `linux-image-7.2.12+deb13-*` (trixie-backports), `linux-image-7.3.3+deb14-amd64` (Debian 14).
   <https://deb.debian.org/debian/pool/main/l/linux-signed-amd64/>.
+- kernel.org `v7.x/sha256sums.asc`, read on 2026-11-09 for the pin of the KASAN workflow's 7.3
+  leg (`linux-7.3.3.tar.xz`, journal 0277); `scripts/check-pins.sh` reads it on every Lint run.
+  <https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc>.
+- Debian archive, read on 2026-11-08 (journals 0272 and 0275): `linux-image-6.12.115+deb13.1-amd64`
+  `6.12.115-2` (trixie-security) and `linux-image-7.3.3+deb14-amd64` `7.3.3-1` (sid), the two
+  releases added to `scripts/supported-kernels` (journal 0277).
+  <https://security.debian.org/debian-security/pool/updates/main/l/linux-signed-amd64/>,
+  <https://packages.debian.org/sid/linux-image-7.3.3+deb14-amd64>.
 
 ## 50. The workspace commands of the moobfs CLI (ADR-0035, journal 0273)
 

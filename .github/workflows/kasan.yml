@@ -1,6 +1,7 @@
 name: KASAN and lockdep
-# Builds a pinned upstream 6.12 kernel with KASAN, UBSAN and lockdep using virtme-ng
-# and runs the layer suite (vm/suite.sh) inside it. It is a required check of main, so the
+# Builds pinned upstream kernels (6.12 and, since journal 0277, 7.3) with KASAN, UBSAN and
+# lockdep using virtme-ng and runs the layer suite (vm/suite.sh) inside each, one matrix leg per
+# kernel. It is a required check of main, so the
 # job starts on every pull request; the heavy steps run only when the pull request touches
 # what the module is built or tested from, and otherwise the job passes at once. Also weekly
 # and on demand.
@@ -17,15 +18,41 @@ concurrency:
 env:
   KERNEL_VERSION: 6.12.116
   KERNEL_SHA256: cb3ed3dfdd47e6ade49dc933db334fd86e24cadee920da612c262b0e9b6a511b
+  # the 7.3 leg (journal 0277); scripts/check-pins.sh checks it against kernel.org as well
+  KERNEL73_VERSION: 7.3.3
+  KERNEL73_SHA256: 79c66dde66cd96877fcde8f7d36aec946b1f423d2b97b5a7b1751b75c764f3d1
 jobs:
   kasan:
-    name: Layer suite under KASAN/lockdep
+    # The 6.12 leg keeps the name "Layer suite under KASAN/lockdep", a required check of main.
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
+    # 150 minutes for both legs: on the 2011 test host the full 7.3.3 suite under lockdep took
+    # about 95 minutes, as long as 6.12.116 there (journals 0272, 0275), and the 6.12 leg takes
+    # about 45 minutes on a hosted runner with KVM; a cold 7.3 kernel build adds about 20.
     timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - series: '6.12'
+            name: Layer suite under KASAN/lockdep
+            artifact: kasan-evidence
+          - series: '7.3'
+            name: Layer suite under KASAN/lockdep (7.3.3)
+            artifact: kasan-733-evidence
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Select the kernel of this leg
+        env:
+          SERIES: ${{ matrix.series }}
+        run: |
+          case "$SERIES" in
+            6.12) echo "KV=$KERNEL_VERSION" >> "$GITHUB_ENV"; echo "KSUM=$KERNEL_SHA256" >> "$GITHUB_ENV" ;;
+            7.3) echo "KV=$KERNEL73_VERSION" >> "$GITHUB_ENV"; echo "KSUM=$KERNEL73_SHA256" >> "$GITHUB_ENV" ;;
+            *) echo "unknown series $SERIES"; exit 1 ;;
+          esac
       - name: Decide whether the suite is needed
         id: need
         env:
@@ -75,7 +102,7 @@ jobs:
         id: kkey
         env:
           CONFIG_HASH: ${{ hashFiles('vm/kasan.config', 'vm/kasan-requirements.txt') }}
-        run: echo "key=kasan-kernel-${KERNEL_VERSION}-gcc$(gcc -dumpfullversion)-${ImageOS}-${ImageVersion}-${CONFIG_HASH}" >> "$GITHUB_OUTPUT"
+        run: echo "key=kasan-kernel-${KV}-gcc$(gcc -dumpfullversion)-${ImageOS}-${ImageVersion}-${CONFIG_HASH}" >> "$GITHUB_OUTPUT"
       - name: Restore the built kernel
         if: steps.need.outputs.run == 'true'
         id: kcache
@@ -87,8 +114,8 @@ jobs:
         if: steps.need.outputs.run == 'true' && steps.kcache.outputs.cache-hit != 'true'
         run: |
           mkdir -p build
-          curl -fsSL -o build/linux.tar.xz "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz"
-          echo "${KERNEL_SHA256}  build/linux.tar.xz" | sha256sum -c -
+          curl -fsSL -o build/linux.tar.xz "https://cdn.kernel.org/pub/linux/kernel/v${KV%%.*}.x/linux-${KV}.tar.xz"
+          echo "${KSUM}  build/linux.tar.xz" | sha256sum -c -
           mkdir -p build/linux
           tar -xJf build/linux.tar.xz -C build/linux --strip-components=1
       - name: Configure and build the kernel with KASAN and lockdep
@@ -135,7 +162,7 @@ jobs:
         if: always() && steps.need.outputs.run == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: kasan-evidence
+          name: ${{ matrix.artifact }}
           path: |
             build/vng/console.log
             build/vng/dmesg.txt

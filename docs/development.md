@@ -289,14 +289,15 @@ there; the first symptom is an early `MOOBFS_VM_FAIL` such as `attr-set-ext4`. R
 
 The builds and tests depend on pinned versions, each stated in more than one place.
 `sh scripts/check-pins.sh` prints them all, fails when two copies of a pin disagree, and checks
-the upstream kernel tarball against kernel.org's `sha256sums.asc` (the Lint job runs it; add
+the upstream kernel tarballs against kernel.org's `sha256sums.asc` (the Lint job runs it; add
 `--offline` to skip that last check). To move to another version, change every copy in one commit:
 
 | Pin | Copies |
 | --- | --- |
 | Upstream kernel for KASAN and KCSAN (`KERNEL_VERSION`, `KERNEL_SHA256`) | `.github/workflows/kasan.yml`, `.github/workflows/kasan-arm64.yml`, `.github/workflows/kcsan.yml`, `.github/workflows/interop.yml`, `.github/workflows/coverage.yml`, `tests/static/Dockerfile`, this file's KASAN section; `vm/kasan-local.sh` and `vm/syzkaller-local.sh` read `kasan.yml` |
+| Upstream 7.3 kernel of the KASAN workflow's second leg (`KERNEL73_VERSION`, `KERNEL73_SHA256`, journal 0277) | `.github/workflows/kasan.yml` only; checked against kernel.org like the 6.12 pin |
 | checkpatch.pl tag and file hashes | `scripts/checkpatch.sh` (`TAG` follows the KASAN kernel) |
-| Debian image digest and kernel package of `make vm-test` | `vm/Dockerfile` (image and headers packages at the same version); `tests/static/Dockerfile` uses the same image and one of its kernels (`DEBIAN_KERNEL`) |
+| Debian image digest and kernel package of `make vm-test` | `vm/Dockerfile` (image and headers packages at the same version; its default base image is the trixie one of `vm/run.sh`, which picks a sid image for 7.3.3); `tests/static/Dockerfile` uses the same trixie image and one of its kernels (`DEBIAN_KERNEL`) |
 | Static checkers of `make static` (smatch commit, sparse and Coccinelle package versions) | `tests/static/Dockerfile` only (journal 0242); a change of tool version usually changes the findings, so `tests/static/baseline.txt` is reviewed in the same commit |
 | virtme-ng and its dependencies | `vm/kasan-requirements.txt` (regenerate the hashes as its header says) |
 | Tools of the interoperability test (fselect and cshatag with SHA-256, Recoll and KFileMetaData package versions) | `.github/workflows/interop.yml` only (journal 0140) |
