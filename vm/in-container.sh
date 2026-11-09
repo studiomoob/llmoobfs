@@ -9,6 +9,12 @@ case "$MOOB_DEBIAN_KERNEL" in
     7.3.3) KERNEL="$MOOB_DEBIAN_KERNEL+deb14-amd64" ;;        # sid on 2026-11-08 (journal 0275)
     *) echo "Unsupported Debian VM kernel: $MOOB_DEBIAN_KERNEL" >&2; exit 1 ;;
 esac
+# MOOB_ARCH=s390x (vm/run.sh, journal 0280): Debian's s390x build of the same kernel, booted by
+# QEMU's s390x machine with virtio-blk over CCW and the SCLP console; the default is amd64.
+QEMU=qemu-system-x86_64 QEMU_PKG=qemu-system-x86 MACHINE=q35 CONSOLE=ttyS0
+if [ "${MOOB_ARCH:-amd64}" = s390x ]; then
+    KERNEL="${KERNEL%-amd64}-s390x" QEMU=qemu-system-s390x QEMU_PKG=qemu-system-s390x MACHINE=s390-ccw-virtio CONSOLE=ttysclp0
+fi
 # The M1 module (kernel/) builds on 6.12 only; on 7.3 the guest runs the layer suite alone.
 case "$MOOB_DEBIAN_KERNEL" in 7.*) M1=0 ;; *) M1=1 ;; esac
 test -d "/lib/modules/$KERNEL/build"
@@ -116,8 +122,8 @@ cp "/boot/config-$KERNEL" build/vm/kernel.config
 {
     printf 'Kernel: %s\n' "$KERNEL"
     gcc --version | head -1
-    qemu-system-x86_64 --version | head -1
-    dpkg-query -W 'linux-image-*' 'linux-headers-*' gcc qemu-system-x86
+    $QEMU --version | head -1
+    dpkg-query -W 'linux-image-*' 'linux-headers-*' gcc "$QEMU_PKG"
     if [ "$M1" = 1 ]; then M1KO=kernel/moobfs.ko; else M1KO=; fi
     sha256sum "/boot/vmlinuz-$KERNEL" $M1KO layer/moobfs_layer.ko build/vm/shared.img
 } > build/vm/environment.txt
@@ -128,15 +134,22 @@ set +e
 # and the 2400 s one on the dedicated host's TCG after the permission matrix grew (journal 0219).
 ACCEL=tcg
 [ "${MOOB_VM_KVM:-}" = 1 ] && ACCEL=kvm
-timeout 3600 qemu-system-x86_64 \
-    -machine q35 -accel $ACCEL -cpu max -m 512M -smp 2 \
-    -drive file=build/vm/lower-ext4.img,format=raw,if=virtio \
-    -drive file=build/vm/lower-btrfs.img,format=raw,if=virtio \
-    -drive file=build/vm/lower-xfs.img,format=raw,if=virtio \
-    -drive file=build/vm/scratch.img,format=raw,if=virtio \
-    -drive file=build/vm/log.img,format=raw,if=virtio \
+# On s390x the CCW virtio disks finish probing in any order, so vda is not always the first
+# disk (journal 0280); each gets a serial that vm/suite.sh maps back. amd64 is unchanged.
+set --
+for d in lower-ext4:ext4 lower-btrfs:btrfs lower-xfs:xfs scratch:scratch log:log; do
+    if [ "$MACHINE" = s390-ccw-virtio ]; then
+        set -- "$@" -drive "file=build/vm/${d%%:*}.img,format=raw,if=none,id=${d#*:}" \
+            -device "virtio-blk,drive=${d#*:},serial=moob-${d#*:}"
+    else
+        set -- "$@" -drive "file=build/vm/${d%%:*}.img,format=raw,if=virtio"
+    fi
+done
+timeout 3600 $QEMU \
+    -machine $MACHINE -accel $ACCEL -cpu max -m 512M -smp 2 \
+    "$@" \
     -kernel "/boot/vmlinuz-$KERNEL" -initrd build/vm/initramfs.cpio.gz \
-    -append "console=ttyS0 rdinit=/init panic=-1 loglevel=4${MOOB_ONLY:+ moob_only=$(echo "$MOOB_ONLY" | tr ' ' ',')}${MOOB_PERMCHURN:+ moob_permchurn=$MOOB_PERMCHURN}${MOOB_SELFCHECK:+ moob_selfcheck=$MOOB_SELFCHECK}" \
+    -append "console=$CONSOLE rdinit=/init panic=-1 loglevel=4${MOOB_ONLY:+ moob_only=$(echo "$MOOB_ONLY" | tr ' ' ',')}${MOOB_PERMCHURN:+ moob_permchurn=$MOOB_PERMCHURN}${MOOB_SELFCHECK:+ moob_selfcheck=$MOOB_SELFCHECK}" \
     -nographic -no-reboot -nic none > build/vm/console.log 2>&1
 RESULT=$?
 set -e

@@ -104,9 +104,21 @@ done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
 mkdir -p "$LOWER" "$LAYER" /tmp
-# Phases 2a/2b: memory layer stacked over ext4, btrfs and XFS (virtio disks vda, vdb, vdc).
+# Phases 2a/2b: memory layer stacked over ext4, btrfs and XFS (virtio disks vda, vdb, vdc; on
+# s390x found by serial, below).
 # shellcheck disable=SC2153   # MODS comes from the environment (vm/init, vm/kasan-guest.sh)
 if [ -f "$MODS/order" ]; then while read -r m; do insmod "$MODS/$m" || fail "lower module $m"; done < "$MODS/order"; fi
+# Disks that carry a serial (only the s390x guest of vm/in-container.sh, journal 0280) are found
+# by it: there the CCW disks finish probing in any order. Without serials nothing changes.
+for b in /sys/block/vd*; do
+    case "$(cat "$b/serial" 2>/dev/null)" in
+        moob-ext4) DEV_EXT4=/dev/${b##*/} ;;
+        moob-btrfs) DEV_BTRFS=/dev/${b##*/} ;;
+        moob-xfs) DEV_XFS=/dev/${b##*/} ;;
+        moob-scratch) DEV_SCRATCH=/dev/${b##*/} ;;
+        moob-log) DEV_LOG=/dev/${b##*/} ;;
+    esac
+done
 insmod "$BIN/moobfs_layer.ko" || fail layer-module
 # S16 (ADR-0033, journal 0271): MOOB_SELFCHECK=1 runs the whole suite with the self-check on.
 sc_param=/sys/module/moobfs_layer/parameters/selfcheck
@@ -2193,9 +2205,9 @@ bc_traced=$(tr_count moobfs_domain_build)
 grep ' moobfs_domain_build: ' "$TR/trace" | sed 's/^.* moobfs_domain_build: /QUERY_BUILD_TRACE /'
 tr_off moobfs_domain_build
 umount "$LAYER" && rm -rf "$LOWER/bc" && umount "$LOWER" || fail bc-cleanup
-bc_raw_before=$(awk '{print $3}' /sys/block/vda/stat)
+bc_raw_before=$(awk '{print $3}' "/sys/block/${DEV_EXT4##*/}/stat")
 dd if="$DEV_EXT4" of=/dev/null bs=4096 skip=10000 count=1 >/dev/null 2>&1 || fail bc-block-counter-read
-bc_raw_after=$(awk '{print $3}' /sys/block/vda/stat)
+bc_raw_after=$(awk '{print $3}' "/sys/block/${DEV_EXT4##*/}/stat")
 [ "$bc_raw_after" -gt "$bc_raw_before" ] || fail bc-block-counter-no-increase
 echo "BUILD_COST_DEVICE_CONTROL: raw device read advanced sectors by $((bc_raw_after - bc_raw_before))"
 echo "BUILD_COST_OBSERVED: files=$bc_files one first build, seven rename rebuilds, and no warm-query rebuilds"
@@ -2490,9 +2502,9 @@ case "$bdn_result" in
 esac
 [ "$("$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')" -eq "$bdn_expected_builds" ] || fail bdn-build-count
 umount "$LAYER" && rm -rf "$LOWER/bdn" && umount "$LOWER" || fail bdn-cleanup
-bdn_raw_before=$(awk '{print $3}' /sys/block/vda/stat)
+bdn_raw_before=$(awk '{print $3}' "/sys/block/${DEV_EXT4##*/}/stat")
 dd if="$DEV_EXT4" of=/dev/null bs=4096 skip=10000 count=1 >/dev/null 2>&1 || fail bdn-block-counter-read
-bdn_raw_after=$(awk '{print $3}' /sys/block/vda/stat)
+bdn_raw_after=$(awk '{print $3}' "/sys/block/${DEV_EXT4##*/}/stat")
 [ "$bdn_raw_after" -gt "$bdn_raw_before" ] || fail bdn-block-counter-no-increase
 echo "BUILD_DENIAL_DEVICE_CONTROL: raw device read advanced sectors by $((bdn_raw_after - bdn_raw_before))"
 echo "BUILD_DENIAL_OBSERVED: 17000 empty files, one cold query, outcome=$bdn_result"

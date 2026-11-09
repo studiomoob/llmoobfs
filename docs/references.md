@@ -1380,3 +1380,23 @@ hand and carries the same code paths:
   (journal 0105) for the same reason.
 - `userfaultfd(2)` and `ioctl_userfaultfd(2)`, Linux man-pages 6.9 (the `UFFD_API` handshake,
   `uffd_msg` and `UFFD_EVENT_PAGEFAULT`).
+
+## 53. A first run on a big-endian kernel, s390x (journal 0280)
+
+- Debian 13's s390x kernel `linux-image-6.12.111+deb13-s390x` 6.12.111-1, with
+  `linux-headers-6.12.111+deb13-s390x` 6.12.111-1: the same Debian source version as the amd64
+  default of `make vm-test`. Its configuration was read for the guest: `CONFIG_CPU_BIG_ENDIAN=y`,
+  `CONFIG_S390_GUEST=y` (virtio over CCW built in), `CONFIG_VIRTIO_BLK=m`, `CONFIG_SCLP_CONSOLE=y`,
+  `CONFIG_MEMCG=y`. <https://packages.debian.org/trixie/linux-image-6.12.111+deb13-s390x>.
+- QEMU 10.0.13 (Debian `qemu-system-s390x` 1:10.0.13+ds-0+deb13u1), machine `s390-ccw-virtio`,
+  KVM on an IBM z17 host: [s390x system emulation](https://www.qemu.org/docs/master/system/target-s390x.html)
+  and [virtio devices on s390x](https://www.qemu.org/docs/master/system/s390x/css.html). The
+  `serial=` property is given on `-device virtio-blk`, since QEMU refuses it on `-drive`
+  ([removed features](https://www.qemu.org/docs/master/about/removed-features.html): "-drive
+  serial=" was removed in 3.0, replaced by `-drive if=none,id=dr` with `-device ...,drive=dr,serial=r`).
+- Linux 6.12 `drivers/block/virtio_blk.c`: the `serial` attribute under `/sys/block/vdX/`
+  (`serial_show()`), read by `vm/suite.sh` to find each disk; the `vdX` names follow probe
+  order, which on CCW is not the order of the `-device` options.
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/drivers/block/virtio_blk.c?h=v6.12.111>.
+- Docker Engine from Ubuntu 24.04's `docker.io` 29.1.3 on the s390x host, and the multi-architecture
+  `debian:trixie-slim` image pinned by `vm/run.sh`, pulled for `linux/s390x`.
