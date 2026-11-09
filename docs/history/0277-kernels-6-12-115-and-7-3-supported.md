@@ -1,8 +1,8 @@
 # 0277 — Debian 6.12.115 and 7.3.3 become supported kernels (in progress)
 
 Date: started 2026-11-09, about 06:50 Brasília time. Status: **in progress**: the list, the CI
-jobs and the documents are changed on the batch branch; the new CI jobs have not run on GitHub,
-and the btrfs `quick` rerun on 6.12.115 with the new exclusion list is running on the test host.
+jobs and the documents are changed on the batch branch; the new CI jobs have not run on GitHub;
+the btrfs `quick` rerun on 6.12.115 with the new exclusion list passed (Evidence).
 Estimated effort S (hours); the time recorded below is calendar time.
 
 ## Goal
@@ -89,7 +89,8 @@ Nothing was run on a kernel in this unit; the evidence is that of the earlier jo
 - 6.12.115 (journal 0272, 2026-11-08): full native suite PASS (`MOOBFS_LAYER_PASS`,
   `MOOBFS_ACCEPTANCE_PASS`); fstests `quick` with `exclude-quick.txt`: ext4 and XFS 631 passed;
   btrfs failed only `generic/301`.
-  (btrfs quick rerun with exclude-quick-btrfs.txt: pending)
+  Rerun on btrfs with `exclude-quick.txt` and `exclude-quick-btrfs.txt`, test host, KVM,
+  2026-11-09 06:49–08:55 BRT (calendar time): passed all 630 tests, check exit 0, 166 not run.
 - 7.3.3 (journal 0275, 2026-11-08/09): full KASAN/UBSAN/lockdep suite PASS on upstream 7.3.3 with
   `vm/kasan.config` (`MOOBFS_KASAN_PASS`, 284 pass markers); full native suite PASS on Debian's
   `7.3.3+deb14-amd64` (layer and acceptance; M1 skipped); fstests `quick` 631/631 on ext4, btrfs
@@ -108,9 +109,6 @@ Nothing was run on a kernel in this unit; the evidence is that of the earlier jo
   pull request of this batch; until they pass, rule 1's "pass in CI" is met by the local runs of
   journals 0272 and 0275 only. Whether the 7.3 native job fits in 35 minutes under TCG on a
   hosted runner is not measured.
-- The btrfs `quick` rerun on 6.12.115 with `exclude-quick-btrfs.txt` is pending; its placeholder
-  is in this journal, in `docs/compatibility.md` (note of 2026-11-09 under rule 3) and in
-  `vm/fstests/README.md`.
 - fstests `quick` for 7.3 ran on kernel.org's 7.3.3 built with `vm/fstests.config`, not on
   Debian's `7.3.3+deb14-amd64`; the two share the upstream release. Debian's build ran the native
   suite.
@@ -124,6 +122,5 @@ Nothing was run on a kernel in this unit; the evidence is that of the earlier jo
 
 ## Next step
 
-Fill in the btrfs rerun result where the placeholders are; run the full `make vm-test` and the
-local KASAN/lockdep suite for the batch as `AGENTS.md` asks; then the batch's pull request, whose
+Run the full `make vm-test` and the local KASAN/lockdep suite for the batch as `AGENTS.md` asks; then the batch's pull request, whose
 CI runs the three new jobs for the first time, and close this journal and 0275 when they pass.

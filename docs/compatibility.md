@@ -60,7 +60,7 @@ There are three interfaces, each with its own version and its own rule.
    ext4 and XFS (631 tests each); on btrfs only `generic/301` failed, a threshold fstests skips for
    btrfs but applies over the layer (journal 0272), and the maintainer decided to exclude it on
    btrfs in `quick` as it already was in `auto` (`vm/fstests/exclude-quick-btrfs.txt`).
-   (btrfs quick rerun with exclude-quick-btrfs.txt: pending)
+   The rerun on btrfs with that list (2026-11-09, 06:49–08:55 BRT) passed all 630 tests.
    Debian's `7.3.3+deb14-amd64`, by the
    maintainer's decision after the port of ADR-0034 (journal 0275): the full suite passed on it
    (layer module only; the M1 module stays 6.12-only), the full suite passed under KASAN, UBSAN and

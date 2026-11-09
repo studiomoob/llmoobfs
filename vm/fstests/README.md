@@ -142,8 +142,7 @@ same list on btrfs.
 | --- | --- | --- | --- |
 | Debian `6.12.115+deb13.1-amd64` (`MOOB_KVER`), 2026-11-08, `exclude-quick.txt` only | 631 passed | 630 passed, `generic/301` failed (1 378 extents; three more runs of it alone: 1 425, 1 072, 1 466) | 631 passed |
 | kernel.org 7.3.3 built with `vm/fstests.config` (`MOOB_KDIR`), 2026-11-09, `exclude-quick.txt` only | 631 passed | 631 passed (`generic/301` 1 159 extents) | 631 passed |
-
-(btrfs quick rerun with exclude-quick-btrfs.txt: pending)
+| Debian `6.12.115+deb13.1-amd64` (`MOOB_KVER`), 2026-11-09, btrfs only, `exclude-quick.txt` and `exclude-quick-btrfs.txt` | — | 630 passed, 0 failures | — |
 
 ## Group `auto`, three lower filesystems (journal 0239)
 
