@@ -5,6 +5,8 @@
 # moobfs-m1-test Docker image with this tree at /work:
 #   docker run --rm --platform linux/amd64 -v "$PWD:/work" moobfs-m1-test sh tests/review-3627172-vm.sh
 # Modules are loaded only by the disposable QEMU guest. Each run uses a new directory.
+# Since journal 0276 the suite steps deeptree and samedir (vm/suite.sh) make the same checks
+# in every make vm-test; this script stays as the record of the original reproduction.
 set -eu
 cd /work
 KERNEL=6.12.111+deb13-amd64
