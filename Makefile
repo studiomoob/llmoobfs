@@ -173,7 +173,8 @@ FSTESTS ?= $(HOME)/fstests
 LOWER ?= ext4
 fstests-auto:
 	sh vm/fstests-local.sh $(FSTESTS) $(LOWER) -g auto -E $(CURDIR)/vm/fstests/exclude-quick.txt \
-	  -E $(CURDIR)/vm/fstests/exclude-auto.txt $(if $(filter btrfs,$(LOWER)),-E $(CURDIR)/vm/fstests/exclude-auto-btrfs.txt)
+	  -E $(CURDIR)/vm/fstests/exclude-auto.txt $(if $(filter btrfs,$(LOWER)),-E $(CURDIR)/vm/fstests/exclude-quick-btrfs.txt \
+	  -E $(CURDIR)/vm/fstests/exclude-auto-btrfs.txt)
 	sh vm/fstests/results.sh build/fstests $(LOWER) > build/fstests/results-$(LOWER).txt
 # Roadmap item C2: install and remove on the host's running kernel (scripts/supported-kernels).
 install:

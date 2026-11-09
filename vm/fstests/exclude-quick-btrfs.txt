@@ -1,0 +1,12 @@
+# fstests tests excluded from the group quick when the lower is btrfs, in addition to
+# exclude-quick.txt; the auto run adds exclude-auto.txt and exclude-auto-btrfs.txt (journals 0239
+# and 0277). Use: sh vm/fstests-local.sh ~/fstests btrfs -g quick \
+#   -E "$PWD/vm/fstests/exclude-quick.txt" -E "$PWD/vm/fstests/exclude-quick-btrfs.txt"
+# fstests skips the failing check when FSTYP is btrfs; over the layer FSTYP is moobfs_layer, so
+# the exclusion never fires.
+
+# The 2/3 fragmentation threshold is skipped on btrfs ("btrfs CoW extent allocation depends on
+# transaction commit frequency"); over the layer it is applied. file2 had 1 503 extents for a
+# threshold of 1 365 (1 133 on plain btrfs, where the check is not made). In quick it varies from
+# run to run: on 6.12.115 1 378, 1 425, 1 072 and 1 466 extents (journal 0272), 1 159 on 7.3.3.
+generic/301
