@@ -1,7 +1,7 @@
-# 0279 — Records after PR 191; the local KASAN harness reads the 7.3 pin (in progress)
+# 0279 — Records after PR 191; the local KASAN harness reads the 7.3 pin
 
-Date: started 2026-11-09, 12:32 Brasília time. Status: **in progress**: the batch's full suites
-are running on the test host. Estimated effort S (hours); times below are calendar time.
+Date: started 2026-11-09, 12:32 Brasília time. Status: **done** locally; the batch's full suites
+passed (15:00 BRT). Estimated effort S (hours); times below are calendar time.
 
 ## Goal
 
@@ -14,7 +14,8 @@ With the maintainer's agreement of 2026-11-09, PR 191 (the register of review fi
 tests of journal 0276, branch `claudiofp/b18-stage2-docs`) was rebased on `main` after PR 190;
 its tree was the one its pre-push checks had passed (12 of 12, 10:34–10:39 BRT, `5d879b0`). It
 was opened at 11:21 BRT, passed 17 of 17 checks and was merged at 12:32 BRT (`9a6dd20`).
-POST_MERGE_191
+The post-merge runs on `main` passed: CI, CodeQL, static analysis and OpenSSF Scorecard on
+`9a6dd20`.
 
 ## Changes
 
@@ -30,7 +31,19 @@ POST_MERGE_191
 
 ## The batch's full suites
 
-SUITES_RESULT
+Test host, KVM, at `d87bf09` (journals 0278 and 0279 before their records), started 2026-11-09
+12:35 BRT, three runs in parallel on separate CPU pairs, calendar time:
+
+- `make vm-test` (Debian 6.12.111, CPUs 0-1), 12:35–13:00: exit 0, `MOOBFS_VM_PASS`,
+  `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `DIRSTALL_PASS` on ext4, btrfs and XFS; 314 pass
+  markers.
+- `sh vm/kasan-local.sh` (upstream 6.12.116 with `vm/kasan.config` including
+  `CONFIG_USERFAULTFD=y`, the kernel journal 0278 built in its own cache; CPUs 2-3), 12:35–13:54:
+  exit 0, `MOOBFS_KASAN_PASS` with no kernel diagnostic, `DIRSTALL_PASS`; 297 pass markers.
+- `MOOB_KASAN_KERNEL=7.3 sh vm/kasan-local.sh` (the new switch; upstream 7.3.3, `7.3.3-virtme`,
+  built from the workflow's 7.3 pin in a fresh cache; CPUs 4-5), 12:35–15:00 including the kernel
+  build: exit 0, `MOOBFS_KASAN_PASS` with no kernel diagnostic, `DIRSTALL_PASS`; 297 pass
+  markers. This is also the first run of `dirstall` on 7.3.
 
 ## Limitations
 

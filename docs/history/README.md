@@ -294,4 +294,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0276 — Regression tests for review findings R2-1, R2-2, R2-12, V4/M5 and M8.7](0276-review-gap-tests.md)
 - [0277 — Debian 6.12.115 and 7.3.3 become supported kernels](0277-kernels-6-12-115-and-7-3-supported.md)
 - [0278 — A test of its own for finding V-c: a reader stalled inside a directory read](0278-directory-reader-stall-test.md)
-- [0279 — Records after PR 191; the local KASAN harness reads the 7.3 pin (in progress)](0279-records-after-pr-191.md)
+- [0279 — Records after PR 191; the local KASAN harness reads the 7.3 pin](0279-records-after-pr-191.md)
