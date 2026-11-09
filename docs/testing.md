@@ -22,6 +22,9 @@ Measured wall-clock times per machine are not recorded yet; the CI timeouts are
 35 minutes for the VM job and 150 minutes for KASAN, and the QEMU phase of
 `make vm-test` is bounded by `timeout 3600`. On the dedicated i5 host the complete suite took
 2575 s under TCG (journal 0219); `MOOB_VM_KVM=1` runs the same guest under KVM there.
+On an s390x host, `MOOB_ARCH=s390x` builds the same flow for Debian's s390x 6.12.111 kernel; the
+full suite took 839 s under KVM on an IBM z17 instance with two CPUs (journal 0280; exploratory,
+not part of CI).
 
 ## 2. Targets
 
@@ -672,7 +675,8 @@ kernel versions are unverified.
   `vm/syzkaller-local.sh`), and KMSAN: see [security-roadmap.md](security-roadmap.md)
   S2, S3 and S7 to S8.
 - Kernels other than Debian 6.12.111, 6.12.113, 6.12.115 and 7.3.3 and upstream 6.12.116 and
-  7.3.3; the M1 module on 7.3; architectures other than x86-64.
+  7.3.3; the M1 module on 7.3; architectures other than x86-64 in CI (arm64 runs in an
+  exploratory job, journal 0137; s390x ran by hand on one host, journal 0280).
 - Any performance, latency or memory measurement (M4, [benchmark-plan.md](benchmark-plan.md)).
 - Acceptance over btrfs and XFS (it runs over ext4 only); `ipc` in the suite.
 

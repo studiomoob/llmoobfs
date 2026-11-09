@@ -462,8 +462,10 @@ KASAN harness runs the layer suite), and no benchmark exists.
   upstream 6.12.116 under KASAN) and 7.3 (Debian 7.3.3, upstream 7.3.3 under KASAN; the layer
   module only, the M1 module stays 6.12-only);
   kernel APIs are version-specific and the pinned test target is not a compatibility promise. On
-  another architecture the module ran only in the exploratory arm64 job (emulated, three lower
-  filesystems, journal 0137); the user-space encoding tests also ran on big-endian.
+  another architecture the module ran in the exploratory arm64 job (emulated, three lower
+  filesystems, journal 0137) and, once, on a big-endian kernel: the full suite passed in an s390x
+  guest under KVM, Debian's 6.12.111 (journal 0280, exploratory, not a supported kernel); the
+  user-space encoding tests also run on big-endian.
 - The index is RAM only, non-pageable and bounded by `index_budget` (default 128 MiB). Each
   domain is built by a linear scan on its first query after mount, and again after it was
   released or a directory in it was renamed; the budget and the shrinker were tested on small

@@ -1,6 +1,6 @@
 # 0280 — The layer module on a big-endian kernel: a first s390x run
 
-Date: 2026-11-09, 13:46–14:35 Brasília time. Status: **done locally**, not published;
+Date: 2026-11-09, 13:46–14:30 Brasília time. Status: **done locally**, not published;
 exploratory, two full runs on one host. s390x does not join the supported list
 (`docs/compatibility.md` §1 rule 5). Estimated effort S (hours); the time recorded here is
 calendar time, which for this unit is close to the effort (one session, mostly waiting on runs of
@@ -182,6 +182,16 @@ None in the module: it builds with no warning and passes the full suite on the b
 kernel. Two in the harness: the suite assumed `vda`..`vde` follow the command line (fixed above,
 for s390x), and the T2 cursor check assumes a little-endian `ino` (recorded under Endianness,
 not changed).
+
+## Public surfaces updated
+
+`README.md` and `README.pt-BR.md` (the paragraph on other architectures), `docs/faq.md` and the
+generated `site/faq.html`, `docs/testing.md` (the s390x time, and "not tested" now says "in CI"),
+and the status pages in both languages (`scripts/site-journey.py`). The wording "the module ran
+only in the exploratory arm64 job" (and its Portuguese) goes to `docs/retired-claims.txt`.
+`docs/compatibility.md` is unchanged: rule 5 (x86-64 only until another architecture runs the
+same two jobs) still holds. `scripts/check-retired-claims.sh`: `RETIRED_CLAIMS_OK`;
+`python3 scripts/site-faq.py --check`: up to date.
 
 ## Limitations
 
