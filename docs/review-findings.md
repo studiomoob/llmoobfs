@@ -167,7 +167,7 @@ for the deferred items.
 | D1 | The kernel validates `user.*` values | design objection | ADR-0017 (`aee15b4`, accepted `7a5adda`) | not applicable | |
 | D2 | The homogeneity rule is a second permission model | design objection | ADR-0017 | not applicable; commitments became S14 (mutants), S15 (`permchurn`), S16 (`selfcheck`) | |
 | D3 | Whether this belongs in the kernel | design objection | ADR-0017 | not applicable | |
-| D4 | `index_idle` floor lets a hot mount opt out of reclaim | not established | — | — | Absent from journal 0156's table and ADR-0017; see Gaps |
+| D4 | `index_idle` floor lets a hot mount opt out of reclaim | design objection (decided 2026-11-09, journal 0276) | ADR-0012 (the floor is its answer to thrashing; the budget still bounds a build) | not applicable | Was absent from journal 0156's table and ADR-0017 |
 
 ### A6. External reviewer's private reports (2026-10-27 to 2026-10-29)
 
@@ -325,7 +325,8 @@ Part A (inside the criterion as worded):
 12. **M8** items 2 to 6: no test (journal 0221 states for item 2 that no test can tell the two
     paths apart on 6.12). Item 1 is a build-time `static_assert`, not a test. Item 7 (the
     build-failure warning logged once) is checked in step `limits` since journal 0276.
-13. **D4**: no triage, hence no test (see section 2).
+13. **D4**: closed on 2026-11-09 as a design objection answered by ADR-0012 (journal 0276); no
+    test, as for D1 to D3.
 
 Part B (outside the criterion as worded, listed for the maintainer):
 
@@ -360,6 +361,10 @@ Tests that exist but do not run in the gates:
 
 1. **0155 D4** (`index_idle` floor): absent from journal 0156's table, from ADR-0017 (D1 to D3)
    and from issues 110 to 119 as listed in journal 0156.
+   *Note, 2026-11-09 (journal 0276):* triaged by the maintainer as a design objection answered by
+   ADR-0012: the floor is the mechanism ADR-0012 chose against release-and-rebuild loops; it
+   applies to the shrinker only, is bounded (0 to 86 400 s, a mount option), and a build
+   over `index_budget` may still release a domain used a moment ago.
 2. **B2 R6** (scan work not bounded by the batch): no journal takes it up; whether the later
    `QUERY2` design (journals 0035 to 0038) or the build limits (M3) answer it is not recorded.
 3. **B2 R7**, incomplete-inspection half: journal 0232 keeps the earlier behaviour of not

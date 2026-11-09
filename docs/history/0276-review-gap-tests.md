@@ -125,6 +125,15 @@ one line `pr_warn_once()` printed earlier in the run was no longer in the kernel
 when `limits` ran, or no earlier build failed with a logged errno. Either way the check still
 fails on a line printed per failure, as round D shows (1 → 10 with `MOOB_ONLY=limits`).
 
+## Decision on D4 (2026-11-09)
+
+The maintainer triaged 0155 D4 (the `index_idle` floor lets a hot mount opt out of reclaim) as a
+design objection answered by ADR-0012, as D1 to D3 are answered by ADR-0017: the floor is the
+mechanism ADR-0012 chose against release-and-rebuild loops under memory pressure; it applies to
+the shrinker only, is a bounded mount option (0 to 86 400 s, default 60), and a build that would
+exceed `index_budget` may still release a domain used a moment ago. No test, as for D1 to D3.
+`docs/review-findings.md` records it in the D table, in Gaps item 13 and in section 2 item 1.
+
 ## Limitations
 
 - `deeptree` uses `domain_depth=1` only; `samedir` one timing of the rename in the reading.
