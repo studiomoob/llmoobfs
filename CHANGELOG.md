@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- PR 190 (journals 0275, 0277) and PR 191 (journal 0276) merged on 2026-11-09; journals 0272,
+  0275 and 0277 closed. `vm/kasan-local.sh` runs the KASAN workflow's 7.3 leg with
+  `MOOB_KASAN_KERNEL=7.3` (journal 0279, in progress).
 - Review finding V-c of journal 0114 has a test of its own: suite step `dirstall`
   (`tests/dirstall.c`) stalls root's `getdents64` of a checked domain's directory on a
   userfaultfd fault in its buffer, with a creation queued behind it, on ext4, btrfs and XFS; the

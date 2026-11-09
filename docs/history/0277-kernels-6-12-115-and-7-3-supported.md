@@ -1,6 +1,6 @@
 # 0277 — Debian 6.12.115 and 7.3.3 become supported kernels
 
-Date: started 2026-11-09, about 06:50 Brasília time; ended 11:25 Brasília time with the merge
+Date: started 2026-11-09, about 06:50 Brasília time; ended 11:21 Brasília time with the merge
 of PR 190. Status: **done**: both kernels are in `scripts/supported-kernels`, and the three new CI
 jobs passed on PR 190 and on `main`.
 Estimated effort S (hours); the time recorded below is calendar time.
@@ -125,15 +125,18 @@ CodeQL, static analysis, OpenSSF Scorecard and Pages on `403f4a0`; CI, CodeQL, s
 the TLA+ model and Scorecard on `fc50fe3`. The rebase of PR 189 renumbered its
 `docs/references.md` section to 50; this branch's port section became 51.
 
+*Correction, 2026-11-09:* GitHub records the merges at 06:46 BRT (PR 188) and 07:39 BRT
+(PR 189), not 06:40 and 07:40 as written above.
+
 ## Merge of PR 190
 
 With the maintainer's agreement of 2026-11-09, the batch (journals 0275 and 0277, branch
-`claudiofp/b17-port-7.3` at `4c1e1d4`, pre-push checks 12 of 12 at 09:37–09:43) was pushed at
-10:30 BRT and opened as PR 190. Its CI passed 23 of 23 checks by 11:21, among them the three new
+`claudiofp/b17-port-7.3` at `4c1e1d4`, pre-push checks 12 of 12 at 09:37–09:43) was pushed and
+opened as PR 190 at 10:31 BRT. Its CI passed 23 of 23 checks by 11:21, among them the three new
 jobs on their first run: "Native Linux VM (Debian 6.12.115)" in 14 min 7 s, "Native Linux VM
 (Debian 7.3.3)" in 17 min 35 s (within the 35-minute limit) and "Layer suite under
 KASAN/lockdep (7.3.3)" in 49 min 24 s with its kernel built without a cache (the 6.12 leg took
-41 min 48 s). Merged at 11:25 BRT (`b35dbf9`). The post-merge runs on `main` passed: CI, CodeQL,
+41 min 48 s). Merged at 11:21 BRT (`b35dbf9`). The post-merge runs on `main` passed: CI, CodeQL,
 static analysis, the TLA+ model, OpenSSF Scorecard and Pages.
 
 ## Limitations
