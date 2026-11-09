@@ -9,6 +9,9 @@ mkdir -p /mnt/moob /tmp
 chmod 0755 / && chmod 1777 /tmp   # the cpio root inherits mktemp 0700; unprivileged test users must traverse it
 fail() { echo "MOOBFS_VM_FAIL: $*"; dmesg | tail -60; poweroff -f; sleep 60; }
 insmod /loop.ko || fail loop
+# Phase 1, the read-only M1 module (kernel/). It is not ported to 7.3 (ADR-0034 covers the
+# layer only), so vm/in-container.sh leaves it out of a 7.3 guest's initramfs (journal 0275).
+if [ -f /moobfs.ko ]; then
 insmod /moobfs.ko || fail module
 mount -t moobfs -o loop,ro /data/shared.img /mnt/moob || fail mount
 /mounted /data/expected.bin || fail reads
@@ -36,6 +39,11 @@ done
 rmmod moobfs || fail unload
 if dmesg | grep -E 'BUG:|Oops:|\] WARNING:|^WARNING:|Kernel panic|KASAN:'; then fail kernel-diagnostic; fi
 echo "MOOBFS_VM_PASS: shared extents, independent inodes, reads, readonly, remount, 15 malformed images"
+else
+# the first console line follows the firmware's escape codes: start the marker on a line of its own
+echo
+echo "MOOBFS_VM_SKIPPED: the M1 module is not built for $(uname -r)"
+fi
 
 # Layer phases 2a-2e: shared suite, with binaries in the initramfs root and lower
 # filesystems on the virtio disks prepared by vm/in-container.sh.

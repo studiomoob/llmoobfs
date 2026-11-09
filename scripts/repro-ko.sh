@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 # Security roadmap S10, second item (journal 0236): builds layer/moobfs_layer.ko twice for
-# each kernel of scripts/supported-kernels, in two fresh debian:trixie-slim containers pinned
+# each 6.12 kernel of scripts/supported-kernels, in two fresh debian:trixie-slim containers pinned
 # by digest, and requires byte-identical modules. The two builds differ in build path, user,
 # host name, time zone, umask and wall-clock time; each also builds with the MAKE line of the
 # DKMS package in DKMS's build directory, which must give the same module. With MOOB_REPRO_DEBS=1 (the default) the
@@ -23,6 +23,7 @@ headers_version() {
 	case $1 in
 	6.12.111+deb13-amd64) echo 6.12.111-1 ;;
 	6.12.113+deb13-amd64) echo 6.12.113-1 ;;
+	6.12.115+deb13.1-amd64) echo 6.12.115-2 ;;   # trixie-security
 	*) return 1 ;;
 	esac
 }
@@ -96,7 +97,11 @@ if [ -e "$OUT" ] || [ -L "$OUT" ]; then
 	[ "${FORCE:-}" = 1 ] || die "$OUT exists; FORCE=1 to replace it"
 	docker run --rm -v "$(cd "$(dirname "$OUT")" && pwd):/p" "$IMAGE" rm -rf "/p/$(basename "$OUT")"
 fi
-kernels=${MOOB_KERNELS:-$(grep -v '^#' scripts/supported-kernels)}
+# Debian's 7.3.3 headers need sid's compiler (vm/run.sh, journal 0275), not this trixie image, so
+# the 7.x releases of the list are left out by default (journal 0277).
+kernels=${MOOB_KERNELS:-$(grep -v '^#' scripts/supported-kernels | grep -v '^7\.')}
+grep -v '^#' scripts/supported-kernels | grep -q '^7\.' && [ -z "${MOOB_KERNELS:-}" ] &&
+	echo "repro: the 7.x releases of scripts/supported-kernels are not built (trixie image)"
 for k in $kernels; do headers_version "$k" >/dev/null || die "no pinned headers for $k"; done
 SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-$(git log -1 --format=%ct 2>/dev/null)} ||
 	die "no git: set SOURCE_DATE_EPOCH and MOOB_COMMIT"

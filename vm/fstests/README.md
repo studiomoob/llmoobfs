@@ -128,6 +128,22 @@ kernel. Per test: [`results-ext4-quick-6.12.113.txt`](results-ext4-quick-6.12.11
 more than the 6.12.111 run of journal 0091 and skipped one fewer; that run kept no per-test list,
 so the test is not identified.
 
+## Debian 6.12.115 and Linux 7.3.3 (journals 0272, 0275, 0277)
+
+Since 2026-11-09 `generic/301` is excluded on btrfs in `quick` too, through
+[`exclude-quick-btrfs.txt`](exclude-quick-btrfs.txt) (maintainer's decision, journal 0277): it
+was in `exclude-auto-btrfs.txt` for `auto` only, and in `quick` its fragmentation count crosses
+fstests' threshold in some runs and not in others, a check fstests itself skips on btrfs. A
+`quick` run on btrfs is now
+`-g quick -E .../exclude-quick.txt -E .../exclude-quick-btrfs.txt`; `make fstests-auto` adds the
+same list on btrfs.
+
+| Kernel | ext4 | btrfs | XFS |
+| --- | --- | --- | --- |
+| Debian `6.12.115+deb13.1-amd64` (`MOOB_KVER`), 2026-11-08, `exclude-quick.txt` only | 631 passed | 630 passed, `generic/301` failed (1 378 extents; three more runs of it alone: 1 425, 1 072, 1 466) | 631 passed |
+| kernel.org 7.3.3 built with `vm/fstests.config` (`MOOB_KDIR`), 2026-11-09, `exclude-quick.txt` only | 631 passed | 631 passed (`generic/301` 1 159 extents) | 631 passed |
+| Debian `6.12.115+deb13.1-amd64` (`MOOB_KVER`), 2026-11-09, btrfs only, `exclude-quick.txt` and `exclude-quick-btrfs.txt` | — | 630 passed, 0 failures | — |
+
 ## Group `auto`, three lower filesystems (journal 0239)
 
 `sh vm/fstests-local.sh ~/fstests <lower> -g auto -E "$PWD/vm/fstests/exclude-quick.txt"` on
@@ -156,8 +172,9 @@ or btrfs passes on XFS.
 | 301 | btrfs | "file2 badly fragmented" (1 503 extents, threshold 1 365) | fstests skips that check on btrfs by `FSTYP`; on plain btrfs the test passes (1 133 extents, unchecked); passes over the layer on XFS. `exclude-auto-btrfs.txt` |
 
 None is a layer defect. With both lists, a run is
-`-g auto -E .../exclude-quick.txt -E .../exclude-auto.txt` (plus `-E .../exclude-auto-btrfs.txt`
-on btrfs); fstests' `-E` adds to the list. That run follows from the per-test results but has not
+`-g auto -E .../exclude-quick.txt -E .../exclude-auto.txt` (plus `-E .../exclude-quick-btrfs.txt
+-E .../exclude-auto-btrfs.txt` on btrfs, where `generic/301` moved to the first on 2026-11-09);
+fstests' `-E` adds to the list. That run follows from the per-test results but has not
 been made.
 
 

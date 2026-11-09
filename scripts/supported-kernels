@@ -1,8 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# Kernel releases (uname -r) that `make install` accepts without MOOB_ALLOW_UNSUPPORTED=1.
-# The rule is docs/compatibility.md section 1: a kernel is supported when the full suite and
-# the KASAN job pass on it in CI, with one fstests quick run per lower filesystem (rule 3).
-# The upstream 6.12.116 KASAN kernel is a test build, not an installation target, so it is not
-# listed. One release per line.
+# Kernel releases (uname -r) that `make install` accepts without MOOB_ALLOW_UNSUPPORTED=1, and
+# the only releases DKMS builds for (packaging/debian/rules turns this list into
+# BUILD_EXCLUSIVE_KERNEL). The rule is docs/compatibility.md section 1: a kernel is supported
+# when the full suite and the KASAN job pass on it in CI, with one fstests quick run per lower
+# filesystem (rule 3). Two series: Debian 13's 6.12 builds and Debian's 7.3.3 (sid on
+# 2026-11-09, journal 0277); the 7.3 build runs the layer module only, the M1 module (kernel/)
+# stays 6.12-only. The upstream 6.12.116 and 7.3.3 KASAN kernels are test builds, not
+# installation targets, so they are not listed. One release per line.
 6.12.111+deb13-amd64
 6.12.113+deb13-amd64
+6.12.115+deb13.1-amd64
+7.3.3+deb14-amd64

@@ -34,4 +34,9 @@ fi
 # Tracked paths contain no spaces, so word splitting of the list is intended.
 # shellcheck disable=SC2046
 perl "$DIR/checkpatch.pl" --no-tree --terse --show-types --file \
-	$(git ls-files 'layer/*.[ch]' 'kernel/*.[ch]')
+	$(git ls-files 'layer/*.[ch]' 'kernel/*.[ch]' ':!layer/moobl_compat.h')
+# The kernel-version keys of ADR-0034 live in this one header, in the usual
+# "LINUX_VERSION_CODE >= KERNEL_VERSION(...)" form; checkpatch's advice against them (written for
+# in-tree code) is waived there and only there, so no other file can key on the version.
+perl "$DIR/checkpatch.pl" --no-tree --terse --show-types \
+	--ignore LINUX_VERSION_CODE,CONSTANT_COMPARISON --file layer/moobl_compat.h

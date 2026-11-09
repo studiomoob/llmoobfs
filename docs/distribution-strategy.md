@@ -41,7 +41,7 @@ Legend:
 | Fact | Source | Operational consequence |
 | --- | --- | --- |
 | Native module stacked over ext4, btrfs or XFS; filesystem type `moobfs_layer` | `layer/main.c`, ADR-0007 | The administrator mounts with `mount -t moobfs_layer -o lower=<dir> none <mountpoint>` |
-| Tested only with the Debian kernels 6.12.111+deb13-amd64 and 6.12.113+deb13-amd64 (suite in QEMU, fstests `quick` on the dedicated host) and the upstream kernel 6.12.112 with KASAN/UBSAN/lockdep (on-demand and weekly workflow) | `vm/Dockerfile`, `.github/workflows/kasan.yml` | No other kernel version is supported |
+| Tested only with the Debian kernels 6.12.111+deb13-amd64, 6.12.113+deb13-amd64, 6.12.115+deb13.1-amd64 and 7.3.3+deb14-amd64 (suite in QEMU, fstests `quick` on the dedicated host; on 7.3.3 the layer module only) and the upstream kernels 6.12.116 and 7.3.3 with KASAN/UBSAN/lockdep (every pull request that touches the module, weekly; journal 0277) | `vm/Dockerfile`, `.github/workflows/kasan.yml` | No other kernel version is supported |
 | User-space tools: `moobfs-attr`, `moobfs-check`, `moobfs-index` (plus test binaries); `mkfs.moobfs` and `fsck.moobfs` belong to M1, frozen | `tools/`, `Makefile` | There is no tool that issues `QUERY` for general use; `tests/query.c` is a test binary |
 | `QUERY` and `GET_INFO` require an open descriptor of the mount's **root** (`file->f_path.dentry == sb->s_root`, otherwise `ENOTTY`) | `layer/index.c` (`moobl_root_ioctl`) | Applies to any client, including in a container |
 | Phase 3b: `QUERY` resolves each path with the caller's credentials and applies `inode_permission(MAY_READ)`; silently omits what is inaccessible; `truncated` counts only what is visible | `layer/index.c`, `docs/spec-m3.md` §3.1, journal 0020 | Isolation between agents is the lower's POSIX isolation, including ACLs |
@@ -373,8 +373,11 @@ Kernel matrix (what was actually run):
 | --- | --- | --- | --- |
 | Debian 6.12.111+deb13-amd64 | yes, in QEMU TCG | no (distro kernel without these detectors) | EXISTS |
 | Debian 6.12.113+deb13-amd64 | yes, in QEMU TCG (since journal 0203) | no (distro kernel without these detectors) | EXISTS, supported since journal 0206 |
+| Debian 6.12.115+deb13.1-amd64 | yes, in QEMU TCG (CI job since journal 0277) | no (distro kernel without these detectors) | EXISTS, supported since journal 0277 |
+| Debian 7.3.3+deb14-amd64 (layer module only) | yes, in QEMU TCG (CI job since journal 0277) | no (distro kernel without these detectors) | EXISTS, supported since journal 0277 |
+| Upstream 7.3.3 (virtme-ng, `vm/kasan.config`) | full `vm/suite.sh` | yes (second leg of the KASAN workflow since journal 0277) | EXISTS |
 | Upstream 6.12.112 (virtme-ng, `vm/kasan.config`) | full `vm/suite.sh` | yes | EXISTS; for the branch `m3/3b-query-authz`, journal 0020 lists KASAN as pending |
-| Any other kernel, series or architecture (6.1/6.6 LTS, 6.13+, ARM64, other distro 6.12.x) | no | no | not supported; requires a port and the full suite plus KASAN |
+| Any other kernel, series or architecture (6.1/6.6 LTS, 6.13 to 7.2, ARM64, other distro 6.12.x or 7.3.x) | no | no | not supported; requires a port and the full suite plus KASAN |
 | macOS / Windows | — | — | only the portable M1 tools compile; the module is Linux |
 
 ## 7. Operational and security risks

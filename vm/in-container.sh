@@ -6,13 +6,16 @@ MOOB_DEBIAN_KERNEL=${MOOB_DEBIAN_KERNEL:-6.12.111}
 case "$MOOB_DEBIAN_KERNEL" in
     6.12.111|6.12.113) KERNEL="$MOOB_DEBIAN_KERNEL+deb13-amd64" ;;
     6.12.115) KERNEL="$MOOB_DEBIAN_KERNEL+deb13.1-amd64" ;;   # a trixie-security build
+    7.3.3) KERNEL="$MOOB_DEBIAN_KERNEL+deb14-amd64" ;;        # sid on 2026-11-08 (journal 0275)
     *) echo "Unsupported Debian VM kernel: $MOOB_DEBIAN_KERNEL" >&2; exit 1 ;;
 esac
+# The M1 module (kernel/) builds on 6.12 only; on 7.3 the guest runs the layer suite alone.
+case "$MOOB_DEBIAN_KERNEL" in 7.*) M1=0 ;; *) M1=1 ;; esac
 test -d "/lib/modules/$KERNEL/build"
 make tools BUILD=build/linux
 MOOB_BUILD_DIR=build/linux python3 tests/test_images.py
 python3 tests/test_harness_verdicts.py
-make module KDIR="/lib/modules/$KERNEL/build"
+[ "$M1" = 0 ] || make module KDIR="/lib/modules/$KERNEL/build"
 make layer KDIR="/lib/modules/$KERNEL/build"
 mkdir -p build/vm
 # Temporary work is confined to build; generated image creators remain exclusive.
@@ -24,7 +27,7 @@ ln -s busybox "$STAGE/bin/sh"
 cp vm/init "$STAGE/init"
 cp vm/suite.sh "$STAGE/suite.sh"
 chmod +x "$STAGE/init"
-cp kernel/moobfs.ko "$STAGE/moobfs.ko"
+[ "$M1" = 0 ] || cp kernel/moobfs.ko "$STAGE/moobfs.ko"
 cp layer/moobfs_layer.ko "$STAGE/moobfs_layer.ko"
 # Lower filesystems for the layer: ext4, btrfs and XFS as in-tree modules with their
 # dependency chains, plus virtio_blk for the disks that carry the lower images.
@@ -44,7 +47,10 @@ def visit(m):
     if m not in order:
         order.append(m)
 # Filesystems request the crc32c shash through the crypto API; modules.dep does not record that.
-for m in ('kernel/crypto/crc32c_generic.ko.xz', 'kernel/drivers/block/virtio_blk.ko.xz',
+# Its module is crc32c_generic on 6.12 and crc32c-cryptoapi on 7.3 (journal 0275).
+crc = next(m for m in ('kernel/crypto/crc32c_generic.ko.xz', 'kernel/crypto/crc32c-cryptoapi.ko.xz')
+           if (base / m).exists())
+for m in (crc, 'kernel/drivers/block/virtio_blk.ko.xz',
           'kernel/fs/ext4/ext4.ko.xz', 'kernel/fs/btrfs/btrfs.ko.xz', 'kernel/fs/xfs/xfs.ko.xz',
           'kernel/drivers/md/dm-mod.ko.xz', 'kernel/drivers/md/dm-log-writes.ko.xz',
           'kernel/drivers/md/dm-flakey.ko.xz'):
@@ -104,7 +110,7 @@ cp bench/sqlbase.sh "$STAGE/bench-sqlbase.sh" && cp bench/equiv.sh "$STAGE/bench
 MOOB_BUILD_DIR=build/linux python3 tests/test_images.py --fixtures "$STAGE/data"
 build/linux/fsck.moobfs "$STAGE/data/shared.img" > build/vm/image-report.json
 cp "$STAGE/data/shared.img" build/vm/shared.img
-cp kernel/moobfs.ko build/vm/moobfs.ko
+[ "$M1" = 0 ] || cp kernel/moobfs.ko build/vm/moobfs.ko
 cp layer/moobfs_layer.ko build/vm/moobfs_layer.ko
 cp "/boot/config-$KERNEL" build/vm/kernel.config
 {
@@ -112,7 +118,8 @@ cp "/boot/config-$KERNEL" build/vm/kernel.config
     gcc --version | head -1
     qemu-system-x86_64 --version | head -1
     dpkg-query -W 'linux-image-*' 'linux-headers-*' gcc qemu-system-x86
-    sha256sum "/boot/vmlinuz-$KERNEL" kernel/moobfs.ko layer/moobfs_layer.ko build/vm/shared.img
+    if [ "$M1" = 1 ]; then M1KO=kernel/moobfs.ko; else M1KO=; fi
+    sha256sum "/boot/vmlinuz-$KERNEL" $M1KO layer/moobfs_layer.ko build/vm/shared.img
 } > build/vm/environment.txt
 (cd "$STAGE" && find . -print0 | sort -z | cpio --null -o --format=newc 2>/dev/null | gzip -n) > build/vm/initramfs.cpio.gz
 set +e
@@ -135,7 +142,11 @@ RESULT=$?
 set -e
 cat build/vm/console.log
 test "$RESULT" -eq 0
-grep -q '^MOOBFS_VM_PASS:' build/vm/console.log
+if [ "$M1" = 1 ]; then
+    grep -q '^MOOBFS_VM_PASS:' build/vm/console.log
+else
+    grep -q '^MOOBFS_VM_SKIPPED:' build/vm/console.log
+fi
 if [ -n "${MOOB_ONLY:-}" ]; then
     grep -q '^MOOBFS_ONLY_PASS:' build/vm/console.log   # a partial run, asked for with MOOB_ONLY
 else

@@ -11,7 +11,7 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 
 ## Última tag e correções posteriores
 
-**Experimental. Não é para produção.** Uma série de kernel (6.12), testada só em VM; ainda sem
+**Experimental. Não é para produção.** Duas séries de kernel (6.12; 7.3 só para o módulo da camada), testadas só em VM; ainda sem
 revisão humana independente do código do kernel, só ferramentas automáticas e revisões assistidas por IA ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): duas revisões do código, feitas por
 assistentes de IA, diários 0111 e 0114; os relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele, acharam três defeitos do kernel, e o revisor
 escreveu a correção de um deles, F16, diários 0215, 0216 e 0218; um colaborador de fora revisou scripts,
