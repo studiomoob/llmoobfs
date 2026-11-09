@@ -68,7 +68,7 @@ the CLI is not implemented and describe the older layout) until the maintainer a
 `moobfs`, `make workspace-test`), `packaging/debian/rules`, `scripts/install.sh`,
 `scripts/test-install.sh`, `vm/workspace-test/guest.sh`, `vm/install-test/in-container.sh` and
 `run.sh` (`MOOB_TEST=workspace`), `docs/tools.md`, `docs/operations.md` (section 3 and a
-workspace subsection of section 5), `man/moobfs.1`, `docs/references.md` §49, `CHANGELOG.md`.
+workspace subsection of section 5), `man/moobfs.1`, `docs/references.md` §50, `CHANGELOG.md`.
 
 ## Evidence so far (not the test host)
 
