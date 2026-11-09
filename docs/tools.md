@@ -24,8 +24,8 @@ moobfs --help
 
 One command for a mounted layer (roadmap item C4, journal 0198), over the existing ioctls; it
 adds no kernel interface. Errors start with `moobfs:` and say what to do. `mount`, `status` and
-`workspace` follow [ADR-0035](decisions/0035-workspace-layout-and-cli.md) (proposed; journal
-0273), implemented locally and not yet run in a VM.
+`workspace` follow [ADR-0035](decisions/0035-workspace-layout-and-cli.md) (accepted 2026-11-09;
+journal 0273) and pass in a disposable Debian 13 VM (`make workspace-test`).
 
 - `info` finds the layer mount that holds `<path>` and prints its `GET_INFO`: lower filesystem,
   interface versions, whether the index is on, the domain depth, the index budget and build

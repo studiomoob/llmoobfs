@@ -8,14 +8,17 @@
 - ADR-0034: a second narrow exception to the kernel freeze, for adaptations to newer kernel
   interfaces only; a compile-only probe found the module builds on 6.12.116 and needs a port for
   7.3 (journal 0272, in progress).
-- ADR-0035 (proposed): the workspace layout for `domain_depth=2` (`<ns>`, `<ns>/shared` with a
+- ADR-0035 (accepted 2026-11-09): the workspace layout for `domain_depth=2` (`<ns>`, `<ns>/shared` with a
   base-only default ACL, `<ns>/<agent>`) and the `moobfs` commands that make it. Implemented
   locally in user space (`tools/moobfs-workspace.c`, `tools/workspace.h`): `moobfs mount`
   (supported-kernels list, a lower out of reach of other users, default depth 2), `moobfs status`
   (module version and `srcversion`, then `info`), `moobfs workspace create`, `grant`, `revoke`
   and `list`. Unit tests `workspace_test` in `make test`; VM acceptance `make workspace-test`
-  written, not yet run. `make install` and the `moobfs-tools` package now install the
+  passes. `make install` and the `moobfs-tools` package now install the
   supported-kernels list under `share/moobfs/` (journal 0273, in progress).
+- Stage 2 acceptance step 3: `make package-test` backs up the lower with `rsync -aHAX`, restores
+  it onto ext4, XFS and btrfs, compares names, owners, modes, attributes, ACLs and contents, and
+  mounts the layer on each restored copy; passes (journal 0273).
 - ADR-0035 corrected after its first VM run: files that fail the homogeneity rule are left out
   of `QUERY2`, not answered with per-result checks as the ADR said, so shared files (`0660`)
   were never found. The shared area's default ACL is now `u::rwx,g::rwx,o::r-x` (files `0664`,

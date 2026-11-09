@@ -1,7 +1,8 @@
 # ADR-0035 — Workspace layout and the `moobfs workspace` commands
 
-Date: 2026-11-08. Status: **proposed**, awaiting the maintainer's review (journal 0273); a local
-implementation follows it so that the review can read working code. Amends, once accepted,
+Date: 2026-11-08. Status: **accepted** by the maintainer on 2026-11-09 (journal 0273), after the
+local implementation and its VM runs. Proposed on 2026-11-08, awaiting the maintainer's review,
+with a local implementation so that the review could read working code. Amends
 `docs/distribution-strategy.md` §2.2 (layout) and §3 (the `workspace`, `mount` and `status`
 rows); their text is kept with a dated note. Estimated effort: M (one to three days). Estimate,
 not labor time.
@@ -64,7 +65,7 @@ at its first test when the file grants the needed bits to all three classes and 
 extended ACL, before it looks at the domain directory at all; only its second branch (same
 owner and group) reads the domain directory's mode and ACL.
 
-## Decision (proposed)
+## Decision
 
 1. **Layout.** A workspace is a namespace directory one level below the mount root, with its
    areas one level below it, and the layer is mounted with `domain_depth=2`, so that each area is

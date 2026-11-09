@@ -155,7 +155,7 @@ No option can change on remount. The full semantics are in [spec-m2.md](spec-m2.
 `supported-kernels` list, the lower is not itself a layer, and a directory above the lower keeps
 everyone but root out (`/srv/moobfs` at `0700` above). Its default domain depth is 2, the
 workspace layout's (below); `--domain-depth 1` gives the layout of section 5
-([tools.md](tools.md#moobfs); ADR-0035, proposed, not yet run in a VM):
+([tools.md](tools.md#moobfs); ADR-0035, tested in a disposable Debian 13 VM, journal 0273):
 
 ```sh
 sudo moobfs mount /srv/moobfs/lower /srv/memory --nolinks     # domain_depth=2
@@ -223,11 +223,11 @@ sudo -u bob moobfs query /srv/memory/alice kind eq string decision     # permiss
 moobfs info /srv/memory                                                # the mount's settings
 ```
 
-### Workspaces: agents and a shared area (ADR-0035, proposed)
+### Workspaces: agents and a shared area (ADR-0035)
 
 On a mount with `domain_depth=2`, `moobfs workspace create` makes a namespace whose areas are
-each a domain ([ADR-0035](decisions/0035-workspace-layout-and-cli.md); implemented locally,
-the VM run is pending, journal 0273):
+each a domain ([ADR-0035](decisions/0035-workspace-layout-and-cli.md); tested in a disposable
+Debian 13 VM, journal 0273):
 
 | Path | Owner:group | Mode / ACL |
 | --- | --- | --- |

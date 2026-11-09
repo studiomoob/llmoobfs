@@ -1,8 +1,9 @@
 # 0273 — The workspace commands of the moobfs CLI (ADR-0035)
 
 Date: 2026-11-08, morning, Brasília time; the local implementation round ended at 10:15 by the
-host clock. Status: **in progress**: implemented and unit-tested locally, the Linux build checks
-and the VM acceptance run are pending. Estimated effort M (one to three days), from ADR-0035;
+host clock. Status: **in progress**: implemented, unit-tested and accepted in a VM
+(`make workspace-test`, `make package-test`, `make install-test`); ADR-0035 accepted on
+2026-11-09; the pull request is pending. Estimated effort M (one to three days), from ADR-0035;
 labor time is recorded when the work closes.
 
 ## Goal
@@ -184,6 +185,12 @@ the same check as after the upgrade (alice's query equal to the oracle, bob refu
 Limit: the tree is small (two users, 120 files, no hard links, since the layer is mounted with
 `nolinks`), and backup and restore run with the layer unmounted, as `docs/operations.md` asks.
 
+## ADR-0035 accepted (2026-11-09)
+
+The maintainer accepted ADR-0035 on 2026-11-09. Its status, `docs/distribution-strategy.md`
+§2.2, §3 and §4 step 4 (dated notes; the old text kept), `docs/operations.md`, `docs/tools.md`
+and the changelog now say so; the old wordings are added to `docs/retired-claims.txt`.
+
 ## Next step
 
-The pre-push checks, then the maintainer's review of ADR-0035 before any pull request.
+The pre-push checks again on the branch's head, then the pull request, with the maintainer's ok.
