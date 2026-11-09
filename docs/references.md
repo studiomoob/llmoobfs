@@ -1413,3 +1413,9 @@ hand and carries the same code paths:
   `s390-ccw-virtio`, `-cpu host` under KVM, console `ttysclp0`) and `virtme/commands/run.py`
   (`--blk-disk NAME=PATH` sets `serial=NAME`; `vng --disk PATH` passes the path as the name).
   <https://github.com/arighi/virtme-ng/tree/v1.42>.
+- Linux 6.12.116 `arch/s390/kvm/kvm-s390.c` (lines 4776, 4786, 4806 call `__kvm_faultin_pfn()`,
+  `KVM_PFN_ERR_NEEDS_IO` and `kvm_release_faultin_page()`, not declared in that release), the
+  reason `vm/kasan-s390x.config` sets `CONFIG_KVM=n`; `arch/s390/Kconfig` for KASAN, KASAN_VMALLOC
+  and KFENCE on s390. The tarball is the KASAN pin of `.github/workflows/kasan.yml`, SHA-256
+  `cb3ed3dfdd47e6ade49dc933db334fd86e24cadee920da612c262b0e9b6a511b`, checked on the instance.
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/s390/kvm/kvm-s390.c?h=v6.12.116>.

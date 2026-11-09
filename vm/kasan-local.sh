@@ -31,8 +31,17 @@ R=$(pwd)
 [ -w /dev/kvm ] || echo "kasan-local: /dev/kvm not writable; QEMU will emulate (slow)" >&2
 command -v vng >/dev/null || { echo "kasan-local: vng (virtme-ng) not in PATH" >&2; exit 1; }
 
-# kernel: rebuilt only when missing or when $KCONFIG changed since the last build
-if [ ! -f "$KDIR/arch/x86/boot/bzImage" ] || ! cmp -s "$KCONFIG" "$KDIR/.moobfs-kasan.config"; then
+# On an s390x host (journal 0280, exploratory) the same kernel and fragment build for s390, and
+# the CCW disks, which finish probing in any order, are named by serial for vm/suite.sh. Any
+# other host is treated as x86-64, as before.
+case "$(uname -m)" in
+    # the virtme-ng-init in virtme-ng's wheel is an x86-64 binary: the guest boots with the
+    # shell init instead (as .github/workflows/kasan-arm64.yml does)
+    s390x) KIMAGE=arch/s390/boot/bzImage KEXTRA=vm/kasan-s390x.config VNGINIT=--no-virtme-ng-init ;;
+    *) KIMAGE=arch/x86/boot/bzImage KEXTRA='' VNGINIT='' ;;
+esac
+# kernel: rebuilt only when missing or when $KCONFIG (and KEXTRA) changed since the last build
+if [ ! -f "$KDIR/$KIMAGE" ] || ! cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"} | cmp -s - "$KDIR/.moobfs-kasan.config"; then
     mkdir -p "$KCACHE"
     if [ ! -d "$KDIR" ]; then
         curl -fsSL -o "$KCACHE/linux.tar.xz" "https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-$KERNEL_VERSION.tar.xz"
@@ -42,8 +51,8 @@ if [ ! -f "$KDIR/arch/x86/boot/bzImage" ] || ! cmp -s "$KCONFIG" "$KDIR/.moobfs-
         mv "$KDIR.tmp" "$KDIR"
         rm -f "$KCACHE/linux.tar.xz"
     fi
-    (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" && vng --build)
-    cp "$KCONFIG" "$KDIR/.moobfs-kasan.config"
+    (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} && vng --build)
+    cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"} > "$KDIR/.moobfs-kasan.config"
 fi
 
 # module and test binaries, as in the workflow
@@ -63,12 +72,22 @@ truncate -s 256M build/vng/lower-btrfs.img && mkfs.btrfs -q -f -L moob-lower bui
 truncate -s 300M build/vng/lower-xfs.img && mkfs.xfs -q -f -L moob-lower build/vng/lower-xfs.img
 truncate -s 64M build/vng/scratch.img build/vng/log.img
 
+# vng gives each disk its path as serial; on s390x short names, links in the kernel tree, make
+# the serials vm/suite.sh looks for (moob-ext4, ...)
+set --
+for d in lower-ext4:ext4 lower-btrfs:btrfs lower-xfs:xfs scratch:scratch log:log; do
+    if [ "$KIMAGE" = arch/s390/boot/bzImage ]; then
+        ln -sfn "$R/build/vng/${d%%:*}.img" "$KDIR/moob-${d#*:}"
+        set -- "$@" --disk "moob-${d#*:}"
+    else
+        set -- "$@" --disk "$R/build/vng/${d%%:*}.img"
+    fi
+done
 # one retry on a boot-time diagnostic of the debug kernel (MOOBFS_VM_ENV_FAIL), as in the workflow
 for attempt in 1 2; do
-    (cd "$KDIR" && vng --user root --cpus 2 --memory 3G --verbose \
+    (cd "$KDIR" && vng --user root --cpus 2 --memory 3G --verbose ${VNGINIT:+"$VNGINIT"} \
         --rwdir "$R/build" \
-        --disk "$R/build/vng/lower-ext4.img" --disk "$R/build/vng/lower-btrfs.img" \
-        --disk "$R/build/vng/lower-xfs.img" --disk "$R/build/vng/scratch.img" --disk "$R/build/vng/log.img" \
+        "$@" \
         --exec "HOSTILE_SEEDS=${HOSTILE_SEEDS:-3} MOOB_ONLY='${MOOB_ONLY:-}' MOOB_PERMCHURN='${MOOB_PERMCHURN:-}' MOOB_SELFCHECK='${MOOB_SELFCHECK:-}' sh $R/vm/kasan-guest.sh") > "build/vng/console-$attempt.log" 2>&1 || true
     cp "build/vng/console-$attempt.log" build/vng/console.log
     grep -q '^MOOBFS_VM_ENV_FAIL:' build/vng/console.log || break
