@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Regression tests for five review findings that had none in a gate, all in the full
+  `make vm-test`: steps `deeptree` (R2-1) and `samedir` (R2-2) run the reproducers of journal
+  0153 on ext4, btrfs and XFS; `tests/layer.c behind` in `run_lower` checks names changed on the
+  lower behind the layer (V4/M5); step `attrlist` checks on btrfs and XFS that a file with an
+  attribute list over 64 KiB is reported by `moobfs-check` and left out of the index (R2-12);
+  step `limits` checks that a repeated build failure is logged once (M8.7). Each fails in a
+  negative round without its fix (journal 0276). Tests only; `layer/` is unchanged.
 - Debian's `6.12.115+deb13.1-amd64` (trixie-security) and `7.3.3+deb14-amd64` (sid; layer module
   only, the M1 module stays on 6.12) are supported kernels: listed in `scripts/supported-kernels`,
   so accepted by `make install` and built by DKMS, with a native CI job each; the KASAN workflow

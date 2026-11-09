@@ -41,6 +41,8 @@ t permmatrix -Iinclude tests/permmatrix.c
 t permission-gaps -Iinclude tests/permission-gaps.c
 t coldmove   -Iinclude tests/coldmove.c
 t hookrace   -Iinclude tests/hookrace.c
+t review-deep-tree -Iinclude tests/review-deep-tree.c
+t review-samedir-rename -Iinclude tests/review-samedir-rename.c
 t fusestall  tests/fusestall.c
 t sqlq       -Iinclude -DSQLITE_CORE tests/sqlq.c sqlite/moobfs_vtab.c common/attr.c -lsqlite3 -lm -ldl -lpthread
 t idmap      tests/idmap.c

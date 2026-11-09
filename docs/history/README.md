@@ -291,4 +291,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0273 — The workspace commands of the moobfs CLI (ADR-0035; in progress)](0273-workspace-cli.md)
 - [0274 — KCSAN on the code corrected in November](0274-kcsan-corrected-code.md)
 - [0275 — The port to Linux 7.3 (in progress)](0275-port-7-3.md)
+- [0276 — Regression tests for review findings R2-1, R2-2, R2-12, V4/M5 and M8.7](0276-review-gap-tests.md)
 - [0277 — Debian 6.12.115 and 7.3.3 become supported kernels (in progress)](0277-kernels-6-12-115-and-7-3-supported.md)
