@@ -1,6 +1,9 @@
-# 0272 — Widening the kernel matrix (in progress)
+# 0272 — Widening the kernel matrix
 
 Date: started 2026-11-07, 18:40 Brasília time. Status: **in progress**. Estimated effort L.
+
+Note, 2026-11-09: **done**. Its three next steps closed on 2026-11-09: the 7.3 port (journal
+0275), 6.12.115 in the list (journal 0277), no 7.2 port; PR 190 merged as `b35dbf9`.
 
 ## Goal
 

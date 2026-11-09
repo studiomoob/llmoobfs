@@ -21,18 +21,19 @@
   so accepted by `make install` and built by DKMS, with a native CI job each; the KASAN workflow
   gains a 7.3.3 leg, and the 6.12 leg keeps its required-check name. `generic/301` is excluded on
   btrfs in fstests `quick` as in `auto`. `docs/compatibility.md` rule 2 is amended: `make install`
-  and DKMS refuse by exact release, `make layer` by API series (journal 0277, in progress).
+  and DKMS refuse by exact release, `make layer` by API series (journal 0277). PR 190, merged on 2026-11-09 (`b35dbf9`); the three
+  new CI jobs passed on their first run.
 - The layer builds on Linux 7.3.3 as well as 6.12 (ADR-0034): the changed kernel interfaces are
   adapted in `layer/moobl_compat.h`, keyed on the kernel version, with overlayfs 7.3.3 as the
   model; the 6.12.116 object code is unchanged. On 7.3.3 the full suite (Debian's
   `7.3.3+deb14`), KASAN/UBSAN/lockdep and fstests `quick` on ext4, btrfs and xfs (631 tests each)
-  passed; 7.3 is not yet a supported kernel (journal 0275, in progress).
+  passed; 7.3.3 became a supported kernel the same day (journals 0275 and 0277).
 - The upstream test kernel (KASAN, KCSAN, coverage, interop, arm64 KASAN, static analysis and the
   checkpatch tag) moves from 6.12.112 to 6.12.116; the full KASAN/UBSAN/lockdep suite passed on it
   (journal 0272).
 - ADR-0034: a second narrow exception to the kernel freeze, for adaptations to newer kernel
   interfaces only; a compile-only probe found the module builds on 6.12.116 and needs a port for
-  7.3 (journal 0272, in progress).
+  7.3 (journal 0272).
 - ADR-0035 (accepted 2026-11-09): the workspace layout for `domain_depth=2` (`<ns>`, `<ns>/shared` with a
   base-only default ACL, `<ns>/<agent>`) and the `moobfs` commands that make it. Implemented
   locally in user space (`tools/moobfs-workspace.c`, `tools/workspace.h`): `moobfs mount`
