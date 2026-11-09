@@ -171,10 +171,12 @@ was: `QUERY2_PASS` on each lower), but if that low byte happened to be 0xff the 
 nothing and the step would fail with `t2-patch-changed-nothing-15-$fs`; the comment is also wrong
 on big-endian. Left as is, recorded: the fix, if s390x runs continue, is to pick the offset of
 the most significant byte by the byte order.
+*Note, 2026-11-09, second round:* done in commit `1162708` (section "Second round" below).
 
 What the runs do not show: no lower tree or M1 image written on an amd64 machine was read on
 s390x (every fixture was made in the s390x container), so cross-machine interchange of a lower
 tree rests on the byte-wise encoding, not on a test.
+*Note, 2026-11-09, second round:* now tested; see "Cross-machine data" below.
 
 ## Findings
 
@@ -207,3 +209,70 @@ If the maintainer wants big-endian coverage to continue: a KASAN/UBSAN/lockdep k
 (upstream 6.12.116 with `vm/kasan.config`, built on the instance) through `vm/kasan-local.sh`,
 then a cross-machine check (a lower tree and an M1 image made on amd64, read on s390x). The
 amd64 `make vm-test` at this branch's head runs in the batch's full suite before publication.
+
+## Second round, 2026-11-09 (14:49 BRT onwards): T2, cross-machine data, KASAN on s390x
+
+Asked after the first round: correct the T2 check, read data written on x86-64 with the s390x
+kernel, and run the suite under KASAN/UBSAN/lockdep on s390x. Same rules: `layer/` unchanged.
+
+### T2 on either byte order (commit `1162708`)
+
+`vm/suite.sh`, in `run_lower` (so the steps `ext4`, `btrfs` and `xfs`): the offset of the inode's
+high byte comes from the guest's byte order, `printf '\001\000' | od -An -tx2`, which prints
+`0001` on little-endian (offset 15, as before, so an amd64 run patches the same three bytes 5, 15
+and 119) and `0100` on big-endian (offset 8); anything else fails with `t2-byte-order-$fs`. The
+guest's BusyBox (`busybox-static` 1:1.37.0-6+b9, s390x) prints ` 0100`, checked in the s390x
+image. Run on s390x, `MOOB_ONLY="ext4 btrfs xfs"`, KVM, 15:00–15:03 BRT (191 s): exit 0,
+`QUERY2_PASS` and `LAYER_LOWER_PASS` on ext4, btrfs and XFS, `MOOBFS_ONLY_PASS`, 105 pass lines,
+no kernel diagnostic. The run does not print which offset it chose; the evidence for 8 is the
+`od` output above and the absence of `t2-byte-order`.
+
+### Cross-machine data (commit `5e98579`)
+
+`vm/cross-machine.sh` is the writing side, run on the developer's Mac in Docker with the pinned
+`debian:trixie-slim` image for `linux/amd64`, `--privileged` for loop mounts. Exactly: x86-64
+user space under emulation (gcc, `moobfs-attr`, `moobfs-index`, `mkfs.moobfs`, `fsck.moobfs`
+built and run as x86-64), on Docker Desktop's Linux VM whose kernel is `7.0.14-linuxkit` for
+arm64 (little-endian). The attribute bytes are those encoded by x86-64 user space; the ext4,
+btrfs and XFS structures are those of trixie's mkfs tools and of that kernel. It makes:
+
+- three lower images (ext4 64 MiB, btrfs 256 MiB, XFS 300 MiB), each with domain `da` (the
+  suite's Q2b shapes: 30 files, time and int64 `created` with ties, `kind`, long `title`s; uid
+  1001, 0600, domain 0700) and domain `dt` (10 files with every type: doubles from -inf to inf
+  with -0.0 and ±1e300, int64 from INT64_MIN to INT64_MAX, time, bool, raw, UTF-8 strings);
+- the x86-64 oracle (`moobfs-index`) for 18 QUERY2 queries as uid 1001 (equality, ranges, prefix,
+  ordered ascending and descending by time, int64, double and string, limits) and 4 v1 queries
+  as root, and every file's `moobfs-attr list`;
+- an M1 image of five files (two identical) by `mkfs.moobfs`, its `fsck.moobfs` report and the
+  files' SHA-256.
+
+Hashes of what was transferred (`build/cross/SHA256SUMS`):
+
+```
+405a1451683fcc1e36f009b770dfc9c03d103c8b8ead826a0949965c1496205d  lower-ext4.img
+3741c57d86d12c79495f4482776007c0178c9f03326374a3c120b286855c0342  lower-btrfs.img
+5fd0851fd83712be37dd83809db6ca57e4128d33db6a8c9c93ee01d4a73f58a3  lower-xfs.img
+9f1c00b1d5c7d40694cca9367cd83cc546048523096b92db28cd2a671d254267  guest/m1.img
+1993adefc4169717b2ba64d5a2ec4f1ffefeeab9116632701263108ae5474531  m1-fsck.json
+f47b21c86a76995608ad2b1ff0402bb5abd9559b79d0719768f2e7d8751bc228  guest/queries.txt
+f72d0ea7a73afaf2852b70e494491056a59de9659333530f3f97bf5510fa49bb  guest/queries-v1.txt
+```
+
+The reading side is `MOOB_CROSS=build/cross MOOB_ONLY=crossmachine` with `MOOB_ARCH=s390x`:
+`vm/in-container.sh` checks every hash, runs `fsck.moobfs` built for s390x on the M1 image and
+compares its report byte for byte, and attaches the three images as the lower disks; the suite
+step `crossmachine` (run only when named, never in the full suite) mounts each under the layer
+and compares, byte for byte, the kernel's QUERY2 answers with the x86-64 oracle, the s390x
+oracle with the x86-64 oracle, `moobfs-attr list` of every file through the layer with the x86-64
+listing, and the v1 answers (layer remounted with `domain_depth=0`) with the x86-64 oracle; then
+it loads the M1 module, mounts the M1 image and compares the files' SHA-256.
+
+Run on s390x, KVM, 15:04 BRT (15 s with the image cached): `CROSS_FSCK_PASS: fsck.moobfs on s390x
+reports the M1 image as on x86_64` and `CROSS_MACHINE_PASS: written on x86_64, read on s390x: 66
+answers on ext4, btrfs and xfs equal to the writer's oracle, 135 attribute lines per lower equal;
+M1 image of 5 files read with the writer's hashes`, `MOOBFS_ONLY_PASS`. Negative round, 15:05: a
+copy with two lines of the x86-64 answer `wasc` (order by double ascending) swapped, and its
+hashes recomputed, fails with `MOOBFS_VM_FAIL: cx-mismatch-wasc-ext4`.
+
+One semantic worth stating, the same on both machines: `weight eq double 0` matches +0.0 only,
+not -0.0 (the kernel and both oracles agree; `layer/index.c:130` keys the two zeros apart).
