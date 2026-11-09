@@ -457,7 +457,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
   required pull-request checks passed before that batch merged.
   `v0.4.1-experimental` still contains both defects; `v0.5.0-experimental` has the fixes.
 
-- One kernel series tested (Debian 6.12.111, upstream 6.12.112 under KASAN), x86-64, in a VM;
+- One kernel series tested (Debian 6.12.111, upstream 6.12.116 under KASAN), x86-64, in a VM;
   kernel APIs are version-specific and the pinned test target is not a compatibility promise. On
   another architecture the module ran only in the exploratory arm64 job (emulated, three lower
   filesystems, journal 0137); the user-space encoding tests also ran on big-endian.

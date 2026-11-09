@@ -77,7 +77,7 @@ tool, a test or an optional client.
 
 | Component | Where | How it is fixed |
 | --- | --- | --- |
-| Linux headers, Debian 6.12.111 and 6.12.113; upstream 6.12.112 for KASAN | `vm/Dockerfile`, `.github/workflows/kasan.yml` | Exact package versions and an image digest |
+| Linux headers, Debian 6.12.111 and 6.12.113; upstream 6.12.116 for KASAN | `vm/Dockerfile`, `.github/workflows/kasan.yml` | Exact package versions and an image digest |
 | Debian `trixie-slim` and its packages (gcc, make, libc, QEMU, busybox, e2fsprogs, btrfs-progs, xfsprogs, dmsetup, acl, git, sqlite3, libsqlite3-dev) | `vm/Dockerfile`, `vm/install-test/Dockerfile` | Base image by digest; packages from that release |
 | `fsx` and `log-writes`, vendored from fstests | `tests/third_party/` | Upstream commit in each `UPSTREAM` file |
 | fstests with the project's patch | `vm/fstests/` | Tag `v2026.09.22`, cloned by hand as `vm/fstests/README.md` says |

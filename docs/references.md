@@ -1284,3 +1284,14 @@ hand and carries the same code paths:
   `fs/ext4/Kconfig` (`EXT4_DEBUG`). The pattern ADR-0033 follows for S16: a check compiled
   only by a build option that production kernels leave off.
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs?h=v6.12.112>.
+
+## 49. Building against several kernel releases (ADR-0034)
+
+- OpenZFS, `config/kernel-*.m4`: configure-time probes that compile a small test against the
+  target kernel's headers to decide each compatibility branch. Considered and not taken for
+  MoobFS's exact-release matrix (ADR-0034). <https://github.com/openzfs/zfs/tree/master/config>.
+- kernel.org release list and `sha256sums.asc` of `v6.x` and `v7.x`, read on 2026-11-07: longterm
+  6.18.62, 6.12.116, 6.6.162, 6.1.192; stable 7.3.3. <https://www.kernel.org/releases.json>.
+- Debian package pools, read on 2026-11-07: `linux-image-6.12.113+deb13-amd64` (Debian 13),
+  `linux-image-7.2.12+deb13-*` (trixie-backports), `linux-image-7.3.3+deb14-amd64` (Debian 14).
+  <https://deb.debian.org/debian/pool/main/l/linux-signed-amd64/>.

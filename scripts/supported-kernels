@@ -2,7 +2,7 @@
 # Kernel releases (uname -r) that `make install` accepts without MOOB_ALLOW_UNSUPPORTED=1.
 # The rule is docs/compatibility.md section 1: a kernel is supported when the full suite and
 # the KASAN job pass on it in CI, with one fstests quick run per lower filesystem (rule 3).
-# The upstream 6.12.112 KASAN kernel is a test build, not an installation target, so it is not
+# The upstream 6.12.116 KASAN kernel is a test build, not an installation target, so it is not
 # listed. One release per line.
 6.12.111+deb13-amd64
 6.12.113+deb13-amd64

@@ -424,3 +424,4 @@ S16 not started; journal
 Not started (frozen kernel).
 S16 not started, allowed by a narrow exception to the freeze
 Not started. The maintainer granted a narrow exception to the freeze on 2026-11-07
+upstream 6.12.112 under KASAN

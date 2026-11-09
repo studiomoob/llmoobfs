@@ -67,7 +67,7 @@ tracked `vm/*.sh` and `scripts/*.sh`, with the one repository-wide exception and
 shellcheck` or `brew install shellcheck`). The DCO check runs only in pull
 requests. `make checkpatch` runs the kernel's `checkpatch.pl --no-tree` on the
 tracked `layer/` and `kernel/` sources; `scripts/checkpatch.sh` downloads the
-script and its data files from the stable tag `v6.12.112` into `build/` and
+script and its data files from the stable tag `v6.12.116` into `build/` and
 verifies their SHA-256 first (needs `curl` and `perl`). The CI `Lint` job runs
 it as an advisory step that does not fail the job.
 
@@ -202,8 +202,8 @@ python3 -m pip install --user --require-hashes -r vm/kasan-requirements.txt   # 
 export PATH="$HOME/.local/bin:$PATH"
 
 # 2. Kernel source, pinned and verified (values from kasan.yml)
-KERNEL_VERSION=6.12.112
-KERNEL_SHA256=164dc9d1f6c93c61a15e1f071c48379b467f2b17c469cce7223471968208ed03
+KERNEL_VERSION=6.12.116
+KERNEL_SHA256=cb3ed3dfdd47e6ade49dc933db334fd86e24cadee920da612c262b0e9b6a511b
 mkdir -p build && curl -fsSL -o build/linux.tar.xz \
   "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz"
 echo "${KERNEL_SHA256}  build/linux.tar.xz" | sha256sum -c -
@@ -272,7 +272,7 @@ attribute encoding. They do not compile the kernel modules, do not run
 do not touch the VFS. A green `make test` on macOS says nothing about `layer/`.
 Likewise, a successful `make layer` on a Linux host only proves the module
 compiles against those headers. Only `make vm-test` (Debian 6.12.111 in QEMU)
-and the KASAN workflow (upstream 6.12.112) load and exercise the module, and
+and the KASAN workflow (upstream 6.12.116) load and exercise the module, and
 only on those kernels. Write journal entries and PR descriptions accordingly:
 name the command, the kernel and the log file; never report a compile as a test.
 

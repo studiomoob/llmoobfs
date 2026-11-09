@@ -93,15 +93,15 @@ These limits update the cases discussed in the value assessment, §9.6.
   caller, at a cost not measured ([journal 0104](history/0104-selinux-investigation.md)). One
   run, one kernel; Smack and AppArmor were not exercised.
 - **Your kernel is outside the tested matrix.** Only Debian 6.12.111 and 6.12.113 (QEMU) and
-  upstream 6.12.112 (KASAN; on arm64 too, under emulation, as an exploratory job) have run the
-  module; other kernels are not promised to compile or behave
+  upstream 6.12.112 (KASAN; on arm64 too, under emulation, as an exploratory job) and 6.12.116
+  (KASAN, journal 0272) have run the module; other kernels are not promised to compile or behave
   ([compatibility.md](compatibility.md) §1).
 - **The lower filesystem does not keep an inode generation, or a user can set it there.** Domain
   and file records are keyed by the lower inode number and also keep its `i_generation`; a
   record whose generation differs from the inode's is rebuilt or dropped, so a number the lower
   hands to a new inode after a removal behind the layer is not answered from the removed
   inode's entries (GHSA-756j-cgwq-gvwm, [journal 0216](history/0216-domain-record-generation.md)).
-  The check needs a lower that sets the generation. In the build's kernel (6.12.112) ext4 and
+  The check needs a lower that sets the generation. In Linux 6.12.112 (the build's kernel when checked) ext4 and
   tmpfs give each new inode a random 32-bit one, XFS a random one (v5 without `ikeep`) or one
   bumped on free, and btrfs the creating transaction. The VFS starts every inode at 0
   (`inode_init_always_gfp()`, `fs/inode.c`) and the NFS client never changes it; FUSE takes it

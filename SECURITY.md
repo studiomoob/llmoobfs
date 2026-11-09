@@ -30,7 +30,7 @@ Please include, as far as you can:
 
 - the commit SHA you tested;
 - the kernel version (`uname -r`) and whether it was the harness kernel
-  (Debian `6.12.111+deb13-amd64` or `6.12.113+deb13-amd64`, or upstream 6.12.112 under KASAN)
+  (Debian `6.12.111+deb13-amd64` or `6.12.113+deb13-amd64`, or upstream 6.12.116 under KASAN)
   or another;
 - the lower filesystem (ext4, btrfs, XFS, other) and the exact mount options
   (`lower=`, `nolinks`, `noindex`, `index_budget=`);

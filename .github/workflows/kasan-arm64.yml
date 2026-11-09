@@ -23,8 +23,8 @@ concurrency:
   group: kasan-arm64-${{ github.ref }}
   cancel-in-progress: true
 env:
-  KERNEL_VERSION: 6.12.112
-  KERNEL_SHA256: 164dc9d1f6c93c61a15e1f071c48379b467f2b17c469cce7223471968208ed03
+  KERNEL_VERSION: 6.12.116
+  KERNEL_SHA256: cb3ed3dfdd47e6ade49dc933db334fd86e24cadee920da612c262b0e9b6a511b
 jobs:
   kasan:
     name: Layer suite under KASAN/lockdep (arm64)
