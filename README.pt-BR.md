@@ -487,9 +487,12 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   camada, o módulo M1 continua só no 6.12); as
   APIs do kernel dependem da versão, e o alvo de teste fixado não é promessa de compatibilidade. Em
   outra arquitetura, o módulo rodou no job exploratório de arm64 (com emulação, três sistemas de
-  arquivos de baixo, diário 0137) e, uma vez, num kernel big-endian: a suíte completa passou num
-  convidado s390x sob KVM, o 6.12.111 do Debian (diário 0280, exploratório, não é kernel suportado);
-  os testes da codificação, em espaço de usuário, também rodam em big-endian.
+  arquivos de baixo, diário 0137) e num kernel big-endian, de forma exploratória e sem ser kernel
+  suportado (diário 0280): num convidado s390x sob KVM a suíte completa passou no 6.12.111 do
+  Debian, os passos de ext4, btrfs e XFS passaram sob KASAN (a rodada KASAN completa parou num
+  limite de tempo de construção que o kernel de depuração não alcançou), e árvores escritas numa
+  máquina little-endian foram lidas igual; os testes da codificação, em espaço de usuário, também
+  rodam em big-endian.
 - O índice é só em RAM, não vai para o swap e é limitado por `index_budget` (padrão 128 MiB). Cada
   domínio é construído por uma varredura linear na primeira consulta depois da montagem, e de novo
   depois de ser liberado ou de ter um diretório renomeado dentro dele; o orçamento e o shrinker só

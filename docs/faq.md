@@ -147,8 +147,9 @@ filesystems for each series; the KASAN jobs run on every pull request that touch
 weekly. x86-64 for the module, plus an
 exploratory arm64 job under emulation where the ext4, btrfs and XFS steps pass under KASAN
 (journal 0137); the attribute encoding's user-space tests also run on big-endian s390x under
-emulation, and the full suite passed once in an s390x guest under KVM on Debian's 6.12.111
-(journal 0280; exploratory, s390x is not a supported architecture). Kernel
+emulation; in an s390x guest under KVM the full suite passed on Debian's 6.12.111, the ext4,
+btrfs and XFS steps passed under KASAN, and trees written on a little-endian machine read the
+same (journal 0280; exploratory, s390x is not a supported architecture). Kernel
 APIs change between versions; compatibility with other kernels is not promised.
 [`README.md`; `docs/testing.md` §1; `docs/compatibility.md` §1; journals 0124, 0277 and 0280]
 

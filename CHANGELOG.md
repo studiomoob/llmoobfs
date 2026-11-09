@@ -20,7 +20,13 @@
   (`MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`; 839 s), with no endianness
   mismatch; one suite check (the T2 cursor patch) assumes a little-endian inode field and is
   recorded, not changed. s390x is not a supported architecture; amd64 runs are unchanged;
-  `layer/` is unchanged.
+  `layer/` is unchanged. Second round (journal 0280): the T2 cursor check patches the inode's
+  high byte on either byte order; `vm/cross-machine.sh` and the step `crossmachine`
+  (`MOOB_CROSS`) check that ext4, btrfs and XFS trees and an M1 image written by x86-64 user
+  space read the same on s390x (passed, with a negative round); `vm/kasan-local.sh` builds and
+  boots on an s390x host (`vm/kasan-s390x.config`: `CONFIG_KVM=n` for the guest kernel). Under
+  KASAN/UBSAN/lockdep on s390x the ext4, btrfs and XFS steps passed; the full KASAN run stopped at
+  `release`, whose 500-file build exceeds the module's 10 s CPU bound on that debug kernel.
 - Regression tests for five review findings that had none in a gate, all in the full
   `make vm-test`: steps `deeptree` (R2-1) and `samedir` (R2-2) run the reproducers of journal
   0153 on ext4, btrfs and XFS; `tests/layer.c behind` in `run_lower` checks names changed on the

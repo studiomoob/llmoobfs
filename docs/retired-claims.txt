@@ -449,3 +449,4 @@ A system that has moved to a later 6.12 kernel through updates is outside the li
 Kernels other than Debian 6.12.111 and upstream 6.12.116
 the module ran only in the exploratory arm64 job
 o módulo só rodou no job exploratório de arm64
+the full suite passed once in an s390x guest

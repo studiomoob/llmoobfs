@@ -1,7 +1,8 @@
 # 0280 — The layer module on a big-endian kernel: a first s390x run
 
-Date: 2026-11-09, 13:46–14:30 Brasília time. Status: **done locally**, not published;
-exploratory, two full runs on one host. s390x does not join the supported list
+Date: 2026-11-09, 13:46–14:30 Brasília time; second round 14:49–20:25. Status: **done
+locally**, not published; exploratory, two full runs on one host, then the second round below
+(T2, cross-machine data, KASAN: the lowers passed, the full KASAN run stopped at `release`). s390x does not join the supported list
 (`docs/compatibility.md` §1 rule 5). Estimated effort S (hours); the time recorded here is
 calendar time, which for this unit is close to the effort (one session, mostly waiting on runs of
 a few minutes).
@@ -328,4 +329,50 @@ a build hit the CPU-time or wall-time bound of `scan_check()` (`layer/index.c:20
 0241) under KASAN's slowdown; the step still passed (why the bench tolerates it was not
 checked). Not a diagnostic; recorded as the one place where the debug kernel's speed showed.
 
-**Full suite** under KASAN: started 17:25 BRT, in progress (see below).
+**Full suite** under KASAN, 17:25–20:13 BRT (10084 s): **failed** at the step `release`,
+`MOOBFS_VM_FAIL: rl-measure-ext4` ("domain d0: kernel 0 oracle 500"), after `ATTRLIST_LIMIT_PASS`
+on btrfs and XFS. Before it, every step from the start to `attrlist` passed (among them the three
+lowers again, `DEMO_PASS`, `ACCEPTANCE_CLIENTS_PASS`, `POWER_LOSS_REPLAY_PASS`,
+`IO_ERROR_INJECTION_PASS`, `LAYER_RESERVE_PASS`, `CASEFOLD_REFUSED_PASS`, `BUILD_RACE_PASS`,
+`HOOK_RACE_PASS`, `DEEP_TREE_PASS`, `SAMEDIR_RENAME_PASS` on each lower), with no `BUG`, `KASAN:`,
+`UBSAN:` or `WARNING` in the console or in the dmesg saved at the failure. The steps after
+`release` (among them `faults`, the permission matrix and churn, `selfcheck`, `lowerro`,
+`sqlext`, `bigdir`, `limits`) did not run. The vng console capture is lossy when the guest's
+outputs interleave: a few per-lower markers that passed are missing from it (for example two
+`QUERY2_PASS` lines instead of three), so the counts of this run (113 pass lines) are not
+comparable with the others.
+
+Cause, checked with a probe (a script outside the repository booted in the same kernel,
+20:16–20:22 BRT): the step builds a domain of 500 files with 16 attributes each (`bench-gen
+--seed 7 --inodes 500 --profile 16`) and compares the kernel's `kind exists` answer with the
+oracle. In this guest the build ends in `ETIMEDOUT`: `query ... q2errno` prints `q2 110`, twice
+in a row, 13 s each, and the tracepoint shows `moobfs_domain_build: ... err=-110 tries=1
+released=0 bytes=0 ns=12715158016`; the oracle finds the 500 files. The bound is the build's
+CPU-time limit, `MOOBL_BUILD_CPU_NS` = 10 s (`layer/index.c:864`, checked in `scan_check()` at
+`:2068`, journal 0241): under KASAN's inline instrumentation on this 2-CPU guest one 500-file
+build needs more than 10 s of CPU. The suite's `rl_cmp` hides the errno (`query ... | cut | sort`)
+and reports it as an empty answer. Not an endianness defect and not a module defect: the module
+refuses the over-long build as specified, and the same step passed natively on s390x (two
+`RELEASE_PASS` runs, three lowers each). It is a mismatch between a fixed CPU bound and the speed
+of a debug kernel on this machine; the x86-64 KASAN runs stay under it. Not changed: the bound is
+in `layer/` (frozen), and shrinking the test's domain only for s390x would weaken it; a choice for
+the maintainer (see next steps).
+
+### Second round: limitations and next steps
+
+- One run of each item; the cross-machine writer was x86-64 user space on an arm64 kernel, not a
+  native x86-64 machine (little-endian writer to big-endian reader).
+- KASAN on s390x: the per-lower steps passed; the full suite stopped at `release` on the 10 s CPU
+  bound, so `faults` and the later steps have not run under KASAN on s390x.
+- An amd64 `make vm-test` of the first round's head (`394fe05`) was started on the dedicated
+  host outside this session; its result is not recorded here. The second round's harness changes
+  (T2, the `crossmachine` step, `kasan-local.sh`) were not run on amd64. They are written so that
+  amd64 does the same as before (T2 offset 15; `crossmachine` only when named; the x86-64 branch of
+  `kasan-local.sh` passes the same arguments).
+- Next, for the maintainer to choose: run the steps after `release` under KASAN on s390x by name
+  (`MOOB_ONLY`), several hours; or decide whether the build bound should scale for debug kernels
+  (a module change, outside the freeze); or leave KASAN on s390x at the per-lower steps.
+
+Second round's time: 14:49–20:25 BRT, calendar time; effort about 2 h, the rest waiting on the
+kernel build (25 min) and the KASAN runs (1 h 44 min and 2 h 48 min). Estimate was S; actual S
+for the effort, M in calendar time.
