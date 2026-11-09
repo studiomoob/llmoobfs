@@ -1400,3 +1400,16 @@ hand and carries the same code paths:
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/drivers/block/virtio_blk.c?h=v6.12.111>.
 - Docker Engine from Ubuntu 24.04's `docker.io` 29.1.3 on the s390x host, and the multi-architecture
   `debian:trixie-slim` image pinned by `vm/run.sh`, pulled for `linux/s390x`.
+- Cross-machine check (`vm/cross-machine.sh`): Docker Desktop on Apple silicon running the pinned
+  `debian:trixie-slim` image for `linux/amd64` (x86-64 user space under emulation; the Linux VM's
+  kernel is `7.0.14-linuxkit`, arm64, little-endian), `--privileged` for loop mounts
+  ([docker run, privileged](https://docs.docker.com/reference/cli/docker/container/run/#privileged));
+  trixie's e2fsprogs 1.47.2-3+b12, btrfs-progs 6.14-1 and xfsprogs 6.13.0-2+deb13u1 made the
+  images.
+- Byte order of the guest read with `od -An -tx2` on a known two-byte value, which prints in the
+  host's byte order: BusyBox 1.37.0 `od` (Debian `busybox-static` 1:1.37.0-6+b9), as GNU `od` does
+  ([coreutils, od invocation](https://www.gnu.org/software/coreutils/manual/html_node/od-invocation.html)).
+- virtme-ng 1.42 (`vm/kasan-requirements.txt`), `virtme/architectures.py` `Arch_s390x` (machine
+  `s390-ccw-virtio`, `-cpu host` under KVM, console `ttysclp0`) and `virtme/commands/run.py`
+  (`--blk-disk NAME=PATH` sets `serial=NAME`; `vng --disk PATH` passes the path as the name).
+  <https://github.com/arighi/virtme-ng/tree/v1.42>.

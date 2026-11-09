@@ -81,6 +81,18 @@ mkfs.xfs -q -f -L moob-lower build/vm/lower-xfs.img
 rm -f build/vm/scratch.img build/vm/log.img
 truncate -s 64M build/vm/scratch.img
 truncate -s 64M build/vm/log.img
+# MOOB_CROSS=DIR (journal 0280): the lower disks carry the trees that vm/cross-machine.sh wrote
+# on another machine, /cross its oracle and M1 image, for the step crossmachine. Their hashes
+# are checked first, and fsck.moobfs built here must report on the M1 image what the writer's did.
+if [ -n "${MOOB_CROSS:-}" ]; then
+    (cd "$MOOB_CROSS" && sha256sum -c --quiet SHA256SUMS) || { echo "MOOB_CROSS: hashes differ" >&2; exit 1; }
+    for fs in ext4 btrfs xfs; do cp --sparse=always "$MOOB_CROSS/lower-$fs.img" "build/vm/lower-$fs.img"; done
+    cp -r "$MOOB_CROSS/guest" "$STAGE/cross"
+    cp "$MOOB_CROSS/writer-machine.txt" "$STAGE/cross/"
+    build/linux/fsck.moobfs "$MOOB_CROSS/guest/m1.img" > build/vm/cross-m1-fsck.json
+    cmp build/vm/cross-m1-fsck.json "$MOOB_CROSS/m1-fsck.json" || { echo "MOOB_CROSS: fsck.moobfs differs" >&2; exit 1; }
+    echo "CROSS_FSCK_PASS: fsck.moobfs on $(uname -m) reports the M1 image as on $(head -1 "$MOOB_CROSS/writer-machine.txt")"
+fi
 # Dynamically linked clients and tools for the acceptance tests, with their libraries.
 mkdir -p "$STAGE/tools"
 stage_bin() {   # real binaries live in /tools so busybox --install cannot shadow them

@@ -78,6 +78,9 @@
 #                       /proc/self/mountinfo answers as without it (issue #167)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
+#   crossmachine        only when named: lower trees and an M1 image written on another machine
+#                       (vm/cross-machine.sh, MOOB_CROSS in vm/run.sh) read the same here
+#                       (journal 0280); never part of the full suite
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
 # be taken for a complete run.
 set -u
@@ -99,7 +102,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock|crossmachine) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -968,6 +971,52 @@ run_lower() {
     umount "$LOWER" || fail "lower-unmount-$fs"
     echo "LAYER_LOWER_PASS: $fs reflink=$reflink"
 }
+# crossmachine (journal 0280; only when named in MOOB_ONLY, with MOOB_CROSS in vm/run.sh): the
+# lower disks carry trees, and /cross an M1 image, written on another machine by
+# vm/cross-machine.sh. The kernel's answers and the attributes read through the layer must equal
+# the writing machine's oracle and listing, and the M1 files their hashes there.
+if [ -n "${MOOB_ONLY:-}" ] && want crossmachine; then
+    X=$BIN/cross
+    [ -f "$X/queries.txt" ] || fail cx-no-artifacts
+    cx_n=0
+    for fs in ext4 btrfs xfs; do
+        case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+        mount -t $fs "$dev" "$LOWER" || fail "cx-lower-mount-$fs"
+        mount -t moobfs_layer -o lower="$LOWER" none "$LAYER" || fail "cx-layer-mount-$fs"
+        while IFS='|' read -r tag dom kopt oopt terms; do
+            # shellcheck disable=SC2086   # options and terms are word lists
+            "$BIN/query" --uid 1001 "$LAYER/$dom" q2 $kopt $terms > /tmp/k.txt || fail "cx-query-$tag-$fs"
+            cmp -s /tmp/k.txt "$X/$fs/$tag.txt" || { echo "kernel:"; cat /tmp/k.txt; echo "writer's oracle:"; cat "$X/$fs/$tag.txt"; fail "cx-mismatch-$tag-$fs"; }
+            # shellcheck disable=SC2086
+            "$BIN/moobfs-index" --uid 1001 --domain $oopt "$LOWER/$dom" $terms > /tmp/o.txt || fail "cx-oracle-$tag-$fs"
+            cmp -s /tmp/o.txt "$X/$fs/$tag.txt" || fail "cx-oracle-mismatch-$tag-$fs"
+            cx_n=$((cx_n + 1))
+        done < "$X/queries.txt"
+        (cd "$LAYER" && find da dt -type f | sort | while read -r f; do
+            "$BIN/moobfs-attr" list "$f" | sort | awk -v f="$f" '{ print f "\t" $0 }'
+        done) > /tmp/cx-attrs.txt || fail "cx-attrs-list-$fs"
+        cmp -s /tmp/cx-attrs.txt "$X/$fs/attrs.txt" || { diff /tmp/cx-attrs.txt "$X/$fs/attrs.txt"; fail "cx-attrs-$fs"; }
+        umount "$LAYER" && mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail "cx-v1-mount-$fs"
+        while IFS='|' read -r tag terms; do
+            # shellcheck disable=SC2086
+            "$BIN/query" "$LAYER" $terms > /tmp/k.txt || fail "cx-v1-query-$tag-$fs"
+            cmp -s /tmp/k.txt "$X/$fs/v1-$tag.txt" || { cat /tmp/k.txt; fail "cx-v1-mismatch-$tag-$fs"; }
+            cx_n=$((cx_n + 1))
+        done < "$X/queries-v1.txt"
+        umount "$LAYER" && umount "$LOWER" || fail "cx-umount-$fs"
+        cx_a=$(wc -l < /tmp/cx-attrs.txt)
+    done
+    cx_m1="M1 module not built for this kernel"
+    if [ -f "$BIN/moobfs.ko" ]; then
+        insmod "$BIN/moobfs.ko" || fail cx-m1-insmod
+        mount -t moobfs -o loop,ro "$X/m1.img" /mnt/moob || fail cx-m1-mount
+        (cd /mnt/moob && for n in a b c d e; do sha256sum "$n"; done) > /tmp/cx-m1.txt || fail cx-m1-read
+        umount /mnt/moob && rmmod moobfs || fail cx-m1-unload
+        cmp -s /tmp/cx-m1.txt "$X/m1.sha256" || { cat /tmp/cx-m1.txt; fail cx-m1-content; }
+        cx_m1="M1 image of 5 files read with the writer's hashes"
+    fi
+    echo "CROSS_MACHINE_PASS: written on $(head -1 "$X/writer-machine.txt"), read on $(uname -m): $cx_n answers on ext4, btrfs and xfs equal to the writer's oracle, $cx_a attribute lines per lower equal; $cx_m1"
+fi
 want ext4 && run_lower ext4 "$DEV_EXT4" no
 want btrfs && run_lower btrfs "$DEV_BTRFS" yes
 want xfs && run_lower xfs "$DEV_XFS" yes
