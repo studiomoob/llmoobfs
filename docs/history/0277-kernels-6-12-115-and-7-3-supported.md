@@ -74,7 +74,7 @@ that states the supported kernels in step.
   `SECURITY.md`, `CONTRIBUTING.md`, `docs/status.md`, `docs/status.pt-BR.md`, `docs/faq.md` (and
   `site/faq.html` regenerated), `docs/testing.md`, `docs/operations.md`,
   `docs/when-not-to-use.md`, `docs/architecture-overview.md`, `docs/security-operations.md`,
-  `docs/distribution-strategy.md`, `docs/development.md` (pins), `site/index.html`,
+  `docs/distribution-strategy.md`, `docs/development.md` (pins), `ROADMAP.md`, `site/index.html`,
   `site/guide.html`, `site/plan.html` and, through `scripts/site-journey.py`, `site/status.html`
   and `site/pt/status.html`. Dated records (the README's "Facts as of 2026-10-25", the result
   tables of earlier runs, journals) keep their wording. The old current-state wordings are in
