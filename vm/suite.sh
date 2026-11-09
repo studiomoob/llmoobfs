@@ -18,6 +18,13 @@
 #   hookrace            a build ending inside a rename hook, an unlink of one name during its
 #                       reading, and a rename over that name during its reading (findings F1
 #                       and F2 of the TLA+ model, journal 0266)
+#   deeptree            names more than 64 components below the mount root are left out of a
+#                       domain's index: a chmod or a value change there is never answered
+#                       stale (finding R2-1, journals 0156 and 0276)
+#   samedir             a same-directory rename during the scan's reading of the file: the record
+#                       keeps the new name, not the listing's (finding R2-2, journal 0276)
+#   attrlist            a file whose attribute list exceeds 64 KiB, on btrfs and XFS: moobfs-check
+#                       reports it and the index leaves it out (finding R2-12, journal 0276)
 #   release             built domains released by the budget and by the shrinker (journal 0101)
 #   sqlext              the moobfs SQLite virtual table against an ordinary table (journal 0108)
 #   permmatrix          QUERY2 against the lower's own permission decision, random modes (0116)
@@ -90,7 +97,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -117,6 +124,8 @@ run_lower() {
     mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail "layer-mount-$fs"
     grep -q 'moobfs_layer' /proc/mounts || fail "layer-proc-mounts-$fs"
     mount -t moobfs_layer -o lower="$LAYER" none /mnt && fail "layer-stack-on-itself-$fs"
+    # names changed on the lower behind the layer are looked up again (V4/M5, journal 0276)
+    "$BIN/layer" behind "$LAYER" "$LOWER" || fail "layer-behind-$fs"
     "$BIN/layer" "$LAYER" "$LOWER" "$reflink" links || fail "layer-tests-$fs"
     "$BIN/fcntl-flags" "$LAYER/fcntl-flags" || fail "fcntl-flags-$fs"
     rm "$LAYER/fcntl-flags" || fail "fcntl-flags-cleanup-$fs"
@@ -1306,6 +1315,88 @@ for fs in ext4 btrfs xfs; do
     echo "HOOK_RACE_RENAMEOVER_PASS: $fs, rename over one name during the reading: readings_repeated=$hr_rv_retries"
 done
 fi
+if want deeptree; then
+# Finding R2-1 (journals 0153 and 0156): where_is() walks at most 64 components, so the write
+# paths place nothing deeper (a chmod there sets no fallback, a value change is not applied)
+# and the scan leaves deeper names out of the index. tests/review-deep-tree.c builds a chain of
+# directories in a fresh domain, lets uid 1001 query it, then makes one of them private and
+# changes the file's value: the control (file at depth 12, private directory at depth 6) hides
+# the file; a file at depth 68 under a private directory at depth 66, and one at depth 72 whose
+# value changed, were never answered (before=0), so neither is answered stale afterwards.
+for fs in ext4 btrfs xfs; do
+    case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t $fs "$dev" "$LOWER" || fail "dt-lower-mount-$fs"
+    rm -rf "$LOWER/dt" && mkdir -m 755 "$LOWER/dt" || fail "dt-mkdir-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/dt",domain_depth=1 none "$LAYER" || fail "dt-mount-$fs"
+    echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "dt-delay-$fs"
+    run_logged /tmp/dt.txt "$BIN/review-deep-tree" "$LAYER/control" 10 5 || fail "dt-control-run-$fs"
+    grep -q 'REVIEW2_RESULT depth=10 chmod_depth=5 uid=1001 before=1 exists=0 eq_x=0 eq_y=0 open=-1 errno=13 ' /tmp/dt.txt ||
+        fail "dt-control-$fs"
+    run_logged /tmp/dt.txt "$BIN/review-deep-tree" "$LAYER/deep" 66 65 || fail "dt-deep-run-$fs"
+    grep -q 'REVIEW2_RESULT depth=66 chmod_depth=65 uid=1001 before=0 exists=0 eq_x=0 eq_y=0 open=-1 errno=13 ' /tmp/dt.txt ||
+        fail "dt-deep-indexed-$fs"
+    run_logged /tmp/dt.txt "$BIN/review-deep-tree" "$LAYER/value" 70 0 || fail "dt-value-run-$fs"
+    grep -q 'REVIEW2_RESULT depth=70 chmod_depth=0 uid=1001 before=0 exists=0 eq_x=0 eq_y=0 open=0 errno=0 ' /tmp/dt.txt ||
+        fail "dt-value-indexed-$fs"
+    umount "$LAYER" && rm -rf "$LOWER/dt" && umount "$LOWER" || fail "dt-cleanup-$fs"
+    echo "DEEP_TREE_PASS: $fs"
+done
+fi
+if want samedir; then
+# Finding R2-2 (journals 0153 and 0156): a rename of a file within its directory while the
+# first build of the domain reads it. The scan must not store the name it listed (a): the
+# rename hook adopted the file under b. tests/review-samedir-rename.c renames 0.3 s into a
+# reading the scan stretches to 1 s, then asks again once the inode is evicted, when only the
+# record's name can give the path. The control renames after the build.
+for fs in ext4 btrfs xfs; do
+    case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t $fs "$dev" "$LOWER" || fail "sd-lower-mount-$fs"
+    rm -rf "$LOWER/sd" && mkdir -m 755 "$LOWER/sd" || fail "sd-mkdir-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/sd",domain_depth=1 none "$LAYER" || fail "sd-mount-$fs"
+    run_logged /tmp/sd.txt "$BIN/review-samedir-rename" "$LAYER/control" -1 || fail "sd-control-run-$fs"
+    grep -q 'REVIEW2_RESULT samedir delay=-1 cached=1 after_drop=1 path_after_drop=b exists_b=1 exists_a=0$' /tmp/sd.txt ||
+        fail "sd-control-$fs"
+    tr_on moobfs_scan_reread || fail "sd-trace-on-$fs"
+    echo 1000000 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "sd-delay-$fs"
+    run_logged /tmp/sd.txt "$BIN/review-samedir-rename" "$LAYER/race" 300000; rc=$?
+    echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us
+    sd_retries=$(tr_count moobfs_scan_reread)
+    tr_off moobfs_scan_reread
+    [ $rc -eq 0 ] || fail "sd-race-run-$fs"
+    grep -q '^RENAMED' /tmp/sd.txt &&
+        grep -q 'REVIEW2_RESULT samedir delay=300000 cached=1 after_drop=1 path_after_drop=b exists_b=1 exists_a=0$' /tmp/sd.txt ||
+        fail "sd-race-keeps-listing-name-$fs"
+    [ "$sd_retries" -gt 0 ] || fail "sd-not-in-the-window-$fs (the test proved nothing)"
+    umount "$LAYER" && rm -rf "$LOWER/sd" && umount "$LOWER" || fail "sd-cleanup-$fs"
+    echo "SAMEDIR_RENAME_PASS: $fs readings_repeated=$sd_retries"
+done
+fi
+if want attrlist; then
+# Finding R2-12 (journal 0156): the index reads at most XATTR_LIST_MAX (64 KiB) of a file's
+# attribute list and leaves a file with a longer one out, which moobfs-check reports. ext4
+# keeps a file's attributes in one block, so only btrfs and XFS can hold such a list. big gets
+# a valid user.moob.kind and enough 255-byte user.pad.* names to pass 64 KiB; ctl the same
+# kind alone. The build succeeds, answers ctl and leaves big out.
+for fs in btrfs xfs; do
+    case $fs in btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t $fs "$dev" "$LOWER" || fail "r212-lower-mount-$fs"
+    rm -rf "$LOWER/r212" && mkdir -p -m 755 "$LOWER/r212/d" || fail "r212-mkdir-$fs"
+    echo big > "$LOWER/r212/d/big" && echo ctl > "$LOWER/r212/d/ctl" || fail "r212-files-$fs"
+    "$BIN/moobfs-attr" set "$LOWER/r212/d/big" kind string pad || fail "r212-kind-big-$fs"
+    "$BIN/moobfs-attr" set "$LOWER/r212/d/ctl" kind string pad || fail "r212-kind-ctl-$fs"
+    "$BIN/layer" padattrs "$LOWER/r212/d/big" 300 || fail "r212-plant-$fs"
+    "$BIN/moobfs-check" "$LOWER/r212" > /tmp/r212.json; rc=$?
+    [ $rc -eq 2 ] || { cat /tmp/r212.json; fail "r212-check-status-$fs (exit $rc)"; }
+    grep -q 'attribute list larger than 64 KiB: left out of the layer'"'"'s index' /tmp/r212.json ||
+        { cat /tmp/r212.json; fail "r212-check-message-$fs"; }
+    mount -t moobfs_layer -o lower="$LOWER/r212",domain_depth=1 none "$LAYER" || fail "r212-mount-$fs"
+    "$BIN/query" "$LAYER/d" q2 kind eq string pad > /tmp/r212.k || fail "r212-build-$fs"
+    cut -f2 /tmp/r212.k > /tmp/r212.p
+    [ "$(cat /tmp/r212.p)" = ctl ] || { cat /tmp/r212.k; fail "r212-answer-$fs (want ctl only)"; }
+    umount "$LAYER" && rm -rf "$LOWER/r212" && umount "$LOWER" || fail "r212-cleanup-$fs"
+    echo "ATTRLIST_LIMIT_PASS: $fs"
+done
+fi
 if want release; then
 # ADR-0012, second half: a built domain is released when a build needs its room in the index
 # budget, least recently queried first, and by the shrinker under memory pressure, except the
@@ -2135,10 +2226,22 @@ lm_built=$(lm_info domains_built)
 [ "$(lm_info domain_builds)" -eq "$lm_builds" ] && [ "$(lm_info domain_releases)" -eq 0 ] &&
     [ "$(lm_info used)" -eq "$lm_used" ] && [ "$(lm_info domains_built)" -eq "$lm_built" ] ||
     { "$BIN/query" "$LAYER" info; fail lm-budget-counters; }
+# M8.7 (journal 0221): a failed build is logged once, not once per query. The refused build of
+# c, twelve times more (uid 1003 then has 13 of its 16 attempts a minute), adds at most the one
+# line (none if an earlier step already logged it).
+lm_logged() { dmesg | grep -c 'building the index of a domain failed'; }
+lm_log0=$(lm_logged)
+lm_i=0
+while [ $lm_i -lt 12 ]; do
+    "$BIN/query-build-cost" "$LAYER/c" 1003 c-again expect-enomem > /dev/null || fail "lm-c-again-not-refused-$lm_i"
+    lm_i=$((lm_i + 1))
+done
+lm_log1=$(lm_logged)
+[ $((lm_log1 - lm_log0)) -le 1 ] || fail "lm-build-failure-logged-repeatedly ($lm_log0 -> $lm_log1)"
 "$BIN/query-build-cost" "$LAYER/a" 1001 a-kept > /dev/null || fail lm-a-again
 [ "$(lm_info domain_builds)" -eq "$lm_builds" ] || fail lm-a-rebuilt
 umount "$LAYER" || fail lm-budget-unmount
-echo "LIMITS_BUDGET_PASS: c=$lm_c bytes refused with ENOMEM on a 1048576-byte budget; a=$lm_used bytes kept, no release, no rebuild"
+echo "LIMITS_BUDGET_PASS: c=$lm_c bytes refused with ENOMEM on a 1048576-byte budget, 13 times, logged $lm_log1 time(s) in all; a=$lm_used bytes kept, no release, no rebuild"
 # 2. The memory cgroup (ADR-0018). In a cgroup limited to 16 MiB, uid 1001 keeps descriptors
 #    whose retained QUERY2 buffers (limit 4096) fill it until a query fails with ENOMEM, its
 #    request untouched (tests/memcg-query.c hold). While it holds them, uid 1002 outside the
