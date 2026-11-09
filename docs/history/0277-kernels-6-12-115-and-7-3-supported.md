@@ -102,6 +102,29 @@ Nothing was run on a kernel in this unit; the evidence is that of the earlier jo
   actionlint (via `uvx --from actionlint-py`) on `ci.yml` and `kasan.yml`: clean. `make lint`
   did not run: shellcheck is not installed on the host.
 
+## The batch's full suites (6.12)
+
+Test host, KVM, at `1cfd8de` (this branch rebased on `main` `fc50fe3`, before the btrfs rerun
+note), started 2026-11-09 07:40 BRT, calendar time:
+
+- `make vm-test` (Debian 6.12.111, CPUs 0-1), 07:40–08:10: exit 0, `MOOBFS_VM_PASS`,
+  `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`, 302 pass markers; only `PYLIB_SKIPPED`, which every
+  native run prints.
+- `sh vm/kasan-local.sh` (upstream 6.12.116 with the new `vm/kasan.config`, rebuilt because
+  `CONFIG_LOCKDEP_CHAINS_BITS=18` changed it; CPUs 2-3), 07:40–09:36: exit 0, `MOOBFS_KASAN_PASS`
+  with no kernel diagnostic, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_PYLIB_PASS`;
+  285 pass markers.
+
+## Merges of PR 188 and PR 189
+
+With the maintainer's agreement of 2026-11-09, PR 188 (the kernel matrix, journal 0272) was
+merged at 06:40 BRT (`403f4a0`) and PR 189 (the workspace commands, journal 0273), rebased on it
+and pushed with `--force-with-lease` after its pre-push checks passed (06:47–06:59, 12 of 12), at
+07:40 BRT (`fc50fe3`) with 17 of 17 checks green. The post-merge runs on `main` passed: CI,
+CodeQL, static analysis, OpenSSF Scorecard and Pages on `403f4a0`; CI, CodeQL, static analysis,
+the TLA+ model and Scorecard on `fc50fe3`. The rebase of PR 189 renumbered its
+`docs/references.md` section to 50; this branch's port section became 51.
+
 ## Limitations
 
 - The new CI jobs (`Native Linux VM (Debian 6.12.115)`, `Native Linux VM (Debian 7.3.3)`,
@@ -122,5 +145,5 @@ Nothing was run on a kernel in this unit; the evidence is that of the earlier jo
 
 ## Next step
 
-Run the full `make vm-test` and the local KASAN/lockdep suite for the batch as `AGENTS.md` asks; then the batch's pull request, whose
+The batch's pull request, with the maintainer's agreement, whose
 CI runs the three new jobs for the first time, and close this journal and 0275 when they pass.
