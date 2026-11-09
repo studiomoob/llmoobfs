@@ -1374,9 +1374,9 @@ fi
 if want attrlist; then
 # Finding R2-12 (journal 0156): the index reads at most XATTR_LIST_MAX (64 KiB) of a file's
 # attribute list and leaves a file with a longer one out, which moobfs-check reports. ext4
-# keeps a file's attributes in one block, so only btrfs and XFS can hold such a list. big gets
-# a valid user.moob.kind and enough 255-byte user.pad.* names to pass 64 KiB; ctl the same
-# kind alone. The build succeeds, answers ctl and leaves big out.
+# without ea_inode keeps a file's attributes in one block, so only btrfs and XFS can hold such
+# a list. big gets a valid user.moob.kind and enough 255-byte user.pad.* names to pass 64 KiB;
+# ctl the same kind alone. The build succeeds, answers ctl and leaves big out.
 for fs in btrfs xfs; do
     case $fs in btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
     mount -t $fs "$dev" "$LOWER" || fail "r212-lower-mount-$fs"
