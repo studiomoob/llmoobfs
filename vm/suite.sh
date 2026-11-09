@@ -1380,7 +1380,7 @@ if want attrlist; then
 for fs in btrfs xfs; do
     case $fs in btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
     mount -t $fs "$dev" "$LOWER" || fail "r212-lower-mount-$fs"
-    rm -rf "$LOWER/r212" && mkdir -p -m 755 "$LOWER/r212/d" || fail "r212-mkdir-$fs"
+    rm -rf "$LOWER/r212" && mkdir -m 755 "$LOWER/r212" "$LOWER/r212/d" || fail "r212-mkdir-$fs"
     echo big > "$LOWER/r212/d/big" && echo ctl > "$LOWER/r212/d/ctl" || fail "r212-files-$fs"
     "$BIN/moobfs-attr" set "$LOWER/r212/d/big" kind string pad || fail "r212-kind-big-$fs"
     "$BIN/moobfs-attr" set "$LOWER/r212/d/ctl" kind string pad || fail "r212-kind-ctl-$fs"
