@@ -4,8 +4,9 @@
 
 - The layer builds on Linux 7.3.3 as well as 6.12 (ADR-0034): the changed kernel interfaces are
   adapted in `layer/moobl_compat.h`, keyed on the kernel version, with overlayfs 7.3.3 as the
-  model; the 6.12.116 object code is unchanged. Built only, not yet run on 7.3, and 7.3 is not a
-  supported kernel (journal 0275, in progress).
+  model; the 6.12.116 object code is unchanged. On 7.3.3 the full suite (Debian's
+  `7.3.3+deb14`), KASAN/UBSAN/lockdep and fstests `quick` on ext4, btrfs and xfs (631 tests each)
+  passed; 7.3 is not yet a supported kernel (journal 0275, in progress).
 - The upstream test kernel (KASAN, KCSAN, coverage, interop, arm64 KASAN, static analysis and the
   checkpatch tag) moves from 6.12.112 to 6.12.116; the full KASAN/UBSAN/lockdep suite passed on it
   (journal 0272).
