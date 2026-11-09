@@ -53,6 +53,8 @@
 #   buildtime           optional build CPU-time budget and elapsed backstop (#118, ADR-0031)
 #   buildmoved          optional cumulative work across a moved-directory rescan (#118)
 #   stall               a FUSE mount that never answers, inside a checked domain (journal 0116)
+#   dirstall            a reader stalled in getdents64 of a checked domain's directory, by a
+#                       userfaultfd fault in its buffer (finding V-c of journal 0114, journal 0278)
 #   lowerro             a read-only, frozen or idmapped lower mount (journal 0117)
 #   bigdir              a domain built from a directory larger than one read batch (journal 0120)
 #   xattrread           a listed typed value that fails getxattr must fail a build or invalidate
@@ -97,7 +99,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -2049,6 +2051,82 @@ done
 st_cleanup
 umount "$LAYER" && rm -rf "$LOWER/stx" && umount "$LOWER" || fail "st-cleanup"
 echo "STALL_PASS: a FUSE mount that never answers holds neither the checked domain nor the other users"
+fi
+if want dirstall; then
+    ds_rc=0
+    "$BIN/dirstall" probe || ds_rc=$?
+    case $ds_rc in 0|77) ;; *) fail "ds-probe" ;; esac
+fi
+if want dirstall && [ "$ds_rc" = 77 ]; then
+    echo "DIRSTALL_SKIPPED: this kernel gives no userfaultfd that handles kernel faults"
+elif want dirstall; then
+# Review finding V-c (journal 0114, "Verification"; journal 0278): the per-result check of a
+# checked domain resolves each result's path; a lookup that misses the dentry cache takes the
+# lock of the layer's directory it walks (lookup_slow, fs/namei.c). A reader stalled inside
+# getdents64 of that directory (tests/dirstall.c: its buffer faults into userfaultfd) holds the
+# lock for reading (iterate_dir, fs/readdir.c), a creation in it queues for writing, and the
+# check queues behind the creation. Since journal 0116 the check runs with query_sem released,
+# so that wait holds only the query that made it: a rebuild of the domain is not stuck behind
+# it, and a query of another domain by another user answers. Before journal 0116 the check held
+# query_sem, the rebuild queued for writing behind it and every other query behind the rebuild.
+for fs in ext4 btrfs xfs; do
+    case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+    mount -t $fs "$dev" "$LOWER" || fail "ds-lower-mount-$fs"
+    rm -rf "$LOWER/dsx" && mkdir -m 755 "$LOWER/dsx" || fail "ds-mkdir-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/dsx",domain_depth=1 none "$LAYER" || fail "ds-mount-$fs"
+    mkdir -p "$LAYER/D/a" "$LAYER/E" && : > "$LAYER/D/a/f" && : > "$LAYER/D/top" && : > "$LAYER/E/g" || fail "ds-files-$fs"
+    for f in $LAYER/D/a/f $LAYER/D/top $LAYER/E/g; do "$BIN/moobfs-attr" set "$f" kind string ds > /dev/null || fail "ds-attr-$fs"; done
+    chown -R 1001:1001 "$LAYER/D" && chown -R 1002:1002 "$LAYER/E" || fail "ds-chown-$fs"
+    "$BIN/query" --uid 1001 "$LAYER/D" q2 kind exists - - > /tmp/ds0.txt 2>&1
+    [ "$(wc -l < /tmp/ds0.txt)" -eq 2 ] || { cat /tmp/ds0.txt; fail "ds-before-$fs"; }
+    [ "$("$BIN/query" --uid 1002 "$LAYER/E" q2 kind exists - - | wc -l)" -eq 1 ] || fail "ds-before-e-$fs"
+    # a permission change inside D, so D is checked per result (the chown -R above already did
+    # it); the mode stays a+rx, so a/f stays in D's partition through the rebuild after the
+    # rename below (a search-only D/a would make it heterogeneous, ADR-0025)
+    chmod 0755 "$LAYER/D/a" || fail "ds-chmod-$fs"
+    "$BIN/query" "$LAYER" info | grep -q 'fallback_domains=[1-9]' || { "$BIN/query" "$LAYER" info; fail "ds-no-fallback-$fs"; }
+    "$BIN/query" --uid 1001 "$LAYER/D" q2 kind exists - - > /tmp/ds0.txt 2>&1
+    grep -q '	top$' /tmp/ds0.txt && grep -q '	a/f$' /tmp/ds0.txt || { cat /tmp/ds0.txt; fail "ds-before-checked-$fs"; }
+    rm -f /tmp/ds.ready /tmp/ds.release /tmp/ds1.rc /tmp/ds2.rc /tmp/ds3.rc /tmp/dsw.rc /tmp/ds1.txt /tmp/ds2.txt /tmp/ds3.txt
+    "$BIN/dirstall" "$LAYER/D/a" /tmp/ds.ready /tmp/ds.release 45 > /tmp/ds.reader.txt 2>&1 & ds_pid=$!
+    for i in $(seq 1 50); do [ -e /tmp/ds.ready ] && break; kill -0 $ds_pid 2>/dev/null || break; sleep 0.2; done
+    # every process started below ends once the reader is released, so a failure releases it first
+    ds_cleanup() { : > /tmp/ds.release; wait; cat /tmp/ds.reader.txt; }
+    [ -e /tmp/ds.ready ] || { ds_cleanup; fail "ds-reader-not-stalled-$fs"; }
+    # the result's own dentry must be evicted, or its lookup never needs the directory's lock
+    echo 2 > /proc/sys/vm/drop_caches || { ds_cleanup; fail "ds-drop-caches-$fs"; }
+    ( : > "$LAYER/D/a/w"; echo $? > /tmp/dsw.rc ) &
+    sleep 1
+    [ ! -e /tmp/dsw.rc ] || { ds_cleanup; fail "ds-creation-not-queued-behind-the-reader-$fs"; }
+    # (1) a query of D, whose check of a/f waits on the lock of D/a; (2) after a directory rename
+    # in D, one that rebuilds D and takes query_sem for writing; (3) one of E by another user.
+    ( timeout 60 "$BIN/query" --uid 1001 "$LAYER/D" q2 kind exists - - > /tmp/ds1.txt; echo $? > /tmp/ds1.rc ) &
+    sleep 2
+    mkdir "$LAYER/D/b" && mv "$LAYER/D/b" "$LAYER/D/c" || { ds_cleanup; fail "ds-rename-$fs"; }
+    ( timeout 60 "$BIN/query" --uid 1001 "$LAYER/D" q2 kind exists - - > /tmp/ds2.txt; echo $? > /tmp/ds2.rc ) &
+    sleep 2
+    ( timeout 60 "$BIN/query" --uid 1002 "$LAYER/E" q2 kind exists - - > /tmp/ds3.txt; echo $? > /tmp/ds3.rc ) &
+    sleep 3
+    # checked first: it fails if the check waiting on D/a kept query_sem (the rebuild of (2) then
+    # waits for it, and (3) behind the rebuild)
+    [ -s /tmp/ds3.rc ] && [ "$(cat /tmp/ds3.rc)" = 0 ] && grep -q '	g$' /tmp/ds3.txt || { ds_cleanup; fail "ds-other-user-held-up-by-a-check-waiting-on-a-directory-lock-$fs"; }
+    # the scenario was reached: the query of D is still waiting on the reader's directory
+    [ ! -e /tmp/ds1.rc ] || { cat /tmp/ds1.txt; ds_cleanup; fail "ds-domain-query-did-not-wait-on-the-directory-lock-$fs"; }
+    t0=$(date +%s)
+    : > /tmp/ds.release
+    for i in $(seq 1 150); do [ -s /tmp/ds1.rc ] && [ -s /tmp/ds2.rc ] && [ -s /tmp/dsw.rc ] && break; sleep 0.2; done
+    t1=$(date +%s)
+    wait $ds_pid || { ds_cleanup; fail "ds-reader-$fs"; }
+    cat /tmp/ds.reader.txt
+    for k in 1 2; do
+        [ -s /tmp/ds$k.rc ] && [ "$(cat /tmp/ds$k.rc)" = 0 ] && grep -q '	top$' /tmp/ds$k.txt && grep -q '	a/f$' /tmp/ds$k.txt || { cat /tmp/ds$k.txt; ds_cleanup; fail "ds-domain-answer-$k-after-release-$fs"; }
+    done
+    [ -s /tmp/dsw.rc ] && [ "$(cat /tmp/dsw.rc)" = 0 ] && [ -e "$LAYER/D/a/w" ] || { ds_cleanup; fail "ds-creation-after-release-$fs"; }
+    wait
+    echo "ds-$fs: the waiting queries of D answered within $((t1 - t0)) s of the release"
+    umount "$LAYER" && rm -rf "$LOWER/dsx" && umount "$LOWER" || fail "ds-cleanup-$fs"
+done
+echo "DIRSTALL_PASS: a reader stalled in getdents64 holds only the checks of its own directory, on ext4, btrfs and XFS"
 fi
 if want bigdir; then
 # Journal 0120: a build reads a directory in batches of 1024 names (MOOBL_SCAN_BATCH) instead of
