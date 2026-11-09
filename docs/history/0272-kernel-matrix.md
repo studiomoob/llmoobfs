@@ -112,3 +112,9 @@ as overlayfs does, so that leases behave as on 6.12.
 3. On 2026-11-08 Debian's forky (testing) has 7.2.15 and trixie-backports 7.2.12; 7.3.3 is in
    sid. The maintainer chose on 2026-11-09 not to port 7.2: testing takes sid's kernel within
    weeks and backports follows testing.
+
+*Note, 2026-11-09:* step 2 is decided. The maintainer excluded `generic/301` on btrfs in `quick`
+(`vm/fstests/exclude-quick-btrfs.txt`, `fa88181`), and 6.12.115 was added to
+`scripts/supported-kernels` and CI in journal
+[0277](0277-kernels-6-12-115-and-7-3-supported.md), where the btrfs rerun with that list is
+recorded.

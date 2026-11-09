@@ -139,14 +139,17 @@ other hardware remain open. There is no independent reproduction yet (issue #68 
 [`README.md` "What was measured"; journals 0047, 0048, 0088, 0130, 0139, 0143; `docs/benchmark-plan.md`]
 
 ## 14. Which kernels are supported?
-One series: Debian kernels 6.12.111 and 6.12.113 in a QEMU VM (both accepted by `make install`;
-fstests `quick` passed on both with the three lower filesystems), and upstream 6.12.116 with KASAN, UBSAN and
-lockdep on every pull request that touches the module and weekly. x86-64 for the module, plus an
+Two series. 6.12: Debian kernels 6.12.111, 6.12.113 and 6.12.115 in a QEMU VM, and upstream
+6.12.116 with KASAN, UBSAN and lockdep. 7.3: Debian's 7.3.3 in a QEMU VM and upstream 7.3.3 with
+KASAN, UBSAN and lockdep, for the layer module only (the M1 module stays on 6.12). The four Debian
+kernels are accepted by `make install` and DKMS; fstests `quick` passed on the three lower
+filesystems for each series; the KASAN jobs run on every pull request that touches the module and
+weekly. x86-64 for the module, plus an
 exploratory arm64 job under emulation where the ext4, btrfs and XFS steps pass under KASAN
 (journal 0137); the attribute encoding's user-space tests also run on big-endian s390x under
 emulation. Kernel
 APIs change between versions; compatibility with other kernels is not promised.
-[`README.md`; `docs/testing.md` §1; journal 0124]
+[`README.md`; `docs/testing.md` §1; `docs/compatibility.md` §1; journals 0124 and 0277]
 
 ## 15. Is it production-ready? Is there a release?
 It is not production-ready. It is a research project with source pre-release tags only, the last of which,

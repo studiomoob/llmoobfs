@@ -10,13 +10,18 @@ There are three interfaces, each with its own version and its own rule.
 
 ## 1. Kernels
 
-**Today.** One series, x86-64:
+**Today.** Two series, x86-64: Debian 13's 6.12 builds and Debian's 7.3.3 (journal
+[0277](history/0277-kernels-6-12-115-and-7-3-supported.md)). On 7.3 only the layer module
+(`layer/`) builds and is tested; the M1 read-only module (`kernel/`) stays 6.12-only.
 
 | Kernel | Functional suite | KASAN, UBSAN, lockdep | fstests `quick` |
 | --- | --- | --- | --- |
 | Debian 6.12.111+deb13-amd64 | yes, every pull request | no (distribution kernel) | yes, three lower filesystems, by hand |
 | Debian 6.12.113+deb13-amd64 | yes, every pull request (first passed in PR 148) | no (distribution kernel) | yes, three lower filesystems, on the dedicated host (journal 0206) |
+| Debian 6.12.115+deb13.1-amd64 | yes, every pull request (job added in journal 0277) | no (distribution kernel) | yes, three lower filesystems, on the dedicated host (journal 0272; btrfs with `exclude-quick-btrfs.txt`, journal 0277) |
+| Debian 7.3.3+deb14-amd64 (layer module only) | yes, every pull request (job added in journal 0277) | no (distribution kernel) | the upstream 7.3.3 build below stands for it (journal 0275) |
 | Upstream 6.12.116, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` | yes | no |
+| Upstream 7.3.3, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` (job added in journal 0277) | yes | yes, three lower filesystems, built with `vm/fstests.config` (journal 0275) |
 | Anything else | no | no | no |
 
 **Rules.**
@@ -30,6 +35,16 @@ There are three interfaces, each with its own version and its own rule.
    `scripts/supported-kernels` unless `MOOB_ALLOW_UNSUPPORTED=1`; `make layer` itself still does
    not check. A Debian 13 system installed from the 2026-10-21 cloud image runs
    `6.12.113+deb13-amd64`, which is outside the list (issue 142).
+   *Note, 2026-11-09 (journal [0277](history/0277-kernels-6-12-115-and-7-3-supported.md)):*
+   the maintainer amended this rule; the refusal is split by tool. `make install`
+   (`scripts/install.sh`, unless `MOOB_ALLOW_UNSUPPORTED=1`) and DKMS (`BUILD_EXCLUSIVE_KERNEL`,
+   generated from `scripts/supported-kernels`) refuse every release outside the list. `make layer`
+   refuses by API series only, through the `#error` of `layer/moobl_compat.h`: releases from 6.13
+   up to before 7.3 do not build. A refusal by exact release in `make layer` would break the
+   builds that compile the module against kernels deliberately not on the list (the upstream
+   KASAN kernels 6.12.116 and 7.3.3, the KCSAN and coverage kernel 6.12.116, the static-analysis
+   headers, the compile
+   probes of journal 0272), about ten builds.
 3. A kernel is added by a pull request that adds it to CI and records one fstests `quick` run per
    lower filesystem. It is removed when its upstream series ends or when keeping it needs code the
    maintainer does not want to carry; removal is announced in the changelog one release ahead.
@@ -39,6 +54,19 @@ There are three interfaces, each with its own version and its own rule.
    *Note, 2026-10-27 (journal 0206):* the three runs passed (631 tests each, 0 failures, with the
    exclusion list), and 6.12.113 was added to `scripts/supported-kernels`. A fresh Debian 13
    install from the 2026-10-21 cloud image is now accepted by `make install` as it is.
+   *Note, 2026-11-09 (journal [0277](history/0277-kernels-6-12-115-and-7-3-supported.md)):* two
+   releases were added. Debian's `6.12.115+deb13.1-amd64` (trixie-security, which an updating
+   Debian 13 host installs by itself): the full suite passed on it and fstests `quick` passed on
+   ext4 and XFS (631 tests each); on btrfs only `generic/301` failed, a threshold fstests skips for
+   btrfs but applies over the layer (journal 0272), and the maintainer decided to exclude it on
+   btrfs in `quick` as it already was in `auto` (`vm/fstests/exclude-quick-btrfs.txt`). (btrfs
+   quick rerun with exclude-quick-btrfs.txt: pending) Debian's `7.3.3+deb14-amd64`, by the
+   maintainer's decision after the port of ADR-0034 (journal 0275): the full suite passed on it
+   (layer module only; the M1 module stays 6.12-only), the full suite passed under KASAN, UBSAN and
+   lockdep on upstream 7.3.3, and fstests `quick` passed on the three lowers (631 each) over
+   upstream 7.3.3 built with `vm/fstests.config`, not over Debian's build of the same release. Both
+   have native CI jobs, and upstream 7.3.3 has its own leg of the KASAN workflow; their first runs
+   on GitHub are the pull request of this batch.
 4. Lower filesystems: ext4, btrfs and XFS, on a local block device. A network or FUSE filesystem
    as the lower is unsupported.
    *Note, 2026-10-29 (journal 0234):* one reason is now part of the rule. Since journal 0216
@@ -127,6 +155,9 @@ advisory when it is a vulnerability under `SECURITY.md`; older versions are not 
   (the user file, from the 6.12 stable backport of the backing-file LSM hooks; the v6.12 tag
   takes the user path) and fails with a message naming this page. It checks the type, not the
   version, so it is not the general refusal rule 1.2 asks for.
+  *Note, 2026-11-09 (journal [0277](history/0277-kernels-6-12-115-and-7-3-supported.md)):*
+  closed by the amendment of rule 2 noted there: `make install` and DKMS refuse by exact release,
+  `make layer` by API series (`layer/moobl_compat.h`).
 - Decided on 2026-10-13, later the same day: instead of a patch release of `v0.2.0-experimental`,
   a new pre-release `v0.3.0-experimental` carries every fix (journal 0087).
 - 2026-10-19: `v0.4.0-experimental` carries the fixes made since, F2 (ADR-0016) and F4 among them

@@ -429,3 +429,21 @@ ADR-0035, proposed
 ADR-0035 (proposed
 not yet run in a VM
 the VM run is pending
+One series, x86-64:
+One kernel series tested (Debian 6.12.111, upstream 6.12.116 under KASAN)
+Uma série de kernel testada (Debian 6.12.111
+and one supported kernel series
+The layer module has been tested on one kernel series
+One series: Debian kernels 6.12.111 and 6.12.113
+One kernel series (6.12), tested in a VM only
+Uma série de kernel (6.12), testada só em VM
+has been tested on one kernel series only
+Tested on <strong>one kernel series</strong>
+tested in a VM on one kernel series, over
+One series, 6.12, on x86-64
+Uma série, 6.12, em x86-64
+One kernel series (Debian 6.12.111, upstream 6.12.116)
+Only Debian 6.12.111 and 6.12.113 (QEMU)
+kernel **`6.12.113+deb13-amd64`** or **`6.12.111+deb13-amd64`** exactly
+A system that has moved to a later 6.12 kernel through updates is outside the list
+Kernels other than Debian 6.12.111 and upstream 6.12.116

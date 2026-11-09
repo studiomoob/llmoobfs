@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Debian's `6.12.115+deb13.1-amd64` (trixie-security) and `7.3.3+deb14-amd64` (sid; layer module
+  only, the M1 module stays on 6.12) are supported kernels: listed in `scripts/supported-kernels`,
+  so accepted by `make install` and built by DKMS, with a native CI job each; the KASAN workflow
+  gains a 7.3.3 leg, and the 6.12 leg keeps its required-check name. `generic/301` is excluded on
+  btrfs in fstests `quick` as in `auto`. `docs/compatibility.md` rule 2 is amended: `make install`
+  and DKMS refuse by exact release, `make layer` by API series (journal 0277, in progress).
 - The layer builds on Linux 7.3.3 as well as 6.12 (ADR-0034): the changed kernel interfaces are
   adapted in `layer/moobl_compat.h`, keyed on the kernel version, with overlayfs 7.3.3 as the
   model; the 6.12.116 object code is unchanged. On 7.3.3 the full suite (Debian's

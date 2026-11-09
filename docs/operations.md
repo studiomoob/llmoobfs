@@ -17,7 +17,7 @@ users their directories, and removes it again. To try MoobFS without installing 
 
 | Requirement | Why |
 | --- | --- |
-| x86-64, Debian 13, kernel **`6.12.113+deb13-amd64`** or **`6.12.111+deb13-amd64`** exactly | The distribution kernels the suite and fstests run on ([compatibility.md](compatibility.md)). `make install` refuses any other kernel. |
+| x86-64, Debian 13 with kernel **`6.12.113+deb13-amd64`**, **`6.12.115+deb13.1-amd64`** or **`6.12.111+deb13-amd64`**, or Debian's **`7.3.3+deb14-amd64`** (sid), exactly | The distribution kernels the suite and fstests run on ([compatibility.md](compatibility.md)). `make install` and the DKMS package refuse any other kernel. This guide's VM tests ran on Debian 13 only. |
 | Root (`sudo`) | Loading a module and mounting need `CAP_SYS_ADMIN` in the initial user namespace. |
 | A directory on ext4, btrfs or XFS, on a local disk | The lower tree that holds the files. Network and FUSE filesystems are unsupported. |
 | Secure Boot off, or your own MOK to sign the module | `make install` does not sign the module; with Secure Boot on, the kernel refuses to load it. The packages below sign it with a DKMS key you enrol once. |
@@ -26,11 +26,12 @@ users their directories, and removes it again. To try MoobFS without installing 
 `6.12.113+deb13-amd64`, which is supported (journal 0206); nothing to change:
 
 ```sh
-uname -r                                   # 6.12.113+deb13-amd64 or 6.12.111+deb13-amd64
+uname -r          # 6.12.113+deb13-amd64, 6.12.115+deb13.1-amd64, 6.12.111+deb13-amd64 or 7.3.3+deb14-amd64
 ```
 
-A system that has moved to a later 6.12 kernel through updates is outside the list. Until the
-list grows (docs/compatibility.md, rule 3), such a host has to boot a listed kernel, for
+A Debian 13 system that has updated to `6.12.115+deb13.1-amd64` (trixie-security) is supported
+too (journal 0277). One that has moved through updates to a 6.12 kernel later than that is outside
+the list. Until the list grows (docs/compatibility.md, rule 3), such a host has to boot a listed kernel, for
 instance:
 
 ```sh

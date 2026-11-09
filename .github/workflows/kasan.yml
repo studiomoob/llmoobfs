@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     # 150 minutes for both legs: on the 2011 test host the full 7.3.3 suite under lockdep took
     # about 95 minutes, as long as 6.12.116 there (journals 0272, 0275), and the 6.12 leg takes
-    # about 45 minutes on a hosted runner with KVM; a cold 7.3 kernel build adds about 20.
+    # about 45 minutes on a hosted runner with KVM, a cold kernel build included (journal 0209).
     timeout-minutes: 150
     strategy:
       fail-fast: false

@@ -92,9 +92,10 @@ These limits update the cases discussed in the value assessment, §9.6.
   the first test agreed with direct access; every `QUERY2` result is then checked for the
   caller, at a cost not measured ([journal 0104](history/0104-selinux-investigation.md)). One
   run, one kernel; Smack and AppArmor were not exercised.
-- **Your kernel is outside the tested matrix.** Only Debian 6.12.111 and 6.12.113 (QEMU) and
-  upstream 6.12.112 (KASAN; on arm64 too, under emulation, as an exploratory job) and 6.12.116
-  (KASAN, journal 0272) have run the module; other kernels are not promised to compile or behave
+- **Your kernel is outside the tested matrix.** Only Debian 6.12.111, 6.12.113, 6.12.115 and
+  7.3.3 (QEMU; on 7.3.3 the layer module only) and upstream 6.12.112 (KASAN; on arm64 too, under
+  emulation, as an exploratory job), 6.12.116 and 7.3.3 (KASAN, journals 0272 and 0275) have run
+  the module; other kernels are not promised to compile or behave
   ([compatibility.md](compatibility.md) §1).
 - **The lower filesystem does not keep an inode generation, or a user can set it there.** Domain
   and file records are keyed by the lower inode number and also keep its `i_generation`; a
@@ -159,7 +160,7 @@ These limits update the cases discussed in the value assessment, §9.6.
   rounds. A module bug can mean a kernel panic or data loss.
 - **The team cannot maintain an out-of-tree kernel module** across kernel updates, signing
   and DKMS; the project has DKMS packages tested in one VM only (journal 0229), no published
-  package, and one supported kernel series.
+  package, and two supported kernel series (6.12 and, for the layer module only, 7.3).
 - **Programs or device nodes live in the store.** The layer marks its superblock `SB_I_NOEXEC`
   and `SB_I_NODEV` (overlayfs does not; binfmt_misc and pidfs do): nothing runs from it
   (`execve` fails with `EACCES`, `mmap` with `PROT_EXEC` with `EPERM`, `access(X_OK)` with
