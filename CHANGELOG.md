@@ -12,6 +12,15 @@
   another user still answers. A negative round with `query_sem` held across the checks, as before
   journal 0116, fails the step. `vm/kasan.config` gains `CONFIG_USERFAULTFD=y` so the KASAN guest
   runs it (journal 0278).
+- A first run of the modules on a big-endian kernel (journal 0280, exploratory, one host):
+  `MOOB_ARCH=s390x make vm-test` on an s390x host builds the same Docker/QEMU flow for Debian's
+  `6.12.111+deb13-s390x` (the same Debian source version as the amd64 default) and boots it on
+  the `s390-ccw-virtio` machine; disks are found by serial there, since CCW probing does not keep
+  the command-line order. Under KVM on an IBM z17 instance the full suite passed twice
+  (`MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`; 839 s), with no endianness
+  mismatch; one suite check (the T2 cursor patch) assumes a little-endian inode field and is
+  recorded, not changed. s390x is not a supported architecture; amd64 runs are unchanged;
+  `layer/` is unchanged.
 - Regression tests for five review findings that had none in a gate, all in the full
   `make vm-test`: steps `deeptree` (R2-1) and `samedir` (R2-2) run the reproducers of journal
   0153 on ext4, btrfs and XFS; `tests/layer.c behind` in `run_lower` checks names changed on the
