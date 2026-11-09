@@ -105,5 +105,10 @@ as overlayfs does, so that leases behave as on 6.12.
 
 ## Next steps
 
-1. The port to 7.3 within ADR-0034, read against the 7.3.3 sources, then the suite and KASAN on
-   a 7.3 kernel.
+1. The port to 7.3 within ADR-0034 is journal 0275, on a branch of its own that follows this
+   pull request.
+2. 6.12.115 joins `scripts/supported-kernels` once the maintainer decides on `generic/301` on
+   btrfs for `quick` (above).
+3. On 2026-11-08 Debian's forky (testing) has 7.2.15 and trixie-backports 7.2.12; 7.3.3 is in
+   sid. The maintainer chose on 2026-11-09 not to port 7.2: testing takes sid's kernel within
+   weeks and backports follows testing.
