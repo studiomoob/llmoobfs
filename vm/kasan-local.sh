@@ -9,12 +9,19 @@
 # vm/kasan-requirements.txt). Exit status 0 only on MOOBFS_KASAN_PASS. HOSTILE_SEEDS=N plants N adversarial
 # lower trees per filesystem instead of 3 (security roadmap S4). MOOB_ONLY="xfs ioerror" runs only those
 # suite steps and ends in MOOBFS_KASAN_ONLY_PASS. MOOB_PERMCHURN=SEEDS,STEPS[,FIRST] lengthens the
-# permchurn step (vm/suite.sh). MOOB_SELFCHECK=1 runs it with the index self-check on (S16). This is a faster loop
-# for development; the required check is still the workflow on the pull request.
+# permchurn step (vm/suite.sh). MOOB_SELFCHECK=1 runs it with the index self-check on (S16). MOOB_KASAN_KERNEL=7.3
+# runs the workflow's 7.3 leg (KERNEL73_VERSION and KERNEL73_SHA256) instead of the 6.12 one (journal 0279).
+# This is a faster loop for development; the required check is still the workflow on the pull request.
 set -eu
 PATH=$PATH:/usr/sbin:/sbin   # mke2fs, mkfs.btrfs, mkfs.xfs and dmsetup for a non-root user
-KERNEL_VERSION=$(sed -n 's/^ *KERNEL_VERSION: *//p' .github/workflows/kasan.yml)
-KERNEL_SHA256=$(sed -n 's/^ *KERNEL_SHA256: *//p' .github/workflows/kasan.yml)
+case ${MOOB_KASAN_KERNEL:-6.12} in
+6.12) KPIN=KERNEL ;;
+7.3) KPIN=KERNEL73 ;;
+*) echo "kasan-local: MOOB_KASAN_KERNEL must be 6.12 or 7.3" >&2; exit 1 ;;
+esac
+KERNEL_VERSION=$(sed -n "s/^ *${KPIN}_VERSION: *//p" .github/workflows/kasan.yml)
+KERNEL_SHA256=$(sed -n "s/^ *${KPIN}_SHA256: *//p" .github/workflows/kasan.yml)
+[ -n "$KERNEL_VERSION" ] && [ -n "$KERNEL_SHA256" ] || { echo "kasan-local: no ${KPIN} pin in kasan.yml" >&2; exit 1; }
 # KCONFIG selects another fragment (vm/kcsan.config for the data-race run); give it its own KCACHE
 KCONFIG=${KCONFIG:-vm/kasan.config}
 KCACHE=${KCACHE:-$HOME/.cache/moobfs-kasan}
@@ -28,7 +35,7 @@ command -v vng >/dev/null || { echo "kasan-local: vng (virtme-ng) not in PATH" >
 if [ ! -f "$KDIR/arch/x86/boot/bzImage" ] || ! cmp -s "$KCONFIG" "$KDIR/.moobfs-kasan.config"; then
     mkdir -p "$KCACHE"
     if [ ! -d "$KDIR" ]; then
-        curl -fsSL -o "$KCACHE/linux.tar.xz" "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KERNEL_VERSION.tar.xz"
+        curl -fsSL -o "$KCACHE/linux.tar.xz" "https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-$KERNEL_VERSION.tar.xz"
         echo "$KERNEL_SHA256  $KCACHE/linux.tar.xz" | sha256sum -c -
         mkdir -p "$KDIR.tmp"
         tar -xJf "$KCACHE/linux.tar.xz" -C "$KDIR.tmp" --strip-components=1

@@ -146,10 +146,11 @@ static analysis, the TLA+ model, OpenSSF Scorecard and Pages.
   neither has run on a sid host with 7.3.3. `make repro-test` does not cover 7.3.3.
 - `vm/kasan-local.sh` still reads only the 6.12 pin and fetches from `v6.x`; journal 0275 ran 7.3.3
   with an edited copy.
+  *Note, 2026-11-09:* `MOOB_KASAN_KERNEL=7.3` selects the 7.3 pin since journal 0279.
 - Debian's 7.3.3 is in sid on this date; when it reaches forky or a later 7.3 build replaces it,
   the list needs another entry under the same rule.
 
 ## Next step
 
-None for this journal. Open elsewhere: `vm/kasan-local.sh` reading the 7.3 pin, and a new entry
-when Debian's 7.3 build changes (Limitations).
+None for this journal. Open elsewhere: a new entry when Debian's 7.3 build changes
+(Limitations); `vm/kasan-local.sh` reads the 7.3 pin since journal 0279.
