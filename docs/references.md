@@ -1380,3 +1380,52 @@ hand and carries the same code paths:
   (journal 0105) for the same reason.
 - `userfaultfd(2)` and `ioctl_userfaultfd(2)`, Linux man-pages 6.9 (the `UFFD_API` handshake,
   `uffd_msg` and `UFFD_EVENT_PAGEFAULT`).
+
+## 53. A first run on a big-endian kernel, s390x (journal 0280)
+
+- Debian 13's s390x kernel `linux-image-6.12.111+deb13-s390x` 6.12.111-1, with
+  `linux-headers-6.12.111+deb13-s390x` 6.12.111-1: the same Debian source version as the amd64
+  default of `make vm-test`. Its configuration was read for the guest: `CONFIG_CPU_BIG_ENDIAN=y`,
+  `CONFIG_S390_GUEST=y` (virtio over CCW built in), `CONFIG_VIRTIO_BLK=m`, `CONFIG_SCLP_CONSOLE=y`,
+  `CONFIG_MEMCG=y`. <https://packages.debian.org/trixie/linux-image-6.12.111+deb13-s390x>.
+- QEMU 10.0.13 (Debian `qemu-system-s390x` 1:10.0.13+ds-0+deb13u1), machine `s390-ccw-virtio`,
+  KVM on an IBM z17 host: [s390x system emulation](https://www.qemu.org/docs/master/system/target-s390x.html)
+  and [virtio devices on s390x](https://www.qemu.org/docs/master/system/s390x/css.html). The
+  `serial=` property is given on `-device virtio-blk`, since QEMU refuses it on `-drive`
+  ([removed features](https://www.qemu.org/docs/master/about/removed-features.html): "-drive
+  serial=" was removed in 3.0, replaced by `-drive if=none,id=dr` with `-device ...,drive=dr,serial=r`).
+- Linux 6.12 `drivers/block/virtio_blk.c`: the `serial` attribute under `/sys/block/vdX/`
+  (`serial_show()`), read by `vm/suite.sh` to find each disk; the `vdX` names follow probe
+  order, which on CCW is not the order of the `-device` options.
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/drivers/block/virtio_blk.c?h=v6.12.111>.
+- Docker Engine from Ubuntu 24.04's `docker.io` 29.1.3 on the s390x host, and the multi-architecture
+  `debian:trixie-slim` image pinned by `vm/run.sh`, pulled for `linux/s390x`.
+- Cross-machine check (`vm/cross-machine.sh`): Docker Desktop on Apple silicon running the pinned
+  `debian:trixie-slim` image for `linux/amd64` (x86-64 user space under emulation; the Linux VM's
+  kernel is `7.0.14-linuxkit`, arm64, little-endian), `--privileged` for loop mounts
+  ([docker run, privileged](https://docs.docker.com/reference/cli/docker/container/run/#privileged));
+  trixie's e2fsprogs 1.47.2-3+b12, btrfs-progs 6.14-1 and xfsprogs 6.13.0-2+deb13u1 made the
+  images.
+- Byte order of the guest read with `od -An -tx2` on a known two-byte value, which prints in the
+  host's byte order: BusyBox 1.37.0 `od` (Debian `busybox-static` 1:1.37.0-6+b9), as GNU `od` does
+  ([coreutils, od invocation](https://www.gnu.org/software/coreutils/manual/html_node/od-invocation.html)).
+- virtme-ng 1.42 (`vm/kasan-requirements.txt`), `virtme/architectures.py` `Arch_s390x` (machine
+  `s390-ccw-virtio`, `-cpu host` under KVM, console `ttysclp0`) and `virtme/commands/run.py`
+  (`--blk-disk NAME=PATH` sets `serial=NAME`; `vng --disk PATH` passes the path as the name).
+  <https://github.com/arighi/virtme-ng/tree/v1.42>.
+- Linux 6.12.116 `arch/s390/kvm/kvm-s390.c` (lines 4776, 4786, 4806 call `__kvm_faultin_pfn()`,
+  `KVM_PFN_ERR_NEEDS_IO` and `kvm_release_faultin_page()`, not declared in that release), the
+  reason `vm/kasan-s390x.config` sets `CONFIG_KVM=n`; `arch/s390/Kconfig` for KASAN, KASAN_VMALLOC
+  and KFENCE on s390. The tarball is the KASAN pin of `.github/workflows/kasan.yml`, SHA-256
+  `cb3ed3dfdd47e6ade49dc933db334fd86e24cadee920da612c262b0e9b6a511b`, checked on the instance.
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/s390/kvm/kvm-s390.c?h=v6.12.116>.
+- glibc's s390x `struct statfs` (`/usr/include/s390x-linux-gnu/bits/statfs.h`, Ubuntu 24.04's
+  glibc 2.39): `unsigned int f_type; unsigned int f_bsize;`, unlike x86-64's `__fsword_t` (long);
+  the reason `layer_mounted()` in `python/src/moobfs/domain.py` misreads it on s390x
+  ([statfs(2)](https://man7.org/linux/man-pages/man2/statfs.2.html), "f_type ... __fsword_t").
+- Landlock in the KASAN kernels (`vm/kasan.config`): Linux 6.12.116 `security/landlock/Kconfig`
+  (`SECURITY_LANDLOCK` depends on `SECURITY`, selects `SECURITY_PATH` and `SECURITY_NETWORK`) and
+  `security/Kconfig` (`LSM`, the ordered list of enabled LSMs);
+  [Landlock: unprivileged access control](https://docs.kernel.org/6.12/userspace-api/landlock.html).
+  KASAN workflow run 42672003438 (2026-11-09, `a223da1`) printed `LANDLOCK_SKIPPED: this kernel
+  has no Landlock` in both legs, 6.12.116 and 7.3.3.

@@ -447,3 +447,6 @@ Only Debian 6.12.111 and 6.12.113 (QEMU)
 kernel **`6.12.113+deb13-amd64`** or **`6.12.111+deb13-amd64`** exactly
 A system that has moved to a later 6.12 kernel through updates is outside the list
 Kernels other than Debian 6.12.111 and upstream 6.12.116
+the module ran only in the exploratory arm64 job
+o módulo só rodou no job exploratório de arm64
+the full suite passed once in an s390x guest

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Python library: `layer_mounted()` reads `struct statfs`'s `f_type` with the width of the ABI,
+  32-bit on s390x and a native `long` elsewhere; on s390x it was False on every mount, so
+  `Domain` never used the kernel backend. Unit tests in `make pylib-test` decode fixed s390x and
+  x86-64 buffers on any host (journal 0280).
+- `vm/kasan.config` builds Landlock (`CONFIG_SECURITY=y`, `CONFIG_SECURITY_LANDLOCK=y`,
+  `CONFIG_LSM="landlock"`): the step `landlock` had been skipped in every KASAN guest, the
+  workflow's two legs included (journal 0280).
+- Known limitation, recorded by the maintainer's decision: on a debug kernel much slower than the
+  x86-64 KASAN guests, large domains' builds stop at the module's 10 s CPU bound and the
+  `overbudget` and `ixlock` steps miss their time thresholds (`docs/testing.md`, journal 0280).
 - PR 190 (journals 0275, 0277) and PR 191 (journal 0276) merged on 2026-11-09; journals 0272,
   0275 and 0277 closed. `vm/kasan-local.sh` runs the KASAN workflow's 7.3 leg with
   `MOOB_KASAN_KERNEL=7.3` (journal 0279).
@@ -12,6 +22,26 @@
   another user still answers. A negative round with `query_sem` held across the checks, as before
   journal 0116, fails the step. `vm/kasan.config` gains `CONFIG_USERFAULTFD=y` so the KASAN guest
   runs it (journal 0278).
+- A first run of the modules on a big-endian kernel (journal 0280, exploratory, one host):
+  `MOOB_ARCH=s390x make vm-test` on an s390x host builds the same Docker/QEMU flow for Debian's
+  `6.12.111+deb13-s390x` (the same Debian source version as the amd64 default) and boots it on
+  the `s390-ccw-virtio` machine; disks are found by serial there, since CCW probing does not keep
+  the command-line order. Under KVM on an IBM z17 instance the full suite passed twice
+  (`MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`; 839 s), with no endianness
+  mismatch; one suite check (the T2 cursor patch) assumes a little-endian inode field and is
+  recorded, not changed. s390x is not a supported architecture; amd64 runs are unchanged;
+  `layer/` is unchanged. Second round (journal 0280): the T2 cursor check patches the inode's
+  high byte on either byte order; `vm/cross-machine.sh` and the step `crossmachine`
+  (`MOOB_CROSS`) check that ext4, btrfs and XFS trees and an M1 image written by x86-64 user
+  space read the same on s390x (passed, with a negative round); `vm/kasan-local.sh` builds and
+  boots on an s390x host (`vm/kasan-s390x.config`: `CONFIG_KVM=n` for the guest kernel). Under
+  KASAN/UBSAN/lockdep on s390x the ext4, btrfs and XFS steps passed; the full KASAN run stopped at
+  `release`, whose 500-file build exceeds the module's 10 s CPU bound on that debug kernel.
+  Third round: the later steps by name under KASAN on s390x, 15 passed (fault injection
+  included), 1 skipped, 7 failed, with no kernel diagnostic; the failures are the same build bound
+  and two timing thresholds of tests, and one defect of the Python library on s390x:
+  `layer_mounted()` reads `struct statfs`'s 32-bit `f_type` as a `long` there, so the kernel
+  backend is never used (recorded, not fixed; journal 0280).
 - Regression tests for five review findings that had none in a gate, all in the full
   `make vm-test`: steps `deeptree` (R2-1) and `samedir` (R2-2) run the reproducers of journal
   0153 on ext4, btrfs and XFS; `tests/layer.c behind` in `run_lower` checks names changed on the

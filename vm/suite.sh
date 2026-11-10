@@ -78,6 +78,9 @@
 #                       /proc/self/mountinfo answers as without it (issue #167)
 #   pylib               the Python library's kernel and scan backends give equal answers (C5);
 #                       needs python3 in the guest, so it runs under KASAN and not in vm-test
+#   crossmachine        only when named: lower trees and an M1 image written on another machine
+#                       (vm/cross-machine.sh, MOOB_CROSS in vm/run.sh) read the same here
+#                       (journal 0280); never part of the full suite
 # A run with MOOB_ONLY ends in MOOBFS_ONLY_PASS, never in the two markers above, so it cannot
 # be taken for a complete run.
 set -u
@@ -99,14 +102,26 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock|crossmachine) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
 mkdir -p "$LOWER" "$LAYER" /tmp
-# Phases 2a/2b: memory layer stacked over ext4, btrfs and XFS (virtio disks vda, vdb, vdc).
+# Phases 2a/2b: memory layer stacked over ext4, btrfs and XFS (virtio disks vda, vdb, vdc; on
+# s390x found by serial, below).
 # shellcheck disable=SC2153   # MODS comes from the environment (vm/init, vm/kasan-guest.sh)
 if [ -f "$MODS/order" ]; then while read -r m; do insmod "$MODS/$m" || fail "lower module $m"; done < "$MODS/order"; fi
+# Disks that carry a serial (only the s390x guest of vm/in-container.sh, journal 0280) are found
+# by it: there the CCW disks finish probing in any order. Without serials nothing changes.
+for b in /sys/block/vd*; do
+    case "$(cat "$b/serial" 2>/dev/null)" in
+        moob-ext4) DEV_EXT4=/dev/${b##*/} ;;
+        moob-btrfs) DEV_BTRFS=/dev/${b##*/} ;;
+        moob-xfs) DEV_XFS=/dev/${b##*/} ;;
+        moob-scratch) DEV_SCRATCH=/dev/${b##*/} ;;
+        moob-log) DEV_LOG=/dev/${b##*/} ;;
+    esac
+done
 insmod "$BIN/moobfs_layer.ko" || fail layer-module
 # S16 (ADR-0033, journal 0271): MOOB_SELFCHECK=1 runs the whole suite with the self-check on.
 sc_param=/sys/module/moobfs_layer/parameters/selfcheck
@@ -632,9 +647,16 @@ run_lower() {
     [ "$("$BIN/query" --uid 1001 "$LAYER/da" q2errno --cursor-in "$q2_cursors/c1" --order created time asc kind eq string note)" = "q2 116" ] || fail "q2b-cursor-other-order-$fs"
     # T2 (journal 0155): the MAC alone must refuse a cursor whose fields changed while its query
     # hash (offset 16 of struct moobl_cursor) stayed valid: the pad (5), the high byte of the
-    # inode (15) and the last inline value byte (119), all zero in this cursor
-    for off in 5 15 119; do
-        cp "$q2_cursors/c1" "$q2_cursors/ct" && printf '\377' | dd of="$q2_cursors/ct" bs=1 seek=$off conv=notrunc 2>/dev/null || fail "t2-patch-$fs"
+    # inode and the last inline value byte (119), all zero in this cursor. The inode is a native
+    # u64 at offsets 8-15: its high byte is at 15 on little-endian and at 8 on big-endian, read
+    # from the guest's byte order (journal 0280)
+    case "$(printf '\001\000' | od -An -tx2 | tr -d ' \n')" in
+        0001) t2_hi=15 ;;
+        0100) t2_hi=8 ;;
+        *) fail "t2-byte-order-$fs" ;;
+    esac
+    for off in 5 $t2_hi 119; do
+        cp "$q2_cursors/c1" "$q2_cursors/ct" && printf '\377' | dd of="$q2_cursors/ct" bs=1 seek="$off" conv=notrunc 2>/dev/null || fail "t2-patch-$fs"
         # Cursor files are private (0600); root's copy must remain readable by the test uid.
         chown 1001:1001 "$q2_cursors/ct" || fail "t2-cursor-owner-$fs"
         cmp -s "$q2_cursors/c1" "$q2_cursors/ct" && fail "t2-patch-changed-nothing-$off-$fs"
@@ -949,6 +971,52 @@ run_lower() {
     umount "$LOWER" || fail "lower-unmount-$fs"
     echo "LAYER_LOWER_PASS: $fs reflink=$reflink"
 }
+# crossmachine (journal 0280; only when named in MOOB_ONLY, with MOOB_CROSS in vm/run.sh): the
+# lower disks carry trees, and /cross an M1 image, written on another machine by
+# vm/cross-machine.sh. The kernel's answers and the attributes read through the layer must equal
+# the writing machine's oracle and listing, and the M1 files their hashes there.
+if [ -n "${MOOB_ONLY:-}" ] && want crossmachine; then
+    X=$BIN/cross
+    [ -f "$X/queries.txt" ] || fail cx-no-artifacts
+    cx_n=0
+    for fs in ext4 btrfs xfs; do
+        case $fs in ext4) dev=$DEV_EXT4 ;; btrfs) dev=$DEV_BTRFS ;; xfs) dev=$DEV_XFS ;; esac
+        mount -t $fs "$dev" "$LOWER" || fail "cx-lower-mount-$fs"
+        mount -t moobfs_layer -o lower="$LOWER" none "$LAYER" || fail "cx-layer-mount-$fs"
+        while IFS='|' read -r tag dom kopt oopt terms; do
+            # shellcheck disable=SC2086   # options and terms are word lists
+            "$BIN/query" --uid 1001 "$LAYER/$dom" q2 $kopt $terms > /tmp/k.txt || fail "cx-query-$tag-$fs"
+            cmp -s /tmp/k.txt "$X/$fs/$tag.txt" || { echo "kernel:"; cat /tmp/k.txt; echo "writer's oracle:"; cat "$X/$fs/$tag.txt"; fail "cx-mismatch-$tag-$fs"; }
+            # shellcheck disable=SC2086
+            "$BIN/moobfs-index" --uid 1001 --domain $oopt "$LOWER/$dom" $terms > /tmp/o.txt || fail "cx-oracle-$tag-$fs"
+            cmp -s /tmp/o.txt "$X/$fs/$tag.txt" || fail "cx-oracle-mismatch-$tag-$fs"
+            cx_n=$((cx_n + 1))
+        done < "$X/queries.txt"
+        (cd "$LAYER" && find da dt -type f | sort | while read -r f; do
+            "$BIN/moobfs-attr" list "$f" | sort | awk -v f="$f" '{ print f "\t" $0 }'
+        done) > /tmp/cx-attrs.txt || fail "cx-attrs-list-$fs"
+        cmp -s /tmp/cx-attrs.txt "$X/$fs/attrs.txt" || { diff /tmp/cx-attrs.txt "$X/$fs/attrs.txt"; fail "cx-attrs-$fs"; }
+        umount "$LAYER" && mount -t moobfs_layer -o lower="$LOWER",domain_depth=0 none "$LAYER" || fail "cx-v1-mount-$fs"
+        while IFS='|' read -r tag terms; do
+            # shellcheck disable=SC2086
+            "$BIN/query" "$LAYER" $terms > /tmp/k.txt || fail "cx-v1-query-$tag-$fs"
+            cmp -s /tmp/k.txt "$X/$fs/v1-$tag.txt" || { cat /tmp/k.txt; fail "cx-v1-mismatch-$tag-$fs"; }
+            cx_n=$((cx_n + 1))
+        done < "$X/queries-v1.txt"
+        umount "$LAYER" && umount "$LOWER" || fail "cx-umount-$fs"
+        cx_a=$(wc -l < /tmp/cx-attrs.txt)
+    done
+    cx_m1="M1 module not built for this kernel"
+    if [ -f "$BIN/moobfs.ko" ]; then
+        insmod "$BIN/moobfs.ko" || fail cx-m1-insmod
+        mount -t moobfs -o loop,ro "$X/m1.img" /mnt/moob || fail cx-m1-mount
+        (cd /mnt/moob && for n in a b c d e; do sha256sum "$n"; done) > /tmp/cx-m1.txt || fail cx-m1-read
+        umount /mnt/moob && rmmod moobfs || fail cx-m1-unload
+        cmp -s /tmp/cx-m1.txt "$X/m1.sha256" || { cat /tmp/cx-m1.txt; fail cx-m1-content; }
+        cx_m1="M1 image of 5 files read with the writer's hashes"
+    fi
+    echo "CROSS_MACHINE_PASS: written on $(head -1 "$X/writer-machine.txt"), read on $(uname -m): $cx_n answers on ext4, btrfs and xfs equal to the writer's oracle, $cx_a attribute lines per lower equal; $cx_m1"
+fi
 want ext4 && run_lower ext4 "$DEV_EXT4" no
 want btrfs && run_lower btrfs "$DEV_BTRFS" yes
 want xfs && run_lower xfs "$DEV_XFS" yes
@@ -2193,9 +2261,9 @@ bc_traced=$(tr_count moobfs_domain_build)
 grep ' moobfs_domain_build: ' "$TR/trace" | sed 's/^.* moobfs_domain_build: /QUERY_BUILD_TRACE /'
 tr_off moobfs_domain_build
 umount "$LAYER" && rm -rf "$LOWER/bc" && umount "$LOWER" || fail bc-cleanup
-bc_raw_before=$(awk '{print $3}' /sys/block/vda/stat)
+bc_raw_before=$(awk '{print $3}' "/sys/block/${DEV_EXT4##*/}/stat")
 dd if="$DEV_EXT4" of=/dev/null bs=4096 skip=10000 count=1 >/dev/null 2>&1 || fail bc-block-counter-read
-bc_raw_after=$(awk '{print $3}' /sys/block/vda/stat)
+bc_raw_after=$(awk '{print $3}' "/sys/block/${DEV_EXT4##*/}/stat")
 [ "$bc_raw_after" -gt "$bc_raw_before" ] || fail bc-block-counter-no-increase
 echo "BUILD_COST_DEVICE_CONTROL: raw device read advanced sectors by $((bc_raw_after - bc_raw_before))"
 echo "BUILD_COST_OBSERVED: files=$bc_files one first build, seven rename rebuilds, and no warm-query rebuilds"
@@ -2490,9 +2558,9 @@ case "$bdn_result" in
 esac
 [ "$("$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')" -eq "$bdn_expected_builds" ] || fail bdn-build-count
 umount "$LAYER" && rm -rf "$LOWER/bdn" && umount "$LOWER" || fail bdn-cleanup
-bdn_raw_before=$(awk '{print $3}' /sys/block/vda/stat)
+bdn_raw_before=$(awk '{print $3}' "/sys/block/${DEV_EXT4##*/}/stat")
 dd if="$DEV_EXT4" of=/dev/null bs=4096 skip=10000 count=1 >/dev/null 2>&1 || fail bdn-block-counter-read
-bdn_raw_after=$(awk '{print $3}' /sys/block/vda/stat)
+bdn_raw_after=$(awk '{print $3}' "/sys/block/${DEV_EXT4##*/}/stat")
 [ "$bdn_raw_after" -gt "$bdn_raw_before" ] || fail bdn-block-counter-no-increase
 echo "BUILD_DENIAL_DEVICE_CONTROL: raw device read advanced sectors by $((bdn_raw_after - bdn_raw_before))"
 echo "BUILD_DENIAL_OBSERVED: 17000 empty files, one cold query, outcome=$bdn_result"
