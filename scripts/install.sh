@@ -32,8 +32,27 @@ need_root() {
 	[ -n "$DESTDIR" ] || [ "$(id -u)" -eq 0 ] || die "run as root (sudo make $ACTION), or set DESTDIR"
 }
 
+# One entry of scripts/supported-kernels against a release: an exact release, or a series whose
+# one '*' stands for one or more digits (Ubuntu's ABI number, ADR-0036). tools/workspace.h
+# (ws_kernel_listed) and packaging/debian/rules (BUILD_EXCLUSIVE_KERNEL) read it the same way.
+kernel_matches() {
+	case $1 in
+	*'*'*)
+		pre=${1%%\**} post=${1#*\*}
+		case $2 in "$pre"*"$post") ;; *) return 1 ;; esac
+		mid=${2#"$pre"} mid=${mid%"$post"}
+		case $mid in '' | *[!0-9]*) return 1 ;; esac
+		;;
+	*) [ "$1" = "$2" ] ;;
+	esac
+}
+
 supported() {
-	grep -v '^#' scripts/supported-kernels | grep -qx "$KVER"
+	while read -r k; do
+		case $k in '' | '#'*) continue ;; esac
+		kernel_matches "$k" "$KVER" && return 0
+	done <scripts/supported-kernels
+	return 1
 }
 
 check_kernel() {

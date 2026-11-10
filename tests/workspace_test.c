@@ -317,6 +317,21 @@ static void kernels_and_lower(void)
 	CHECK(!ws_kernel_listed(list, ""));
 	CHECK(!ws_kernel_listed("", "6.12.111+deb13-amd64"));
 	CHECK(ws_kernel_listed("6.12.111+deb13-amd64", "6.12.111+deb13-amd64"));
+	/* a series entry: '*' is one or more digits, nothing else (ADR-0036) */
+	CHECK(ws_kernel_listed("6.12.111+deb13-amd64\n7.0.0-*-generic\n", "7.0.0-43-generic"));
+	CHECK(ws_kernel_listed("7.0.0-*-generic", "7.0.0-1-generic"));
+	CHECK(ws_kernel_listed("7.0.0-*-generic  ", "7.0.0-144-generic"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", "7.0.0--generic"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", "7.0.0-generic"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", "7.0.0-43-lowlatency"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", "7.0.0-43a-generic"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", "7.0.0-4-3-generic"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", "7.0.10-43-generic"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", "7.0.0-43-generic-64k"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", "x7.0.0-43-generic"));
+	CHECK(!ws_kernel_listed("7.0.0-*-*-generic", "7.0.0-43-1-generic"));
+	CHECK(!ws_kernel_listed("# 7.0.0-*-generic", "7.0.0-43-generic"));
+	CHECK(!ws_kernel_listed("7.0.0-*-generic", ""));
 
 	CHECK(ws_dir_blocks_others(040700, 0, 0, 0));
 	CHECK(ws_dir_blocks_others(040750, 0, 0, 0));		/* group root */
