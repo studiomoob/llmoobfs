@@ -1,0 +1,39 @@
+name: Ubuntu 26.04 kernel drift
+# ADR-0036: DKMS and make install accept Ubuntu's whole 7.0.0-*-generic series, while the suite ran
+# on one release of it (7.0.0-43). Once a week this job builds the layer module against the newest
+# linux-headers-generic of Ubuntu 26.04 (resolute, -updates and -security), so that a new ABI
+# whose VFS forms changed is caught by the build and its static_asserts. It runs no suite: a new
+# ABI that builds is not thereby tested (docs/compatibility.md). Also on demand.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 5 * * 3'
+permissions:
+  contents: read
+concurrency:
+  group: ubuntu-drift-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: Layer build on the newest Ubuntu 26.04 kernel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build against the newest linux-headers-generic of resolute
+        run: |
+          # the base image of vm/run.sh for MOOB_UBUNTU_KERNEL; its packages come from today's index
+          base=$(sed -n 's/^ *7\.0\.0-43) MOOB_BASE=\(ubuntu:26\.04@sha256:[0-9a-f]\{64\}\) *;;.*/\1/p' vm/run.sh)
+          [ -n "$base" ]
+          docker run --rm -v "$PWD:/src:ro" "$base" sh /src/vm/ubuntu-drift.sh 2>&1 | tee drift.log
+          grep -q '^UBUNTU_DRIFT_PASS:' drift.log
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "Tested Ubuntu release (vm/run.sh, MOOB_UBUNTU_KERNEL): 7.0.0-43-generic."
+            grep '^newest Ubuntu 26.04 kernel:' drift.log || echo "newest kernel: not reached"
+            grep -E 'warning:|error:|UBUNTU_DRIFT_PASS' drift.log || true
+          } >> "$GITHUB_STEP_SUMMARY"
