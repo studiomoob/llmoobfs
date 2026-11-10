@@ -25,7 +25,7 @@ fi
 [ -w /dev/kvm ] || { echo "fstests-ubuntu: needs a writable /dev/kvm" >&2; exit 1; }
 SRC=$(cd "$SRC" && pwd)
 TAG=moobfs-fstests-ubuntu
-docker build -q -t "$TAG" vm/fstests-ubuntu >/dev/null
+docker build -q -t "$TAG" -f vm/fstests-ubuntu/Dockerfile vm >/dev/null
 # shellcheck disable=SC2016  # expanded by the container's shell
 docker run --rm --device /dev/kvm ${MOOB_DOCKER_CPUS:+--cpuset-cpus "$MOOB_DOCKER_CPUS"} \
     -e MOOB_KVER=7.0.0-43-generic -e MOOB_FSTESTS_CPUS="${MOOB_FSTESTS_CPUS:-}" \
