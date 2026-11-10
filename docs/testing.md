@@ -487,7 +487,7 @@ Read these coverage exclusions even when the aggregate marker passes:
 | `IXLOCK_PASS` | `MOOB_ONLY=ixlock`: on ext4, while one domain build and then another hold the index lock for writing (test parameter `scan_hold_us`, 2.5 s per file, 3 files each, measured from 1 s into the build), 8 layer inodes of a third domain, which have no index record, are instantiated during the first build and evicted with `drop_caches` during the second, each in under 1 s, and each build is still running when its measurement ends (issue #117, journal 0223) |
 | `LANDLOCK_PASS` | Every run, after `ixlock`: on ext4, as uid 1001 under `tests/landlock_run.c` (directory listing beneath one tree, file reads beneath a subdirectory and the program's directory; `/proc/self/mountinfo` checked to be unreadable), `moobfs query` on a domain gives the same answer as without the sandbox and as `moobfs-index --domain`, in text and JSON; a directory that is not a domain and a path off the layer give exit 69 as without it; `moobfs info --json` on the mount root equals the unconfined output with `index_build_work` and `index_idle` `null`, and `info` from a domain directory finds the mount root; on a mount without domains the root still answers the mount-wide `QUERY` (issue #167, journal 0230) |
 | `CROSS_MACHINE_PASS` | Only with `MOOB_CROSS=DIR MOOB_ONLY=crossmachine`, never in a full run: the lower disks are ext4, btrfs and XFS images written on another machine by `vm/cross-machine.sh` (with its hashes, checked first, and `CROSS_FSCK_PASS` from `vm/in-container.sh` for the M1 image's `fsck.moobfs` report); the kernel's QUERY2 and v1 answers, this machine's `moobfs-index` and `moobfs-attr list` through the layer equal the writing machine's, and the M1 image's files their hashes there (journal 0280: written on x86-64, read on s390x) |
-| `LANDLOCK_SKIPPED` | No CLI-under-Landlock test: the guest kernel has no Landlock |
+| `LANDLOCK_SKIPPED` | No CLI-under-Landlock test: the guest kernel has no Landlock (the KASAN kernels printed it until journal 0280 enabled Landlock in `vm/kasan.config`) |
 | `PYLIB_SKIPPED` | No Python library test: the guest has no `python3` (the `vm-test` initramfs); the KASAN guest boots the host's root and runs it, ending in `MOOBFS_PYLIB_PASS`; since journal 0209 the KASAN job runs only for kernel-side changes, so a change to `python/` alone is checked by `make pylib-test` and not by this step |
 | `LOWERRO_PASS: ... idmapped lower: not tested ...` | Read-only/freeze checks ran, but an idmapped bind lower could not be created; only `idmapped lower: refused` proves that case |
 | `ipc` binary present | Built/staged only, not invoked by the suite; no `IPC_PRIMITIVES_PASS` evidence |
@@ -678,6 +678,11 @@ kernel versions are unverified.
 - Kernels other than Debian 6.12.111, 6.12.113, 6.12.115 and 7.3.3 and upstream 6.12.116 and
   7.3.3; the M1 module on 7.3; architectures other than x86-64 in CI (arm64 runs in an
   exploratory job, journal 0137; s390x ran by hand on one host, journal 0280).
+- The full suite on a debug kernel much slower than the x86-64 KASAN guests: a large domain's
+  build stops at the module's 10 s CPU bound with `ETIMEDOUT`, so the steps `release`,
+  `rootpath`, `bigdir`, `limits` and `diag` fail there, and `overbudget` and `ixlock` fail on
+  their time thresholds (KASAN on a two-vCPU s390x guest, journal 0280). A known limitation,
+  left unchanged by the maintainer's decision of 2026-11-10.
 - Any performance, latency or memory measurement (M4, [benchmark-plan.md](benchmark-plan.md)).
 - Acceptance over btrfs and XFS (it runs over ext4 only); `ipc` in the suite.
 

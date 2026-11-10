@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Python library: `layer_mounted()` reads `struct statfs`'s `f_type` with the width of the ABI,
+  32-bit on s390x and a native `long` elsewhere; on s390x it was False on every mount, so
+  `Domain` never used the kernel backend. Unit tests in `make pylib-test` decode fixed s390x and
+  x86-64 buffers on any host (journal 0280).
+- `vm/kasan.config` builds Landlock (`CONFIG_SECURITY=y`, `CONFIG_SECURITY_LANDLOCK=y`,
+  `CONFIG_LSM="landlock"`): the step `landlock` had been skipped in every KASAN guest, the
+  workflow's two legs included (journal 0280).
+- Known limitation, recorded by the maintainer's decision: on a debug kernel much slower than the
+  x86-64 KASAN guests, large domains' builds stop at the module's 10 s CPU bound and the
+  `overbudget` and `ixlock` steps miss their time thresholds (`docs/testing.md`, journal 0280).
 - PR 190 (journals 0275, 0277) and PR 191 (journal 0276) merged on 2026-11-09; journals 0272,
   0275 and 0277 closed. `vm/kasan-local.sh` runs the KASAN workflow's 7.3 leg with
   `MOOB_KASAN_KERNEL=7.3` (journal 0279).

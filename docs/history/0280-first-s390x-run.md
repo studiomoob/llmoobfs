@@ -1,9 +1,10 @@
 # 0280 — The layer module on a big-endian kernel: a first s390x run
 
 Date: 2026-11-09, 13:46–14:30 Brasília time; second round 14:49–20:25; third round
-20:28–00:55 (2026-11-10). Status: **done
-locally**, not published; exploratory, two full runs on one host, then the second round below
-(T2, cross-machine data, KASAN: the lowers passed, the full KASAN run stopped at `release`). s390x does not join the supported list
+20:28–00:55 (2026-11-10); fourth round 2026-11-10, 10:19–12:40. Status: **done
+locally**, not published; exploratory, on one host: two full runs; then T2, cross-machine data
+and KASAN (round 2), the later steps under KASAN (round 3), and the Python fix, Landlock and the
+batch's suites (round 4). s390x does not join the supported list
 (`docs/compatibility.md` §1 rule 5). Estimated effort S (hours); the time recorded here is
 calendar time, which for this unit is close to the effort (one session, mostly waiting on runs of
 a few minutes).
@@ -464,3 +465,119 @@ Steps never run under KASAN on s390x: none of the full run's, except that `relea
 `bigdir`, `limits` and `diag` stopped at the bound before their later checks.
 
 Third round's time: 20:28–00:55 BRT, calendar time; effort under 1 h, the rest waiting.
+
+## Fourth round, 2026-11-10 (10:19 BRT onwards): rebase, the Python fix, Landlock, decisions
+
+The maintainer's decisions of 2026-11-10 on the findings of the third round, and the batch's
+preparation for publication.
+
+### Rebase on `main` `73ecb21`
+
+PR 192 (journals 0278 and 0279) was merged at 10:18 BRT as `73ecb21`. The branch was rebased on
+it (10 commits): `docs/references.md` keeps journal 0278's §52 (dirstall) and this journal's
+section becomes §53 (no file cited it by number); `CHANGELOG.md` keeps both sides;
+`docs/history/README.md` keeps `main`'s lines for 0277–0279 and adds 0280; the `MOOB_ONLY` list
+of `vm/suite.sh` keeps `main`'s `dirstall` and adds `crossmachine`; `vm/kasan-local.sh` merged
+with `main`'s 7.3 leg (`d87bf09`) without conflict. Checks after the rebase: retired claims,
+the FAQ page, `check-pins.sh --offline` (`PINS_OK`), the generated site pages (unchanged) and
+shellcheck on every `vm/`, `scripts/` and `formal/` shell script: clean.
+
+### `layer_mounted()` on s390x (commit `ed42b22`)
+
+Decision: fix it (user space, outside the kernel freeze). `python/src/moobfs/domain.py` reads
+`f_type` with `_statfs_f_type()`: four unsigned bytes on s390x, a native `long` elsewhere, the
+same bytes as before on x86-64 and every other ABI. No general method exists in Python: `os`
+has no `statfs`, `os.statvfs` has no `f_type`, and the width is a property of each glibc ABI
+(`bits/statfs.h`), so the function names the one ABI that differs, as glibc does. New tests in
+`python/tests/test_unit.py` (class `StatfsFType`, run by `make pylib-test` and the suite's unit
+discovery) decode fixed buffers on any host: an s390x big-endian one (and that the old reading
+gives `f_type << 32 | f_bsize`), an x86-64 little-endian one, and the host's native layout.
+`make pylib-test`: macOS, 46 tests, OK (24 skipped there); s390x host, 13:23 UTC, 46 tests, OK
+(13 skipped), the three `StatfsFType` tests pass; on the host `_statfs_f_type()` reads `/` as
+`0xef53` (ext4), where the old code read `0xef5300001000`. The `pylib` step itself needs the
+module loaded, which happens only in a guest (never on the host), and the vm-test initramfs has no
+`python3`; so on s390x it runs under KASAN only. Run with the committed code, `~/moobfs-b20r3` at
+`8dda716` (the scratch copy of the third round was then removed from the instance),
+`MOOB_ONLY="pylib landlock"`, 10:23–11:39 BRT including the kernel's rebuild for the new
+fragment (`CONFIG_USERFAULTFD=y` from `main`, Landlock, `CONFIG_KVM=n`): exit 0,
+`MOOBFS_PYLIB_PASS: 400 requests (255 with answers in alice) x 2 domains x pages 7 and 4096, 60
+batches: kernel = scan through the mount = scan of the lower; owner and team member agree;
+another uid refused by both; ...`, and `MOOBFS_KASAN_ONLY_PASS ... with no kernel diagnostics`.
+
+### Landlock in the KASAN kernels (commit `8dda716`)
+
+The question first: the amd64 KASAN job in CI skipped the step too. KASAN workflow run
+42672003438 (PR 192's head `a223da1`, 2026-11-09) printed `LANDLOCK_SKIPPED: this kernel has no
+Landlock` in both legs, 6.12.116 and 7.3.3: virtme-ng's base configuration leaves
+`CONFIG_SECURITY` off. The native `make vm-test` guest (Debian's kernel) has Landlock and prints
+`LANDLOCK_PASS`. Decision: `vm/kasan.config` sets `CONFIG_SECURITY=y`,
+`CONFIG_SECURITY_LANDLOCK=y` and `CONFIG_LSM="landlock"` (Landlock alone besides the capability
+module, so no other LSM changes what the suite sees). The fragment is also the base of the arm64
+KASAN, coverage (`vm/gcov.config` appended) and syzkaller (`vm/syzkaller/kernel.config`
+appended) kernels, which gain Landlock too; KCSAN uses its own `vm/kcsan.config` and does not. Runs: on s390x
+under KASAN, in the run above, `LANDLOCK_PASS: under Landlock without /proc/self/mountinfo the
+moobfs CLI gave the same QUERY2 and mount-wide QUERY answers and the same info as without it`,
+with `CONFIG_SECURITY=y`, `CONFIG_SECURITY_LANDLOCK=y`, `CONFIG_LSM="landlock"` in the built
+`.config`; on amd64, in the batch's full KASAN suite on the test host (below).
+
+### Known limitations on slow debug kernels (decision)
+
+The maintainer decided on 2026-11-10 not to change, for now, the module's build bound
+(`MOOBL_BUILD_CPU_NS` = 10 s CPU, `MOOBL_BUILD_TIME_NS` = 120 s, `layer/index.c:864-865`) nor the
+timing thresholds of the steps `overbudget` (at least 30 queries before 6 × its duration,
+`tests/overbudget-race.c:137`, `:187`) and `ixlock` (an eviction under 1000 ms, `vm/suite.sh`
+`il-evict-waited`). They are recorded as known limitations: on a debug kernel slow enough (here
+KASAN with inline instrumentation on a two-vCPU s390x guest) a large domain's build ends in
+`ETIMEDOUT`, and the steps `release`, `rootpath`, `bigdir`, `limits` and `diag` fail on it, while
+`overbudget` and `ixlock` fail on their thresholds; the x86-64 KASAN runs stay under them. The
+register of findings (`docs/review-findings.md`) lists findings of reviews, so it does not take
+this; `docs/testing.md` states it among what is not tested.
+
+### PR 192: its runs and its merge
+
+PR 192 (`claudiofp/b19-gap-e`, head `a223da1`; journals 0278 and 0279) was opened on 2026-11-09
+at 15:12 BRT. At that start GitHub refused 5 of its 6 workflows (CI, KASAN and lockdep, CodeQL,
+Labeler, First interaction) with "workflow file issue": attempt 1 of each ended as a failure
+within a minute with no job (for example CI run 42672003418 and KASAN run 42672003438, 0 jobs);
+only Static analysis ran (attempt 1, success). Nothing in the workflow files had changed; the
+rerun of the five at about 20:25 BRT (attempt 2) passed, 17 of 17 checks, the last (KASAN) at
+21:09 BRT, and GitHub reported the pull request CLEAN at 21:11 BRT. The maintainer merged it on
+2026-11-10 at 10:18 BRT as `73ecb21`. Post-merge runs on `main` at `73ecb21`, all on push:
+OpenSSF Scorecard success (10:19 BRT), CodeQL success (10:19), Static analysis success (10:23),
+CI success with 10 of 10 jobs (10:35). The KASAN workflow does not run on push.
+
+### The batch's full suites (test host)
+
+Test host (x86-64, KVM), at `8dda716` (this branch rebased on `73ecb21`, before these records),
+started 2026-11-10 10:29:46 BRT, three runs in parallel on separate CPUs, calendar time:
+
+- `make vm-test` (Debian 6.12.111, CPUs 0-1), 10:29–10:54: exit 0, `MOOBFS_VM_PASS`,
+  `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `DIRSTALL_PASS`, `LANDLOCK_PASS`; 314 pass lines.
+- `sh vm/kasan-local.sh` (upstream 6.12.116 with the new `vm/kasan.config`, rebuilt from the
+  dirstall kernel's tree in a cache of its own; CPUs 2-3), 10:29–12:15 including the rebuild:
+  exit 0, `MOOBFS_KASAN_PASS` with no kernel diagnostic, `DIRSTALL_PASS`, `MOOBFS_PYLIB_PASS`, and
+  `LANDLOCK_PASS`, the step's first run in an amd64 KASAN guest; 298 pass lines (297 in journal
+  0279's run, plus `LANDLOCK_PASS`). The built `.config` has `CONFIG_SECURITY_LANDLOCK=y` and
+  `CONFIG_LSM="landlock"`.
+- Pre-push checks (CPUs 4-7), 10:29–10:39: `make lint`, `make checkpatch`, `make test`, the same
+  under clang ASan/UBSan, `make hostile-test` (50 seeds), `make pylib-test`, retired claims,
+  `scripts/check-pins.sh`, `make mutants-check`, `scripts/check-site.py`,
+  `git diff --check 73ecb21 HEAD`, and `hookrace` and `coldmove` built on Ubuntu 24.04: all pass.
+
+Also recorded: the amd64 `make vm-test` of the first round's head `394fe05`, run on the test host
+on 2026-11-09 and finished at 14:56 BRT: exit 0, `MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`,
+`MOOBFS_ACCEPTANCE_PASS`, 313 pass lines.
+
+### Public surfaces
+
+`CHANGELOG.md` (the Python fix, Landlock under KASAN, the known limitation); `docs/testing.md`
+(the `LANDLOCK_SKIPPED` row; the known limitation among what is not tested);
+`docs/research-test-infrastructure.md` (a dated note: the LinuxONE request was granted and used).
+The README, FAQ and status pages already state the s390x results of rounds 1–3 and need no
+change. Left as they are, on purpose: `docs/compatibility.md` (s390x stays outside rule 5).
+
+### Fourth round: state and next step
+
+Done locally, not published. Fourth round's time: 10:19–12:40 BRT, calendar time; effort about
+1 h 30 min, the rest waiting on the suites. Next step: the batch's pull request (body prepared
+outside the repository), merged only with the maintainer's approval after the required checks.

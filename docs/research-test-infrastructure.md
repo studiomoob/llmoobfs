@@ -81,5 +81,9 @@ a second maintainer.
    use.
 3. Requests the maintainer can make himself: the IBM LinuxONE open source cloud (s390x) and AWS
    credits for open source.
+   *Note, 2026-11-10 (journal 0280):* the LinuxONE request was granted; on an IBM LinuxONE
+   Community Cloud instance (z17, 2 vCPUs, 8 GB) the module ran on a big-endian kernel under KVM:
+   the full suite passed on Debian's 6.12.111, and under KASAN every step but those stopped by
+   the build bound or by time thresholds on that slow debug kernel.
 4. A second maintainer is a criterion of the kernel's list and of the OpenSSF gold level; the calls
    for reviewers and collaborators stay open.
