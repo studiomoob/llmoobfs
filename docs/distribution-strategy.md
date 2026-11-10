@@ -436,6 +436,10 @@ meeting the S3 threshold, fstests (S2 results) and fuzzing (S7); (2) every findi
 AI-assisted review triaged, reproduced and turned into a regression test; (3) S14 to S21 of the
 security roadmap done. The other deliverables and acceptance steps are unchanged.
 
+*Note, 2026-11-10 (journal 0282):* the one page of the "Done when" line is
+[matrix-and-limits.md](matrix-and-limits.md), the matrix and the known limitations, checked in CI
+against `scripts/supported-kernels` and the KASAN pins. No third party has reproduced stage 2 yet.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount

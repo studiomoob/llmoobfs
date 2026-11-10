@@ -686,6 +686,7 @@ Os documentos estão em inglês (ADR-0010).
 | Como o desenvolvimento assistido por IA é governado? | [ai-workflow.md](docs/ai-workflow.md) (compartilhado por `AGENTS.md`, `CLAUDE.md` e regras do Cursor) |
 | Trabalhos anteriores, o que pode e o que não pode ser afirmado | [research-originality.md](docs/research-originality.md) |
 | Que kernels são suportados, e o que pode mudar entre versões? | [compatibility.md](docs/compatibility.md) |
+| A matriz de kernels e as limitações conhecidas, numa página | [matrix-and-limits.md](docs/matrix-and-limits.md) |
 | Como posso ajudar? | [help-wanted.md](docs/help-wanted.md) |
 | Mudanças, governança, conduta, segurança | [CHANGELOG.md](CHANGELOG.md), [GOVERNANCE.md](GOVERNANCE.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md) |
 

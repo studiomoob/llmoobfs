@@ -297,3 +297,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0279 — Records after PR 191; the local KASAN harness reads the 7.3 pin](0279-records-after-pr-191.md)
 - [0280 — The layer module on a big-endian kernel: a first s390x run](0280-first-s390x-run.md)
 - [0281 — The port to Ubuntu 26.04's Linux 7.0 (batch b21)](0281-port-ubuntu-7-0.md)
+- [0282 — The one-page matrix and limitations of stage 2](0282-matrix-and-limits-page.md)

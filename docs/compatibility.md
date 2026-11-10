@@ -6,6 +6,9 @@ for what changes. It gathers what [spec-m2](spec-m2.md) §10, [spec-query-v2](sp
 the README and [distribution-strategy](distribution-strategy.md) §6 already say. Where a rule
 needs code that does not exist yet, the rule says so.
 
+The one-page summary of the matrix and the known limitations is [matrix-and-limits.md](matrix-and-limits.md)
+(journal 0282); this page keeps the rules.
+
 There are three interfaces, each with its own version and its own rule.
 
 ## 1. Kernels

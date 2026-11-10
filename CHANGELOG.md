@@ -19,6 +19,11 @@
   (7.0.14)" and a weekly build against the newest Ubuntu 26.04 kernel
   (`.github/workflows/ubuntu-drift.yml`).
 - PR 193 (journal 0280) merged on 2026-11-10 (journal 0281).
+- `docs/matrix-and-limits.md`: the one page that stage 2 of `docs/distribution-strategy.md` §8
+  asks for: supported and exploratory kernels, lowers, which suites ran where, and the known
+  limitations, one line each with a link. `scripts/check-matrix-page.sh`, run in CI, keeps its
+  releases equal to `scripts/supported-kernels` and the KASAN pins, checks its links and its
+  length; the retired-claims check reads it (journal 0282).
 - Python library: `layer_mounted()` reads `struct statfs`'s `f_type` with the width of the ABI,
   32-bit on s390x and a native `long` elsewhere; on s390x it was False on every mount, so
   `Domain` never used the kernel backend. Unit tests in `make pylib-test` decode fixed s390x and

@@ -106,6 +106,8 @@ jobs:
         run: |
           sh scripts/check-retired-claims.sh
           python3 scripts/site-faq.py --check
+      - name: The matrix page agrees with scripts/supported-kernels and the KASAN pins (journal 0282)
+        run: sh scripts/check-matrix-page.sh
       - name: checkpatch.pl on layer/ and kernel/ (required since journal 0050)
         run: make checkpatch
       - name: DCO sign-off on every commit in the pull request

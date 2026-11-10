@@ -668,6 +668,8 @@ kernel versions are unverified.
 
 ## 9. What is not covered
 
+The matrix and the known limitations on one page: [matrix-and-limits.md](matrix-and-limits.md).
+
 - Linux security modules beyond the SELinux run above (AppArmor, Smack, and Landlock
   beyond the CLI run of the step `landlock`).
 - Inside `make vm-test`: fstests over the layer (only the vendored `fsx`; fstests

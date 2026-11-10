@@ -8,7 +8,7 @@ files="README.md README.pt-BR.md SECURITY.md CONTRIBUTING.md ROADMAP.md
 docs/faq.md docs/help-wanted.md docs/testing.md docs/when-not-to-use.md docs/compatibility.md
 docs/architecture-overview.md docs/development.md docs/tools.md docs/accessibility.md
 docs/public-surfaces.md docs/status.md docs/status.pt-BR.md docs/operations.md
-docs/container-integration.md docs/security-operations.md GOVERNANCE.md
+docs/container-integration.md docs/security-operations.md GOVERNANCE.md docs/matrix-and-limits.md
 site/*.html site/pt/*.html"
 # Documents whose dated history would give false hits (journal 0234): only the lines between
 # "<!-- current-state -->" and "<!-- /current-state -->" are checked, and the markers must exist,

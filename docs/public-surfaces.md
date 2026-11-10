@@ -3,12 +3,14 @@
 The same facts about MoobFS (what works, what was tested, what was found, who maintains it, what
 help is wanted) are stated in many places. `AGENTS.md` asks that a change of state updates every
 place that states it, in the same unit of work, so that no surface contradicts another. This file
-is the inventory; walk it when closing a batch, a merge, a finding or a publication. Two checks
+is the inventory; walk it when closing a batch, a merge, a finding or a publication. Three checks
 in CI enforce part of it: `scripts/check-retired-claims.sh` (no claim listed in
 `docs/retired-claims.txt` may appear in a current-state document; of `docs/security-roadmap.md`
 and `docs/adoption-risks.md`, whose dated history keeps old claims, only the section between
-`<!-- current-state -->` and `<!-- /current-state -->` is read, journal 0234) and `scripts/site-faq.py --check`
-(the FAQ page is generated from `docs/faq.md`). Walking it also means closing what is done or
+`<!-- current-state -->` and `<!-- /current-state -->` is read, journal 0234), `scripts/site-faq.py --check`
+(the FAQ page is generated from `docs/faq.md`) and `scripts/check-matrix-page.sh` (the releases of
+`docs/matrix-and-limits.md` equal `scripts/supported-kernels` and the KASAN pins, its links
+resolve and it fits on one printed page, journal 0282). Walking it also means closing what is done or
 obsolete: issues whose acceptance is met or whose premise no longer holds, finished calls.
 
 Surfaces outside the repository are listed by kind only; their content (posts, drafts, accounts)
@@ -28,6 +30,7 @@ until a coordinated disclosure) is named in the journal of the change, with the 
 | `docs/history/README.md` | journal index | every journal |
 | `docs/help-wanted.md`, `CONTRIBUTING.md` | what help is wanted | a call opens or closes |
 | `docs/testing.md`, `docs/faq.md`, `docs/when-not-to-use.md`, `docs/compatibility.md`, `docs/operations.md`, `docs/container-integration.md` | what tests prove, answers, limits, compatibility | a test step, a limit or a compatibility decision changes |
+| `docs/matrix-and-limits.md` | the one-page kernel matrix and known limitations (stage 2) | a kernel, architecture or lower is added or removed, a suite runs on a new kernel, a limitation appears or closes |
 | `SECURITY.md`, `docs/security-operations.md`, `site/.well-known/security.txt` | reporting channel, supported versions, safe harbor, access, incident steps, third-party components | the channel, the supported versions, an owner, a secret, a key, a protection rule or a dependency changes; `security.txt` before its `Expires` date |
 | `docs/references.md` | works used | something new is used (same commit) |
 
