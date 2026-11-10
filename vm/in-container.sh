@@ -9,14 +9,21 @@ case "$MOOB_DEBIAN_KERNEL" in
     7.3.3) KERNEL="$MOOB_DEBIAN_KERNEL+deb14-amd64" ;;        # sid on 2026-11-08 (journal 0275)
     *) echo "Unsupported Debian VM kernel: $MOOB_DEBIAN_KERNEL" >&2; exit 1 ;;
 esac
+# MOOB_UBUNTU_KERNEL=7.0.0-43 (vm/run.sh, journal 0281) replaces the Debian kernel with Ubuntu
+# 26.04's generic flavour of that ABI.
+case "${MOOB_UBUNTU_KERNEL:-}" in
+    '') ;;
+    7.0.0-43) KERNEL="$MOOB_UBUNTU_KERNEL-generic" ;;
+    *) echo "Unsupported Ubuntu VM kernel: $MOOB_UBUNTU_KERNEL" >&2; exit 1 ;;
+esac
 # MOOB_ARCH=s390x (vm/run.sh, journal 0280): Debian's s390x build of the same kernel, booted by
 # QEMU's s390x machine with virtio-blk over CCW and the SCLP console; the default is amd64.
 QEMU=qemu-system-x86_64 QEMU_PKG=qemu-system-x86 MACHINE=q35 CONSOLE=ttyS0
 if [ "${MOOB_ARCH:-amd64}" = s390x ]; then
     KERNEL="${KERNEL%-amd64}-s390x" QEMU=qemu-system-s390x QEMU_PKG=qemu-system-s390x MACHINE=s390-ccw-virtio CONSOLE=ttysclp0
 fi
-# The M1 module (kernel/) builds on 6.12 only; on 7.3 the guest runs the layer suite alone.
-case "$MOOB_DEBIAN_KERNEL" in 7.*) M1=0 ;; *) M1=1 ;; esac
+# The M1 module (kernel/) builds on 6.12 only; on 7.x the guest runs the layer suite alone.
+case "$KERNEL" in 7.*) M1=0 ;; *) M1=1 ;; esac
 test -d "/lib/modules/$KERNEL/build"
 make tools BUILD=build/linux
 MOOB_BUILD_DIR=build/linux python3 tests/test_images.py
@@ -38,37 +45,7 @@ cp layer/moobfs_layer.ko "$STAGE/moobfs_layer.ko"
 # Lower filesystems for the layer: ext4, btrfs and XFS as in-tree modules with their
 # dependency chains, plus virtio_blk for the disks that carry the lower images.
 mkdir -p "$STAGE/mods"
-python3 - "$KERNEL" "$STAGE/mods" <<'PY'
-import lzma, sys
-from pathlib import Path
-base = Path('/lib/modules') / sys.argv[1]
-dep = {}
-for line in (base / 'modules.dep').read_text().splitlines():
-    k, _, v = line.partition(':')
-    dep[k.strip()] = v.split()
-order = []
-def visit(m):
-    for d in dep.get(m, []):
-        visit(d)
-    if m not in order:
-        order.append(m)
-# Filesystems request the crc32c shash through the crypto API; modules.dep does not record that.
-# Its module is crc32c_generic on 6.12 and crc32c-cryptoapi on 7.3 (journal 0275).
-crc = next(m for m in ('kernel/crypto/crc32c_generic.ko.xz', 'kernel/crypto/crc32c-cryptoapi.ko.xz')
-           if (base / m).exists())
-for m in (crc, 'kernel/drivers/block/virtio_blk.ko.xz',
-          'kernel/fs/ext4/ext4.ko.xz', 'kernel/fs/btrfs/btrfs.ko.xz', 'kernel/fs/xfs/xfs.ko.xz',
-          'kernel/drivers/md/dm-mod.ko.xz', 'kernel/drivers/md/dm-log-writes.ko.xz',
-          'kernel/drivers/md/dm-flakey.ko.xz'):
-    visit(m)
-out = Path(sys.argv[2])
-with open(out / 'order', 'w') as f:
-    for m in order:
-        name = Path(m).name.replace('.ko.xz', '.ko')
-        (out / name).write_bytes(lzma.decompress((base / m).read_bytes()))
-        f.write(name + '\n')
-print('lower module chain:', ' '.join(Path(m).name for m in order))
-PY
+python3 vm/stage-modules.py "$KERNEL" "$STAGE/mods" "$STAGE/loop.ko"
 # Lower images are sparse disks attached through virtio, not initramfs files.
 rm -f build/vm/lower-ext4.img build/vm/lower-btrfs.img build/vm/lower-xfs.img
 truncate -s 64M build/vm/lower-ext4.img
@@ -113,13 +90,6 @@ stage_bin /usr/bin/getfacl
 mkdir -p "$STAGE/usr/lib/git-core"
 ln -s /tools/git "$STAGE/usr/lib/git-core/git"
 sh vm/build-tests.sh "$STAGE"
-python3 - "$KERNEL" "$STAGE/loop.ko" <<'PY'
-import lzma
-from pathlib import Path
-import sys
-source = Path('/lib/modules') / sys.argv[1] / 'kernel/drivers/block/loop.ko.xz'
-Path(sys.argv[2]).write_bytes(lzma.decompress(source.read_bytes()))
-PY
 make attr-tools BUILD=build/linux CFLAGS="-O2 -g -static"
 cp build/linux/moobfs build/linux/moobfs-attr build/linux/moobfs-check build/linux/moobfs-index "$STAGE/"
 make bench-tools BUILD=build/linux CFLAGS="-O2 -g -static" SQLITE_LIBS="-lsqlite3 -ldl -lpthread"
