@@ -220,6 +220,7 @@ also passed there under KASAN, UBSAN and lockdep. The complete KASAN, UBSAN
 and lockdep suite of this change then exited 0 (`MOOBFS_KASAN_PASS`). The
 complete native-KVM suite of this change was not run. Local VM and KASAN
 suites and all eleven PR checks passed for the earlier guard.
-Issue 118 remains open for a real slow lower device, a large
-single-project client and broader-workload validation. Avoid untrusted
-multi-user query workloads while this issue is open.
+Issue 118 is closed (2026-10-27, journal 0210); a real slow lower device, a
+large single-project client and broader workloads have not been validated.
+Avoid untrusted multi-user query workloads: the limits bound a build's work,
+not its CPU time or I/O.

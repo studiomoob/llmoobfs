@@ -1,6 +1,6 @@
 # 0282 — The one-page matrix and limitations of stage 2
 
-Date: 2026-11-10, 17:48–17:56 Brasília time. Status: **done locally**, not published (branch
+Date: 2026-11-10, 17:48–17:56 Brasília time; second round 17:56–17:58. Status: **done locally**, not published (branch
 `claudiofp/b21-matrix-page`, on `main` `6a711f4`). Estimated effort S (hours); the time recorded
 here is calendar time, close to the effort for this unit.
 
@@ -64,8 +64,7 @@ page.
   matches; `python3 scripts/check-site.py`: 12 pages valid; `sh scripts/check-pins.sh --offline`:
   `PINS_OK`; `sh scripts/check-spdx.sh`: exit 0; `git diff --check`: clean.
 - Not run here: shellcheck on the new script (`make lint`'s first half): shellcheck is not
-  installed on this Mac. It runs in CI's lint job and in the batch's pre-push checks on the test
-  host.
+  installed on this Mac. It ran in the second round, on the test host (below).
 
 ## Limitations
 
@@ -75,8 +74,44 @@ page.
 - "One printed page" is approximated by a line count; the long table rows wrap when printed.
 - Nothing was run on a kernel for this unit; the page reports earlier runs only.
 
+## Second round, 2026-11-10, 17:56–17:58 BRT: shellcheck, and issue 118 in the current-state documents
+
+### Shellcheck on the test host
+
+The script, `scripts/supported-kernels`, `kasan.yml` and `docs/` were copied to a scratch
+directory on the test host (Debian 13, ShellCheck 0.10.0), removed afterwards. The first pass
+reported two notes: SC2016 (backticks inside a single-quoted `grep` pattern, meant literally) and
+SC2013 (a `for` over `$(grep ...)` splits words). The pattern now takes the backtick from a
+variable (`printf '\140'`, braced, after SC1087 on the next pass) and the links are read line by
+line from a here-document, which keeps `bad()` in the same shell. Third pass:
+`shellcheck --shell=sh scripts/check-matrix-page.sh` clean. Under `dash` there:
+`MATRIX_PAGE_OK`, and with a release changed in the copy of the page the check failed with its
+message. Locally (macOS `sh`) the negative rounds of a changed release and a broken link were
+repeated with the final script and failed as before; the unchanged page gives `MATRIX_PAGE_OK`.
+
+### Issue 118 stated as open
+
+`docs/when-not-to-use.md` §3 still said that issue 118 "remains open for slow lower-device and
+larger real-client evidence". GitHub shows it closed on 2026-10-27 at 16:56 BRT, as completed,
+by the merge of PR 160 ("layer: drop a domain record when its directory is removed (#113); close
+#118 with a slow-lower run (journal 0210)"); journal 0210 records the run over a lower slowed by
+`dm-delay`. Current-state documents walked: the READMEs (both state it closed), `docs/status.md`
+and its mirror and `ROADMAP.md` (a dated update says closed after the older checkpoint), the site
+(`journey.html` in both languages lists the 2026-10-27 closure after the dated milestone of
+2026-10-25; `guide.html` links the measurements only), `docs/security-roadmap.md` (no mention in
+its current-state section) and `SECURITY.md`, which said "Issue 118 remains open for a real slow
+lower device ... while this issue is open" a few lines after saying it was closed.
+
+Changes: `docs/when-not-to-use.md` and `SECURITY.md` state that the issue is closed (2026-10-27,
+journal 0210) and that a real slow device and a larger real client were not validated;
+`SECURITY.md` keeps its advice against untrusted multi-user query workloads, now with its reason
+(the limits bound a build's work, not its CPU time or I/O). `docs/spec-query-v2.md`, whose
+paragraph is a dated checkpoint, gains a dated note instead. `docs/retired-claims.txt` gains the
+three old wordings; with one of them put back in `when-not-to-use.md` the check failed, and
+passed again once it was removed. The README Status box is left as it is: the Ubuntu batch
+refreshes it.
+
 ## Next step
 
-Shellcheck of `scripts/check-matrix-page.sh` with the batch's pre-push checks; when the Ubuntu
-port merges, its journal fills the Ubuntu row (and `scripts/supported-kernels`, which the check
-then requires in the page).
+When the Ubuntu port merges, its journal fills the Ubuntu row (and `scripts/supported-kernels`,
+which the check then requires in the page).

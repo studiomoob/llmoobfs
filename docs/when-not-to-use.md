@@ -148,8 +148,10 @@ These limits update the cases discussed in the value assessment, §9.6.
   memory is capped only by a `memory.max` on the user's cgroup, journal 0235). The 32,768-unit
   default denies the measured valid 17,000-file domain; an administrator
   can opt into up to 65,536 units per mount under the merged ADR-0020
-  policy, which admitted that fixture in a dedicated VM. Issue 118 remains
-  open for slow lower-device and larger real-client evidence.
+  policy, which admitted that fixture in a dedicated VM. Issue 118 was
+  closed on 2026-10-27 after a run over a lower slowed by `dm-delay`
+  ([journal 0210](history/0210-security-batch-1-domain-records-and-slow-lower.md));
+  no run on a real slow device or a larger real client has been made.
   The opt-in native-KVM probe
   of ADR-0021 passed on the dedicated host, and so did `release`, `overbudget`
   and `buildcostevict` under KASAN, UBSAN and lockdep. The complete KASAN,

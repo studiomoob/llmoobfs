@@ -18,7 +18,8 @@ for m in supported-kernels kasan-pins; do
 	fi
 done
 
-listed=$(block supported-kernels | grep -o '`[0-9][0-9.]*+[^`]*`' | tr -d '`' | sort)
+bt=$(printf '\140') # a backtick, kept out of quoted patterns
+listed=$(block supported-kernels | grep -o "${bt}[0-9][0-9.]*+[^${bt}]*${bt}" | tr -d "$bt" | sort)
 want=$(grep -v '^#' scripts/supported-kernels | grep -v '^ *$' | sort)
 [ "$listed" = "$want" ] || bad "supported releases differ from scripts/supported-kernels: page [$(printf %s "$listed" | tr "\n" " ")] list [$(printf %s "$want" | tr "\n" " ")]"
 
@@ -28,10 +29,13 @@ wantpins=$(printf '%s\n%s\n' "$(yaml KERNEL_VERSION)" "$(yaml KERNEL73_VERSION)"
 [ "$pins" = "$wantpins" ] || bad "KASAN pins differ from kasan.yml: page [$(printf %s "$pins" | tr "\n" " ")] workflow [$(printf %s "$wantpins" | tr "\n" " ")]"
 
 # relative links, resolved from docs/ (fragments are not checked)
-for l in $(grep -o '](\([^)]*\))' "$page" | sed 's/^](//; s/)$//; s/#.*//'); do
+links=$(grep -o '](\([^)]*\))' "$page" | sed 's/^](//; s/)$//; s/#.*//')
+while IFS= read -r l; do
 	case "$l" in http://*|https://*|'') continue ;; esac
 	[ -e "docs/$l" ] || bad "broken link: $l"
-done
+done <<EOF
+$links
+EOF
 
 n=$(wc -l < "$page")
 [ "$n" -le "$max_lines" ] || bad "$n lines, more than the $max_lines that fit on one printed page"

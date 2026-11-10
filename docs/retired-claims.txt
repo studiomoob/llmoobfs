@@ -461,3 +461,6 @@ Two series on x86-64
 Duas séries em x86-64
 on two kernel series (6.12; 7.3 for the layer module)
 **Today.** Two series, x86-64
+open for slow lower-device and larger real-client evidence
+Issue 118 remains open for a real slow lower device
+Avoid untrusted multi-user query workloads while this issue is open

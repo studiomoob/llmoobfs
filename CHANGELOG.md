@@ -24,6 +24,9 @@
   limitations, one line each with a link. `scripts/check-matrix-page.sh`, run in CI, keeps its
   releases equal to `scripts/supported-kernels` and the KASAN pins, checks its links and its
   length; the retired-claims check reads it (journal 0282).
+- `docs/when-not-to-use.md` and `SECURITY.md` no longer say that issue 118 is open; it was closed on
+  2026-10-27 with the slow-lower run of journal 0210 (PR 160). The old wordings are retired claims
+  (journal 0282).
 - Python library: `layer_mounted()` reads `struct statfs`'s `f_type` with the width of the ABI,
   32-bit on s390x and a native `long` elsewhere; on s390x it was False on every mount, so
   `Domain` never used the kernel backend. Unit tests in `make pylib-test` decode fixed s390x and
