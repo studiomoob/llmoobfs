@@ -11,11 +11,12 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     busybox-static qemu-system-x86 kmod udev ca-certificates git make gcc libc6-dev \
     automake libtool libtool-bin gawk indent libacl1-dev libaio-dev libattr1-dev libcap-dev \
     libgdbm-dev liburing-dev uuid-dev uuid-runtime xfslibs-dev attr acl bc dbench dump quota \
-    psmisc fio e2fsprogs btrfs-progs xfsprogs python3 perl util-linux sudo \
+    psmisc fio e2fsprogs btrfs-progs xfsprogs python3 perl util-linux sudo zstd \
     && rm -rf /var/lib/apt/lists/*
 # fstests' configure needs pkg-config's macros (PKG_CHECK_MODULES), which the Debian test host had
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     autoconf pkgconf python3-venv && rm -rf /var/lib/apt/lists/*
+# zstd: virtme-ng unpacks Ubuntu's .ko.zst modules for its initramfs with the zstd command.
 # virtme-ng 1.42 by hash, as the KASAN harness; Ubuntu's 1.40 refuses --rwdir on a bind mount
 # ("path must be defined inside a valid overlay")
 COPY kasan-requirements.txt /tmp/kasan-requirements.txt
