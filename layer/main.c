@@ -410,8 +410,8 @@ static void moobl_d_release(struct dentry *dentry)
 	}
 }
 
-#if MOOBL_VFS_73
-/* 7.3 passes the parent and the name, which the layer does not need: its lower dentry has both */
+#if MOOBL_VFS_70
+/* 7.0 and 7.3 pass the parent and the name, which the layer does not need: its lower has both */
 static int moobl_d_revalidate_73(struct inode *dir, const struct qstr *name,
 				 struct dentry *dentry, unsigned int flags)
 {
@@ -634,10 +634,11 @@ static int moobl_create(struct mnt_idmap *idmap, struct inode *dir,
 	return err;
 }
 
-#if MOOBL_VFS_73
+#if MOOBL_CREATE_73
 /*
  * 7.3's .create has no excl: the VFS creates only names it found negative under the parent's
- * lock (porting.rst), and moobl_vfs_create() has no excl to pass on.
+ * lock (porting.rst), and moobl_vfs_create() has no excl to pass on. 7.0 still passes excl and
+ * installs moobl_create itself (moobl_compat.h checks the type of ->create).
  */
 static int moobl_create_73(struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry,
 			   umode_t mode)
@@ -659,7 +660,7 @@ static int moobl_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	err = moobl_lock_parent(dentry, &lower_dentry, &lower_dir);
 	if (err)
 		return err;
-#if MOOBL_VFS_73
+#if MOOBL_VFS_70
 	{
 		/*
 		 * On error vfs_mkdir() has unlocked lower_dir and dropped lower_dentry already
@@ -691,8 +692,8 @@ static int moobl_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	return err;
 }
 
-#if MOOBL_VFS_73
-/* 7.3's .mkdir returns a dentry: NULL when the one passed was instantiated, as here */
+#if MOOBL_VFS_70
+/* .mkdir returns a dentry since 7.0: NULL when the one passed was instantiated, as here */
 static struct dentry *moobl_mkdir_73(struct mnt_idmap *idmap, struct inode *dir,
 				     struct dentry *dentry, umode_t mode)
 {
@@ -770,7 +771,7 @@ static int moobl_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	struct dentry *lower_old = dget(moobl_lower_dentry(old_dentry));
 	struct dentry *lower_new = NULL;
 	struct inode *target = d_inode(new_dentry);
-#if MOOBL_VFS_73
+#if MOOBL_VFS_70
 	struct qstr new_name = QSTR_LEN(new_dentry->d_name.name, new_dentry->d_name.len);
 	struct renamedata rd = {
 		.mnt_idmap = &nop_mnt_idmap,
@@ -809,7 +810,7 @@ static int moobl_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	err = moobl_want_write(old_dir->i_sb);
 	if (err)
 		goto out_put;
-#if MOOBL_VFS_73
+#if MOOBL_VFS_70
 	/*
 	 * lock_rename() is gone (porting.rst). start_renaming_dentry() locks the parents (by the
 	 * lower source's current parent, then refuses with EINVAL a source moved away from
@@ -856,7 +857,7 @@ static int moobl_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		goto out_unlock;
 	if (d_unhashed(lower_old) || d_unhashed(lower_new))
 		goto out_unlock;
-#if !MOOBL_VFS_73
+#if !MOOBL_VFS_70
 	if (trap == lower_old)
 		goto out_unlock;
 	err = -ENOTEMPTY;
@@ -886,7 +887,7 @@ static int moobl_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	if ((flags & RENAME_EXCHANGE) && target)
 		moobl_index_renamed(old_dir->i_sb, new_dentry, old_dentry);
 out_unlock:
-#if MOOBL_VFS_73
+#if MOOBL_VFS_70
 	end_renaming(&rd);
 	lower_new = NULL;	/* end_renaming() dropped it */
 #else
@@ -1249,9 +1250,9 @@ static void moobl_statx_lower(struct kstat *stat, const struct kstat *lower)
 static int moobl_lower_getattr(const struct path *path, struct kstat *stat, u32 request_mask,
 			       unsigned int flags)
 {
-#if MOOBL_VFS_73
+#if MOOBL_VFS_70
 	/*
-	 * 7.3 has no AT_GETATTR_NOSEC: every call is the one 6.12 always made, as ovl_getattr()
+	 * 7.0 and 7.3 have no AT_GETATTR_NOSEC: every call is the one 6.12 always made, as ovl_getattr()
 	 * does with ovl_real_getattr_nosec() (fs/overlayfs/inode.c); the caller's security hook
 	 * ran on the layer's inode in vfs_getattr().
 	 */
@@ -1393,8 +1394,8 @@ static void moobl_file_modified(struct file *file)
 	moobl_copy_attr(inode, moobl_lower_inode(inode));
 }
 
-#if MOOBL_VFS_73
-/* 7.3's end_write gets the kiocb of the layer file (fs/backing-file.c), as ovl_file_end_write() */
+#if MOOBL_VFS_70
+/* end_write gets the layer file's kiocb since 7.0 (fs/backing-file.c), as ovl_file_end_write() */
 static void moobl_file_end_write(struct kiocb *iocb, ssize_t ret)
 {
 	moobl_file_modified(iocb->ki_filp);
@@ -1535,8 +1536,8 @@ void moobl_qbuf_put(struct file *file, struct moob_query_result *buf)
 	kvfree(buf);
 }
 
-#if MOOBL_VFS_73
-/* 7.3's helpers find the layer file in the kiocb or the VMA instead of ctx->user_file */
+#if MOOBL_VFS_70
+/* since 7.0 the helpers find the layer file in the kiocb or the VMA, not in ctx->user_file */
 #define MOOBL_CTX(file) {						\
 	.cred = MOOBL_SB(file_inode(file)->i_sb)->creds,		\
 	.accessed = moobl_file_accessed,				\
@@ -1642,9 +1643,9 @@ static ssize_t moobl_splice_read(struct file *in, loff_t *ppos,
 	if (err)
 		return err;
 
-#if MOOBL_VFS_73
+#if MOOBL_VFS_70
 	{
-		/* 7.3's splice helpers take a kiocb of the layer file, built as ovl_splice_read() */
+		/* the splice helpers take a kiocb of the layer file, built as ovl_splice_read() */
 		struct kiocb iocb;
 		ssize_t ret;
 
@@ -1674,7 +1675,7 @@ static ssize_t moobl_splice_write(struct pipe_inode_info *pipe, struct file *out
 		return PTR_ERR(ctx.cred);
 	inode_lock(inode);
 	ret = file_remove_privs(out);
-#if MOOBL_VFS_73
+#if MOOBL_VFS_70
 	if (!ret) {
 		/* a kiocb of the layer file, as ovl_splice_write() builds it */
 		struct kiocb iocb;
@@ -1864,9 +1865,9 @@ static const struct file_operations moobl_file_fops = {
 	.flush = moobl_flush,
 	.remap_file_range = moobl_remap_file_range,
 	.copy_file_range = moobl_copy_file_range,
-#if MOOBL_VFS_73
+#if MOOBL_VFS_70
 	/*
-	 * 7.3 refuses leases with EINVAL when ->setlease is NULL, where 6.12 fell back to
+	 * 7.0 and 7.3 refuse leases with EINVAL when ->setlease is NULL, where 6.12 fell back to
 	 * generic_setlease() (porting.rst; fs/locks.c, kernel_setlease()): set it, as overlayfs
 	 * does (fs/overlayfs/file.c). Directories keep none, so a lease on one stays refused, as
 	 * vfs_setlease() refuses it on 6.12.
