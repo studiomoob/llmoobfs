@@ -1419,3 +1419,7 @@ hand and carries the same code paths:
   and KFENCE on s390. The tarball is the KASAN pin of `.github/workflows/kasan.yml`, SHA-256
   `cb3ed3dfdd47e6ade49dc933db334fd86e24cadee920da612c262b0e9b6a511b`, checked on the instance.
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/s390/kvm/kvm-s390.c?h=v6.12.116>.
+- glibc's s390x `struct statfs` (`/usr/include/s390x-linux-gnu/bits/statfs.h`, Ubuntu 24.04's
+  glibc 2.39): `unsigned int f_type; unsigned int f_bsize;`, unlike x86-64's `__fsword_t` (long);
+  the reason `layer_mounted()` in `python/src/moobfs/domain.py` misreads it on s390x
+  ([statfs(2)](https://man7.org/linux/man-pages/man2/statfs.2.html), "f_type ... __fsword_t").

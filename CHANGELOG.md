@@ -27,6 +27,11 @@
   boots on an s390x host (`vm/kasan-s390x.config`: `CONFIG_KVM=n` for the guest kernel). Under
   KASAN/UBSAN/lockdep on s390x the ext4, btrfs and XFS steps passed; the full KASAN run stopped at
   `release`, whose 500-file build exceeds the module's 10 s CPU bound on that debug kernel.
+  Third round: the later steps by name under KASAN on s390x, 15 passed (fault injection
+  included), 1 skipped, 7 failed, with no kernel diagnostic; the failures are the same build bound
+  and two timing thresholds of tests, and one defect of the Python library on s390x:
+  `layer_mounted()` reads `struct statfs`'s 32-bit `f_type` as a `long` there, so the kernel
+  backend is never used (recorded, not fixed; journal 0280).
 - Regression tests for five review findings that had none in a gate, all in the full
   `make vm-test`: steps `deeptree` (R2-1) and `samedir` (R2-2) run the reproducers of journal
   0153 on ext4, btrfs and XFS; `tests/layer.c behind` in `run_lower` checks names changed on the

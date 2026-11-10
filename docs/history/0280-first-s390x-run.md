@@ -1,6 +1,7 @@
 # 0280 — The layer module on a big-endian kernel: a first s390x run
 
-Date: 2026-11-09, 13:46–14:30 Brasília time; second round 14:49–20:25. Status: **done
+Date: 2026-11-09, 13:46–14:30 Brasília time; second round 14:49–20:25; third round
+20:28–00:55 (2026-11-10). Status: **done
 locally**, not published; exploratory, two full runs on one host, then the second round below
 (T2, cross-machine data, KASAN: the lowers passed, the full KASAN run stopped at `release`). s390x does not join the supported list
 (`docs/compatibility.md` §1 rule 5). Estimated effort S (hours); the time recorded here is
@@ -376,3 +377,90 @@ the maintainer (see next steps).
 Second round's time: 14:49–20:25 BRT, calendar time; effort about 2 h, the rest waiting on the
 kernel build (25 min) and the KASAN runs (1 h 44 min and 2 h 48 min). Estimate was S; actual S
 for the effort, M in calendar time.
+
+## Third round, 2026-11-09 20:28 – 2026-11-10 00:55 BRT: the steps after `release` under KASAN
+
+Asked: run under KASAN on s390x, by name, the full run's steps that come after `release`, with
+`faults` and the final checks; `release` itself stays out (its cause is above). Same kernel,
+fragments and harness as the second round (the instance's checkout matched HEAD by SHA-256 for
+`vm/suite.sh`, `vm/kasan-local.sh`, `vm/kasan-s390x.config`, `vm/kasan-guest.sh`,
+`vm/kasan.config`); `layer/` unchanged.
+
+Steps, in `vm/suite.sh` order after `release`, that a full run executes: `lowerro sqlext
+permmatrix permchurn selfcheck permgaps rootpath overbudget memcg stall bigdir buildcost
+fairshare limits diag xattrread domainrecs domainreuse minacl ixlock landlock pylib`, then
+`faults` (`vm/kasan-guest.sh`, after the suite); the suite's closing checks (unload, CLI with the
+module unloaded, kdiag) and the harness's dmesg scan run in every run. Not run, because a full
+run does not run them either (they run only when named): `crossmachine buildcostlarge
+buildcostevict builddenial mountscale buildclient buildlimit buildwork buildtime buildmoved`.
+Every step could be run by name.
+
+Because the harness stops at the first failure, the first run took the list in order; after
+its failure the rest ran again from the next step, and after a second failure each remaining
+step ran in a guest of its own, so that one failure does not hide the others.
+
+| Step | Run (BRT) | Result |
+| --- | --- | --- |
+| lowerro, sqlext, permmatrix, permchurn, selfcheck, permgaps | 20:28–21:58, one guest | pass: `LOWERRO_PASS`, `SQLEXT_PASS`, 72 `PERMMATRIX_PASS` and `PERMMATRIX_STEP_PASS` on three lowers, `PERMCHURN_STEP_PASS` on three lowers, `SELFCHECK_PASS`, `PERMISSION_GAPS_PASS` on three lowers |
+| rootpath | same guest | **fail** `rootpath-race-ext4`: "the mount-wide QUERY failed (status 5120)" |
+| overbudget | 22:01–22:05 | **fail** `overbudget-race-ext4`: "only 7 queries before the time cap" |
+| memcg | 22:07–22:10 | pass, `MEMCG_ACCOUNT_PASS` |
+| stall | 22:10–22:13 | pass, `STALL_PASS` |
+| bigdir | 22:13–22:30 | **fail** `bd-differs-from-oracle`: kernel 0, oracle 2501 |
+| buildcost | 22:30–22:34 | pass (`QUERY_BUILD_COST` lines; the step has no `_PASS` marker of its own) |
+| fairshare | 22:34–22:39 | pass, `FAIRSHARE_PASS` |
+| limits | 22:39–22:42 | **fail** `lm-measure-c` |
+| diag | 22:42–22:49 | `DIAG_BUDGET_PASS`, then **fail** `dg-big-differs kernel=0 oracle=6000` |
+| xattrread | 22:49–22:51 | pass, `XATTRREAD_PASS` |
+| domainrecs | 22:51–23:03 | pass, `DOMAINRECS_PASS` |
+| domainreuse | 23:03–23:09 | pass, `DOMAINREUSE_PASS` |
+| minacl | 23:09–23:12 | pass, `MINACL_PASS` |
+| ixlock | 23:12–23:14 | **fail** `il-evict-waited (3779 ms to evict them)` |
+| landlock | 23:14–23:17 | skipped: `LANDLOCK_SKIPPED: this kernel has no Landlock` (`vm/kasan.config` does not enable it) |
+| pylib | 23:17–23:19 | **fail** `pylib`: "MOOBFS_PYLIB_FAIL: run as root with the layer mounted" (finding below) |
+| faults | 23:19–23:39 | pass: `FAULT_INJECTION_PASS` (`FAILNTH_DONE: operations=22 calls=319 faults=297 unexpected=0`), `RENAMEPATH_FAULT_PASS`, `DEADSCAN_PASS`, `UNPRIV_FAULT_PASS` |
+
+No run printed `BUG`, `KASAN:`, `UBSAN:`, an Oops or a `WARNING`, in the console or in the dmesg
+saved at the end; every passing guest ended in `MOOBFS_KASAN_ONLY_PASS`. In all: 15 steps passed
+(counting `buildcost`), 1 skipped, 7 failed.
+
+Causes of the failures:
+
+- **The 10 s build bound** (`MOOBL_BUILD_CPU_NS`, `layer/index.c:864`), as for `release`:
+  `rootpath` (status 5120 is exit code 20, which `tests/rootpath-race.c:190` makes as
+  10 + errno % 100, so `ETIMEDOUT`; 10 000 files), `bigdir` (3000 entries; the dmesg of that
+  guest has `building the index of a domain failed (-110)`), `limits` (the same line), `diag` (a
+  6000-file domain; that guest's one-shot warning was already used by the step's expected
+  `ENOMEM`). A probe in the same kernel, 23:40–23:55 BRT, built a 6000-file domain: `q2 110`
+  after 14 s, tracepoint `err=-110 ... ns=12608721383`.
+- **A time cap in a test**: `overbudget` needs at least 30 queries before 6 × its duration
+  (`tests/overbudget-race.c:137`, `:187`); here every query rebuilt a domain released by the
+  budget, about 9 s each (the trace shows a release every 9–10 s), so 7 fit.
+- **A 1 s threshold in a test**: `ixlock` requires that `drop_caches` take under 1000 ms while a
+  build holds the index lock (`vm/suite.sh` `il-evict-waited`). The same probe timed
+  `drop_caches` with no build at all: 2382 ms for the first after boot, 8003 ms after creating
+  6000 files with the layer mounted, then 4–11 ms. On this kernel a drop takes seconds without
+  any lock, so the check cannot tell a wait from the drop's own cost; the run neither shows nor
+  excludes a wait.
+- **A finding in the Python library**, not in the kernel: `layer_mounted()`
+  (`python/src/moobfs/domain.py:31`) reads `f_type` of `struct statfs` as a native `long`
+  (`struct.unpack_from("l", ...)`). On s390x glibc declares `f_type` and `f_bsize` as
+  `unsigned int` (`/usr/include/s390x-linux-gnu/bits/statfs.h:26-27`), the only 64-bit Linux ABI
+  where `f_type` is 32-bit, so the read gives `f_type << 32 | f_bsize` (for `/` on the host:
+  `0xef5300001000` instead of `0xef53`). The function returns False on every s390x mount, so
+  `Domain` treats a layer as absent and never uses the kernel backend. A scratch copy with only
+  that line changed (`"I"` on s390x) passed the step under the same kernel, 23:55–00:51 BRT:
+  `MOOBFS_PYLIB_PASS: 400 requests (255 with answers in alice) x 2 domains x pages 7 and 4096,
+  60 batches: kernel = scan through the mount = scan of the lower ...`. The change was not
+  committed: `python/` is outside this unit's scope; a fix should read `f_type` with the size of
+  the platform's `__fsword_t` and
+  belongs to a decision of its own. The CI big-endian job runs the C encoding tests only, which is
+  why it did not show.
+
+What this adds up to for s390x under KASAN: no kernel diagnostic in any step that ran, including
+fault injection; the failures are the fixed build bound (5 steps with `release`) and two timing
+thresholds, all from the debug kernel's speed on two vCPUs, plus one user-space ABI defect.
+Steps never run under KASAN on s390x: none of the full run's, except that `release`, `rootpath`,
+`bigdir`, `limits` and `diag` stopped at the bound before their later checks.
+
+Third round's time: 20:28–00:55 BRT, calendar time; effort under 1 h, the rest waiting.
