@@ -1423,3 +1423,9 @@ hand and carries the same code paths:
   glibc 2.39): `unsigned int f_type; unsigned int f_bsize;`, unlike x86-64's `__fsword_t` (long);
   the reason `layer_mounted()` in `python/src/moobfs/domain.py` misreads it on s390x
   ([statfs(2)](https://man7.org/linux/man-pages/man2/statfs.2.html), "f_type ... __fsword_t").
+- Landlock in the KASAN kernels (`vm/kasan.config`): Linux 6.12.116 `security/landlock/Kconfig`
+  (`SECURITY_LANDLOCK` depends on `SECURITY`, selects `SECURITY_PATH` and `SECURITY_NETWORK`) and
+  `security/Kconfig` (`LSM`, the ordered list of enabled LSMs);
+  [Landlock: unprivileged access control](https://docs.kernel.org/6.12/userspace-api/landlock.html).
+  KASAN workflow run 42672003438 (2026-11-09, `a223da1`) printed `LANDLOCK_SKIPPED: this kernel
+  has no Landlock` in both legs, 6.12.116 and 7.3.3.
