@@ -8,7 +8,6 @@ same answers; the kernel is the fast path, the scan the fallback.
 import ctypes
 import fcntl
 import os
-import struct
 import sys
 
 from . import _uapi as u
@@ -17,6 +16,18 @@ from . import query as q
 from . import scan
 
 BACKENDS = ("auto", "kernel", "scan")
+
+
+def _statfs_f_type(raw, machine=None, byteorder=sys.byteorder):
+    """f_type from the bytes of a struct statfs that statfs(2) filled on machine (default: this
+    one). glibc starts the struct with f_type, a __fsword_t (a long) on every Linux ABI but
+    s390x, where f_type and f_bsize are each an unsigned int (bits/statfs.h); reading a long
+    there gave f_type << 32 | f_bsize (journal 0280)."""
+    if machine is None:
+        machine = os.uname().machine
+    if machine == "s390x":
+        return int.from_bytes(raw[:4], byteorder, signed=False)
+    return int.from_bytes(raw[:ctypes.sizeof(ctypes.c_long)], byteorder, signed=True)
 
 
 def layer_mounted(path):
@@ -28,7 +39,7 @@ def layer_mounted(path):
     if libc().statfs(os.fsencode(path), buf) != 0:
         e = ctypes.get_errno()
         raise OSError(e, os.strerror(e), path)
-    return struct.unpack_from("l", buf.raw)[0] == u.FS_MAGIC
+    return _statfs_f_type(buf.raw) == u.FS_MAGIC
 
 
 def get_info(mount_root):

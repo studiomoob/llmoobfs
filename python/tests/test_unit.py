@@ -216,5 +216,35 @@ class Times(unittest.TestCase):
             self.assertEqual(Value.of(base + d).python(), base + d)
 
 
+
+class StatfsFType(unittest.TestCase):
+    """layer_mounted() reads f_type from the bytes statfs(2) fills (journal 0280). Fixed buffers,
+    so that every host checks the s390x layout, where f_type and f_bsize are 32-bit."""
+    rest = bytes(range(1, 121))   # the struct's other fields, whatever they hold
+
+    def test_s390x_big_endian_unsigned_int(self):
+        from moobfs.domain import _statfs_f_type
+        raw = struct.pack(">II", u.FS_MAGIC, 4096) + self.rest
+        self.assertEqual(_statfs_f_type(raw, "s390x", "big"), u.FS_MAGIC)
+        # the reading before journal 0280: a native long, f_type << 32 | f_bsize
+        self.assertEqual(struct.unpack_from(">q", raw)[0], u.FS_MAGIC << 32 | 4096)
+        self.assertNotEqual(_statfs_f_type(struct.pack(">II", 0xef53, 4096) + self.rest,
+                                           "s390x", "big"), u.FS_MAGIC)
+
+    def test_x86_64_little_endian_long(self):
+        from moobfs.domain import _statfs_f_type
+        raw = struct.pack("<qq", u.FS_MAGIC, 4096) + self.rest
+        self.assertEqual(_statfs_f_type(raw, "x86_64", "little"), u.FS_MAGIC)
+        self.assertEqual(_statfs_f_type(struct.pack("<qq", 0xef53, 4096) + self.rest,
+                                        "x86_64", "little"), 0xef53)
+
+    def test_this_host(self):
+        from moobfs.domain import _statfs_f_type
+        import ctypes
+        word = ctypes.c_uint if os.uname().machine == "s390x" else ctypes.c_long
+        raw = bytes(word(u.FS_MAGIC)) + bytes(word(4096)) + self.rest   # native layout
+        self.assertEqual(_statfs_f_type(raw), u.FS_MAGIC)
+
+
 if __name__ == "__main__":
     unittest.main()
