@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- PR 190 (journals 0275, 0277) and PR 191 (journal 0276) merged on 2026-11-09; journals 0272,
+  0275 and 0277 closed. `vm/kasan-local.sh` runs the KASAN workflow's 7.3 leg with
+  `MOOB_KASAN_KERNEL=7.3` (journal 0279).
+- Review finding V-c of journal 0114 has a test of its own: suite step `dirstall`
+  (`tests/dirstall.c`) stalls root's `getdents64` of a checked domain's directory on a
+  userfaultfd fault in its buffer, with a creation queued behind it, on ext4, btrfs and XFS; the
+  query whose per-result check walks that directory waits, and a query of another domain by
+  another user still answers. A negative round with `query_sem` held across the checks, as before
+  journal 0116, fails the step. `vm/kasan.config` gains `CONFIG_USERFAULTFD=y` so the KASAN guest
+  runs it (journal 0278).
 - Regression tests for five review findings that had none in a gate, all in the full
   `make vm-test`: steps `deeptree` (R2-1) and `samedir` (R2-2) run the reproducers of journal
   0153 on ext4, btrfs and XFS; `tests/layer.c behind` in `run_lower` checks names changed on the
@@ -14,18 +24,19 @@
   so accepted by `make install` and built by DKMS, with a native CI job each; the KASAN workflow
   gains a 7.3.3 leg, and the 6.12 leg keeps its required-check name. `generic/301` is excluded on
   btrfs in fstests `quick` as in `auto`. `docs/compatibility.md` rule 2 is amended: `make install`
-  and DKMS refuse by exact release, `make layer` by API series (journal 0277, in progress).
+  and DKMS refuse by exact release, `make layer` by API series (journal 0277). PR 190, merged on 2026-11-09 (`b35dbf9`); the three
+  new CI jobs passed on their first run.
 - The layer builds on Linux 7.3.3 as well as 6.12 (ADR-0034): the changed kernel interfaces are
   adapted in `layer/moobl_compat.h`, keyed on the kernel version, with overlayfs 7.3.3 as the
   model; the 6.12.116 object code is unchanged. On 7.3.3 the full suite (Debian's
   `7.3.3+deb14`), KASAN/UBSAN/lockdep and fstests `quick` on ext4, btrfs and xfs (631 tests each)
-  passed; 7.3 is not yet a supported kernel (journal 0275, in progress).
+  passed; 7.3.3 became a supported kernel the same day (journals 0275 and 0277).
 - The upstream test kernel (KASAN, KCSAN, coverage, interop, arm64 KASAN, static analysis and the
   checkpatch tag) moves from 6.12.112 to 6.12.116; the full KASAN/UBSAN/lockdep suite passed on it
   (journal 0272).
 - ADR-0034: a second narrow exception to the kernel freeze, for adaptations to newer kernel
   interfaces only; a compile-only probe found the module builds on 6.12.116 and needs a port for
-  7.3 (journal 0272, in progress).
+  7.3 (journal 0272).
 - ADR-0035 (accepted 2026-11-09): the workspace layout for `domain_depth=2` (`<ns>`, `<ns>/shared` with a
   base-only default ACL, `<ns>/<agent>`) and the `moobfs` commands that make it. Implemented
   locally in user space (`tools/moobfs-workspace.c`, `tools/workspace.h`): `moobfs mount`

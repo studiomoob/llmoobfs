@@ -76,7 +76,7 @@ at the end of journal 0114). Items 1, 2 and the frozen lower were private adviso
 | 9 | Pushed equality ignores the constraint's collation (SQLite table) | fixed | journal 0120 | step `sqlext`, `SQLEXT_PASS`, tag `sx-differs` [suite] | Negative round in journal 0131 |
 | V-a | Frozen lower: any user's create or chmod hits `WARN_ON` in ext4 | fixed | journal 0117; PR 80 | step `lowerro`, tag `lr-fz-kernel-warning` [suite] | New finding of the verification, part of F11 |
 | V-b (F12) | Idmapped lower mount accepted, mapping ignored | fixed (refused at mount) | journal 0117; PR 80 | step `lowerro`, `LOWERRO_PASS` "idmapped lower: refused" [suite] | The Debian guest prints "idmapped lower: not tested (no idmapped bind mount here)" (journal 0171) |
-| V-c | Suspected: a per-result check waiting on a layer directory lock | fixed with item 2 | journal 0116 | none of its own | Closed by the same change as item 2 (journal 0114) |
+| V-c | Suspected: a per-result check waiting on a layer directory lock | fixed with item 2 | journal 0116 | step `dirstall` (`DIRSTALL_PASS`) [suite] (journal 0278) | Closed by the same change as item 2 (journal 0114); negative round with `query_sem` held across the checks fails |
 
 ### A3. Review of `d110d4e` (journal 0144, 2026-10-20)
 
@@ -313,7 +313,8 @@ Part A (inside the criterion as worded):
 2. **0114 item 6** (`cond_resched` in long walks): no test, by the decision of journal 0120.
 3. **0114 item 8** (directory reads with the caller's credentials): no test; differs only under
    an LSM policy, which `make vm-test` does not load.
-4. **0114 V-c** (suspected wait on a layer directory lock): no test of its own.
+4. **0114 V-c** (suspected wait on a layer directory lock): closed by journal 0278, step
+   `dirstall` in the full suite (needs root's userfaultfd; `DIRSTALL_SKIPPED` without it).
 5. **R2-1 (F14)**: closed by journal 0276, step `deeptree` in the full suite.
 6. **R2-2**: closed by journal 0276, step `samedir` in the full suite.
 7. **R2-12**: closed by journal 0276, step `attrlist` (btrfs and XFS).

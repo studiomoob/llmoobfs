@@ -295,7 +295,7 @@ the upstream kernel tarballs against kernel.org's `sha256sums.asc` (the Lint job
 | Pin | Copies |
 | --- | --- |
 | Upstream kernel for KASAN and KCSAN (`KERNEL_VERSION`, `KERNEL_SHA256`) | `.github/workflows/kasan.yml`, `.github/workflows/kasan-arm64.yml`, `.github/workflows/kcsan.yml`, `.github/workflows/interop.yml`, `.github/workflows/coverage.yml`, `tests/static/Dockerfile`, this file's KASAN section; `vm/kasan-local.sh` and `vm/syzkaller-local.sh` read `kasan.yml` |
-| Upstream 7.3 kernel of the KASAN workflow's second leg (`KERNEL73_VERSION`, `KERNEL73_SHA256`, journal 0277) | `.github/workflows/kasan.yml` only; checked against kernel.org like the 6.12 pin |
+| Upstream 7.3 kernel of the KASAN workflow's second leg (`KERNEL73_VERSION`, `KERNEL73_SHA256`, journal 0277) | `.github/workflows/kasan.yml` only; checked against kernel.org like the 6.12 pin; `vm/kasan-local.sh` reads it with `MOOB_KASAN_KERNEL=7.3` (journal 0279) |
 | checkpatch.pl tag and file hashes | `scripts/checkpatch.sh` (`TAG` follows the KASAN kernel) |
 | Debian image digest and kernel package of `make vm-test` | `vm/Dockerfile` (image and headers packages at the same version; its default base image is the trixie one of `vm/run.sh`, which picks a sid image for 7.3.3); `tests/static/Dockerfile` uses the same trixie image and one of its kernels (`DEBIAN_KERNEL`) |
 | Static checkers of `make static` (smatch commit, sparse and Coccinelle package versions) | `tests/static/Dockerfile` only (journal 0242); a change of tool version usually changes the findings, so `tests/static/baseline.txt` is reviewed in the same commit |

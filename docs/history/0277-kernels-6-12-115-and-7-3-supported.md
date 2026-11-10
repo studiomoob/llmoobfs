@@ -1,8 +1,8 @@
-# 0277 — Debian 6.12.115 and 7.3.3 become supported kernels (in progress)
+# 0277 — Debian 6.12.115 and 7.3.3 become supported kernels
 
-Date: started 2026-11-09, about 06:50 Brasília time. Status: **in progress**: the list, the CI
-jobs and the documents are changed on the batch branch; the new CI jobs have not run on GitHub;
-the btrfs `quick` rerun on 6.12.115 with the new exclusion list passed (Evidence).
+Date: started 2026-11-09, about 06:50 Brasília time; ended 11:21 Brasília time with the merge
+of PR 190. Status: **done**: both kernels are in `scripts/supported-kernels`, and the three new CI
+jobs passed on PR 190 and on `main`.
 Estimated effort S (hours); the time recorded below is calendar time.
 
 ## Goal
@@ -125,13 +125,22 @@ CodeQL, static analysis, OpenSSF Scorecard and Pages on `403f4a0`; CI, CodeQL, s
 the TLA+ model and Scorecard on `fc50fe3`. The rebase of PR 189 renumbered its
 `docs/references.md` section to 50; this branch's port section became 51.
 
+*Correction, 2026-11-09:* GitHub records the merges at 06:46 BRT (PR 188) and 07:39 BRT
+(PR 189), not 06:40 and 07:40 as written above.
+
+## Merge of PR 190
+
+With the maintainer's agreement of 2026-11-09, the batch (journals 0275 and 0277, branch
+`claudiofp/b17-port-7.3` at `4c1e1d4`, pre-push checks 12 of 12 at 09:37–09:43) was pushed and
+opened as PR 190 at 10:31 BRT. Its CI passed 23 of 23 checks by 11:21, among them the three new
+jobs on their first run: "Native Linux VM (Debian 6.12.115)" in 14 min 7 s, "Native Linux VM
+(Debian 7.3.3)" in 17 min 35 s (within the 35-minute limit) and "Layer suite under
+KASAN/lockdep (7.3.3)" in 49 min 24 s with its kernel built without a cache (the 6.12 leg took
+41 min 48 s). Merged at 11:21 BRT (`b35dbf9`). The post-merge runs on `main` passed: CI, CodeQL,
+static analysis, the TLA+ model, OpenSSF Scorecard and Pages.
+
 ## Limitations
 
-- The new CI jobs (`Native Linux VM (Debian 6.12.115)`, `Native Linux VM (Debian 7.3.3)`,
-  `Layer suite under KASAN/lockdep (7.3.3)`) have not run on GitHub. Their first runs are the
-  pull request of this batch; until they pass, rule 1's "pass in CI" is met by the local runs of
-  journals 0272 and 0275 only. Whether the 7.3 native job fits in 35 minutes under TCG on a
-  hosted runner is not measured.
 - fstests `quick` for 7.3 ran on kernel.org's 7.3.3 built with `vm/fstests.config`, not on
   Debian's `7.3.3+deb14-amd64`; the two share the upstream release. Debian's build ran the native
   suite.
@@ -140,10 +149,11 @@ the TLA+ model and Scorecard on `fc50fe3`. The rebase of PR 189 renumbered its
   neither has run on a sid host with 7.3.3. `make repro-test` does not cover 7.3.3.
 - `vm/kasan-local.sh` still reads only the 6.12 pin and fetches from `v6.x`; journal 0275 ran 7.3.3
   with an edited copy.
+  *Note, 2026-11-09:* `MOOB_KASAN_KERNEL=7.3` selects the 7.3 pin since journal 0279.
 - Debian's 7.3.3 is in sid on this date; when it reaches forky or a later 7.3 build replaces it,
   the list needs another entry under the same rule.
 
 ## Next step
 
-The batch's pull request, with the maintainer's agreement, whose
-CI runs the three new jobs for the first time, and close this journal and 0275 when they pass.
+None for this journal. Open elsewhere: a new entry when Debian's 7.3 build changes
+(Limitations); `vm/kasan-local.sh` reads the 7.3 pin since journal 0279.
