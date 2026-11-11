@@ -78,7 +78,9 @@ apagado por trás da camada e o `O_NOATIME` ligado por `F_SETFL` agora chegam ao
 `cachestat(2)` continua uma limitação ([diário 0224](history/0224-passthrough-gaps-issue-115.md)). A
 issue 117 foi corrigida em parte: criar e despejar um inode sem registro no índice não toma mais a
 trava do índice da montagem inteira; um inode com registro ainda toma, e a issue continua aberta
-para ele ([diário 0223](history/0223-index-lock-instantiation-eviction.md)). A `v0.4.1-experimental`
+para ele ([diário 0223](history/0223-index-lock-instantiation-eviction.md)). Desde 11/11/2026 esse resto é um limite documentado da prévia técnica, mantido
+até a revisão do congelamento do kernel depois da `v0.6.0` ([diário 0283](history/0283-stage-2-decisions.md); [when-not-to-use.md](when-not-to-use.md) §3).
+A `v0.4.1-experimental`
 contém todos esses defeitos.
 *Atualização, 28/10/2026 ([diário 0227](history/0227-mcp-and-store-confinement.md)):* dois relatos
 privados do mesmo revisor externo, em espaço de usuário, estão corrigidos: o adaptador MCP seguia

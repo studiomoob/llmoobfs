@@ -298,3 +298,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0280 — The layer module on a big-endian kernel: a first s390x run](0280-first-s390x-run.md)
 - [0281 — The port to Ubuntu 26.04's Linux 7.0 (batch b21)](0281-port-ubuntu-7-0.md)
 - [0282 — The one-page matrix and limitations of stage 2](0282-matrix-and-limits-page.md)
+- [0283 — Stage-2 decisions of 2026-11-11: issue 117, acceptance step 5, the known-leak condition and Part B, with tests for Part B](0283-stage-2-decisions.md)

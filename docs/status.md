@@ -74,7 +74,9 @@ layer and `O_NOATIME` set by `F_SETFL` now reach the lower; `cachestat(2)` stays
 ([journal 0224](history/0224-passthrough-gaps-issue-115.md)). Issue 117 is fixed in part: instantiation
 and eviction of an inode without an index record no longer take the mount-wide index lock; an
 inode with a record still does, and the issue stays open for it
-([journal 0223](history/0223-index-lock-instantiation-eviction.md)). `v0.4.1-experimental` contains all
+([journal 0223](history/0223-index-lock-instantiation-eviction.md)). Since 2026-11-11 that remainder is a documented limit of the technical preview, kept
+until the kernel freeze is reviewed after `v0.6.0` ([journal 0283](history/0283-stage-2-decisions.md); [when-not-to-use.md](when-not-to-use.md) §3).
+`v0.4.1-experimental` contains all
 of these defects.
 *Update, 2026-10-28 ([journal 0227](history/0227-mcp-and-store-confinement.md)):* two private
 reports from the same external reviewer, in user space, are fixed: the MCP adapter followed a

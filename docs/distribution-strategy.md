@@ -440,6 +440,35 @@ security roadmap done. The other deliverables and acceptance steps are unchanged
 [matrix-and-limits.md](matrix-and-limits.md), the matrix and the known limitations, checked in CI
 against `scripts/supported-kernels` and the KASAN pins. No third party has reproduced stage 2 yet.
 
+*Amended, 2026-11-11 (maintainer's decisions of that day, [journal 0283](history/0283-stage-2-decisions.md);
+[ADR-0030](decisions/0030-stage-2-review-criterion.md), amendment of the same date):* the text
+above is kept.
+
+- *Acceptance step 5.* It was written when the mount-wide v1 `QUERY` was the only query. What
+  the module does today, read from `layer/index.c` (`moobl_root_ioctl()`, `query2_target()`) and
+  tested: through a bind of the agent's **domain directory**, `QUERY2` answers (`make
+  container-test`, markers `QUERY2_DOMAIN_BIND_docker` and `QUERY2_DOMAIN_BIND_podman`), while
+  `GET_INFO` returns `ENOTTY` and `moobfs info` exits 69 (`INFO_DOMAIN_BIND_docker`,
+  `INFO_DOMAIN_BIND_podman`); the v1 `QUERY` returns `ENOTTY` on every directory but the mount
+  root, and `QUERY2` returns `ENOTTY` on a directory that is not a domain directory
+  (`tests/query.c`, in the suite). Step 5 now reads: read, write and xattr work with an aligned
+  uid; `QUERY2` on the bound domain directory answers; `GET_INFO` and the v1 `QUERY` there return
+  `ENOTTY`, as [container-integration.md](container-integration.md) §4 documents.
+- *Issue 117 (finding M2 of journal 0155) is a documented limit of stage 2.* Journal 0223 removed
+  the mount-wide index lock from the instantiation and eviction of inodes without an index
+  record; an inode with a record still takes `ix->lock` for writing on both. The effect is
+  contention under load, with no wrong answer and no security effect. Removing it changes the
+  kernel, which is frozen ([ADR-0022](decisions/0022-kernel-freeze-and-user-space-consumable-track.md)); the issue stays open as a candidate for when
+  the freeze is reviewed after `v0.6.0`. [when-not-to-use.md](when-not-to-use.md) §3 lists it.
+- *"No leak is known."* GHSA-756j-cgwq-gvwm (the record of a removed inode answering its inode
+  number's next owner) is fixed (journal 0216: records keep `i_generation`; suite step
+  `domainreuse`, `DOMAINREUSE_PASS`) and its advisory was published with the merge of pull request
+  166 (journal 0219). It does not count as an open known leak, and no other leak is known.
+- *Part B of [review-findings.md](review-findings.md)* (reviews and inspections that journal 0240
+  does not classify as AI-assisted) is informative and outside criterion (2) above. Its findings
+  without a test whose test needs no kernel change were given one in journal 0283; 0083 A was
+  not, for the reason that journal gives.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount

@@ -23,6 +23,14 @@ classify. Some are described as AI-assisted in their own journal (0211 to 0213),
 say who or what did the reading. They are listed so that the maintainer can decide whether the
 criterion covers them.
 
+*Note, 2026-11-11 (journal 0283):* the maintainer decided (first agreed on 2026-11-09, confirmed
+on 2026-11-11) that Part B stays informative, outside criterion (2) of ADR-0030 (amendment of
+ADR-0030 of the same date). Its findings without a test whose test needs no kernel change were
+given one in journal 0283 (Gaps, items 14, 16 and 17); 0083 A and the remainder of B2 R3 were
+not, for the reasons given there. In Part A, the remainder of M2 (issue 117) is a documented
+limit of stage 2, and GHSA-756j-cgwq-gvwm is not an open known leak (`docs/distribution-strategy.md`
+§8, amendment of 2026-11-11).
+
 ## How to read the tables
 
 - **ID**: the finding's identifier in its journal (numbers, `R2-n`, `Fn` of ADR-0011, advisory).
@@ -152,7 +160,7 @@ for the deferred items.
 | ID | Finding | Triage | Fix | Regression test | Notes |
 | --- | --- | --- | --- | --- | --- |
 | M1 | Kernel memory sized by an unprivileged user, not memcg-accounted | fixed | journal 0180 (issue 116); PR 129 | step `memcg`, `tests/memcg-query.c`, `MEMCG_ACCOUNT_PASS` [suite] | Isolated negative rounds for buffer and index (journal 0180) |
-| M2 | Mount-wide rwsem taken for writing on every instantiation and eviction | fixed, partial | journal 0223 (issue 117); PR 170 (git) | step `ixlock`, `tests/ixlock.c`, `IXLOCK_PASS` [suite] | Inodes with a record still take the lock; removing `rec->upper` stays a proposal |
+| M2 | Mount-wide rwsem taken for writing on every instantiation and eviction | fixed, partial | journal 0223 (issue 117); PR 170 (git) | step `ixlock`, `tests/ixlock.c`, `IXLOCK_PASS` [suite] | Inodes with a record still take the lock; removing `rec->upper` stays a proposal. Accepted on 2026-11-11 as a documented stage-2 limit (journal 0283); issue 117 stays open |
 | M3 | Unprivileged `QUERY2` triggers an unbounded subtree walk with the mounter's credentials | accepted limit (bounded by work, deadline and rate; stated in `SECURITY.md`) | journals 0182 to 0193, 0210, 0241; PRs 135, 138 | steps `buildlimit` (`BUILD_LIMIT_PASS`), `buildwork` (`BUILD_WORK_OPTION_PASS`), `buildtime` (`BUILD_TIME_PASS`), `buildmoved` (`BUILD_MOVED_PASS`), `builddenial` [opt-in]; `buildcost` [suite] | Issue 118 closed with the slow-lower evidence of journal 0210 |
 | M4 | `->lookup` returns `EXDEV`/`EOPNOTSUPP` for listed names and warns from a user path | fixed | journal 0221 (issue 119); PR 170 (git) | `tests/layer.c` `cfcheck`, `LAYER_CASEFOLD_PASS`, `CASEFOLD_REFUSED_PASS`, `LAYER_SUBVOLUME_PASS` [suite] | Negative round (tag `cf-check`, journal 0221) |
 | M5 | Two halves of `d_revalidate` disagree | duplicate of V4 | journal 0156, `d7f244d` | see V4 | |
@@ -260,11 +268,11 @@ A separate session run by the maintainer; whether it was AI-assisted is not reco
 
 | ID | Finding | Triage | Fix | Regression test | Notes |
 | --- | --- | --- | --- | --- | --- |
-| A | Dentry reference dropped with the index lock held | fixed | journal 0083 | none | Covered indirectly by lockdep and race tests (journal 0083) |
+| A | Dentry reference dropped with the index lock held | fixed | journal 0083 | none | Covered indirectly by lockdep and race tests (journal 0083); no test written in journal 0283, which says why |
 | B | Rename over an indexed file leaves the replaced file indexed | fixed | journal 0083 | tag `insp-rename-over-count-$fs` [suite] | Negative round |
 | C | `MOOB_RES_PATH_TRUNCATED` never reaches the caller | fixed | journal 0083 | tag `insp-deep-truncated-$fs` [suite] | = B2 R2 |
 | D | Typed attribute overwritten by raw keeps its entry | fixed | journal 0083 | tag `insp-raw-over-typed-stale-$fs` [suite] | = B2 R1 |
-| E | Unchecked `xa_store` on a directory permission change fails open | fixed | journal 0083 | none | Needs fault injection (journal 0083) |
+| E | Unchecked `xa_store` on a directory permission change fails open | fixed | journal 0083 | step `fallbackfault`, `tests/fallbackfault.c`, `FALLBACK_FAULT_PASS` [KASAN] (journal 0283) | Fault injection; written 2026-11-11, VM run pending (journal 0283) |
 | F | Two files with one inode number (btrfs subvolume) share a record | fixed (subvolume refused) | journal 0083 | `NESTED_SUBVOLUME_REFUSED` [suite] | Reproduced |
 | G | Partition not recomputed when a hard link count returns to one | accepted limit (false negative) | — | — | |
 | H | Query loops walk non-matching entries without `cond_resched` | not established | — | — | Recorded, not changed; see Gaps |
@@ -287,17 +295,17 @@ Described as "made with an AI assistant" in each journal; merged as PRs 161 to 1
 
 | ID | Finding | Triage | Fix | Regression test | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 0211-1 | Manual KCSAN/arm64 KASAN `steps` input reaches the guest's command line | fixed (input filter) | journal 0211; PR 161 | none | Filter checked by hand only (journal 0211) |
+| 0211-1 | Manual KCSAN/arm64 KASAN `steps` input reaches the guest's command line | fixed (input filter) | journal 0211; PR 161 | `scripts/test-steps-filter.sh`, `STEPS_FILTER_PASS` (`make lint`, in CI) (journal 0283) | Negative rounds in journal 0283 |
 | 0211-2 | `install.sh uninstall` splits a path with a space | fixed | journal 0211; PR 161 | `scripts/test-install.sh`, `INSTALL_UNIT_PASS` (`make install-unit`, in CI) | Negative round |
-| 0211-3 | Syzkaller image setup follows absolute links to the host | fixed (`nosymfollow`) | journal 0211; PR 161 | none | Checked on synthetic images by hand |
+| 0211-3 | Syzkaller image setup follows absolute links to the host | fixed (`nosymfollow`) | journal 0211; PR 161 | `scripts/test-image-setup.sh`, `IMAGE_SETUP_UNIT_PASS` (`make image-setup-unit`, root) (journal 0283) | Written 2026-11-11; run pending (journal 0283) |
 | 0211-4 | Dependabot version updates; dev-container digest pin | not taken (decision) | — | not applicable | |
 | 0212-1 | `Term` accepts hand-built values that overflow the request field | fixed | journal 0212; PR 162 | `test_unit.py::test_term_checks_a_value_built_by_hand`, `::test_fill_bounds_a_payload_replaced_after_the_term` [CI-py] | |
 | 0212-2 | `struct.error` escapes for out-of-range integers | fixed | journal 0212; PR 162 | `test_unit.py::test_int64_range` [CI-py] | |
 | 0212-3 | `find_library("c")` starts helper processes | fixed | journal 0212; PR 162 | `test_linux.py::test_no_helper_process` [CI-py] | |
 | 0212-4 | Scan judges a linked domain by `lstat()` | fixed | journal 0212; PR 162 | `test_linux.py::test_scan_through_a_link_to_the_domain` [CI-py] | |
 | 0213-1 | `moobfs-check` escapes only `path` in its JSON | fixed | journal 0213; PR 163 | `tests/hostile-user.sh` (`HOSTILE_USER_PASS`), `tests/tools-json.sh` (`TOOLS_JSON_PASS`) | Negative round |
-| 0213-2 | `moobfs-index --uid` keeps root's groups; non-numeric uid read as 0 | fixed | journal 0213; PR 163 | none dedicated | Exit 64 checked by hand (journal 0213) |
-| 0213-3 | Tools trust `count` and `path_len` beyond the UAPI header | fixed | journal 0213; PR 163 | none dedicated | |
+| 0213-2 | `moobfs-index --uid` keeps root's groups; non-numeric uid read as 0 | fixed | journal 0213; PR 163 | `tests/tools-uid.sh`, `TOOLS_UID_PASS` (`make hostile-test`; the group part as root) (journal 0283) | Negative round in journal 0283 |
+| 0213-3 | Tools trust `count` and `path_len` beyond the UAPI header | fixed | journal 0213; PR 163 | `tests/tools-uapi.sh` with `tests/fake-query2.c`, `TOOLS_UAPI_PASS` (`make hostile-test`) for the `moobfs` CLI (journal 0283) | Negative rounds in journal 0283; the SQLite table's half has no test |
 | 0213-4 | Tools read attributes by path after `nftw()` | fixed | journal 0232; PR 178 (git) | `tests/tools-walk.sh`, `TOOLS_WALK_PASS` (`make hostile-test`) | Negative round (journal 0232) |
 
 ---
@@ -332,11 +340,20 @@ Part A (inside the criterion as worded):
 Part B (outside the criterion as worded, listed for the maintainer):
 
 14. **0083 A** and **0083 E**: no test (journal 0083).
+    *Note, 2026-11-11 (journal 0283):* E has a test (`fallbackfault`, KASAN harness; its VM run
+    and negative round are pending). A has none: a test that fails without the fix needs a point
+    in the query path that holds the window open, which is a kernel change (journal 0283).
 15. **B2 R3** (remainder): `caller_may_read()` still returns 0 (omit) for lookup and permission
     errors other than `-ENOMEM`; no test and no recorded decision for those errors.
+    *Note, 2026-11-11 (journal 0283):* still no test: what the test should expect depends on a
+    decision about those errors, which is not taken.
 16. **0211-1** (workflow `steps` filter) and **0211-3** (`nosymfollow` in
     `vm/syzkaller/image-setup.sh`): checked by hand, no test in the tree.
+    *Note, 2026-11-11 (journal 0283):* both have a test now: `scripts/test-steps-filter.sh` and
+    `scripts/test-image-setup.sh`.
 17. **0213-2** and **0213-3**: no dedicated test.
+    *Note, 2026-11-11 (journal 0283):* `tests/tools-uid.sh` and `tests/tools-uapi.sh`; the
+    SQLite table's half of 0213-3 still has none.
 18. **F7** and **0081 1-a**: guarded by in-code lockdep assertions that fire only under the
     KASAN/lockdep harness; journal 0113 states its own test does not prove F7.
 
@@ -382,6 +399,8 @@ Tests that exist but do not run in the gates:
    review was "made with an AI assistant". Journals 0019, 0023, 0066, 0079, 0081, 0083 and 0105
    do not say whether their reading was AI-assisted. Whether criterion (2) covers Part B is for
    the maintainer to decide.
+   *Note, 2026-11-11 (journal 0283):* decided: Part B stays outside criterion (2), as
+   information.
 
 ### 3. Tests cited by journals and not found in the tree
 

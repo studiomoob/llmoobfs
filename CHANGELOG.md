@@ -27,6 +27,21 @@
 - `docs/when-not-to-use.md` and `SECURITY.md` no longer say that issue 118 is open; it was closed on
   2026-10-27 with the slow-lower run of journal 0210 (PR 160). The old wordings are retired claims
   (journal 0282).
+- Stage-2 decisions of 2026-11-11 (journal 0283; `docs/distribution-strategy.md` §8 and ADR-0030
+  amended, earlier text kept): the remainder of issue 117 (an inode with an index record takes
+  the index lock for writing on instantiation and eviction) is a documented limit of the
+  technical preview, listed in `docs/when-not-to-use.md` §3, with the issue open until the
+  kernel freeze is reviewed after `v0.6.0`; acceptance step 5 now states what the module does
+  through a bind of a domain directory (`QUERY2` answers, `GET_INFO` and the v1 `QUERY` return
+  `ENOTTY`); GHSA-756j-cgwq-gvwm, fixed and published, is not an open known leak; Part B of
+  `docs/review-findings.md` stays informative, outside the review criterion.
+- Regression tests for Part B findings that had none (journal 0283): `fallbackfault` in the KASAN
+  harness (0083 E: a chmod whose per-domain note cannot be stored still turns per-result checks
+  on, `FALLBACK_FAULT_PASS`; written, its VM run pending), `scripts/test-steps-filter.sh` in
+  `make lint` (0211-1), `make image-setup-unit` (0211-3; not run yet), and `tests/tools-uid.sh`
+  and `tests/tools-uapi.sh` in `make hostile-test` (0213-2 and 0213-3, the latter through an
+  `LD_PRELOAD` stand-in for `QUERY2`). 0083 A has no test: one that fails without its fix needs a
+  kernel change.
 - Python library: `layer_mounted()` reads `struct statfs`'s `f_type` with the width of the ABI,
   32-bit on s390x and a native `long` elsewhere; on s390x it was False on every mount, so
   `Domain` never used the kernel backend. Unit tests in `make pylib-test` decode fixed s390x and

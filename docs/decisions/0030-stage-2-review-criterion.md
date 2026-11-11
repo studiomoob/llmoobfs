@@ -1,6 +1,6 @@
 # ADR-0030 — Review criterion of the technical preview: automated coverage and triaged AI-assisted findings; a targeted human review for the public release
 
-Date: 2026-10-29. Status: **accepted by the maintainer on 2026-10-29** (journal 0240).
+Date: 2026-10-29. Status: **accepted by the maintainer on 2026-10-29** (journal 0240); amended on 2026-11-11 (journal 0283, at the end).
 Estimated effort: S (hours) for the decision and the documents. No kernel, UAPI or format change
 (ADR-0022).
 
@@ -84,3 +84,24 @@ work moves to the stage-3 preconditions.
   human review. Old wordings are in `docs/retired-claims.txt`.
 - Risk: a defect class that neither the tests nor an AI-assisted review can see reaches the
   preview's users. The preview stays limited to VMs or dedicated hosts with documented limits.
+
+## Amendment, 2026-11-11 (journal 0283)
+
+Decided by the maintainer on 2026-11-11, about 08:30 Brasília time; the text above is kept.
+
+- **Part B of [`docs/review-findings.md`](../review-findings.md) is informative.** The reviews and
+  inspections journal 0240 does not classify as AI-assisted (journals 0019, 0020, 0023, 0066,
+  0079, 0081, 0083, 0105, and the contributor's reviews of journals 0211 to 0213) stay outside
+  criterion (2) of the decision above; the maintainer first agreed to this on 2026-11-09 and
+  confirmed it on 2026-11-11. Their findings are still tracked in that register, and journal 0283
+  added regression tests for those that lacked one and need no kernel change.
+- **Issue 117 (finding M2 of journal 0155) is a documented limit of stage 2**, not a gap of
+  criterion (2): its regression test for the part fixed (step `ixlock`) exists; the remainder
+  (inodes with an index record still take the index lock for writing on instantiation and
+  eviction) is contention under load, with no wrong answer and no security effect, and removing
+  it needs a kernel change, frozen by ADR-0022. The issue stays open for the review of the freeze
+  after `v0.6.0`.
+- **GHSA-756j-cgwq-gvwm is not an open known leak** for the "no leak is known" condition of §8:
+  fixed in journal 0216 with a regression test (`domainreuse`) and published (journal 0219).
+- Acceptance step 5 of §8 is restated to match the behaviour of `QUERY2` (see the amendment of
+  `docs/distribution-strategy.md` §8 of the same date).

@@ -1460,3 +1460,35 @@ hand and carries the same code paths:
 - DKMS `BUILD_EXCLUSIVE_KERNEL`, a regular expression on the kernel release (`dkms(8)`), which the
   series entry `7.0.0-*-generic` becomes as `7\.0\.0-[0-9]+-generic`:
   <https://github.com/dkms-project/dkms/blob/main/dkms.8.in>.
+
+## 55. Regression tests for Part B of the review register (journal 0283)
+
+- Linux kernel documentation, "Fault injection capabilities infrastructure"
+  (`Documentation/fault-injection/fault-injection.rst`, Linux 6.12): `failslab` with
+  `probability`, `interval`, `times` (decremented on each injected failure, read back by
+  `tests/fallbackfault.c` to prove a fault fired), `task-filter` with `/proc/<pid>/make-it-fail`
+  (faults for the test's own task only) and the stack-trace filter `require-start`/`require-end`
+  set to the address range of one function from `/proc/kallsyms`. Same document as journal 0096,
+  used here in probability mode instead of `fail-nth`, because `xa_store()` retries a failed
+  node allocation once (`lib/xarray.c`, `__xa_store()` and `__xas_nomem()`, Linux 6.12: a
+  `GFP_NOWAIT` attempt inside the lock, then one with the caller's flags), so a single injected
+  failure is absorbed. <https://www.kernel.org/doc/html/v6.12/fault-injection/fault-injection.html>,
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/lib/xarray.c?h=v6.12.111>.
+- Linux man-pages [`dlsym(3)`](https://man7.org/linux/man-pages/man3/dlsym.3.html) (`RTLD_NEXT`)
+  and [`ld.so(8)`](https://man7.org/linux/man-pages/man8/ld.so.8.html) (`LD_PRELOAD`): the
+  interposition of `tests/fake-query2.c`, which stands in for the layer's `statfs` type and
+  `QUERY2` answers so that `tests/tools-uapi.sh` can feed the CLI records the module never
+  produces. Under AddressSanitizer the runtime's own interceptors reach the preloaded library
+  through `RTLD_NEXT`; with GCC's shared runtime, `verify_asan_link_order=0`
+  ([AddressSanitizer flags](https://github.com/google/sanitizers/wiki/AddressSanitizerFlags)).
+- util-linux [`setpriv(1)`](https://man7.org/linux/man-pages/man1/setpriv.1.html) (`--groups`,
+  `--reuid`, `--regid`): the supplementary group given to root and to the control run of
+  `tests/tools-uid.sh`.
+- e2fsprogs [`mke2fs(8)`](https://man7.org/linux/man-pages/man8/mke2fs.8.html) `-d` (populate an
+  image from a directory) and [`mount(8)`](https://man7.org/linux/man-pages/man8/mount.8.html)
+  `nosymfollow` (Linux 5.10 and later): the two images of `scripts/test-image-setup.sh`, as in the
+  hand check of journal 0211.
+- POSIX shell [`case` patterns](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html#tag_19_09_04_05)
+  and bracket expressions: the filter that `scripts/test-steps-filter.sh` runs as the workflows
+  have it; the explicit letter list instead of a range keeps it independent of the locale's
+  collation (journal 0211, merge note).
