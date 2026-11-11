@@ -464,3 +464,5 @@ on two kernel series (6.12; 7.3 for the layer module)
 open for slow lower-device and larger real-client evidence
 Issue 118 remains open for a real slow lower device
 Avoid untrusted multi-user query workloads while this issue is open
+S16 done locally
+`make layer` does not)
