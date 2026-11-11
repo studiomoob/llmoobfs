@@ -53,3 +53,22 @@ type_transition moobtest_client_t moobtest_dir_t:file moobtest_rw_t;
 
 # the layer's typed attributes are user.* xattrs, governed by the file's own setattr/getattr
 fs_getattr_xattr_fs(moobtest_client_t)
+
+# Finding 0114 item 8 (journal 0284): a second client that may list moobtest_dir_t but may not
+# use a descriptor of the mounter's domain. The guest mounts the layer as kernel_t, so the
+# lower directory file the layer opens belongs to kernel_t: a directory read through the layer
+# that ran with this domain's credentials would need "fd use" on kernel_t and fail; one that
+# runs with the mounter's, as ADR-0011 says, does not. Deliberately no fd use rule here: at exec
+# SELinux replaces the inherited descriptors with the null device (tests/listdir.c fdprobe).
+type moobtest_reader_t;
+domain_type(moobtest_reader_t)
+corecmd_bin_entry_type(moobtest_reader_t)
+role system_r types moobtest_reader_t;
+role unconfined_r types moobtest_reader_t;
+allow { kernel_t unconfined_t } moobtest_reader_t:process transition;
+allow moobtest_reader_t { kernel_t unconfined_t }:process sigchld;
+dev_rw_null(moobtest_reader_t)
+files_search_tmp(moobtest_reader_t)
+fs_search_tmpfs(moobtest_reader_t)
+allow moobtest_reader_t unlabeled_t:dir search;
+allow moobtest_reader_t moobtest_dir_t:dir list_dir_perms;
