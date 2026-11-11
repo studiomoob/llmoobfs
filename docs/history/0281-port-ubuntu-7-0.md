@@ -1,6 +1,10 @@
 # 0281 — The port to Ubuntu 26.04's Linux 7.0 (batch b21)
 
-Date: started 2026-11-10, 17:48 Brasília time; the last run ended 2026-11-11, 00:54 Brasília time. Status: **in progress**. Every gate passed, generic/798 excluded by the maintainer's decision of 2026-11-11, and the series is in `scripts/supported-kernels`. The batch's pull request is next. Estimated effort
+Date: started 2026-11-10, 17:48 Brasília time; the runs ended 2026-11-11, 00:54; the decision
+on generic/798, the folding of journal 0282 and the pull request on 2026-11-11, 08:29–08:45.
+Status: **done**, pull request open, not merged. Every gate passed, generic/798 excluded by the
+maintainer's decision, `7.0.0-*-generic` in `scripts/supported-kernels`, branch pushed and
+pull request opened. Merging waits for a separate ok from the maintainer. Estimated effort
 M (one to three days, survey of 2026-11-10); the time recorded below is calendar time. Most of it
 was spent waiting for VM runs on the test host, not working.
 
@@ -316,8 +320,30 @@ out of the branch, in a patch, because the series was not yet in the list.
 
 ## Time
 
-Calendar time 2026-11-10 17:48 – 2026-11-11 00:54 BRT (about 7 h). The effort was about 3 h of
-reading, code, harness and records; the rest was waiting for runs. This is within the M estimate.
+Calendar time 2026-11-10 17:48 – 2026-11-11 00:54 BRT (about 7 h), plus 08:29–08:45 on
+2026-11-11 for the decision, the matrix page and the pull request. The effort was about 3.5 h of
+reading, code, harness and records; the rest was waiting for runs. This is within the M estimate
+(one to three days) and at its low end.
+
+## After the decision (2026-11-11)
+
+- The prepared change was applied, the decision recorded above, and journal 0282's branch
+  (`0ac3f20`, `3b64a5f`) cherry-picked. The conflicts in `CHANGELOG.md`, the history index,
+  `docs/retired-claims.txt` and the header of `scripts/supported-kernels` were resolved by keeping
+  both sides. The matrix page now has the Ubuntu row, the 7.0.14 pin and the cachestat
+  limitation, in 66 lines. `scripts/check-matrix-page.sh` checks the three pins and the series
+  entry, and fails when either row is removed.
+- The test host was not reachable from this Mac's network on that morning. Two runs were done here
+  instead, with Docker's amd64 emulation: `vm/ubuntu-drift.sh` at `a8a7a9d` in the pinned
+  `ubuntu:26.04` image (08:35, `UBUNTU_DRIFT_PASS: layer built against 7.0.0-43-generic`, the
+  newest of `resolute-updates`, the list now naming it; the only build warning is the accepted
+  frame size), which also serves as the module's rebuild against Ubuntu's 7.0.0-43 headers; and
+  the cheap checks at `a8a7a9d`: `make lint` (shellcheck through `uvx`), `make checkpatch`,
+  `make test`, `make pylib-test`, `check-retired-claims.sh`, `check-pins.sh` (online, three
+  tarballs), `check-matrix-page.sh`, `check-site.py`, `site-faq.py --check` and
+  `git diff --check 6a711f4 HEAD`, all passing. The pre-push script of the test host did not run
+  again. Since its run at `e7e4940`, only documents, the list, the exclusion list and
+  `scripts/check-matrix-page.sh` changed.
 
 ## Limitations
 
