@@ -9,6 +9,8 @@ ARG MOOB_ARCH=amd64
 # in linux-modules, not -extra) and headers, on the ubuntu:26.04 base that vm/run.sh passes
 # (journal 0281). Python 3.14 there unpacks the zstd modules.
 ARG MOOB_UBUNTU_KERNEL=
+# apt with retries and, on Ubuntu, a fallback mirror under another domain (journal 0285)
+COPY vm/apt-install.sh /tmp/apt-install.sh
 RUN QEMU=qemu-system-x86 && \
     if [ "$MOOB_ARCH" = s390x ]; then MOOB_DEBIAN_KERNEL="s390x:$MOOB_DEBIAN_KERNEL" QEMU=qemu-system-s390x; fi && \
     if [ -n "$MOOB_UBUNTU_KERNEL" ]; then MOOB_DEBIAN_KERNEL="ubuntu:$MOOB_UBUNTU_KERNEL"; fi && \
@@ -28,7 +30,7 @@ RUN QEMU=qemu-system-x86 && \
         linux-headers-6.12.111+deb13-s390x=6.12.111-1 ;; \
       *) echo "Unsupported Debian VM kernel: $MOOB_DEBIAN_KERNEL" >&2; exit 1 ;; \
     esac && \
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    sh /tmp/apt-install.sh \
     "$@" gcc make libc6-dev \
     busybox-static cpio kmod "$QEMU" python3 ca-certificates e2fsprogs btrfs-progs xfsprogs git sqlite3 libsqlite3-dev dmsetup acl \
     && rm -rf /var/lib/apt/lists/*
