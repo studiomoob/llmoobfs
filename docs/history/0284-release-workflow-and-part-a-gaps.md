@@ -199,9 +199,33 @@ shellcheck 0.9.0 over the files `make lint` lists, `scripts/check-spdx.sh`,
 (`MATRIX_PAGE_OK`), `scripts/check-site.py`, `scripts/site-faq.py --check`, `make test` and
 `git diff --check origin/main`: pass.
 
+### Finding E of journal 0083 under KASAN (Mac mini, 2026-11-11 evening)
+
+The test host came back at about 20:00 BRT. Clone of this branch at `a460a7b` in a disposable
+directory; KASAN kernel 6.12.116 from the local cache, `MOOB_ONLY=fallbackfault sh vm/kasan-local.sh`.
+
+- First positive round, 20:16–20:42: `MOOBFS_VM_FAIL: ff-answered-without-checks-1`, with the
+  test's own message "no allocation failed under moobl_index_perm_changed: nothing tested". The
+  test was wrong, not the module: its setup set the modes of the domain directory and the
+  subdirectory with `chmod` through the layer, and each of those calls already stored the
+  domain's note in `ix->fallback`. The injected `chmod` then only replaced an existing entry,
+  which allocates nothing, so failslab had no allocation to fail. The setup now creates both
+  directories under `umask(022)` with `mkdir(..., 0755)` and no `chmod`, so the injected `chmod`
+  is the first to store the note.
+- Positive round with that change, 20:44–20:58: `MOOBFS_KASAN_ONLY_PASS`;
+  `FALLBACKFAULT_RESULT injected=0 faults=0 top=1 sub_file=0` and
+  `injected=1 faults=2 top=1 sub_file=0` (two allocations failed under
+  `moobl_index_perm_changed()`, and the file below the 0700 directory stayed hidden from uid 1001);
+  no kernel diagnostic.
+- Negative round on a scratch copy, `WRITE_ONCE(ix->fallback_all, true);` replaced by `(void)0;`
+  (deleting the line would make the next statement the body of the `if`; an empty `;` is refused by
+  the kernel build's `-Werror=empty-body`): `injected=1 faults=2 top=1 sub_file=1`, "0083 E: a file
+  below a directory uid 1001 cannot search was answered", `MOOBFS_VM_FAIL:
+  ff-answered-without-checks-1`. The test fails without the line and passes with it.
+
 ## Pending (test host unreachable)
 
-In addition to the items of journal 0283, "Pending":
+In addition to the items of journal 0283, "Pending" (its `fallbackfault` item is done, above):
 
 1. `MOOB_ONLY=ext4 make vm-test` (the step that runs `tests/passthrough.c`; then btrfs and xfs) →
    `PT_LIMITS_PASS` and `PT_NOEXEC_PASS` beside `PASSTHROUGH_PASS` on each lower. Negative round
