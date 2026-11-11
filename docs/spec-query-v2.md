@@ -443,3 +443,8 @@ earlier fixed-policy paragraphs and proposal note remain dated checkpoints;
 the published behavior is the 32,768 default with a 1,024–65,536
 per-mount choice. Issue 118 remains open for slow lower-device and large
 single-project client evidence.
+
+*Note, 2026-11-10 (journal 0282):* issue 118 was closed on 2026-10-27 with
+the slow-lower run of journal 0210 (a lower slowed by `dm-delay`); since
+ADR-0031 the ten-second deadline counts the builder's CPU time. A real slow
+device and a large single-project client have still not been measured.

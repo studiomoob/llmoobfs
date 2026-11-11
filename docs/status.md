@@ -8,7 +8,7 @@ meets what the project is before its status history. The facts are unchanged. Th
 
 ## Last tag and later corrections
 
-**Experimental. Not for production.** Two kernel series (6.12; 7.3 for the layer module only), tested in a VM only; no independent
+**Experimental. Not for production.** Three kernel series (6.12; Ubuntu's 7.0 and Debian's 7.3 for the layer module only), tested in a VM only; no independent
 human review of the kernel code yet, only automated tools and AI-assisted reviews ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): two source reviews by AI assistants, journals 0111 and 0114;
 an external reviewer's AI-assisted private reports, triaged and reproduced by the reviewer, found three kernel defects, and the reviewer wrote the fix of one, F16, journals 0215, 0216 and 0218;
 an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163. The last

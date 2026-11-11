@@ -16,6 +16,7 @@ accepted but may be only partly implemented, and only the journals and
 | --- | --- | --- |
 | [status.md](status.md) | EN | Current state in detail: the last tag, corrections merged since, open issues (journal 0197) |
 | [status.pt-BR.md](status.pt-BR.md) | PT | Courtesy mirror of status.md |
+| [matrix-and-limits.md](matrix-and-limits.md) | EN | One page: supported and exploratory kernels, lowers, which suites ran where, known limitations (stage 2, journal 0282) |
 | [operations.md](operations.md) | EN | Install on a dedicated test host, mount by hand and at boot, users, upgrade, uninstall (roadmap C2) |
 | [container-integration.md](container-integration.md) | EN | Docker and Podman: bind the agent's domain under its uid, queries inside the container, what is refused (roadmap C3) |
 | [architecture-overview.md](architecture-overview.md) | EN | How the stacked layer is built, with a source citation for each claim |

@@ -1,5 +1,5 @@
 name: KASAN and lockdep
-# Builds pinned upstream kernels (6.12 and, since journal 0277, 7.3) with KASAN, UBSAN and
+# Builds pinned upstream kernels (6.12, 7.3 since journal 0277 and 7.0 since journal 0281) with KASAN, UBSAN and
 # lockdep using virtme-ng and runs the layer suite (vm/suite.sh) inside each, one matrix leg per
 # kernel. It is a required check of main, so the
 # job starts on every pull request; the heavy steps run only when the pull request touches
@@ -21,6 +21,10 @@ env:
   # the 7.3 leg (journal 0277); scripts/check-pins.sh checks it against kernel.org as well
   KERNEL73_VERSION: 7.3.3
   KERNEL73_SHA256: 79c66dde66cd96877fcde8f7d36aec946b1f423d2b97b5a7b1751b75c764f3d1
+  # the 7.0 leg (journal 0281): upstream 7.0.14, the base of Ubuntu 26.04's 7.0.0-43; 7.0 is end
+  # of life upstream, and this is its last release. scripts/check-pins.sh checks it too.
+  KERNEL70_VERSION: 7.0.14
+  KERNEL70_SHA256: de9999b784d2293f00d39c62d8f92a08ab8a54bc4e80ffd250a0c09cb07a0f98
 jobs:
   kasan:
     # The 6.12 leg keeps the name "Layer suite under KASAN/lockdep", a required check of main.
@@ -40,6 +44,9 @@ jobs:
           - series: '7.3'
             name: Layer suite under KASAN/lockdep (7.3.3)
             artifact: kasan-733-evidence
+          - series: '7.0'
+            name: Layer suite under KASAN/lockdep (7.0.14)
+            artifact: kasan-7014-evidence
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,6 +58,7 @@ jobs:
           case "$SERIES" in
             6.12) echo "KV=$KERNEL_VERSION" >> "$GITHUB_ENV"; echo "KSUM=$KERNEL_SHA256" >> "$GITHUB_ENV" ;;
             7.3) echo "KV=$KERNEL73_VERSION" >> "$GITHUB_ENV"; echo "KSUM=$KERNEL73_SHA256" >> "$GITHUB_ENV" ;;
+            7.0) echo "KV=$KERNEL70_VERSION" >> "$GITHUB_ENV"; echo "KSUM=$KERNEL70_SHA256" >> "$GITHUB_ENV" ;;
             *) echo "unknown series $SERIES"; exit 1 ;;
           esac
       - name: Decide whether the suite is needed

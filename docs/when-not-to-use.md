@@ -93,9 +93,11 @@ These limits update the cases discussed in the value assessment, §9.6.
   caller, at a cost not measured ([journal 0104](history/0104-selinux-investigation.md)). One
   run, one kernel; Smack and AppArmor were not exercised.
 - **Your kernel is outside the tested matrix.** Only Debian 6.12.111, 6.12.113, 6.12.115 and
-  7.3.3 (QEMU; on 7.3.3 the layer module only) and upstream 6.12.112 (KASAN; on arm64 too, under
-  emulation, as an exploratory job), 6.12.116 and 7.3.3 (KASAN, journals 0272 and 0275) have run
-  the module; other kernels are not promised to compile or behave
+  7.3.3 and Ubuntu 7.0.0-43-generic (QEMU; on 7.0 and 7.3 the layer module only) and upstream
+  6.12.112 (KASAN; on arm64 too, under emulation, as an exploratory job), 6.12.116, 7.0.14 and
+  7.3.3 (KASAN, journals 0272, 0275 and 0281) have run the module. Ubuntu's other
+  `7.0.0-*-generic` releases are accepted by `make install` and DKMS (ADR-0036) but were not
+  tested; other kernels are not promised to compile or behave
   ([compatibility.md](compatibility.md) §1).
 - **The lower filesystem does not keep an inode generation, or a user can set it there.** Domain
   and file records are keyed by the lower inode number and also keep its `i_generation`; a
@@ -146,8 +148,10 @@ These limits update the cases discussed in the value assessment, §9.6.
   memory is capped only by a `memory.max` on the user's cgroup, journal 0235). The 32,768-unit
   default denies the measured valid 17,000-file domain; an administrator
   can opt into up to 65,536 units per mount under the merged ADR-0020
-  policy, which admitted that fixture in a dedicated VM. Issue 118 remains
-  open for slow lower-device and larger real-client evidence.
+  policy, which admitted that fixture in a dedicated VM. Issue 118 was
+  closed on 2026-10-27 after a run over a lower slowed by `dm-delay`
+  ([journal 0210](history/0210-security-batch-1-domain-records-and-slow-lower.md));
+  no run on a real slow device or a larger real client has been made.
   The opt-in native-KVM probe
   of ADR-0021 passed on the dedicated host, and so did `release`, `overbudget`
   and `buildcostevict` under KASAN, UBSAN and lockdep. The complete KASAN,

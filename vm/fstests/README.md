@@ -144,6 +144,21 @@ same list on btrfs.
 | kernel.org 7.3.3 built with `vm/fstests.config` (`MOOB_KDIR`), 2026-11-09, `exclude-quick.txt` only | 631 passed | 631 passed (`generic/301` 1 159 extents) | 631 passed |
 | Debian `6.12.115+deb13.1-amd64` (`MOOB_KVER`), 2026-11-09, btrfs only, `exclude-quick.txt` and `exclude-quick-btrfs.txt` | — | 630 passed, 0 failures | — |
 
+## Ubuntu 26.04's 7.0.0-43-generic (journal 0281)
+
+`sh vm/fstests-ubuntu.sh ~/fstests <lower>` runs `vm/fstests-local.sh` in an Ubuntu 26.04 container
+with `/dev/kvm` and boots Ubuntu's own kernel (`MOOB_KVER=7.0.0-43-generic`), from a host that
+runs Debian. Its image carries GNU coreutils, because fstests' expected outputs are GNU's and
+Ubuntu 26.04 ships the Rust ones by default. Since 2026-11-11 `generic/798` (cachestat) is in
+`exclude-quick.txt`, by the maintainer's decision. Over the layer, `cachestat(2)` reports the
+layer inode's page cache, which stays empty, because the data is cached in the lower's backing
+file. overlayfs reports the same on its files. Debian's `xfs_io` has no `cachestat`, so the test
+had never run before.
+
+| Kernel | ext4 | btrfs | XFS |
+| --- | --- | --- | --- |
+| Ubuntu `7.0.0-43-generic`, 2026-11-10/11, `exclude-quick.txt` (and `exclude-quick-btrfs.txt` on btrfs), before `generic/798` was excluded | 630 passed, `generic/798` failed | 629 passed, `generic/798` failed | 630 passed, `generic/798` failed |
+
 ## Group `auto`, three lower filesystems (journal 0239)
 
 `sh vm/fstests-local.sh ~/fstests <lower> -g auto -E "$PWD/vm/fstests/exclude-quick.txt"` on

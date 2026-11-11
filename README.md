@@ -54,7 +54,7 @@ this directory have `kind = decision`" without a second database kept in step.
 
 **Not yet if** you need production guarantees, a kernel other than
 Debian's `6.12.111+deb13-amd64`, `6.12.113+deb13-amd64`, `6.12.115+deb13.1-amd64` or
-`7.3.3+deb14-amd64`, macOS or Windows, a rootless container that mounts by itself, semantic or
+`7.3.3+deb14-amd64` and Ubuntu 26.04's `7.0.0-*-generic` series (tested on `7.0.0-43-generic`), macOS or Windows, a rootless container that mounts by itself, semantic or
 vector search, or a home for data you cannot lose. SQLite or plain files are the better choice
 then ([when-not-to-use.md](docs/when-not-to-use.md)).
 
@@ -63,7 +63,7 @@ then ([when-not-to-use.md](docs/when-not-to-use.md)).
 | Path | Needs | Where |
 | --- | --- | --- |
 | Watch it run in a disposable VM; nothing is installed on your machine | Docker; 7 to 8 minutes on an x86-64 runner, longer on Apple Silicon | [Try it in a VM](#try-it-in-a-vm) |
-| Install it on a dedicated test host, mount it at boot, give users their directories | Debian 13 with kernel `6.12.113+deb13-amd64` (a fresh install), `6.12.115+deb13.1-amd64` (an updated one) or `6.12.111+deb13-amd64`, or Debian's `7.3.3+deb14-amd64` (sid, layer module only), root, Secure Boot off (or the experimental DKMS packages, signed by a key you enrol) | [docs/operations.md](docs/operations.md) |
+| Install it on a dedicated test host, mount it at boot, give users their directories | Debian 13 with kernel `6.12.113+deb13-amd64` (a fresh install), `6.12.115+deb13.1-amd64` (an updated one) or `6.12.111+deb13-amd64`, or Debian's `7.3.3+deb14-amd64` (sid, layer module only); or Ubuntu 26.04 (or 24.04 with the HWE kernel) on a `7.0.0-*-generic` kernel, tested on `7.0.0-43-generic` (layer module only), root, Secure Boot off (or the experimental DKMS packages, signed by a key you enrol) | [docs/operations.md](docs/operations.md) |
 | Give each agent in a Docker or Podman container its own memory | A host mount; the container gets its domain directory under the owner's uid | [docs/container-integration.md](docs/container-integration.md) |
 | Query it from the shell or a script | The `moobfs` command, installed by the test-host guide: `moobfs query <domain> kind eq string decision` | [docs/tools.md](docs/tools.md#moobfs) |
 | Use it from your own program | Files, `setxattr` and one ioctl, or the experimental Python library `moobfs` (`pip install ./python`), which falls back to the same answers without the module | [python/README.md](python/README.md), [client-contract.md](docs/client-contract.md) |
@@ -458,9 +458,11 @@ KASAN harness runs the layer suite), and no benchmark exists.
   required pull-request checks passed before that batch merged.
   `v0.4.1-experimental` still contains both defects; `v0.5.0-experimental` has the fixes.
 
-- Two kernel series tested, x86-64, in a VM: 6.12 (Debian 6.12.111, 6.12.113 and 6.12.115,
-  upstream 6.12.116 under KASAN) and 7.3 (Debian 7.3.3, upstream 7.3.3 under KASAN; the layer
-  module only, the M1 module stays 6.12-only);
+- Three kernel series tested, x86-64, in a VM: 6.12 (Debian 6.12.111, 6.12.113 and 6.12.115,
+  upstream 6.12.116 under KASAN), 7.0 (Ubuntu 26.04's 7.0.0-43-generic, upstream 7.0.14 under
+  KASAN; `make install` and DKMS accept Ubuntu's whole `7.0.0-*-generic` series, ADR-0036) and 7.3
+  (Debian 7.3.3, upstream 7.3.3 under KASAN); on 7.0 and 7.3 the layer module only, the M1 module
+  stays 6.12-only;
   kernel APIs are version-specific and the pinned test target is not a compatibility promise. On
   another architecture the module ran in the exploratory arm64 job (emulated, three lower
   filesystems, journal 0137) and on a big-endian kernel, exploratory and not a supported kernel
@@ -647,6 +649,7 @@ Every document under `docs/`, with its language, is listed in the [docs index](d
 | How is AI-assisted development governed? | [ai-workflow.md](docs/ai-workflow.md) (shared through `AGENTS.md`, `CLAUDE.md` and Cursor rules) | EN |
 | Prior art, what may and may not be claimed | [research-originality.md](docs/research-originality.md) | EN |
 | Which kernels are supported, and what may change between versions? | [compatibility.md](docs/compatibility.md) | EN |
+| The kernel matrix and the known limitations, on one page | [matrix-and-limits.md](docs/matrix-and-limits.md) | EN |
 | How can I help? | [help-wanted.md](docs/help-wanted.md) | EN |
 | Changes, governance, conduct, security | [CHANGELOG.md](CHANGELOG.md), [GOVERNANCE.md](GOVERNANCE.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md) | EN |
 

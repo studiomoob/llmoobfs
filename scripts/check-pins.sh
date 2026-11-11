@@ -19,6 +19,11 @@ k73ver=$(yaml KERNEL73_VERSION .github/workflows/kasan.yml)
 k73sum=$(yaml KERNEL73_SHA256 .github/workflows/kasan.yml)
 echo "upstream kernel (KASAN, 7.3 leg):   linux-$k73ver  sha256 $k73sum"
 case "$k73ver" in 7.3.*) ;; *) bad "kasan.yml KERNEL73_VERSION ($k73ver) is not a 7.3 release" ;; esac
+# the 7.0 leg (journal 0281), the upstream base of Ubuntu 26.04's kernel
+k70ver=$(yaml KERNEL70_VERSION .github/workflows/kasan.yml)
+k70sum=$(yaml KERNEL70_SHA256 .github/workflows/kasan.yml)
+echo "upstream kernel (KASAN, 7.0 leg):   linux-$k70ver  sha256 $k70sum"
+case "$k70ver" in 7.0.*) ;; *) bad "kasan.yml KERNEL70_VERSION ($k70ver) is not a 7.0 release" ;; esac
 
 # copies of the upstream kernel pin
 [ "$(yaml KERNEL_VERSION .github/workflows/kasan-arm64.yml)" = "$kver" ] || bad "kasan-arm64.yml KERNEL_VERSION differs from kasan.yml"
@@ -47,6 +52,14 @@ echo "Debian image (vm/Dockerfile):       $vbase"
 echo "Debian image for 7.3.3 (vm/run.sh): $rsid"
 [ -n "$rsid" ] || bad "vm/run.sh has no sid base image for 7.3.3"
 [ "$rtrixie" = "$vbase" ] || bad "vm/run.sh trixie base ($rtrixie) differs from vm/Dockerfile's default ($vbase)"
+# the Ubuntu 26.04 image and kernel packages of MOOB_UBUNTU_KERNEL (journal 0281)
+rubuntu=$(sed -n 's/^ *7\.0\.0-43) MOOB_BASE=\(ubuntu:26\.04@sha256:[0-9a-f]\{64\}\) *;;.*/\1/p' vm/run.sh)
+echo "Ubuntu image for 7.0.0-43 (vm/run.sh): $rubuntu"
+[ -n "$rubuntu" ] || bad "vm/run.sh has no ubuntu:26.04 base pinned by digest for 7.0.0-43"
+for u in linux-image-7.0.0-43-generic linux-modules-7.0.0-43-generic linux-headers-7.0.0-43-generic; do
+	grep -q "$u=7\.0\.0-43\.43 " vm/Dockerfile || bad "vm/Dockerfile does not pin $u=7.0.0-43.43"
+done
+grep -q '7\.0\.0-43) KERNEL=' vm/in-container.sh || bad "vm/in-container.sh does not know Ubuntu's 7.0.0-43"
 echo "Debian kernel package:              $(grep -o 'linux-image-[^ ]*' vm/Dockerfile | head -n 1)"
 img=$(grep -o 'linux-image-[0-9.]*+deb13-amd64=[0-9.-]*' vm/Dockerfile | head -n 1)
 hdr=$(grep -o 'linux-headers-[0-9.]*+deb13-amd64=[0-9.-]*' vm/Dockerfile | head -n 1)
@@ -73,7 +86,7 @@ done
 
 # the tarballs against kernel.org's signed lists of sums (the signature itself is not checked here)
 if [ "$offline" -eq 0 ]; then
-	for pin in "$kver $ksum" "$k73ver $k73sum"; do
+	for pin in "$kver $ksum" "$k73ver $k73sum" "$k70ver $k70sum"; do
 		v=${pin% *}
 		sum=${pin#* }
 		major=${v%%.*}

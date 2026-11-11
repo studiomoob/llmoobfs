@@ -10,9 +10,11 @@ TOOLS = moobfs moobfs-attr moobfs-check moobfs-index
 %:
 	dh $@
 
-# One alternative per listed release, dots and plus signs escaped for the regular expression.
+# One alternative per listed release, dots and plus signs escaped for the regular expression; the
+# '*' of a series entry (7.0.0-*-generic, ADR-0036) stands for one or more digits, as in
+# scripts/install.sh and tools/workspace.h.
 override_dh_auto_configure:
-	kernels=$$(grep -v '^#' scripts/supported-kernels | sed 's/[.+]/\\&/g' | paste -sd '|' -); \
+	kernels=$$(grep -v '^#' scripts/supported-kernels | sed 's/[.+]/\\&/g; s/\*/[0-9]+/g' | paste -sd '|' -); \
 	[ -n "$$kernels" ] && K=$$kernels awk '{ i = index($$0, "@KERNELS@"); \
 		if (i) $$0 = substr($$0, 1, i - 1) ENVIRON["K"] substr($$0, i + 9); print }' \
 		debian/moobfs-dkms.dkms.in >debian/moobfs-dkms.dkms

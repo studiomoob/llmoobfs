@@ -5,6 +5,10 @@ Date: 2026-11-07. Status: **accepted** by the maintainer on 2026-11-07 (journal 
 one of [ADR-0033](0033-s16-freeze-exception.md); the freeze otherwise stays. Estimated effort:
 L (a week or more) for the port; S for this decision. Estimate, not labor time.
 
+*Note, 2026-11-10:* the maintainer made Ubuntu 26.04 GA's 7.0 a target series under point 3
+(journal [0281](../history/0281-port-ubuntu-7-0.md)); [ADR-0036](0036-ubuntu-abi-series-policy.md)
+sets how Ubuntu's ABI series enter `scripts/supported-kernels`. Point 3's text is kept as it was.
+
 ## Context
 
 The module is built and tested on one kernel series: `scripts/supported-kernels` lists Debian

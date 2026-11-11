@@ -650,10 +650,34 @@ static inline int ws_mount_data(const char *lower, const struct ws_args *a, char
 	return w < 0 || (size_t)w >= len ? -1 : 0;
 }
 
-/* Whether release is a line of the supported-kernels text (comments and blanks ignored). */
+/*
+ * Whether one entry of the supported-kernels list, len bytes at e, names release: the release
+ * itself, or a series whose one '*' stands for one or more digits (Ubuntu's ABI number,
+ * ADR-0036), as scripts/install.sh and packaging/debian/rules read it.
+ */
+static inline int ws_kernel_entry(const char *e, size_t len, const char *release)
+{
+	size_t rlen = strlen(release), pre, post, i;
+	const char *star = memchr(e, '*', len);
+
+	if (!rlen)
+		return 0;
+	if (!star)
+		return len == rlen && !memcmp(e, release, rlen);
+	pre = (size_t)(star - e);
+	post = len - pre - 1;
+	if (memchr(star + 1, '*', post) || rlen <= pre + post || memcmp(e, release, pre) ||
+	    memcmp(star + 1, release + rlen - post, post))
+		return 0;
+	for (i = pre; i < rlen - post; i++)
+		if (release[i] < '0' || release[i] > '9')
+			return 0;
+	return 1;
+}
+
+/* Whether release is named by a line of the supported-kernels text (comments, blanks ignored). */
 static inline int ws_kernel_listed(const char *text, const char *release)
 {
-	size_t rlen = strlen(release);
 	const char *p = text;
 
 	while (*p) {
@@ -662,7 +686,7 @@ static inline int ws_kernel_listed(const char *text, const char *release)
 
 		while (len && (p[len - 1] == ' ' || p[len - 1] == '\t' || p[len - 1] == '\r'))
 			len--;
-		if (p[0] != '#' && len == rlen && rlen && !memcmp(p, release, rlen))
+		if (p[0] != '#' && len && ws_kernel_entry(p, len, release))
 			return 1;
 		if (!nl)
 			break;

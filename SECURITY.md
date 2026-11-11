@@ -31,7 +31,8 @@ Please include, as far as you can:
 - the commit SHA you tested;
 - the kernel version (`uname -r`) and whether it was the harness kernel
   (Debian `6.12.111+deb13-amd64`, `6.12.113+deb13-amd64`, `6.12.115+deb13.1-amd64` or
-  `7.3.3+deb14-amd64`, or upstream 6.12.116 or 7.3.3 under KASAN)
+  `7.3.3+deb14-amd64`, Ubuntu `7.0.0-43-generic`, or upstream 6.12.116, 7.0.14 or 7.3.3 under
+  KASAN)
   or another;
 - the lower filesystem (ext4, btrfs, XFS, other) and the exact mount options
   (`lower=`, `nolinks`, `noindex`, `index_budget=`);
@@ -219,6 +220,7 @@ also passed there under KASAN, UBSAN and lockdep. The complete KASAN, UBSAN
 and lockdep suite of this change then exited 0 (`MOOBFS_KASAN_PASS`). The
 complete native-KVM suite of this change was not run. Local VM and KASAN
 suites and all eleven PR checks passed for the earlier guard.
-Issue 118 remains open for a real slow lower device, a large
-single-project client and broader-workload validation. Avoid untrusted
-multi-user query workloads while this issue is open.
+Issue 118 is closed (2026-10-27, journal 0210); a real slow lower device, a
+large single-project client and broader workloads have not been validated.
+Avoid untrusted multi-user query workloads: the limits bound a build's work,
+not its CPU time or I/O.

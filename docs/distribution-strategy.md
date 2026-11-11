@@ -41,7 +41,7 @@ Legend:
 | Fact | Source | Operational consequence |
 | --- | --- | --- |
 | Native module stacked over ext4, btrfs or XFS; filesystem type `moobfs_layer` | `layer/main.c`, ADR-0007 | The administrator mounts with `mount -t moobfs_layer -o lower=<dir> none <mountpoint>` |
-| Tested only with the Debian kernels 6.12.111+deb13-amd64, 6.12.113+deb13-amd64, 6.12.115+deb13.1-amd64 and 7.3.3+deb14-amd64 (suite in QEMU, fstests `quick` on the dedicated host; on 7.3.3 the layer module only) and the upstream kernels 6.12.116 and 7.3.3 with KASAN/UBSAN/lockdep (every pull request that touches the module, weekly; journal 0277) | `vm/Dockerfile`, `.github/workflows/kasan.yml` | No other kernel version is supported |
+| Tested only with the Debian kernels 6.12.111+deb13-amd64, 6.12.113+deb13-amd64, 6.12.115+deb13.1-amd64 and 7.3.3+deb14-amd64 and Ubuntu's 7.0.0-43-generic (suite in QEMU, fstests `quick` on the dedicated host; on 7.0 and 7.3 the layer module only; DKMS accepts Ubuntu's whole `7.0.0-*-generic` series, ADR-0036) and the upstream kernels 6.12.116, 7.0.14 and 7.3.3 with KASAN/UBSAN/lockdep (every pull request that touches the module, weekly; journal 0277) | `vm/Dockerfile`, `.github/workflows/kasan.yml` | No other kernel version is supported |
 | User-space tools: `moobfs-attr`, `moobfs-check`, `moobfs-index` (plus test binaries); `mkfs.moobfs` and `fsck.moobfs` belong to M1, frozen | `tools/`, `Makefile` | There is no tool that issues `QUERY` for general use; `tests/query.c` is a test binary |
 | `QUERY` and `GET_INFO` require an open descriptor of the mount's **root** (`file->f_path.dentry == sb->s_root`, otherwise `ENOTTY`) | `layer/index.c` (`moobl_root_ioctl`) | Applies to any client, including in a container |
 | Phase 3b: `QUERY` resolves each path with the caller's credentials and applies `inode_permission(MAY_READ)`; silently omits what is inaccessible; `truncated` counts only what is visible | `layer/index.c`, `docs/spec-m3.md` §3.1, journal 0020 | Isolation between agents is the lower's POSIX isolation, including ACLs |
@@ -376,6 +376,8 @@ Kernel matrix (what was actually run):
 | Debian 6.12.115+deb13.1-amd64 | yes, in QEMU TCG (CI job since journal 0277) | no (distro kernel without these detectors) | EXISTS, supported since journal 0277 |
 | Debian 7.3.3+deb14-amd64 (layer module only) | yes, in QEMU TCG (CI job since journal 0277) | no (distro kernel without these detectors) | EXISTS, supported since journal 0277 |
 | Upstream 7.3.3 (virtme-ng, `vm/kasan.config`) | full `vm/suite.sh` | yes (second leg of the KASAN workflow since journal 0277) | EXISTS |
+| Ubuntu 7.0.0-43-generic (layer module only; DKMS accepts `7.0.0-*-generic`, ADR-0036) | yes, in QEMU TCG (CI job since journal 0281) | no (distro kernel without these detectors) | EXISTS, supported since journal 0281 |
+| Upstream 7.0.14 (virtme-ng, `vm/kasan.config`) | full `vm/suite.sh` | yes (third leg of the KASAN workflow since journal 0281) | EXISTS |
 | Upstream 6.12.112 (virtme-ng, `vm/kasan.config`) | full `vm/suite.sh` | yes | EXISTS; for the branch `m3/3b-query-authz`, journal 0020 lists KASAN as pending |
 | Any other kernel, series or architecture (6.1/6.6 LTS, 6.13 to 7.2, ARM64, other distro 6.12.x or 7.3.x) | no | no | not supported; requires a port and the full suite plus KASAN |
 | macOS / Windows | — | — | only the portable M1 tools compile; the module is Linux |
@@ -433,6 +435,10 @@ is (1) strong automated coverage: the existing suite, KASAN/UBSAN/lockdep, KCSAN
 meeting the S3 threshold, fstests (S2 results) and fuzzing (S7); (2) every finding of an
 AI-assisted review triaged, reproduced and turned into a regression test; (3) S14 to S21 of the
 security roadmap done. The other deliverables and acceptance steps are unchanged.
+
+*Note, 2026-11-10 (journal 0282):* the one page of the "Done when" line is
+[matrix-and-limits.md](matrix-and-limits.md), the matrix and the known limitations, checked in CI
+against `scripts/supported-kernels` and the KASAN pins. No third party has reproduced stage 2 yet.
 
 ### Stage 3 — Public release
 

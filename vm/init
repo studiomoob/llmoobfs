@@ -8,7 +8,8 @@ mount -t devtmpfs devtmpfs /dev
 mkdir -p /mnt/moob /tmp
 chmod 0755 / && chmod 1777 /tmp   # the cpio root inherits mktemp 0700; unprivileged test users must traverse it
 fail() { echo "MOOBFS_VM_FAIL: $*"; dmesg | tail -60; poweroff -f; sleep 60; }
-insmod /loop.ko || fail loop
+# loop is built into Ubuntu's kernel (journal 0281): there vm/in-container.sh stages no loop.ko
+[ ! -f /loop.ko ] || insmod /loop.ko || fail loop
 # Phase 1, the read-only M1 module (kernel/). It is not ported to 7.3 (ADR-0034 covers the
 # layer only), so vm/in-container.sh leaves it out of a 7.3 guest's initramfs (journal 0275).
 if [ -f /moobfs.ko ]; then

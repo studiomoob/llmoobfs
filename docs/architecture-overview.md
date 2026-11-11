@@ -7,8 +7,9 @@ document behind each statement. This page describes the code on the `main` of 20
 the directory-rename rebuild; `QUERY2` and the domains are specified in
 [spec-query-v2.md](spec-query-v2.md), the security findings in ADR-0011. It is a description of an **experimental research
 module**, not a compatibility promise: the UAPI versions are 1 (`QUERY`) and 2 (`QUERY2`) and may change, and the module
-has been tested on two kernel series only (Debian 6.12.111, 6.12.113, 6.12.115 and 7.3.3 in QEMU;
-upstream 6.12.116 and 7.3.3 under KASAN/UBSAN/lockdep; the M1 module on 6.12 only). The specifications are [spec-m2.md](spec-m2.md) and
+has been tested on three kernel series only (Debian 6.12.111, 6.12.113, 6.12.115 and 7.3.3 and
+Ubuntu 7.0.0-43-generic in QEMU; upstream 6.12.116, 7.0.14 and 7.3.3 under KASAN/UBSAN/lockdep;
+the M1 module on 6.12 only). The specifications are [spec-m2.md](spec-m2.md) and
 [spec-m3.md](spec-m3.md); the design decision is [ADR-0007](decisions/0007-stacked-memory-layer.md).
 
 ## 1. A stacked layer, not a volume

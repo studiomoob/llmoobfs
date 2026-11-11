@@ -450,3 +450,17 @@ Kernels other than Debian 6.12.111 and upstream 6.12.116
 the module ran only in the exploratory arm64 job
 o módulo só rodou no job exploratório de arm64
 the full suite passed once in an s390x guest
+Two kernel series tested, x86-64
+Duas séries de kernel testadas
+Two kernel series (6.12; 7.3 for the layer module only)
+Duas séries de kernel (6.12; 7.3 só para o módulo da camada)
+Tested on <strong>two kernel series</strong>
+has been tested on two kernel series
+Two series. 6.12:
+Two series on x86-64
+Duas séries em x86-64
+on two kernel series (6.12; 7.3 for the layer module)
+**Today.** Two series, x86-64
+open for slow lower-device and larger real-client evidence
+Issue 118 remains open for a real slow lower device
+Avoid untrusted multi-user query workloads while this issue is open

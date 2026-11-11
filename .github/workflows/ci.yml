@@ -106,6 +106,8 @@ jobs:
         run: |
           sh scripts/check-retired-claims.sh
           python3 scripts/site-faq.py --check
+      - name: The matrix page agrees with scripts/supported-kernels and the KASAN pins (journal 0282)
+        run: sh scripts/check-matrix-page.sh
       - name: checkpatch.pl on layer/ and kernel/ (required since journal 0050)
         run: make checkpatch
       - name: DCO sign-off on every commit in the pull request
@@ -210,6 +212,32 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-vm-733-evidence
+          path: |
+            build/vm/console.log
+            build/vm/image-report.json
+            build/vm/environment.txt
+            build/vm/kernel.config
+          if-no-files-found: warn
+          retention-days: 30
+  native_ubuntu_70:
+    # Ubuntu 26.04's 7.0.0-43-generic, in an ubuntu:26.04 image pinned by digest (vm/run.sh,
+    # MOOB_UBUNTU_KERNEL). The M1 module (kernel/) does not build on 7.x, so the guest runs the
+    # layer suite and the acceptance steps only (journal 0281).
+    name: Native Linux VM (Ubuntu 7.0.0-43)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make vm-test
+        env:
+          MOOB_UBUNTU_KERNEL: 7.0.0-43
+      - name: Preserve VM evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-vm-ubuntu70-evidence
           path: |
             build/vm/console.log
             build/vm/image-report.json
