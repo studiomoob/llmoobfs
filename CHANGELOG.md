@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Linux 7.0, Ubuntu 26.04 LTS's series (and 24.04's HWE kernel), for the layer module
+  (ADR-0034, journal 0281). The 7.3 forms start at 7.0 (`MOOBL_VFS_70`); `.create` keeps `excl`
+  until 7.3 (`MOOBL_CREATE_73`, with a `static_assert` on the type of `->create`); 6.13 to 6.19,
+  7.1 and 7.2 stay refused at build time. The 6.12 and 7.3 builds are unchanged. On Ubuntu's
+  kernels the build prints a frame-size warning for `query2_exec()` (1248 bytes against
+  Ubuntu's 1024-byte threshold), accepted by the maintainer with no code change.
+- `scripts/supported-kernels` admits a series entry whose `*` is Ubuntu's ABI number
+  (`7.0.0-*-generic`, ADR-0036); `make install`, `moobfs mount` and DKMS's
+  `BUILD_EXCLUSIVE_KERNEL` read it alike. Debian entries stay exact releases.
+- Harness: `MOOB_UBUNTU_KERNEL=7.0.0-43 make vm-test` runs the suite on Ubuntu's
+  `7.0.0-43-generic` (zstd modules, built-in ext4, loop and dm-mod handled by the new
+  `vm/stage-modules.py`); `MOOB_KASAN_KERNEL=7.0 sh vm/kasan-local.sh` runs upstream 7.0.14;
+  `vm/fstests-ubuntu.sh` runs fstests on Ubuntu's own kernel from another distribution's host.
+  CI gains "Native Linux VM (Ubuntu 7.0.0-43)", the KASAN leg "Layer suite under KASAN/lockdep
+  (7.0.14)" and a weekly build against the newest Ubuntu 26.04 kernel
+  (`.github/workflows/ubuntu-drift.yml`).
+- PR 193 (journal 0280) merged on 2026-11-10 (journal 0281).
 - Python library: `layer_mounted()` reads `struct statfs`'s `f_type` with the width of the ABI,
   32-bit on s390x and a native `long` elsewhere; on s390x it was False on every mount, so
   `Domain` never used the kernel backend. Unit tests in `make pylib-test` decode fixed s390x and
