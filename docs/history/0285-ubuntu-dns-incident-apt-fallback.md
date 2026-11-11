@@ -98,7 +98,13 @@ and `linux-headers-7.0.0-43`, in `pool/main/l/linux/`).
 - `vm/fstests-ubuntu/Dockerfile` and `vm/ubuntu-drift.sh` were not built or run with the change.
 - Debian bases: only the retries and `Error-Mode=any` change; not rebuilt here.
 
+## Recovery
+
+`archive.ubuntu.com` answered again from this host in the late afternoon. The failed jobs of
+run 43038158762 were rerun unchanged, and attempt 5 passed at 17:02 BRT; every workflow on
+`main` at `d96b0db` is green. The failure was the outside DNS outage only.
+
 ## Next step
 
-The maintainer reruns the failed jobs of run 43038158762 once Canonical's DNS answers over IPv4
-again, or after this change is merged.
+The fallback still has to run on a GitHub runner; that happens with the pull request of this
+batch.
