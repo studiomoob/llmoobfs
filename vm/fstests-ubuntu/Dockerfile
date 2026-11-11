@@ -22,4 +22,12 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 COPY kasan-requirements.txt /tmp/kasan-requirements.txt
 RUN python3 -m venv /opt/vng && /opt/vng/bin/pip install -q --require-hashes -r /tmp/kasan-requirements.txt
 ENV PATH=/opt/vng/bin:$PATH
+# fstests' expected outputs are those of GNU coreutils, and Ubuntu 26.04 ships the Rust ones by
+# default (messages end in "(os error 1)", touch cannot parse dates past 2038): generic/193, 597
+# and 634 failed on them. iproute2 brings up lo, which the lock tests' client and server use
+# (generic/131, 571). Journal 0281.
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    --allow-remove-essential coreutils-from-gnu coreutils-from-uutils- iproute2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln --version | grep -q "GNU coreutils"
 WORKDIR /work
