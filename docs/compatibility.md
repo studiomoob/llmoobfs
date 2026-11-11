@@ -28,6 +28,8 @@ On 7.0 and 7.3 only the layer module (`layer/`) builds and is tested; the M1 rea
 | Debian 7.3.3+deb14-amd64 (layer module only) | yes, every pull request (job added in journal 0277) | no (distribution kernel) | the upstream 7.3.3 build below stands for it (journal 0275) |
 | Upstream 6.12.116, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` | yes | no |
 | Upstream 7.3.3, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` (job added in journal 0277) | yes | yes, three lower filesystems, built with `vm/fstests.config` (journal 0275) |
+| Ubuntu 26.04 `7.0.0-*-generic` series (layer module only; ADR-0036) | `7.0.0-43-generic`, every pull request (job added in journal 0281) | no (distribution kernel) | `7.0.0-43-generic`, three lower filesystems, Ubuntu's own build (journal 0281; `generic/798` excluded) |
+| Upstream 7.0.14, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` (job added in journal 0281) | yes | no |
 | Anything else | no | no | no |
 
 **Rules.**

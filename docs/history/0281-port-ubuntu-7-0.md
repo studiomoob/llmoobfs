@@ -308,7 +308,8 @@ After the decision of 2026-11-11, the surfaces that state the supported kernels 
   "Today" paragraph and dated notes under rules 1, 2 and 3) and `docs/when-not-to-use.md`;
 - `ROADMAP.md`, `site/index.html`, `site/plan.html` and `scripts/site-journey.py` (with
   `site/status.html` and `site/pt/status.html`);
-- `docs/matrix-and-limits.md` (journal 0282), folded into this batch.
+- `docs/matrix-and-limits.md` (journal 0282), folded into this batch, and the table of
+  `docs/compatibility.md` §1.
 
 The old wordings are in `docs/retired-claims.txt`. Until the decision these edits were kept
 out of the branch, in a patch, because the series was not yet in the list.
@@ -331,10 +332,6 @@ reading, code, harness and records; the rest was waiting for runs. This is withi
   releases only.
 - The new CI job, the third KASAN leg and the drift workflow had not run on GitHub when this
   journal was written: nothing was pushed.
-- `docs/compatibility.md`'s table of kernels was not edited here. The matrix-and-limits page of
-  journal 0282, on its own branch, owns it and is folded into this batch before the pull request.
-  Its `scripts/check-matrix-page.sh` must learn `KERNEL70_VERSION` and the series entry. Until
-  then the table does not list Ubuntu: a surface left stale on purpose, for that reason.
 - When 26.04's HWE stack moves to 7.3 (expected with 26.04.2, an inference from Ubuntu's rolling
   model), Ubuntu's `7.3.0-N-generic` needs its own entry and evidence. Its `LINUX_VERSION_CODE`
   is 7.3.0, and the layer builds on 26.10's `7.3.0-9-generic` as it is (survey).
