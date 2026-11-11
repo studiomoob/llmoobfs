@@ -7,6 +7,11 @@ name: Release
 # The SLSA generator is a reusable workflow that must be referenced by its release tag, not a
 # commit (slsa-github-generator's own requirement). Scorecard counts it as the one unpinned
 # dependency (Pinned-Dependencies 9 of 10); pinning it by hash would stop the provenance.
+# Immutable releases are on for this repository (journal 0284): once published, a release takes
+# no new asset, and a deleted release's tag name cannot be used again. So the release is created
+# as a draft, every asset is attached to the draft (the provenance too, by this workflow rather
+# than by the generator, whose uploader looks the release up by tag and does not see a draft),
+# and only the last job publishes it. Not exercised until a tag is pushed.
 on:
   push:
     tags: ['v*-experimental']
@@ -38,16 +43,19 @@ jobs:
       - uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
         with:
           inputs: llmoobfs-*.tar.gz
-      - name: Pre-release with the assets
+      - name: Draft pre-release with the assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           n="llmoobfs-$GITHUB_REF_NAME"
-          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
-              gh release upload "$GITHUB_REF_NAME" --clobber "$n.tar.gz" "$n.tar.gz.sha256" "$n.tar.gz.sigstore.json"
+          if draft=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null); then
+              # a rerun: a draft still takes assets; a published release is immutable
+              [ "$draft" = true ] || { echo "$GITHUB_REF_NAME is already published; immutable releases take no new asset" >&2; exit 1; }
+              gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber "$n.tar.gz" "$n.tar.gz.sha256" "$n.tar.gz.sigstore.json"
           else
-              gh release create "$GITHUB_REF_NAME" --verify-tag --prerelease --title "$GITHUB_REF_NAME" \
+              gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --prerelease \
+                  --title "$GITHUB_REF_NAME" \
                   --notes "Source snapshot, not a supported release (SECURITY.md). Changes: CHANGELOG.md." \
                   "$n.tar.gz" "$n.tar.gz.sha256" "$n.tar.gz.sigstore.json"
           fi
@@ -57,9 +65,37 @@ jobs:
     permissions:
       actions: read            # read the workflow run
       id-token: write          # sign the provenance
-      contents: write          # upload it to the pre-release
+      contents: write          # required by the generator's upload job, which does not run here
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: ${{ needs.archive.outputs.hashes }}
       provenance-name: llmoobfs-${{ github.ref_name }}.intoto.jsonl
-      upload-assets: true
+      upload-assets: false     # attached to the draft by the publish job below
+  publish:
+    name: Attach the provenance and publish
+    needs: [archive, provenance]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write          # upload to the draft and publish it
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.provenance.outputs.provenance-name }}
+          path: provenance
+      - name: Attach the provenance, check the assets, publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROV: ${{ needs.provenance.outputs.provenance-name }}
+        run: |
+          set -eu
+          n="llmoobfs-$GITHUB_REF_NAME"
+          [ "$PROV" = "$n.intoto.jsonl" ] || { echo "unexpected provenance name: $PROV" >&2; exit 1; }
+          [ -s "provenance/$PROV" ] || { echo "provenance/$PROV missing or empty" >&2; exit 1; }
+          draft=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)
+          [ "$draft" = true ] || { echo "$GITHUB_REF_NAME is not a draft any more" >&2; exit 1; }
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber "provenance/$PROV"
+          have=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort | tr '\n' ' ')
+          want=$(printf '%s\n' "$n.intoto.jsonl" "$n.tar.gz" "$n.tar.gz.sha256" "$n.tar.gz.sigstore.json" | sort | tr '\n' ' ')
+          [ "$have" = "$want" ] || { echo "assets [$have], expected [$want]; left as a draft" >&2; exit 1; }
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
