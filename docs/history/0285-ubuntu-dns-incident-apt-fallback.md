@@ -87,9 +87,12 @@ and `linux-headers-7.0.0-43`, in `pool/main/l/linux/`).
 
 ## Not verified
 
-- The primary path of `vm/apt-install.sh` with Ubuntu's own mirrors answering (they did not
-  resolve during the whole session); on a Debian base it is the path every build takes, not
-  rebuilt here.
+- The primary path of `vm/apt-install.sh` on the amd64 Ubuntu 26.04 image with
+  `archive.ubuntu.com` answering; on a Debian base it is the path every build takes, not
+  rebuilt here. After the recovery, the primary path ran once on this host in an arm64
+  `ubuntu:24.04` container (sources at `ports.ubuntu.com`): `sh vm/apt-install.sh mandoc`
+  printed "installed from the image's own sources", exited 0, installed `mandoc` and left the
+  sources untouched (no `/etc/apt/moob-disabled/`).
 
 - The scripts on a GitHub runner: the Lint job and the Ubuntu VM job run on the next pull request.
 - The fallback on the runner's own `ubuntu-24.04` sources (`noble`, the runner's mirror list
