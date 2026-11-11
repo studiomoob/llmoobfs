@@ -1,6 +1,6 @@
 # 0281 — The port to Ubuntu 26.04's Linux 7.0 (batch b21)
 
-Date: started 2026-11-10, 17:48 Brasília time; the last run ended 2026-11-11, 00:54 Brasília time. Status: **in progress**. The code, the harness, CI and ADR-0036 are committed, and every gate has passed except one: fstests `quick` fails only generic/798 on each lower, a kernel-independent behavior that overlayfs shares. The Ubuntu series stays out of `scripts/supported-kernels` until the maintainer decides on generic/798. Estimated effort
+Date: started 2026-11-10, 17:48 Brasília time; the last run ended 2026-11-11, 00:54 Brasília time. Status: **in progress**. Every gate passed, generic/798 excluded by the maintainer's decision of 2026-11-11, and the series is in `scripts/supported-kernels`. The batch's pull request is next. Estimated effort
 M (one to three days, survey of 2026-11-10); the time recorded below is calendar time. Most of it
 was spent waiting for VM runs on the test host, not working.
 
@@ -44,6 +44,18 @@ batch's base. Post-merge runs on `main` at `6a711f4`, all started 17:48 BRT:
    interface adaptation (ADR-0022, ADR-0034 point 1), so DKMS and `make layer` on Ubuntu print the
    warning, and the build succeeds. The kernel's stack is 16 KiB on x86-64
    (`THREAD_SIZE`).
+
+## Decision on generic/798 (maintainer, 2026-11-11)
+
+generic/798 is excluded from fstests `quick` as a known limitation of the layer
+(`vm/fstests/exclude-quick.txt`, with its reason), in the same way as generic/301 on btrfs
+(journal 0277). `cachestat(2)` on a layer file reports the layer inode's page cache, which stays
+empty, because the data is cached in the lower's backing file. overlayfs does the same: on
+Ubuntu's 7.0.0-43-generic, an overlay file shows `Cached: 0` after a buffered write, and its upper
+file shows `Cached: 1`. The test fails the same way on the supported 7.3.3, and on 6.12 it never
+ran (Debian's `xfs_io` has no `cachestat`), so it is not a regression of the port. With the
+exclusion, fstests `quick` passed on every lower of Ubuntu's own kernel in the second round.
+Rule 3 is met, and `7.0.0-*-generic` joins `scripts/supported-kernels`.
 
 ## The code (ADR-0034 point 1, interface adaptations only)
 
@@ -188,64 +200,8 @@ on to the end. Skipped: only the three memcg markers, as on 6.12. This covers `m
 7.0 (with `excl`) and every other path of the 7.3 branch now taken on 7.0.
 
 **fstests smoke through the container, about 18:50–18:59, `98aebdf`.**
-`vm/fstests-ubuntu.sh ~/fstests ext4 generic/001 generic/013`: `MOOBFS_**fstests `quick` on Ubuntu's own 7.0.0-43-generic, first round, `98aebdf`.** The run used
-`vm/fstests-ubuntu.sh ~/fstests LOWER` with the default rule-3 arguments: `-g quick` with
-`exclude-quick.txt`, plus `exclude-quick-btrfs.txt` on btrfs. Each lower had 2 vCPUs and 3 GiB,
-with the container pinned (ext4 on 0–1, btrfs on 4–5, XFS on 6–7).
-
-| Lower | Time (BRT) | Result |
-| --- | --- | --- |
-| ext4 | 19:00–21:48 | failed 6 of 631 |
-| btrfs | 19:01–22:14 | failed 6 of 630 |
-| XFS | 19:02–22:19 | failed 6 of 631 |
-
-On every lower the same six failed, and no kernel diagnostic appeared (no `BUG`, `WARNING` or
-`Oops`). One report, `INFO: task jbd2/vda-8 blocked for more than 122 seconds` on ext4 at
-about 19:30 BRT (generic/095), is the guest's own journal thread waiting on the virtual disk.
-Its stack has no layer frame. The host was then at 44 % iowait with four guests running.
-
-- generic/193, 597 and 634 failed on the image, not the module. Ubuntu 26.04 ships Rust
-  coreutils (`coreutils-from-uutils`) by default: their errors end in `(os error 1)`, `ln` words
-  the refusal differently, and `touch` cannot parse `Dec 31 23:59:59 UTC 2147483647`. fstests
-  expects GNU's output. The image now installs `coreutils-from-gnu` (commit `575b9a2`).
-- generic/131 and 571 failed on the image too: the lock tests' client and server talk over
-  `lo`, which virtme-ng could not bring up without `iproute2` (`failed to run: "ip" link set dev
-  lo up`). Same commit.
-- **generic/798 (cachestat) is a behavior of the layer, and it does not depend on the kernel.**
-  It ran here for the first time: Debian's `xfs_io` has no `cachestat`, and every committed
-  result of 6.12.113 (`vm/fstests/results-*-6.12.113.txt`, quick and auto, three lowers) records
-  `notrun generic/798 xfs_io cachestat support is missing`. Over the layer, `cachestat(2)` on a
-  layer file reports `Cached: 0, Dirty: 0` after buffered writes. The data is cached in the
-  lower's backing file, not in the layer inode's mapping. It fails the same way on kernel.org's
-  7.3.3 built with `vm/fstests.config` (same image, `MOOB_KDIR`, 21:58–22:02 BRT; generic/193
-  passed there with GNU coreutils). overlayfs behaves the same on Ubuntu's 7.0.0-43-generic. A
-  one-off guest wrote 4 KiB through an overlay mount and ran `cachestat`: `Cached: 0` on the
-  overlay file and `Cached: 1` on the upper file (`~/b11night/b21/ovl/t.sh`, about 22:05). No
-  fix fits the freeze (ADR-0022, ADR-0034 point 1). Whether it joins the exclusion list, as
-  generic/301 did on btrfs (journal 0277), is a decision for the maintainer.
-
-**fstests `quick` on Ubuntu's own 7.0.0-43-generic, second round, `575b9a2`** (the image with
-GNU coreutils and `iproute2`). The arguments and the sizes were the same as in the first round.
-
-| Lower | Time (BRT) | Result | Failed |
-| --- | --- | --- | --- |
-| ext4 | 2026-11-10 22:03 – 2026-11-11 00:20 | 630 of 631 passed | generic/798 |
-| btrfs | 2026-11-10 22:21 – 2026-11-11 00:54 | 629 of 630 passed (`generic/301` excluded, journal 0277) | generic/798 |
-| XFS | 2026-11-10 22:21 – 2026-11-11 00:48 | 630 of 631 passed | generic/798 |
-
-The five failures of the first round passed. No kernel diagnostic appeared. A `blocked for more
-than 122 seconds` report came from btrfs's transaction thread at 1353 s of guest time, in
-`barrier_all_devices()`, waiting for the virtual disk's flush. No layer frame was in it, and it
-came while the KASAN 6.12 run, the native 6.12 run and the pre-push checks were also using the
-host's disk.
-
-**Rule 3 is therefore met except for generic/798.** For that reason the series entry
-`7.0.0-*-generic` was **not** added to `scripts/supported-kernels`, as the maintainer asked. The
-evidence above is complete. The change that adds the entry is ready outside the repository, as
-one patch: the entry, generic/798 in `vm/fstests/exclude-quick.txt` with its reason, and the
-public surfaces that would then state Ubuntu as supported. It waits for the maintainer's decision
-on generic/798._KERNEL:
-7.0.0-43-generic`, passed both. Three earlier attempts failed in the harness, never in the
+`vm/fstests-ubuntu.sh ~/fstests ext4 generic/001 generic/013`: `MOOBFS_FSTESTS_KERNEL:
+7.0.0-43-generic`, passed both. Four earlier attempts failed in the harness, never in the
 module:
 - the image's clone of fstests got HTTP 502 from git.kernel.org twice, so the script now takes a
   checkout;
@@ -311,12 +267,11 @@ than 122 seconds` report came from btrfs's transaction thread at 1353 s of guest
 came while the KASAN 6.12 run, the native 6.12 run and the pre-push checks were also using the
 host's disk.
 
-**Rule 3 is therefore met except for generic/798.** For that reason the series entry
-`7.0.0-*-generic` was **not** added to `scripts/supported-kernels`, as the maintainer asked. The
-evidence above is complete. The change that adds the entry is ready outside the repository, as
-one patch: the entry, generic/798 in `vm/fstests/exclude-quick.txt` with its reason, and the
-public surfaces that would then state Ubuntu as supported. It waits for the maintainer's decision
-on generic/798.
+**Rule 3 was therefore met except for generic/798.** Until the maintainer's decision of
+2026-11-11 (above), the series entry `7.0.0-*-generic` stayed out of `scripts/supported-kernels`.
+The change that adds it was prepared outside the repository as one patch: the entry, generic/798
+in `vm/fstests/exclude-quick.txt` with its reason, and the public surfaces. It was applied after
+the decision.
 
 ## The batch's full suites
 
@@ -345,18 +300,18 @@ Committed here: `docs/testing.md` (the selector, the third KASAN leg, the native
 workflow), `docs/development.md` (the new pins), `CHANGELOG.md`, `docs/references.md` §54, the
 manual page of `moobfs` (the series entry) and the history index.
 
-The surfaces that state the supported kernels are left as they were on purpose, since the series
-is not yet in the list:
+After the decision of 2026-11-11, the surfaces that state the supported kernels say that Ubuntu
+26.04's `7.0.0-*-generic` series is supported and name the tested release, in both languages:
 - `README.md`, `README.pt-BR.md`, `docs/status*.md` and `docs/faq.md` (with `site/faq.html`);
 - `SECURITY.md`, `CONTRIBUTING.md`, `docs/architecture-overview.md`, `docs/operations.md`,
-  `docs/distribution-strategy.md`, `docs/security-operations.md`, `docs/compatibility.md` and
-  `docs/when-not-to-use.md`;
+  `docs/distribution-strategy.md`, `docs/security-operations.md`, `docs/compatibility.md` (its
+  "Today" paragraph and dated notes under rules 1, 2 and 3) and `docs/when-not-to-use.md`;
 - `ROADMAP.md`, `site/index.html`, `site/plan.html` and `scripts/site-journey.py` (with
-  `site/status.html` and `site/pt/status.html`).
+  `site/status.html` and `site/pt/status.html`);
+- `docs/matrix-and-limits.md` (journal 0282), folded into this batch.
 
-Their edits, in both languages, are in the prepared change, with the wordings they retire for
-`docs/retired-claims.txt`. That change was checked with `check-retired-claims.sh`,
-`site-faq.py --check` and `check-site.py` before it was set aside.
+The old wordings are in `docs/retired-claims.txt`. Until the decision these edits were kept
+out of the branch, in a patch, because the series was not yet in the list.
 
 ## Time
 
@@ -380,17 +335,13 @@ reading, code, harness and records; the rest was waiting for runs. This is withi
   journal 0282, on its own branch, owns it and is folded into this batch before the pull request.
   Its `scripts/check-matrix-page.sh` must learn `KERNEL70_VERSION` and the series entry. Until
   then the table does not list Ubuntu: a surface left stale on purpose, for that reason.
-- The fstests image prints `failed to run: "ip" link set dev lo up` at boot (no `iproute2`); the
-  guests need no network.
 - When 26.04's HWE stack moves to 7.3 (expected with 26.04.2, an inference from Ubuntu's rolling
   model), Ubuntu's `7.3.0-N-generic` needs its own entry and evidence. Its `LINUX_VERSION_CODE`
   is 7.3.0, and the layer builds on 26.10's `7.3.0-9-generic` as it is (survey).
 
 ## Next step
 
-- The maintainer decides on generic/798. If it is excluded, apply the prepared change: the
-  series entry, the exclusion and the public surfaces. Then close this journal's status.
-- Fold in the matrix-page branch (journal 0282), then the pull request of batch b21, with the
+- Done on 2026-11-11: the matrix-page branch (journal 0282) folded in, then the pull request of batch b21, with the
   maintainer's agreement. Its first CI run is the first run of the new job, the 7.0 KASAN leg and
   `check-pins.sh` online on GitHub.
 - When a newer Ubuntu ABI reaches `resolute-updates`, the drift job builds against it. Moving

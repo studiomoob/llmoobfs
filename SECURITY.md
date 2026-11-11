@@ -31,7 +31,8 @@ Please include, as far as you can:
 - the commit SHA you tested;
 - the kernel version (`uname -r`) and whether it was the harness kernel
   (Debian `6.12.111+deb13-amd64`, `6.12.113+deb13-amd64`, `6.12.115+deb13.1-amd64` or
-  `7.3.3+deb14-amd64`, or upstream 6.12.116 or 7.3.3 under KASAN)
+  `7.3.3+deb14-amd64`, Ubuntu `7.0.0-43-generic`, or upstream 6.12.116, 7.0.14 or 7.3.3 under
+  KASAN)
   or another;
 - the lower filesystem (ext4, btrfs, XFS, other) and the exact mount options
   (`lower=`, `nolinks`, `noindex`, `index_budget=`);

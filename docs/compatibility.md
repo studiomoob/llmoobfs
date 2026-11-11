@@ -10,9 +10,12 @@ There are three interfaces, each with its own version and its own rule.
 
 ## 1. Kernels
 
-**Today.** Two series, x86-64: Debian 13's 6.12 builds and Debian's 7.3.3 (journal
-[0277](history/0277-kernels-6-12-115-and-7-3-supported.md)). On 7.3 only the layer module
-(`layer/`) builds and is tested; the M1 read-only module (`kernel/`) stays 6.12-only.
+**Today.** Three series, x86-64: Debian 13's 6.12 builds, Debian's 7.3.3 (journal
+[0277](history/0277-kernels-6-12-115-and-7-3-supported.md)) and Ubuntu 26.04's 7.0 series
+`7.0.0-*-generic`, of which `7.0.0-43-generic` was tested (journal
+[0281](history/0281-port-ubuntu-7-0.md), [ADR-0036](decisions/0036-ubuntu-abi-series-policy.md)).
+On 7.0 and 7.3 only the layer module (`layer/`) builds and is tested; the M1 read-only module
+(`kernel/`) stays 6.12-only.
 
 | Kernel | Functional suite | KASAN, UBSAN, lockdep | fstests `quick` |
 | --- | --- | --- | --- |
@@ -29,6 +32,14 @@ There are three interfaces, each with its own version and its own rule.
 1. A kernel is **supported** when the full suite (`make vm-test`) and the KASAN job pass on it in
    CI for every change to `layer/`. Everything else is unsupported, including other 6.12
    builds: the module uses in-kernel interfaces that change between versions without notice.
+   *Note, 2026-11-10 ([ADR-0036](decisions/0036-ubuntu-abi-series-policy.md), journal
+   [0281](history/0281-port-ubuntu-7-0.md)):* for Ubuntu kernels a whole ABI series is
+   supported. `scripts/supported-kernels` lists `7.0.0-*-generic`, where `*` is one or more
+   digits, and `make install`, `moobfs mount` and DKMS accept any release of it. The suite ran on
+   one release, `7.0.0-43-generic`, which the documents name. A weekly job
+   (`.github/workflows/ubuntu-drift.yml`) builds the layer against the newest Ubuntu 26.04
+   kernel, and moving the native job to a newer ABI reruns rule 3's evidence. Debian entries stay
+   exact releases.
 2. The module refuses to build against a kernel outside the list instead of building with
    warnings. (Not implemented: today the build does not check the version.)
    *Note, 2026-10-25 (journal 0197):* `make install` now refuses a kernel that is not in
@@ -45,6 +56,9 @@ There are three interfaces, each with its own version and its own rule.
    KASAN kernels 6.12.116 and 7.3.3, the KCSAN and coverage kernel 6.12.116, the static-analysis
    headers, the compile
    probes of journal 0272), about ten builds.
+   *Note, 2026-11-10 (journal [0281](history/0281-port-ubuntu-7-0.md)):* the `#error` window of
+   `layer/moobl_compat.h` is now 6.13 up to before 7.0, plus 7.1 and 7.2. 7.0 and 7.3 build. The
+   list refusal of `make install` and DKMS reads the series entry of ADR-0036.
 3. A kernel is added by a pull request that adds it to CI and records one fstests `quick` run per
    lower filesystem. It is removed when its upstream series ends or when keeping it needs code the
    maintainer does not want to carry; removal is announced in the changelog one release ahead.
@@ -68,6 +82,13 @@ There are three interfaces, each with its own version and its own rule.
    upstream 7.3.3 built with `vm/fstests.config`, not over Debian's build of the same release. Both
    have native CI jobs, and upstream 7.3.3 has its own leg of the KASAN workflow; their first runs
    on GitHub are the pull request of this batch.
+   *Note, 2026-11-10 (journal [0281](history/0281-port-ubuntu-7-0.md)):* Ubuntu 26.04's 7.0
+   series was added as `7.0.0-*-generic` (ADR-0036), by the maintainer's decision under ADR-0034
+   point 3. The evidence is on the release `7.0.0-43-generic` (Ubuntu `7.0.0-43.43`, upstream
+   base 7.0.14): the full suite passed on it (layer module only), the full suite passed under
+   KASAN, UBSAN and lockdep on upstream 7.0.14 with `vm/kasan.config`, and fstests `quick`
+   passed on the three lowers over Ubuntu's own build (`vm/fstests-ubuntu.sh`). It has a native
+   CI job, a third leg of the KASAN workflow and the weekly drift build.
 4. Lower filesystems: ext4, btrfs and XFS, on a local block device. A network or FUSE filesystem
    as the lower is unsupported.
    *Note, 2026-10-29 (journal 0234):* one reason is now part of the rule. Since journal 0216

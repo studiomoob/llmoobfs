@@ -33,3 +33,9 @@ generic/607
 
 # Does not apply: two layers over one lower directory are outside the contract (ADR-0007).
 generic/732
+
+# By design, the maintainer's decision of 2026-11-11 (journal 0281): cachestat(2) on a layer file
+# reports the layer inode's page cache, which stays empty; the data is cached in the lower's
+# backing file. overlayfs reports the same on its files. Not run before 2026-11-10 because
+# Debian's xfs_io has no cachestat; Ubuntu 26.04's has.
+generic/798
