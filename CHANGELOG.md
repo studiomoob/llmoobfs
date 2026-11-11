@@ -35,6 +35,10 @@
   through a bind of a domain directory (`QUERY2` answers, `GET_INFO` and the v1 `QUERY` return
   `ENOTTY`); GHSA-756j-cgwq-gvwm, fixed and published, is not an open known leak; Part B of
   `docs/review-findings.md` stays informative, outside the review criterion.
+- Issue #195 asks for an independent reproduction of the stage-2 test evidence on another KVM
+  host, pinned to `d96b0db`; `docs/help-wanted.md`, both READMEs, the FAQ, the site and both
+  status pages point to it. `docs/matrix-and-limits.md` states issue 117 as a documented stage-2
+  limit and GHSA-756j-cgwq-gvwm as fixed (journal 0283).
 - Regression tests for Part B findings that had none (journal 0283): `fallbackfault` in the KASAN
   harness (0083 E: a chmod whose per-domain note cannot be stored still turns per-result checks
   on, `FALLBACK_FAULT_PASS`; written, its VM run pending), `scripts/test-steps-filter.sh` in

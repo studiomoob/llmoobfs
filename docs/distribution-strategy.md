@@ -439,6 +439,8 @@ security roadmap done. The other deliverables and acceptance steps are unchanged
 *Note, 2026-11-10 (journal 0282):* the one page of the "Done when" line is
 [matrix-and-limits.md](matrix-and-limits.md), the matrix and the known limitations, checked in CI
 against `scripts/supported-kernels` and the KASAN pins. No third party has reproduced stage 2 yet.
+*Note, 2026-11-11 (journal 0283):* issue [#195](https://github.com/studiomoob/llmoobfs/issues/195) asks for that reproduction, with a route
+pinned to `d96b0db`.
 
 *Amended, 2026-11-11 (maintainer's decisions of that day, [journal 0283](history/0283-stage-2-decisions.md);
 [ADR-0030](decisions/0030-stage-2-review-criterion.md), amendment of the same date):* the text

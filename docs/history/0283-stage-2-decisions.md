@@ -153,6 +153,42 @@ Run on this Mac (macOS, Docker Desktop on Apple silicon, its Linux VM's kernel
   tests OK) and `git diff --check`: pass. `make checkpatch` was not run: no file it reads
   (`layer/`, `kernel/`) changed.
 
+## Second round, 2026-11-11 from 11:27 Brasília time: merges, the call #195, rebase
+
+**Merges.** Pull request 184 (Dependabot, the `codeql-action` group) was merged on 2026-11-11 at
+08:54 BRT as `d529545`. Pull request 194 (batch b21: Ubuntu 26.04's Linux 7.0 and the matrix page,
+journals 0281 and 0282) was rebased on it, passed its checks (19 of 19 at `609a46a`, 09:50 BRT)
+and was merged at 11:24 BRT as `d96b0db`. This branch was then rebased on `d96b0db`; the
+conflicts in `docs/references.md` (§54 and §55), `CHANGELOG.md`, `docs/history/README.md` and the
+§8 notes of `docs/distribution-strategy.md` were resolved by keeping both sides.
+
+**Post-merge runs on `d96b0db`** (`gh run list --branch main`, read at 11:33 BRT): CodeQL, Static
+analysis, OpenSSF Scorecard, Pages and TLA+ model succeeded; the CI run 43038158762 was still
+running, with the compiler-warning jobs passed, the Debian VM jobs (6.12.111, 6.12.113, 6.12.115,
+7.3.3) and "Tools and sanitizers" in progress, and two jobs failed on the runner's network, not
+on the code: "Native Linux VM (Ubuntu 7.0.0-43)" stopped building its Docker image after 12 s
+because `archive.ubuntu.com` could not be resolved (`apt-get update` of the `resolute` image),
+and "Lint" failed in its "Manual pages" step because `mandoc` could not be downloaded
+(`Temporary failure resolving 'azure.archive.ubuntu.com'`). Both need a rerun by the maintainer;
+nothing was rerun from here. The KASAN workflow does not run on a push to `main`.
+
+**Call for help.** Issue #195, "Help wanted: reproduce the stage-2 test evidence on your own KVM
+host", was opened at 11:25 BRT: a call for an independent reproduction of the stage-2 evidence,
+with a route pinned to `d96b0db`; it is pinned in place of the closed issue #5 and linked from
+issue #68, and the outside contributor of pull requests 161 to 163 was asked on it. It answers
+the "a third party reproduces everything" line of §8. Surfaces updated: `docs/help-wanted.md`,
+`README.md` and `README.pt-BR.md` ("How to help"), `docs/faq.md` and `site/faq.html`
+(regenerated), `site/index.html`, `docs/status.md` and `docs/status.pt-BR.md` (a dated update on
+stage 2), and a dated note in `docs/distribution-strategy.md` §8. `scripts/site-journey.py .`
+was run and changed nothing. No stated fact stopped being true ("no independent reproduction
+yet" still holds), so `docs/retired-claims.txt` is unchanged.
+
+**Matrix page.** `docs/matrix-and-limits.md`, on `main` since journal 0282, now states issue 117 as
+a documented stage-2 limit and GHSA-756j-cgwq-gvwm as fixed and published, not an open leak (67
+lines; `scripts/check-matrix-page.sh`: `MATRIX_PAGE_OK`).
+
+The VM items of "Pending" stay pending: the test host was still unreachable.
+
 ## Pending (the test host was unreachable)
 
 The test host stopped answering about 08:30 BRT. Once it is back, from a checkout of this branch:

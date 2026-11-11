@@ -33,7 +33,8 @@ installed in one VM, also under Secure Boot with lockdown, not published ([0229]
 [testing.md](testing.md) §3; what no step covers: [testing.md](testing.md) §9. **Leaks between
 users:** none known open; the fixed ones are the published
 [advisories](https://github.com/studiomoob/llmoobfs/security/advisories) and the findings of
-[review-findings.md](review-findings.md).
+[review-findings.md](review-findings.md); GHSA-756j-cgwq-gvwm is fixed and published, not an open
+leak ([0283](history/0283-stage-2-decisions.md)).
 
 ## Known limitations
 
@@ -44,8 +45,8 @@ users:** none known open; the fixed ones are the published
   is not detected (GHSA-756j-cgwq-gvwm; [when-not-to-use.md](when-not-to-use.md) §3).
 - **ext4 without `metadata_csum`**: the owner of a file can set its generation on the lower and
   make stale records current again (GHSA-756j-cgwq-gvwm; [when-not-to-use.md](when-not-to-use.md) §3).
-- **Issue [#117](https://github.com/studiomoob/llmoobfs/issues/117)**: an inode with an index
-  record still takes the mount-wide index lock on instantiation and eviction ([0223](history/0223-index-lock-instantiation-eviction.md)).
+- **Issue [#117](https://github.com/studiomoob/llmoobfs/issues/117)**, a documented stage-2 limit: an inode with an index record
+  still takes the mount-wide index lock on instantiation and eviction; contention, no wrong answer ([0283](history/0283-stage-2-decisions.md)).
 - **Slow debug kernels**: a large domain's build stops at the 10 s CPU bound (`ETIMEDOUT`) and
   five steps fail, two more miss time thresholds; left unchanged by decision ([0280](history/0280-first-s390x-run.md), [testing.md](testing.md) §9).
 - **s390x**: the `ixlock` 1 s threshold cannot tell a lock wait from `drop_caches`' own cost

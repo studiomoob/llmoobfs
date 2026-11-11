@@ -135,7 +135,7 @@ lost, while answers matched from 150 to 60 000 memories. A later 40-repetition m
 with confidence intervals found and fixed a roughly 2x regression; a residual 1 to 3 % in p50
 against module 0102 remains unexplained, with larger differences in some p99 results. It did not repeat the SQLite comparison. Small-budget recovery
 is tested, but default-budget saturation at scale, long-running operation and performance on
-other hardware remain open. There is no independent reproduction yet (issue #68 asks for one).
+other hardware remain open. There is no independent reproduction yet (issue #68 asks for one of the measurements; issue #195, since 2026-11-11, of the stage-2 test evidence).
 [`README.md` "What was measured"; journals 0047, 0048, 0088, 0130, 0139, 0143; `docs/benchmark-plan.md`]
 
 ## 14. Which kernels are supported?

@@ -32,6 +32,7 @@ project's journal with credit, if the person wants it.
 
 | What | Where |
 | --- | --- |
+| Reproduce the stage-2 test evidence on your own x86-64 host with KVM, pinned to `d96b0db`, and say publicly what you got, pass or fail; part of the route is fine (open call since 2026-11-11) | [issue #195](https://github.com/studiomoob/llmoobfs/issues/195) |
 | Run the tests in a VM (Docker only): `make vm-test`; a subset: `MOOB_ONLY="btrfs reserve" make vm-test` | [testing.md](testing.md) |
 | Try another kernel than 6.12 and report what breaks | [compatibility.md](compatibility.md) |
 | Repeat a measurement on your hardware; the scripts and raw results are in `bench/` | [bench/results/](../bench/results/README.md) |

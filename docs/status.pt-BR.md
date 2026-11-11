@@ -125,3 +125,11 @@ diz se um `ENOMEM` veio do orçamento do índice ou do `memory.max` de um cgroup
 `docs/operations.md` §5 define `MemoryMax=` para toda fatia de usuário com um drop-in do systemd.
 Testados em unidade fora da VM; as rodadas em VM (passo `diag` da suíte, `make install-test`) e
 suas rodadas negativas passaram em 30/10/2026, e o mantenedor as aceitou no mesmo dia: o G2 está concluído.
+*Atualização, 11/11/2026 ([diário 0283](history/0283-stage-2-decisions.md)):* a etapa 2 (prévia
+técnica) não foi atingida. O mantenedor decidiu quatro das suas condições (o resto da issue 117 é
+um limite documentado, o passo 5 de aceitação foi reescrito para o `QUERY2`, a
+GHSA-756j-cgwq-gvwm não é um vazamento conhecido em aberto, a Parte B de
+`docs/review-findings.md` fica fora do critério de revisão), e a issue
+[#195](https://github.com/studiomoob/llmoobfs/issues/195) pede a linha "um terceiro reproduz
+tudo": uma rodada independente das evidências de teste da etapa 2 em outro host com KVM, fixada
+em `d96b0db`. Ninguém a reproduziu ainda.
