@@ -14,16 +14,16 @@ pins. The rules behind the list are [compatibility.md](compatibility.md) §1.
 | Debian `6.12.113+deb13-amd64` | x86-64 | supported | full suite every PR; fstests `quick` ([0206](history/0206-debian-6-12-113-supported.md)) and `auto` once ([0239](history/0239-s2-auto-and-s3-round.md)) |
 | Debian `6.12.115+deb13.1-amd64` | x86-64 | supported | full suite every PR; fstests `quick` ([0272](history/0272-kernel-matrix.md), [0277](history/0277-kernels-6-12-115-and-7-3-supported.md)) |
 | Debian `7.3.3+deb14-amd64` | x86-64 | supported, layer module only | full suite every PR ([0277](history/0277-kernels-6-12-115-and-7-3-supported.md)); the M1 module stays 6.12-only |
+| Ubuntu 26.04 `7.0.0-*-generic` (also 24.04 HWE) | x86-64 | supported series, layer module only ([ADR-0036](decisions/0036-ubuntu-abi-series-policy.md)) | tested on `7.0.0-43-generic`: full suite every PR, fstests `quick` on 3 lowers ([0281](history/0281-port-ubuntu-7-0.md)); weekly build on the newest ABI |
 <!-- /supported-kernels -->
 <!-- kasan-pins -->
 | upstream 6.12.116, `vm/kasan.config` | x86-64 | test build, not an install target | KASAN, UBSAN, lockdep every PR touching `layer/` or `vm/` |
 | upstream 7.3.3, `vm/kasan.config` | x86-64 | test build, not an install target | KASAN, UBSAN, lockdep every PR touching `layer/` or `vm/`; fstests `quick` on 3 lowers ([0275](history/0275-port-7-3.md)) |
+| upstream 7.0.14, `vm/kasan.config` | x86-64 | test build, not an install target | KASAN, UBSAN, lockdep every PR touching `layer/` or `vm/` ([0281](history/0281-port-ubuntu-7-0.md)) |
 <!-- /kasan-pins -->
 | upstream 6.12.112 (the earlier pin) | x86-64 | test build, past runs | KCSAN ([0274](history/0274-kcsan-corrected-code.md)); syzkaller rounds ([0143](history/0143-syzkaller-fifth-run-threshold-met.md), [0239](history/0239-s2-auto-and-s3-round.md)) |
 | upstream 6.12 KASAN, emulated | arm64 | exploratory | weekly and on demand, ext4 step by default ([0124](history/0124-big-endian-pass-arm64-without-kvm.md), [0137](history/0137-arm64-guest-boots-under-emulation.md)) |
 | Debian 6.12.111 and upstream 6.12.116 KASAN, KVM | s390x | exploratory, one host, by hand | full suite twice; KASAN step by step; trees from little-endian read the same ([0280](history/0280-first-s390x-run.md)) |
-<!-- ubuntu: reserved for the Ubuntu port; until it is merged, no Ubuntu kernel is supported or tested -->
-| Ubuntu (any release) | — | not supported | nothing yet |
 | anything else | — | not supported | `make install` and DKMS refuse it; `make layer` refuses only by API series |
 
 **Lower filesystems:** ext4, btrfs and XFS on a local block device, on every row marked
@@ -60,5 +60,7 @@ users:** none known open; the fixed ones are the published
 - **LSMs**: SELinux needs a policy rule; AppArmor and Smack never ran ([0104](history/0104-selinux-investigation.md)).
 - **Not covered by the suite**: acceptance over btrfs and XFS, KMSAN, any performance number
   beyond pilot-grade ([testing.md](testing.md) §9, [0088](history/0088-m4-report.md)).
+- **`cachestat(2)`** on a layer file reports the layer's own, empty page cache: the data is
+  cached in the lower's file, as overlayfs reports it; fstests' generic/798 excluded ([0281](history/0281-port-ubuntu-7-0.md)).
 - **Mounting** needs `CAP_SYS_ADMIN` in the initial user namespace; user-namespace and idmapped
   mounts are refused ([when-not-to-use.md](when-not-to-use.md) §3).

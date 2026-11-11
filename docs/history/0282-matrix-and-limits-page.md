@@ -4,6 +4,12 @@ Date: 2026-11-10, 17:48–17:56 Brasília time; second round 17:56–17:58. Stat
 `claudiofp/b21-matrix-page`, on `main` `6a711f4`). Estimated effort S (hours); the time recorded
 here is calendar time, close to the effort for this unit.
 
+*Note, 2026-11-11:* folded into batch b21 (journal [0281](0281-port-ubuntu-7-0.md)). The Ubuntu
+row now states the supported series `7.0.0-*-generic`, tested on `7.0.0-43-generic`. The KASAN
+block has the 7.0.14 pin, and `scripts/check-matrix-page.sh` checks three pins (`KERNEL70_VERSION`
+too) and takes the first code span of each supported row, so the series entry counts. The
+limitations gain generic/798 (cachestat).
+
 ## Goal
 
 Stage 2 of `docs/distribution-strategy.md` §8 is done when "a third party reproduces
