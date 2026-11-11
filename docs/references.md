@@ -1429,3 +1429,34 @@ hand and carries the same code paths:
   [Landlock: unprivileged access control](https://docs.kernel.org/6.12/userspace-api/landlock.html).
   KASAN workflow run 42672003438 (2026-11-09, `a223da1`) printed `LANDLOCK_SKIPPED: this kernel
   has no Landlock` in both legs, 6.12.116 and 7.3.3.
+
+## 54. The port to Ubuntu 26.04's Linux 7.0 (ADR-0034, ADR-0036, journal 0281)
+
+- Ubuntu's kernel source for 26.04, tag `Ubuntu-7.0.0-43.43` (upstream base 7.0.14, `Makefile`),
+  read on 2026-11-10: `fs/namei.c` (`vfs_create()` calling `->create(..., true)`, the `->create`
+  of `lookup_open()` with `open_flag & O_EXCL`, `vfs_mkdir()`, `vfs_rmdir()`, `vfs_symlink()`,
+  `lookup_one()`, `start_renaming_dentry()`), `include/linux/fs.h` (`struct inode_operations`
+  `.create` with `bool`, `i_ino` as `unsigned long`), `fs/locks.c` (`kernel_setlease()` returning
+  `-EINVAL` without `->setlease`), `fs/stat.c` (`vfs_getattr()` with no `AT_GETATTR_NOSEC`) and
+  `include/linux/backing-file.h` (the kiocb `end_write`).
+  <https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/resolute/tree/?h=Ubuntu-7.0.0-43.43>.
+- Linux 7.3.3 `Documentation/filesystems/porting.rst`, the entries between 7.0.14 and 7.3.3
+  (`.create` without `excl`, `lock_rename()` removed, `lookup_one_qstr_excl()` unexported).
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/Documentation/filesystems/porting.rst?h=v7.3.3>.
+- Linux 7.0.14, kernel.org tarball for the KASAN leg, SHA-256
+  `de9999b784d2293f00d39c62d8f92a08ab8a54bc4e80ffd250a0c09cb07a0f98` in
+  <https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc>.
+- Ubuntu archive, read on 2026-11-10: `dists/resolute-updates` and `resolute-security`
+  (`linux-generic` `7.0.0-43.43`; `linux-image-7.0.0-43-generic`, `linux-modules-7.0.0-43-generic`,
+  `linux-headers-7.0.0-43-generic`, `linux-headers-7.0.0-43`), `dists/resolute-proposed`
+  (`7.0.0-44.44`), `dists/noble-updates` (`linux-generic-hwe-24.04` `7.0.0-42.42~24.04.1`).
+  <http://archive.ubuntu.com/ubuntu/dists/>. The kernel changelog of `7.0.0-43.43`:
+  <https://changelogs.ubuntu.com/changelogs/pool/main/l/linux/linux_7.0.0-43.43/changelog>.
+  Ubuntu's kernel lifecycle (HWE rolling model): <https://ubuntu.com/kernel/lifecycle>.
+- The `ubuntu:26.04` image, pinned by digest
+  `sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c` (Docker Hub, 2026-11-10).
+- Python 3.14 `compression.zstd`, which `vm/stage-modules.py` uses for Ubuntu's `.ko.zst` modules:
+  <https://docs.python.org/3.14/library/compression.zstd.html>.
+- DKMS `BUILD_EXCLUSIVE_KERNEL`, a regular expression on the kernel release (`dkms(8)`), which the
+  series entry `7.0.0-*-generic` becomes as `7\.0\.0-[0-9]+-generic`:
+  <https://github.com/dkms-project/dkms/blob/main/dkms.8.in>.

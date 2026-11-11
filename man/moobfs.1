@@ -205,7 +205,11 @@ results per call, 1 to 4096 (default 4096)
 .It Pa /usr/share/moobfs/supported-kernels , Pa /usr/local/share/moobfs/supported-kernels
 the kernel releases
 .Cm mount
-accepts, installed by the moobfs-tools package and by make install
+accepts, installed by the moobfs-tools package and by make install; one per line, an exact
+release or an Ubuntu series whose one
+.Ql *
+stands for one or more digits, such as
+.Ql 7.0.0-*-generic
 .El
 .Sh EXIT STATUS
 0 on success; 1 a system call failed; 2
