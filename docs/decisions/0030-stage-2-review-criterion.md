@@ -1,6 +1,6 @@
 # ADR-0030 — Review criterion of the technical preview: automated coverage and triaged AI-assisted findings; a targeted human review for the public release
 
-Date: 2026-10-29. Status: **accepted by the maintainer on 2026-10-29** (journal 0240); amended on 2026-11-11 (journal 0283, at the end).
+Date: 2026-10-29. Status: **accepted by the maintainer on 2026-10-29** (journal 0240); amended on 2026-11-11 (journals 0283 and 0284, at the end).
 Estimated effort: S (hours) for the decision and the documents. No kernel, UAPI or format change
 (ADR-0022).
 
@@ -105,3 +105,25 @@ Decided by the maintainer on 2026-11-11, about 08:30 Brasília time; the text ab
   fixed in journal 0216 with a regression test (`domainreuse`) and published (journal 0219).
 - Acceptance step 5 of §8 is restated to match the behaviour of `QUERY2` (see the amendment of
   `docs/distribution-strategy.md` §8 of the same date).
+
+## Amendment, 2026-11-11, about 13:00 Brasília time (journal 0284): recorded exceptions to criterion (2)
+
+Decided by the maintainer; the text above is kept. Six findings of Part A of
+[`docs/review-findings.md`](../review-findings.md) are accepted as **recorded exceptions** to
+criterion (2) ("every finding of an AI-assisted review triaged, reproduced and turned into a
+regression test"). Each fix was checked against the code; none can be shown by a regression test
+without changing the frozen kernel (ADR-0022), or none has a symptom observable on the supported
+kernels and lower filesystems:
+
+| Finding | Fix | Why no regression test |
+| --- | --- | --- |
+| 0114 item 3, ref-walk revalidation reads a lower dentry `moobl_instantiate()` may free | journal 0120 | A test that fails without the fix needs a hold point inside ref-walk revalidation, a kernel change; a stress race would pass on the fixed code and fail only by chance on the old one. |
+| 0114 item 6, long walks without `cond_resched()` | journal 0120 | The only symptom is scheduling latency or a soft lockup, reached only with a domain far beyond the index budget or with a scheduler-latency probe. |
+| V8, rename copied the lower's whole `i_flags` | journal 0156 | No flag outside the copied mask has an effect the VFS shows on the layer inode after a rename that succeeds on ext4, btrfs or XFS; `S_SWAPFILE`, the one with a clear effect, makes the rename fail first. |
+| M7, `capable()` and `ns_capable_noaudit()` | journal 0222 | No allowed or denied outcome differs; only whether an LSM logs the check. |
+| M8.2, `getattr` without `AT_GETATTR_NOSEC` | journal 0221 | On the supported kernels `vfs_getattr()` adds the flag itself, so the two paths cannot be told apart. |
+| M8.3, `flush` with the mounter's credentials | journal 0221 | None of ext4, btrfs and XFS has `->flush`. |
+
+0114 item 8 is not an exception: it gets a regression test under the SELinux setup of S12
+(`SELINUX_DIRREAD_PASS`, journal 0284), pending until it passes. A change to the kernel freeze
+reopens these exceptions: each then gets a test or a renewed reason.

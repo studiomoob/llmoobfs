@@ -1522,3 +1522,11 @@ hand and carries the same code paths:
 - Semantic Versioning 2.0.0, items 6 and 7 (patch for backwards-compatible bug fixes, minor for
   new backwards-compatible functionality): the reason the next tag is `0.6.0`, not `0.5.1`.
   <https://semver.org/spec/v2.0.0.html>.
+- For the SELinux test of finding 0114 item 8 (same journal): Linux 6.12.111
+  `security/selinux/hooks.c`, `selinux_file_permission()` (no check when the current SID opened
+  the file) and `__file_has_perm()` (`fd { use }` from the current SID to the opener's SID before
+  the object's own permission), and `flush_unauthorized_files()` (descriptors a new domain may
+  not use are replaced at exec), read for this:
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/security/selinux/hooks.c?h=v6.12.111>.
+  The test policy follows the structure of `policy/test_overlayfs.te` in SELinuxProject's
+  selinux-testsuite, as journal 0104 did.

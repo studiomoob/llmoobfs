@@ -482,6 +482,14 @@ above is kept.
 - The tag `v0.6.0-experimental` is cut only when stage 2 is declared, and the `.deb` packages
   stay unpublished until then.
 
+*Amended, 2026-11-11, about 13:00 Brasília time ([journal 0284](history/0284-release-workflow-and-part-a-gaps.md);
+[ADR-0030](decisions/0030-stage-2-review-criterion.md), amendment of the same time):* criterion (2)
+above has six recorded exceptions, findings whose fix was checked against the code but cannot be
+shown by a regression test without changing the frozen kernel, or that have no symptom on the
+supported kernels and lowers: 0114 items 3 and 6, V8, M7, M8.2 and M8.3 of
+[review-findings.md](review-findings.md). 0114 item 8 gets a test under SELinux
+(`SELINUX_DIRREAD_PASS`), pending until it passes.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount

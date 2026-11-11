@@ -1,9 +1,10 @@
 # 0284 — The release workflow under immutable releases, Part A's remaining gaps, and the release decisions of 2026-11-11
 
-Date: 2026-11-11. Work started 11:42 Brasília time; ended 12:32, for the documents, the workflow
-and the local checks (the pending VM runs are not included). Status: **done locally, not
-published; VM runs pending** (the test host is unreachable). Estimated effort S–M; the time
-recorded is calendar time of one session, close to the effort.
+Date: 2026-11-11. Work started 11:42 Brasília time; ended 12:32; second round 12:34–12:38. The
+times cover the documents, the workflow and the local checks (the pending VM runs are not
+included). Status: **done locally, not published; VM runs pending** (the test host is
+unreachable). Estimated effort S–M; the time recorded is calendar time of one session, close to
+the effort.
 
 ## Goal
 
@@ -117,6 +118,68 @@ The register is **no longer marked "draft"**: every Part A finding is tested, an
 design objection, or listed for the maintainer's decision with its reason (Gaps, the note on
 items 1 to 3 and 9 to 12). Its status line says the VM runs of the new tests are pending.
 
+## Decision on the Part A items (maintainer, 2026-11-11, about 13:00 Brasília time)
+
+Second round of this journal, 12:34–12:38 BRT. Checks rerun at the end: shellcheck 0.9.0, SPDX,
+`STEPS_FILTER_PASS`, `RETIRED_CLAIMS_OK`, `PINS_OK`, `MATRIX_PAGE_OK`, the site and FAQ checks,
+`make test` and `git diff --check origin/main`: pass.
+
+1. **0114 items 3 and 6, V8, M7, M8.2 and M8.3 are recorded exceptions to criterion (2)** of
+   ADR-0030: each fix was checked against the code, but cannot be shown by a regression test
+   without changing the frozen kernel, or has no symptom observable on the supported kernels and
+   lowers. The reasons are those of the table above, now in a dated amendment of ADR-0030 (a
+   table, one reason per finding), in a note on `docs/distribution-strategy.md` §8, and in the
+   rows and the Gaps note of `docs/review-findings.md`. Alternative: keep them as open gaps of
+   criterion (2), which would keep stage 2 waiting on tests that need the freeze lifted; not
+   taken. A change to the freeze reopens them.
+2. **0114 item 8 gets a regression test under the SELinux setup of S12**, without a kernel
+   change. It stays listed as pending in the register until its run and its negative round pass.
+
+No current-state sentence became false: the earlier "needs the maintainer's decision" wording is
+only in dated notes of the register and of this journal, so `docs/retired-claims.txt` is
+unchanged by this round.
+
+### The test of 0114 item 8
+
+What it must tell apart: `moobl_iterate()` calls `iterate_dir()` on the lower directory file,
+which `moobl_dir_open()` opened with the mounter's credentials. `iterate_dir()` calls
+`security_file_permission()`. SELinux (`selinux_file_permission()`, `security/selinux/hooks.c`,
+Linux 6.12) skips its check when the current task's SID is the SID that opened the file; otherwise
+`file_has_perm()` first checks `fd { use }` from the current SID to the file's opener SID, then
+the directory's own permission. Since journal 0120 the read runs under `override_creds()` with
+the mounter's credentials, so the opener's SID and the current SID are the same; before, the
+caller's SID was checked, `fd use` included.
+
+How the test makes that visible: in the guest of `vm/selinux-local.sh` the layer is mounted by
+the guest's root, in `kernel_t` (the guest has no init policy), so `kernel_t` opens every lower
+directory file. A new domain of `vm/selinux/moobtest.te`, `moobtest_reader_t`, may list
+`moobtest_dir_t` (the lower directory's type, which the layer's directories carry too under the
+`fs_use_xattr` rule) and has no `fd use` on `kernel_t`. `tests/listdir.c`, run in that domain,
+opens a directory and reads it with `getdents64`:
+
+- control 1, `listdir fdprobe` with descriptor 3 opened by the `kernel_t` shell: it reads nothing,
+  because SELinux replaced the descriptor at exec (`flush_unauthorized_files()`); otherwise the
+  domain has `fd use` on `kernel_t` and the step fails as proving nothing;
+- control 2, `listdir <lower>/t`: the direct listing succeeds (exit 0);
+- the check, `listdir <layer>/t`: must succeed. With the caller's credentials in
+  `moobl_iterate()`, the `fd use` check from `moobtest_reader_t` to `kernel_t` is denied and
+  `getdents64` fails with `EACCES` (exit 11).
+
+It runs in the `fsuse` run only, prints `  fsuse dirread: direct=<n> layer=<n>` and
+`SELINUX_DIRREAD_PASS`, and fails with `MOOBFS_SELINUX_FAIL: fsuse: item 8: ...`. Files:
+`tests/listdir.c`, `vm/selinux/moobtest.te`, `vm/selinux-guest.sh`, `vm/selinux-local.sh` (builds
+`listdir`), `docs/testing.md` (SELinux section). Local evidence: `listdir.c` compiled with
+`-static -O2 -Wall -Wextra -Werror`; shellcheck 0.9.0 on both scripts clean. The policy module was
+not compiled here (it needs `selinux-policy-dev`, which this Mac does not have and which was not
+installed).
+
+**Planned negative round:** on a scratch branch, remove the `override_creds()` and
+`revert_creds()` pair around `iterate_dir()` in `moobl_iterate()` (`layer/main.c`), rebuild the
+module, run `sh vm/selinux-local.sh`; expected `  fsuse dirread: direct=0 layer=11`, an
+`avc: denied { use }` line for `moobtest_reader_t` on `kernel_t` in `dmesg`, and
+`MOOBFS_SELINUX_FAIL: fsuse: item 8: a directory read through the layer was checked with the
+caller's credentials (exit 11)`.
+
 ## Stale lines of the security roadmap
 
 - S6: "Open: a build-time refusal of an unlisted kernel (`make install` and the DKMS package
@@ -146,16 +209,19 @@ In addition to the items of journal 0283, "Pending":
    `sb->s_iflags` in `layer/main.c` → `PT_NOEXEC_FAIL` and `MOOBFS_VM_FAIL: passthrough-ext4`.
    `PT_LIMITS_PASS` has no negative round (nothing was fixed); if a lower writes its dirty pages
    back before `cachestat` reads them, the case fails and must be revisited.
-2. The full `make vm-test` and the full KASAN suite, once for the batch.
+2. `sh vm/selinux-local.sh` on a Debian host with KVM and the packages its header lists →
+   `SELINUX_DIRREAD_PASS` and `MOOBFS_SELINUX_RESULT: fsuse ...`; then the negative round planned
+   above (`override_creds()` removed from `moobl_iterate()`) → `MOOBFS_SELINUX_FAIL: fsuse: item 8`.
+3. The full `make vm-test` and the full KASAN suite, once for the batch.
 
 ## Limitations
 
 - `release.yml` is linted, not run; the fork test above is proposed, not done.
-- Seven Part A items have no test and need the maintainer's decision; two of them (0114 item 8,
-  M7) could be tested without a kernel change under SELinux, an M-sized piece of work.
+- Six Part A items are recorded exceptions to criterion (2), with no test (decision of 13:00);
+  0114 item 8's SELinux test is written, not run, and its policy module was not compiled here.
 - The two new passthrough cases are compiled, not run.
 
 ## Next step
 
-The maintainer's decisions on the listed Part A items and on the fork test; the pending VM runs;
+The maintainer's decision on the fork test; the pending VM runs;
 then the batch's pull request with the maintainer's agreement.

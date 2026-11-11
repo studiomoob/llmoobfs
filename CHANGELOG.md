@@ -44,6 +44,11 @@
   third party reproduces everything" means Parts A and B of the route of issue #195; a
   reproduction at `d96b0db` counts if `layer/` does not change; packages stay unpublished until
   then.
+- Six Part A findings (0114 items 3 and 6, V8, M7, M8.2, M8.3) are recorded exceptions to
+  criterion (2) of ADR-0030, by the maintainer's decision of 2026-11-11, each with its reason
+  (ADR-0030 amendment, journal 0284). Finding 0114 item 8 gets a test in the SELinux harness:
+  `SELINUX_DIRREAD_PASS` (`tests/listdir.c`, a reader domain with no `fd use` on the mounter's
+  domain), written, run pending.
 - `tests/passthrough.c` pins the accepted limits V2 and V1 (`PT_LIMITS_PASS`) and the errnos of
   `SB_I_NOEXEC` and `SB_I_NODEV` (`PT_NOEXEC_PASS`); `docs/review-findings.md` is no longer a
   draft: every Part A finding is tested or listed for the maintainer's decision (journal 0284).
