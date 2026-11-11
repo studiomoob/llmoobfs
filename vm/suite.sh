@@ -14,6 +14,8 @@
 #   demo clients powerloss ioerror reserve
 #   casefold            a casefolded lower directory and lower root are refused (issue #95)
 #   faults              only under the KASAN harness: the fault-injection block of kasan-guest.sh
+#   fallbackfault       only under the KASAN harness: a chmod whose domain note cannot be stored
+#                       still hides what the caller cannot reach (0083 E, journal 0283)
 #   buildrace           the first query on a domain racing with writes to it (journal 0098)
 #   hookrace            a build ending inside a rename hook, an unlink of one name during its
 #                       reading, and a rename over that name during its reading (findings F1
@@ -102,7 +104,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock|crossmachine) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}

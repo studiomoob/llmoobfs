@@ -19,6 +19,7 @@ t passthrough tests/passthrough.c
 t mounted    tests/mounted.c
 t failnth    -Iinclude tests/failnth.c
 t renamepath-fault -Iinclude tests/renamepath-fault.c
+t fallbackfault -Iinclude tests/fallbackfault.c
 t deadscan   -Iinclude tests/deadscan.c
 t rootpath-race -Iinclude tests/rootpath-race.c
 t overbudget-race -Iinclude tests/overbudget-race.c

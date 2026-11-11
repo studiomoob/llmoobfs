@@ -121,6 +121,32 @@ if [ -z "${MOOB_ONLY:-}" ] || case " ${MOOB_ONLY:-} " in *" faults "*) true ;; *
     rmmod moobfs_layer || fail fi-rmmod
     echo "FAULT_INJECTION_PASS: $(grep '^FAILNTH_DONE' "$OUT/failnth.txt" | cut -d' ' -f2-); no kernel diagnostic; index equal to the oracle"
 fi
+# Finding E of journal 0083 (journal 0283): when the note that a domain needs per-result checks
+# cannot be stored after a directory's chmod, every domain must be checked (fallback_all). Each
+# case on a fresh mount, since that flag lasts until unmount. tests/fallbackfault.c fails the
+# allocations under moobl_index_perm_changed() for its own task only (failslab task filter).
+if [ -z "${MOOB_ONLY:-}" ] || case " ${MOOB_ONLY:-} " in *" fallbackfault "*) true ;; *) false ;; esac; then
+    mountpoint -q /sys/kernel/debug || mount -t debugfs none /sys/kernel/debug || fail ff-debugfs
+    [ -d /sys/kernel/debug/failslab ] || fail "ff-no-failslab (kernel built without CONFIG_FAILSLAB)"
+    insmod "$BIN/moobfs_layer.ko" || fail ff-insmod
+    mount -t ext4 "$DEV_EXT4" "$LOWER" || fail ff-lower-mount
+    rm -rf "$LOWER/ff" && mkdir -m 755 "$LOWER/ff" || fail ff-mkdir
+    dmesg -c > /dev/null
+    for inject in 0 1; do
+        mount -t moobfs_layer -o lower="$LOWER/ff",domain_depth=1 none "$LAYER" || fail "ff-mount-$inject"
+        rc=0
+        "$BIN/fallbackfault" "$LAYER/d$inject" "$inject" > "$OUT/fallbackfault-$inject.txt" 2>&1 || rc=$?
+        cat "$OUT/fallbackfault-$inject.txt"
+        umount "$LAYER" || fail "ff-umount-$inject"
+        [ "$rc" -eq 0 ] || fail "ff-answered-without-checks-$inject"
+    done
+    dmesg > "$OUT/dmesg-fallbackfault.txt"
+    if ! kdiag "$OUT/dmesg-fallbackfault.txt" 'BUG: KASAN|KASAN: |BUG:|Oops:|^WARNING:|possible (circular|recursive) locking|INFO: (task|rcu)|UBSAN:'; then
+        fail "ff-kernel-diagnostic"
+    fi
+    { rm -rf "$LOWER/ff" && umount "$LOWER" && rmmod moobfs_layer; } || fail ff-cleanup
+    echo "FALLBACK_FAULT_PASS: a chmod whose domain note could not be stored still hides the file below it from uid 1001"
+fi
 if [ -n "${MOOB_ONLY:-}" ]; then
     echo "MOOBFS_KASAN_ONLY_PASS: steps $MOOB_ONLY under $SAN with no kernel diagnostics (not a complete run)"
 else
