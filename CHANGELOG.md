@@ -35,6 +35,18 @@
   through a bind of a domain directory (`QUERY2` answers, `GET_INFO` and the v1 `QUERY` return
   `ENOTTY`); GHSA-756j-cgwq-gvwm, fixed and published, is not an open known leak; Part B of
   `docs/review-findings.md` stays informative, outside the review criterion.
+- `.github/workflows/release.yml` works with immutable releases: the release is created as a
+  draft, the archive, its SHA-256, the Sigstore bundle and the SLSA provenance are attached to
+  the draft, and a last job publishes it; the generator no longer uploads (journal 0284; linted,
+  not exercised until a tag).
+- Release decisions of 2026-11-11 (journal 0284): `v0.6.0-experimental`, a minor version for the
+  7.3 and Ubuntu 7.0 ports and the workspace CLI, is tagged only when stage 2 is declared; "a
+  third party reproduces everything" means Parts A and B of the route of issue #195; a
+  reproduction at `d96b0db` counts if `layer/` does not change; packages stay unpublished until
+  then.
+- `tests/passthrough.c` pins the accepted limits V2 and V1 (`PT_LIMITS_PASS`) and the errnos of
+  `SB_I_NOEXEC` and `SB_I_NODEV` (`PT_NOEXEC_PASS`); `docs/review-findings.md` is no longer a
+  draft: every Part A finding is tested or listed for the maintainer's decision (journal 0284).
 - Issue #195 asks for an independent reproduction of the stage-2 test evidence on another KVM
   host, pinned to `d96b0db`; `docs/help-wanted.md`, both READMEs, the FAQ, the site and both
   status pages point to it. `docs/matrix-and-limits.md` states issue 117 as a documented stage-2

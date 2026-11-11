@@ -1492,3 +1492,33 @@ hand and carries the same code paths:
   and bracket expressions: the filter that `scripts/test-steps-filter.sh` runs as the workflows
   have it; the explicit letter list instead of a range keeps it independent of the locale's
   collation (journal 0211, merge note).
+
+## 56. Releases under immutable releases; the next version number (journal 0284)
+
+- GitHub Docs, "Immutable releases" (best practices: "Create the release as a draft. Attach all
+  associated assets to the draft release. Publish the draft release.") and "Managing releases in
+  a repository" (with immutable releases on, "you cannot add, replace, or delete assets after a
+  release is published, and you cannot move or delete its tag while the release exists"), read
+  through Context7 (`/github/docs`) on 2026-11-11:
+  <https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases>,
+  <https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository>.
+  The repository setting was read with `gh api repos/studiomoob/llmoobfs/immutable-releases`.
+- slsa-github-generator v2.1.0, `.github/workflows/generator_generic_slsa3.yml` (read from the
+  tag; Context7 has no entry for it): inputs `upload-assets`, `upload-tag-name`,
+  `draft-release`, `provenance-name`, output `provenance-name`; the signed provenance is stored
+  as a workflow artifact of that name (`actions/upload-artifact`), and its `upload-assets` job
+  attaches it with `softprops/action-gh-release` v2.2.1 by tag name. The REST lookup of a release
+  by tag does not return drafts; whether that action finds the draft or creates a second release
+  was not established, so `release.yml` sets `upload-assets: false` and attaches the provenance
+  itself.
+  <https://github.com/slsa-framework/slsa-github-generator/blob/v2.1.0/.github/workflows/generator_generic_slsa3.yml>.
+- `actions/download-artifact` v8.0.2 (commit `9000827ccba6bdab643e8b6fd33ac0654aef8333`), pinned
+  by hash as `scripts/check-pins.sh` and Scorecard expect:
+  <https://github.com/actions/download-artifact/releases/tag/v8.0.2>.
+- GitHub CLI manual, `gh release create --draft --verify-tag --prerelease`, `gh release upload
+  --clobber`, `gh release edit --draft=false`: <https://cli.github.com/manual/gh_release>.
+- actionlint 1.7.7 (the image of journal 0211, pinned by digest), which runs shellcheck over
+  each `run:` block: <https://github.com/rhysd/actionlint>.
+- Semantic Versioning 2.0.0, items 6 and 7 (patch for backwards-compatible bug fixes, minor for
+  new backwards-compatible functionality): the reason the next tag is `0.6.0`, not `0.5.1`.
+  <https://semver.org/spec/v2.0.0.html>.

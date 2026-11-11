@@ -10,7 +10,7 @@ name: Release
 # Immutable releases are on for this repository (journal 0284): once published, a release takes
 # no new asset, and a deleted release's tag name cannot be used again. So the release is created
 # as a draft, every asset is attached to the draft (the provenance too, by this workflow rather
-# than by the generator, whose uploader looks the release up by tag and does not see a draft),
+# than by the generator, whose uploader finds the release by tag, which may not see a draft),
 # and only the last job publishes it. Not exercised until a tag is pushed.
 on:
   push:

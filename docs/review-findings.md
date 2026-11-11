@@ -4,6 +4,11 @@ Date: 2026-11-08. Status: **draft, to be checked by the maintainer.** Compiled f
 journals in `docs/history/` and checked against the tree of branch `claudiofp/b18-stage2-docs`
 (based on `main` at `1cac601`). Nothing was run to build it.
 
+*Status, 2026-11-11 (journal 0284):* no longer a draft. Every Part A finding now has a regression
+test, is an answered design objection, or is listed under [Gaps](#gaps), item 1, as needing the
+maintainer's decision, with the reason a test is not written. The tests added in journals 0283
+and 0284 are written and compiled; their VM runs are pending (journal 0284, "Pending").
+
 ## What this is
 
 Stage 2 of `docs/distribution-strategy.md` §8, as amended on 2026-10-29
@@ -75,12 +80,12 @@ at the end of journal 0114). Items 1, 2 and the frozen lower were private adviso
 | --- | --- | --- | --- | --- | --- |
 | 1 (F9) | Homogeneity rule answers group/owner members a file only "others" can read | fixed | journal 0116; PR 80 | step `permmatrix`, `tests/permmatrix.c`, `PERMMATRIX_STEP_PASS` [suite]; mutants M06, M07, M08 | The step requires cases the old rule got wrong (journal 0116); since journal 0233 it runs on ext4, btrfs and XFS |
 | 2 (F10) | Per-result checks under `query_sem` wait on a FUSE mount, stalling every query | fixed | journal 0116; PR 80 | step `stall`, `tests/fusestall.c`, `STALL_PASS` [KASAN] | Prints `STALL_SKIPPED` where `/dev/fuse` is missing (Debian `make vm-test` guest) |
-| 3 | Ref-walk `d_revalidate` reads a lower dentry `moobl_instantiate` may free | fixed | journal 0120 (PR 82, git) | none | No reproducer: needs a preemptible kernel and a full grace period (journal 0120) |
+| 3 | Ref-walk `d_revalidate` reads a lower dentry `moobl_instantiate` may free | fixed | journal 0120 (PR 82, git) | none | No reproducer: needs a preemptible kernel and a full grace period (journal 0120). Needs the maintainer's decision (journal 0284) |
 | 4 (F11) | Name operations ignore a read-only lower mount | fixed | journal 0117; PR 80 | step `lowerro`, `LOWERRO_PASS`, tags `lr-ro-accepted`, `lr-fz-kernel-warning` [suite] | Negative round in journal 0117. Only ext4 is frozen in the step |
 | 5 | A build holds a whole directory listing in unaccounted memory | fixed | journal 0120 (PR 82, git) | step `bigdir`, `BIGDIR_PASS`, tag `bd-differs-from-oracle` [suite] | Negative round in journal 0131 (batch boundary broken). Checks answers, not memory |
-| 6 | `domain_drop`/`moobl_index_destroy` long walks without `cond_resched` | fixed | journal 0120 | none | Journal 0120: "no test, the cost is a scheduling point" |
+| 6 | `domain_drop`/`moobl_index_destroy` long walks without `cond_resched` | fixed | journal 0120 | none | Journal 0120: "no test, the cost is a scheduling point". Needs the maintainer's decision (journal 0284) |
 | 7 | Typed attribute cannot be set on a write-only file | fixed | journal 0120 | `tests/query.c` mode `xset` in each lower's step, tag `typed-attr-write-only-refused-$fs` [suite] | Negative round in journal 0131 |
-| 8 | Directory reads run with the caller's credentials, not the mounter's | fixed | journal 0120 | none | Journal 0120: the difference shows only under an LSM policy |
+| 8 | Directory reads run with the caller's credentials, not the mounter's | fixed | journal 0120 | none | Journal 0120: the difference shows only under an LSM policy. Needs the maintainer's decision (journal 0284) |
 | 9 | Pushed equality ignores the constraint's collation (SQLite table) | fixed | journal 0120 | step `sqlext`, `SQLEXT_PASS`, tag `sx-differs` [suite] | Negative round in journal 0131 |
 | V-a | Frozen lower: any user's create or chmod hits `WARN_ON` in ext4 | fixed | journal 0117; PR 80 | step `lowerro`, tag `lr-fz-kernel-warning` [suite] | New finding of the verification, part of F11 |
 | V-b (F12) | Idmapped lower mount accepted, mapping ignored | fixed (refused at mount) | journal 0117; PR 80 | step `lowerro`, `LOWERRO_PASS` "idmapped lower: refused" [suite] | The Debian guest prints "idmapped lower: not tested (no idmapped bind mount here)" (journal 0171) |
@@ -146,13 +151,13 @@ for the deferred items.
 | ID | Finding | Triage | Fix | Regression test | Notes |
 | --- | --- | --- | --- | --- | --- |
 | V1 | `posix_fadvise`, `readahead(2)`, `cachestat(2)` are no-ops | fixed, partial (`cachestat` stays an accepted limit) | journal 0224 (issue 115); PR 170 (git) | `tests/passthrough.c`, `PASSTHROUGH_PASS` (`PT_FADVISE_PASS`, `PT_READAHEAD_PASS`) [suite] | Negative round on `neg/b3d` (journal 0224) |
-| V2 | `sync_file_range(2)` succeeds without writing | accepted limit (README) | journal 0156, `cfed44b` | none | Not fixable without the lower's mapping |
+| V2 | `sync_file_range(2)` succeeds without writing | accepted limit (README) | journal 0156, `cfed44b` | `tests/passthrough.c` limits, `PT_LIMITS_PASS` [suite] (journal 0284) | Not fixable without the lower's mapping. The test pins the documented limit; it has no negative round |
 | V3 | `statx` drops lower-provided fields | fixed | journal 0224; PR 170 (git) | `tests/passthrough.c`, `PT_STATX_PASS` [suite] | |
 | V4 | Ref-walk `d_revalidate` checks less than RCU path | fixed | journal 0156, `d7f244d` | `tests/layer.c behind`, `LAYER_BEHIND_PASS`, tag `layer-behind-$fs`, in `run_lower` [suite] (journal 0276) | Same as M5. Negative round with the ref-walk checks removed (journal 0276) |
 | V5 | Default `drop_inode` pins deleted lower inodes | fixed | journal 0224; PR 170 (git) | `tests/passthrough.c`, `PT_DROP_INODE_PASS` [suite] | |
 | V6 | `RENAME_WHITEOUT` forwarded | fixed (refused, `EINVAL`) | journal 0156, `fb602d8` | `tests/query.c` mode `whiteout`, tag `v6-rename-whiteout-not-refused-$fs` [suite] | |
 | V7 | `F_SETFL` bits other than `O_APPEND` never reach the lower | fixed | journals 0149, 0224; PR 170 (git) | `tests/passthrough.c`, `PT_NOATIME_PASS` [suite]; `tests/fcntl-flags.c` | |
-| V8 | `moobl_rename` copies the whole lower `i_flags` word | fixed (all five sites) | journal 0156, `fb602d8` | none dedicated | Journal 0156: "no dedicated test" |
+| V8 | `moobl_rename` copies the whole lower `i_flags` word | fixed (all five sites) | journal 0156, `fb602d8` | none dedicated | Journal 0156: "no dedicated test". Needs the maintainer's decision (journal 0284) |
 | V9 | FIFO/socket comment says opening is refused | fixed (comment) | journal 0156, `cfed44b` | not applicable | |
 
 **Maintainer's reading M1 to M8**
@@ -165,8 +170,8 @@ for the deferred items.
 | M4 | `->lookup` returns `EXDEV`/`EOPNOTSUPP` for listed names and warns from a user path | fixed | journal 0221 (issue 119); PR 170 (git) | `tests/layer.c` `cfcheck`, `LAYER_CASEFOLD_PASS`, `CASEFOLD_REFUSED_PASS`, `LAYER_SUBVOLUME_PASS` [suite] | Negative round (tag `cf-check`, journal 0221) |
 | M5 | Two halves of `d_revalidate` disagree | duplicate of V4 | journal 0156, `d7f244d` | see V4 | |
 | M6 | Ioctl magic `'M'` shared in-tree; implicit tail padding | fixed (ADR-0026: magic kept, padding named and checked) | journal 0222; PR 170 (git) | `tests/query.c` refuses `pad[3]` (in `LAYER_LOWER_PASS`) [suite] | Negative round `term_check()` without `pad[3]` (journal 0222) |
-| M7 | `capable()` and `ns_capable_noaudit()` gate related things | fixed (one privilege test) | journal 0222; PR 170 (git) | steps `demo` (`DEMO_PASS`) [suite] and `buildlimit` [opt-in] | No negative round: no allowed/denied outcome changes (journal 0222) |
-| M8 | Seven one-line items (build guard, `getattr`, `flush`, `fileattr_set`, `SB_I_NOEXEC` doc, `scan_delay_us`, `pr_warn_ratelimited`) | fixed or answered item by item | journal 0221; PR 170 (git) | M8.1: `static_assert` in `layer/main.c` (build-time); M8.7: tag `lm-build-failure-logged-repeatedly` in `LIMITS_BUDGET_PASS`, step `limits` [suite] (journal 0276); others none | See Gaps |
+| M7 | `capable()` and `ns_capable_noaudit()` gate related things | fixed (one privilege test) | journal 0222; PR 170 (git) | steps `demo` (`DEMO_PASS`) [suite] and `buildlimit` [opt-in] | No negative round: no allowed/denied outcome changes (journal 0222). Needs the maintainer's decision (journal 0284) |
+| M8 | Seven one-line items (build guard, `getattr`, `flush`, `fileattr_set`, `SB_I_NOEXEC` doc, `scan_delay_us`, `pr_warn_ratelimited`) | fixed or answered item by item | journal 0221; PR 170 (git) | M8.1: `static_assert` in `layer/main.c` (build-time); M8.7: tag `lm-build-failure-logged-repeatedly` in `LIMITS_BUDGET_PASS`, step `limits` [suite] (journal 0276); M8.5: `tests/passthrough.c` noexec, `PT_NOEXEC_PASS` [suite] (journal 0284); others none | See Gaps |
 
 **Design opinions D1 to D4**
 
@@ -334,6 +339,22 @@ Part A (inside the criterion as worded):
 12. **M8** items 2 to 6: no test (journal 0221 states for item 2 that no test can tell the two
     paths apart on 6.12). Item 1 is a build-time `static_assert`, not a test. Item 7 (the
     build-failure warning logged once) is checked in step `limits` since journal 0276.
+
+*Note, 2026-11-11 (journal 0284), on items 1 to 3 and 9 to 12.* Written: **V2** and the
+`cachestat(2)` part of **V1** (`PT_LIMITS_PASS`, a pin of the documented limits, no negative
+round possible since nothing was fixed) and **M8.5** (`PT_NOEXEC_PASS`, the errnos of
+`SB_I_NOEXEC` and `SB_I_NODEV`); both in `tests/passthrough.c`, VM run pending. **M8.4** (not a
+defect) and **M8.6** (a test parameter kept, with its reason) have no behaviour to test.
+**Needs the maintainer's decision**, with the reason a test is not written (journal 0284):
+0114 item 3 (a test that fails without the fix needs a hold point inside ref-walk revalidation:
+a kernel change); 0114 item 6 (the only symptom is scheduling latency or a soft lockup, which a
+test reaches only with a domain far beyond the index budget, or with a scheduler-latency probe);
+0114 item 8 and M7 (they differ only in what an LSM sees or logs: testable without a kernel
+change under the SELinux harness of S12, `vm/selinux-local.sh`, not in the suite; effort M);
+V8 (no flag outside the copied mask has an effect the VFS shows on the layer inode through a
+rename that succeeds on ext4, btrfs or XFS: `S_SWAPFILE` makes the rename fail first); M8.2 and
+M8.3 (no supported kernel or lower tells the two paths apart: `vfs_getattr()` adds
+`AT_GETATTR_NOSEC` on 6.12, and none of ext4, btrfs and XFS has `->flush`).
 13. **D4**: closed on 2026-11-09 as a design objection answered by ADR-0012 (journal 0276); no
     test, as for D1 to D3.
 

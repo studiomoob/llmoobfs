@@ -471,6 +471,17 @@ above is kept.
   without a test whose test needs no kernel change were given one in journal 0283; 0083 A was
   not, for the reason that journal gives.
 
+*Amended, 2026-11-11, about 12:30 Brasília time (maintainer's release decisions,
+[journal 0284](history/0284-release-workflow-and-part-a-gaps.md)):* the text above is kept.
+
+- *"A third party reproduces everything"* means Parts A and B of the route of issue
+  [#195]({U}) (the core suite with acceptance, and fstests `quick` over the layer); Part C
+  (a syzkaller campaign) is welcome and not required.
+- A reproduction at `d96b0db` counts for the commit that is tagged if nothing under `layer/`
+  changes between the two.
+- The tag `v0.6.0-experimental` is cut only when stage 2 is declared, and the `.deb` packages
+  stay unpublished until then.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount
