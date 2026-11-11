@@ -189,7 +189,13 @@ int main(int argc, char **argv)
 	snprintf(sub, sizeof sub, "%s/sub", dom);
 	snprintf(top, sizeof top, "%s/top", dom);
 	snprintf(subf, sizeof subf, "%s/sub/f", dom);
-	if (mkdir(dom, 0755) || chmod(dom, 0755) || mkdir(sub, 0755) || chmod(sub, 0755))
+	/*
+	 * Modes come from mkdir under a fixed umask, not from chmod: a chmod through the layer
+	 * already stores the domain's note in ix->fallback, and the injected chmod would then
+	 * only overwrite that entry without allocating, so nothing could fail (journal 0284).
+	 */
+	umask(022);
+	if (mkdir(dom, 0755) || mkdir(sub, 0755))
 		die("directories");
 	file(top);
 	file(subf);
