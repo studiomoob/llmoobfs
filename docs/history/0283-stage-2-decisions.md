@@ -171,6 +171,11 @@ because `archive.ubuntu.com` could not be resolved (`apt-get update` of the `res
 and "Lint" failed in its "Manual pages" step because `mandoc` could not be downloaded
 (`Temporary failure resolving 'azure.archive.ubuntu.com'`). Both need a rerun by the maintainer;
 nothing was rerun from here. The KASAN workflow does not run on a push to `main`.
+*Note, 2026-11-11, 13:30 BRT (journal 0285):* the two jobs failed four attempts in all, from
+about 11:40 BRT. The cause is outside the project, not the code: Canonical's authoritative
+nameservers for `ubuntu.com` stopped answering over IPv4, which GitHub's runners use, so every
+`*.ubuntu.com` name failed to resolve. Journal 0285 records the incident and the retries and
+fallback mirror added for it.
 
 **Call for help.** Issue #195, "Help wanted: reproduce the stage-2 test evidence on your own KVM
 host", was opened at 11:25 BRT: a call for an independent reproduction of the stage-2 evidence,

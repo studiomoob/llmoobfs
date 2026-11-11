@@ -1530,3 +1530,21 @@ hand and carries the same code paths:
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/security/selinux/hooks.c?h=v6.12.111>.
   The test policy follows the structure of `policy/test_overlayfs.te` in SELinuxProject's
   selinux-testsuite, as journal 0104 did.
+
+## 57. apt with retries and a fallback Ubuntu mirror (journal 0285)
+
+- APT's sources, read through Context7 (`/debian/apt`) on 2026-11-11: `Acquire::Retries`
+  (default 3 in `apt-pkg/acquire-item.cc`, retried with exponential backoff in
+  `apt-pkg/acquire-worker.cc`), `Acquire::http::Timeout` (a per-I/O inactivity timeout, 30 s by
+  default, `methods/http.cc`), and `APT::Update::Error-Mode` (`apt-pkg/update.cc`: with `any`, a
+  transient failure to fetch an index is an error instead of a warning that keeps old indexes):
+  <https://github.com/debian/apt>; the options are documented in
+  [apt.conf(5)](https://manpages.debian.org/trixie/apt/apt.conf.5.en.html), and the deb822 source
+  format in [sources.list(5)](https://manpages.debian.org/trixie/apt/sources.list.5.en.html).
+- The kernel.org mirror of the Ubuntu archive, <http://mirrors.edge.kernel.org/ubuntu/>, checked
+  on 2026-11-11: `InRelease` of `resolute`, `resolute-updates`, `resolute-security`, `noble`,
+  `noble-updates` and `noble-security` answer 200, and the pool paths of the four pinned packages
+  (`linux-image-7.0.0-43-generic`, from `linux-signed`; `linux-modules-7.0.0-43-generic`;
+  `linux-headers-7.0.0-43-generic`; `linux-headers-7.0.0-43`, all `7.0.0-43.43`) answer 200.
+  `kernel.org` is served by other nameservers (Constellix) than `ubuntu.com` (Canonical's).
+  apt verifies its `InRelease` against `/usr/share/keyrings/ubuntu-archive-keyring.gpg`.

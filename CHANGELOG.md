@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- apt retries and a fallback Ubuntu mirror (journal 0285): `vm/apt-install.sh` installs with
+  `Acquire::Retries` and, on Ubuntu, switches once to `mirrors.edge.kernel.org` (archive and
+  security, signatures still checked) when the image's own sources fail. Used by `vm/Dockerfile`,
+  `vm/fstests-ubuntu/Dockerfile`, `vm/ubuntu-drift.sh` and the Lint job, after Canonical's
+  nameservers stopped answering over IPv4 on 2026-11-11 and four attempts of the post-merge CI
+  of `d96b0db` failed on DNS.
 - Linux 7.0, Ubuntu 26.04 LTS's series (and 24.04's HWE kernel), for the layer module
   (ADR-0034, journal 0281). The 7.3 forms start at 7.0 (`MOOBL_VFS_70`); `.create` keeps `excl`
   until 7.3 (`MOOBL_CREATE_73`, with a `static_assert` on the type of `->create`); 6.13 to 6.19,
