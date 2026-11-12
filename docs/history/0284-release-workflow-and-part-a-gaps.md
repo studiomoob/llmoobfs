@@ -1,10 +1,11 @@
 # 0284 — The release workflow under immutable releases, Part A's remaining gaps, and the release decisions of 2026-11-11
 
 Date: 2026-11-11. Work started 11:42 Brasília time; ended 12:32; second round 12:34–12:38. The
-times cover the documents, the workflow and the local checks (the pending VM runs are not
-included). Status: **done locally, not published; VM runs pending** (the test host is
-unreachable). Estimated effort S–M; the time recorded is calendar time of one session, close to
-the effort.
+times cover the documents, the workflow and the local checks (the VM runs are not included;
+the VM rounds of the evening and night are dated in their sections). Status: **done
+locally, not published; every VM run of the batch done** ("Batch runs before publication",
+below). Estimated effort S–M; the time recorded is calendar time of one session, close to the
+effort.
 
 ## Goal
 
@@ -285,7 +286,7 @@ apart under SELinux needs a confined mounter, and with the code as it is that te
 the current code because of point 3. Correcting point 3 is a change in `layer/`, which ADR-0022
 freezes: it needs the maintainer's decision.
 
-## Pending (test host unreachable)
+## Pending at the time (test host unreachable; all done since, see "Batch runs before publication")
 
 In addition to the items of journal 0283, "Pending" (its `fallbackfault` and `image-setup-unit` items are done, above; item 1 below is done too):
 
@@ -303,11 +304,26 @@ In addition to the items of journal 0283, "Pending" (its `fallbackfault` and `im
 ## Limitations
 
 - `release.yml` is linted, not run; the fork test above is proposed, not done.
-- Six Part A items are recorded exceptions to criterion (2), with no test (decision of 13:00);
-  0114 item 8's SELinux test is written, not run, and its policy module was not compiled here.
-- The two new passthrough cases are compiled, not run.
+- Seven Part A items are recorded exceptions to criterion (2), with no test (six by the decision
+  of 13:00, 0114 item 8 by the decision of about 21:30).
+- A confined mounter under SELinux needs `fd use` on every caller's domain (point 3 of the
+  SELinux section); documented as a limit, the correction is proposed separately.
+
+## Batch runs before publication (Mac mini, 2026-11-11 night)
+
+Branch head `8c1cc51` for the pre-push checks; the VM suites ran on `a460a7b`, whose `layer/` and
+tests are the same as the head's except for the reverted SELinux test (`da67b9c`), which the
+suites do not run.
+
+- Full `make vm-test`, ended 22:14: `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, rc=0.
+- Full local KASAN/UBSAN/lockdep suite (`sh vm/kasan-local.sh`, kernel 6.12.116), ended 23:26:
+  `MOOBFS_KASAN_PASS: layer suite under KASAN, UBSAN and lockdep with no kernel diagnostics`,
+  rc=0.
+- Pre-push checks on `8c1cc51` (diffcheck base `d96b0db`), ended 23:32: lint, checkpatch, test,
+  asan, hostile (clang/ASan), pylib, retired, pins, mutants, site, diffcheck and ubuntu-tests all
+  PASS.
 
 ## Next step
 
-The maintainer's decision on the fork test; the pending VM runs;
-then the batch's pull request with the maintainer's agreement.
+The maintainer's decision on the fork test; then the batch's pull request with the maintainer's
+agreement.
