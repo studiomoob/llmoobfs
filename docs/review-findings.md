@@ -8,7 +8,7 @@ journals in `docs/history/` and checked against the tree of branch `claudiofp/b1
 test, is an answered design objection, or is listed under [Gaps](#gaps), item 1, as needing the
 maintainer's decision, with the reason a test is not written. *Later the same day:* the
 maintainer decided those items: six are recorded exceptions to criterion (2) (ADR-0030,
-amendment of 2026-11-11, about 13:00), and 0114 item 8 has a test under SELinux, pending. The tests added in journals 0283
+amendment of 2026-11-11, about 13:00), and 0114 item 8 has a test under SELinux, pending. *Night of the same day:* that test could not work and was reverted; 0114 item 8 is a seventh exception (ADR-0030, amendment of about 23:30), and the run found a new SELinux limit (journal 0284). The tests added in journals 0283
 and 0284 are written and compiled; their VM runs are pending (journal 0284, "Pending").
 
 ## What this is
@@ -362,6 +362,14 @@ M8.3 (no supported kernel or lower tells the two paths apart: `vfs_getattr()` ad
 M8.3 are recorded exceptions to criterion (2) (ADR-0030, amendment of that time). 0114 item 8
 has a test, `SELINUX_DIRREAD_PASS` in the SELinux harness (`vm/selinux-local.sh`), written and
 **pending**: it stays listed here until its run and its negative round pass.
+
+*Note, 2026-11-11, about 23:30 (journal 0284):* the item 8 test failed on every run, with and
+without the fix, for reasons of its own design, and was reverted. 0114 item 8 is a recorded
+exception (ADR-0030, amendment of that time). The debugging found a new limit, not a finding of
+the six reviews: under SELinux a confined mounter needs `fd use` on every caller's domain,
+because the layer opens lower files without switching to the mounter's credentials while it
+reads them as the mounter. Documented in [matrix-and-limits.md](matrix-and-limits.md); fix in a
+later batch.
 13. **D4**: closed on 2026-11-09 as a design objection answered by ADR-0012 (journal 0276); no
     test, as for D1 to D3.
 

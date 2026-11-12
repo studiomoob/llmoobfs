@@ -1530,6 +1530,12 @@ hand and carries the same code paths:
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/security/selinux/hooks.c?h=v6.12.111>.
   The test policy follows the structure of `policy/test_overlayfs.te` in SELinuxProject's
   selinux-testsuite, as journal 0104 did.
+- For why that test could not work and the limit it found (same journal, night): the same
+  `hooks.c`, `selinux_file_alloc_security()` (a file's SID is `current_sid()` at allocation, not
+  the credentials passed to `dentry_open()`); Linux 6.12 `fs/overlayfs/readdir.c`
+  `ovl_dir_open()` and `fs/overlayfs/file.c` `ovl_open_realfile()`, which open the real file
+  under `ovl_override_creds()`:
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs/overlayfs?h=v6.12.111>.
 
 ## 57. apt with retries and a fallback Ubuntu mirror (journal 0285)
 

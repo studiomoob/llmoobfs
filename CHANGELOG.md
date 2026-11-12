@@ -52,9 +52,13 @@
   then.
 - Six Part A findings (0114 items 3 and 6, V8, M7, M8.2, M8.3) are recorded exceptions to
   criterion (2) of ADR-0030, by the maintainer's decision of 2026-11-11, each with its reason
-  (ADR-0030 amendment, journal 0284). Finding 0114 item 8 gets a test in the SELinux harness:
-  `SELINUX_DIRREAD_PASS` (`tests/listdir.c`, a reader domain with no `fd use` on the mounter's
-  domain), written, run pending.
+  (ADR-0030 amendment, journal 0284). Finding 0114 item 8 got a test in the SELinux harness,
+  which could not work and was reverted; it is a seventh recorded exception (ADR-0030, amendment
+  of about 23:30).
+- New documented limit under SELinux: the domain that mounts the layer needs `fd use` on the
+  domain of every process that reads through it, since the layer opens lower files as the
+  caller and reads them as the mounter; a confined mounter gets `EACCES` on directory reads
+  (journal 0284, `docs/matrix-and-limits.md`). Fix in `layer/` in a later batch.
 - `tests/passthrough.c` pins the accepted limits V2 and V1 (`PT_LIMITS_PASS`) and the errnos of
   `SB_I_NOEXEC` and `SB_I_NODEV` (`PT_NOEXEC_PASS`); `docs/review-findings.md` is no longer a
   draft: every Part A finding is tested or listed for the maintainer's decision (journal 0284).

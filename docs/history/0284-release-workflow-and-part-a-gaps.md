@@ -273,7 +273,14 @@ off (`/proc/sys/kernel/printk_ratelimit` 0):
    so its real files carry the mounter's SID. The file case was read in the source, not run.
 
 Consequences: the committed SELinux test of item 8 (3e5d739) fails on every run and proves
-nothing; the attempts above were not committed. Telling the old and the current `moobl_iterate()`
+nothing; the attempts above were not committed.
+
+**Maintainer's decision, 2026-11-11, about 23:30 Brasília time:** record point 3 as a documented
+stage-2 limit and fix it in a later batch; revert the item 8 test (da67b9c) and make 0114 item 8
+a seventh exception to criterion (2) (ADR-0030 amendment of that time). Surfaces updated:
+`docs/matrix-and-limits.md` (LSMs), `docs/when-not-to-use.md` (SELinux), the S12 row of
+`docs/security-roadmap.md`, `docs/review-findings.md`, `docs/distribution-strategy.md` §8,
+`CHANGELOG.md`, `docs/references.md`. Telling the old and the current `moobl_iterate()`
 apart under SELinux needs a confined mounter, and with the code as it is that test would fail on
 the current code because of point 3. Correcting point 3 is a change in `layer/`, which ADR-0022
 freezes: it needs the maintainer's decision.
@@ -288,7 +295,7 @@ In addition to the items of journal 0283, "Pending" (its `fallbackfault` and `im
    `sb->s_iflags` in `layer/main.c` → `PT_NOEXEC_FAIL` and `MOOBFS_VM_FAIL: passthrough-ext4`.
    `PT_LIMITS_PASS` has no negative round (nothing was fixed); if a lower writes its dirty pages
    back before `cachestat` reads them, the case fails and must be revisited.
-2. `sh vm/selinux-local.sh` on a Debian host with KVM and the packages its header lists →
+2. *(Withdrawn 2026-11-11 night: the test was reverted, see above.)* `sh vm/selinux-local.sh` on a Debian host with KVM and the packages its header lists →
    `SELINUX_DIRREAD_PASS` and `MOOBFS_SELINUX_RESULT: fsuse ...`; then the negative round planned
    above (`override_creds()` removed from `moobl_iterate()`) → `MOOBFS_SELINUX_FAIL: fsuse: item 8`.
 3. The full `make vm-test` and the full KASAN suite, once for the batch.

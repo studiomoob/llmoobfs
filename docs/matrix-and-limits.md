@@ -58,7 +58,9 @@ leak ([0283](history/0283-stage-2-decisions.md)).
 - **Stale paths after a directory rename** until remount; **lower changed while mounted** is
   undefined; **root bypasses the layer** ([distribution-strategy.md](distribution-strategy.md) §7).
 - **Depth**: nothing below 64 path components is indexed (F14, [when-not-to-use.md](when-not-to-use.md) §3).
-- **LSMs**: SELinux needs a policy rule; AppArmor and Smack never ran ([0104](history/0104-selinux-investigation.md)).
+- **LSMs**: SELinux needs a policy rule, and a confined mounter needs `fd use` on every caller's
+  domain or gets `EACCES` on directory reads, fix later ([0104](history/0104-selinux-investigation.md),
+  [0284](history/0284-release-workflow-and-part-a-gaps.md)); AppArmor and Smack never ran.
 - **Not covered by the suite**: acceptance over btrfs and XFS, KMSAN, any performance number
   beyond pilot-grade ([testing.md](testing.md) §9, [0088](history/0088-m4-report.md)).
 - **`cachestat(2)`** on a layer file reports the layer's own, empty page cache: the data is

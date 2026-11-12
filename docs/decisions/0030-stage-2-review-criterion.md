@@ -127,3 +127,14 @@ kernels and lower filesystems:
 0114 item 8 is not an exception: it gets a regression test under the SELinux setup of S12
 (`SELINUX_DIRREAD_PASS`, journal 0284), pending until it passes. A change to the kernel freeze
 reopens these exceptions: each then gets a test or a renewed reason.
+
+*Amended, 2026-11-11, about 23:30 Brasília time (maintainer's decision; journal 0284):* 0114
+item 8 joins the exceptions. The SELinux test written for it cannot work: a domain without
+`fd use` on the guest's `kernel_t` cannot even map its own executable, and SELinux gives the
+lower file the SID of the task that opens it, which is the caller, so the old and the current
+`moobl_iterate()` are both allowed with an unconfined mounter. Telling them apart needs a
+confined mounter, and that run exposed a separate defect: since journal 0120 the read runs as
+the mounter on a file with the caller's SID, so a confined mounter needs `fd use` on every
+caller's domain (overlayfs opens its real files under the mounter's credentials and has no such
+need). That defect is a documented stage-2 limit; its fix is a change to `layer/` for a later
+batch under the freeze rules. The test was reverted.

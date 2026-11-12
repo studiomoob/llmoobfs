@@ -490,6 +490,9 @@ supported kernels and lowers: 0114 items 3 and 6, V8, M7, M8.2 and M8.3 of
 [review-findings.md](review-findings.md). 0114 item 8 gets a test under SELinux
 (`SELINUX_DIRREAD_PASS`), pending until it passes.
 
+*Amended, 2026-11-11, about 23:30 ([journal 0284](history/0284-release-workflow-and-part-a-gaps.md)):*
+that test could not work and was reverted; 0114 item 8 is a seventh recorded exception.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount
