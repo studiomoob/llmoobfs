@@ -76,11 +76,20 @@ if [ "$TAG" = fsuse ]; then
     umount $S/layerm || fail "mounter umount"
     fu=$(grep -c 'scontext=system_u:system_r:moobtest_mounter_t:s0 tcontext=system_u:system_r:moobtest_reader_t:s0 tclass=fd' $S/mounter-dmesg.txt)
     op=$(grep -c 'denied  { open } .*scontext=system_u:system_r:moobtest_mounter_t:s0 tcontext=system_u:object_r:moobtest_dir_t:s0 tclass=dir' $S/mounter-dmesg.txt)
-    echo "  $TAG confined mounter: list=$rl read=$rr fd_use_on_reader=$fu mounter_open_logged=$op"
+    # Finding 0114 item 8 (journal 0286): the lower directory file now carries the mounter's
+    # domain, and the reader has no "fd use" on it. A directory read checked with the reader's
+    # credentials (moobl_iterate() before journal 0120) is refused that use; read as the mounter
+    # it is not. Control: the reader is enforcing, so such a refusal fails the listing.
+    ru=$(grep -c 'scontext=system_u:system_r:moobtest_reader_t:s0 tcontext=system_u:system_r:moobtest_mounter_t:s0 tclass=fd' $S/mounter-dmesg.txt)
+    rp=$(grep -c 'scontext=system_u:system_r:moobtest_reader_t:s0 .*permissive=1' $S/mounter-dmesg.txt)
+    echo "  $TAG confined mounter: list=$rl read=$rr fd_use_on_reader=$fu mounter_open_logged=$op reader_fd_use_on_mounter=$ru reader_permissive=$rp"
     [ "$op" -gt 0 ] || fail "confined mounter control: the mounter's open of the lower directory was not logged; the step proves nothing"
+    [ "$rp" = 0 ] || fail "item 8 control: the reader domain is permissive; the step proves nothing"
     [ "$fu" = 0 ] || { grep 'tclass=fd' $S/mounter-dmesg.txt | sed 's/^/  /' | head -4; fail "confined mounter: the mounter needed fd use on the reader ($fu)"; }
-    [ "$rl" = 0 ] && [ "$rr" = 0 ] || fail "confined mounter: the reader could not list or read through the layer (list=$rl read=$rr)"
+    [ "$ru" = 0 ] && [ "$rl" = 0 ] || { grep 'tclass=fd' $S/mounter-dmesg.txt | sed 's/^/  /' | head -4; fail "item 8: a directory read through the layer was checked with the caller's credentials (list=$rl, fd use refusals=$ru)"; }
+    [ "$rr" = 0 ] || fail "confined mounter: the reader could not read through the layer (read=$rr)"
     echo "SELINUX_MOUNTER_PASS: a layer mounted by a confined domain needs no fd use on its readers"
+    echo "SELINUX_DIRREAD_PASS: directory reads through the layer run as the mounter (0114 item 8)"
 fi
 # QUERY2 under the policy: the three files carry the same attribute; the client may getattr
 # rw and ro, not none
