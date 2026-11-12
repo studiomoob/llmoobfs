@@ -1460,3 +1460,105 @@ hand and carries the same code paths:
 - DKMS `BUILD_EXCLUSIVE_KERNEL`, a regular expression on the kernel release (`dkms(8)`), which the
   series entry `7.0.0-*-generic` becomes as `7\.0\.0-[0-9]+-generic`:
   <https://github.com/dkms-project/dkms/blob/main/dkms.8.in>.
+
+## 55. Regression tests for Part B of the review register (journal 0283)
+
+- Linux kernel documentation, "Fault injection capabilities infrastructure"
+  (`Documentation/fault-injection/fault-injection.rst`, Linux 6.12): `failslab` with
+  `probability`, `interval`, `times` (decremented on each injected failure, read back by
+  `tests/fallbackfault.c` to prove a fault fired), `task-filter` with `/proc/<pid>/make-it-fail`
+  (faults for the test's own task only) and the stack-trace filter `require-start`/`require-end`
+  set to the address range of one function from `/proc/kallsyms`. Same document as journal 0096,
+  used here in probability mode instead of `fail-nth`, because `xa_store()` retries a failed
+  node allocation once (`lib/xarray.c`, `__xa_store()` and `__xas_nomem()`, Linux 6.12: a
+  `GFP_NOWAIT` attempt inside the lock, then one with the caller's flags), so a single injected
+  failure is absorbed. <https://www.kernel.org/doc/html/v6.12/fault-injection/fault-injection.html>,
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/lib/xarray.c?h=v6.12.111>.
+- Linux man-pages [`dlsym(3)`](https://man7.org/linux/man-pages/man3/dlsym.3.html) (`RTLD_NEXT`)
+  and [`ld.so(8)`](https://man7.org/linux/man-pages/man8/ld.so.8.html) (`LD_PRELOAD`): the
+  interposition of `tests/fake-query2.c`, which stands in for the layer's `statfs` type and
+  `QUERY2` answers so that `tests/tools-uapi.sh` can feed the CLI records the module never
+  produces. Under AddressSanitizer the runtime's own interceptors reach the preloaded library
+  through `RTLD_NEXT`; with GCC's shared runtime, `verify_asan_link_order=0`
+  ([AddressSanitizer flags](https://github.com/google/sanitizers/wiki/AddressSanitizerFlags)).
+- util-linux [`setpriv(1)`](https://man7.org/linux/man-pages/man1/setpriv.1.html) (`--groups`,
+  `--reuid`, `--regid`): the supplementary group given to root and to the control run of
+  `tests/tools-uid.sh`.
+- e2fsprogs [`mke2fs(8)`](https://man7.org/linux/man-pages/man8/mke2fs.8.html) `-d` (populate an
+  image from a directory) and [`mount(8)`](https://man7.org/linux/man-pages/man8/mount.8.html)
+  `nosymfollow` (Linux 5.10 and later): the two images of `scripts/test-image-setup.sh`, as in the
+  hand check of journal 0211.
+- POSIX shell [`case` patterns](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html#tag_19_09_04_05)
+  and bracket expressions: the filter that `scripts/test-steps-filter.sh` runs as the workflows
+  have it; the explicit letter list instead of a range keeps it independent of the locale's
+  collation (journal 0211, merge note).
+
+## 56. Releases under immutable releases; the next version number (journal 0284)
+
+- GitHub Docs, "Immutable releases" (best practices: "Create the release as a draft. Attach all
+  associated assets to the draft release. Publish the draft release.") and "Managing releases in
+  a repository" (with immutable releases on, "you cannot add, replace, or delete assets after a
+  release is published, and you cannot move or delete its tag while the release exists"), read
+  through Context7 (`/github/docs`) on 2026-11-11:
+  <https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases>,
+  <https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository>.
+  The repository setting was read with `gh api repos/studiomoob/llmoobfs/immutable-releases`.
+- slsa-github-generator v2.1.0, `.github/workflows/generator_generic_slsa3.yml` (read from the
+  tag; Context7 has no entry for it): inputs `upload-assets`, `upload-tag-name`,
+  `draft-release`, `provenance-name`, output `provenance-name`; the signed provenance is stored
+  as a workflow artifact of that name (`actions/upload-artifact`), and its `upload-assets` job
+  attaches it with `softprops/action-gh-release` v2.2.1 by tag name. The REST lookup of a release
+  by tag does not return drafts; whether that action finds the draft or creates a second release
+  was not established, so `release.yml` sets `upload-assets: false` and attaches the provenance
+  itself.
+  <https://github.com/slsa-framework/slsa-github-generator/blob/v2.1.0/.github/workflows/generator_generic_slsa3.yml>.
+- `actions/download-artifact` v8.0.2 (commit `9000827ccba6bdab643e8b6fd33ac0654aef8333`), pinned
+  by hash as `scripts/check-pins.sh` and Scorecard expect:
+  <https://github.com/actions/download-artifact/releases/tag/v8.0.2>.
+- GitHub CLI manual, `gh release create --draft --verify-tag --prerelease`, `gh release upload
+  --clobber`, `gh release edit --draft=false`: <https://cli.github.com/manual/gh_release>.
+- actionlint 1.7.7 (the image of journal 0211, pinned by digest), which runs shellcheck over
+  each `run:` block: <https://github.com/rhysd/actionlint>.
+- Semantic Versioning 2.0.0, items 6 and 7 (patch for backwards-compatible bug fixes, minor for
+  new backwards-compatible functionality): the reason the next tag is `0.6.0`, not `0.5.1`.
+  <https://semver.org/spec/v2.0.0.html>.
+- For the SELinux test of finding 0114 item 8 (same journal): Linux 6.12.111
+  `security/selinux/hooks.c`, `selinux_file_permission()` (no check when the current SID opened
+  the file) and `__file_has_perm()` (`fd { use }` from the current SID to the opener's SID before
+  the object's own permission), and `flush_unauthorized_files()` (descriptors a new domain may
+  not use are replaced at exec), read for this:
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/security/selinux/hooks.c?h=v6.12.111>.
+  The test policy follows the structure of `policy/test_overlayfs.te` in SELinuxProject's
+  selinux-testsuite, as journal 0104 did.
+- For why that test could not work and the limit it found (same journal, night): the same
+  `hooks.c`, `selinux_file_alloc_security()` (a file's SID is `current_sid()` at allocation, not
+  the credentials passed to `dentry_open()`); Linux 6.12 `fs/overlayfs/readdir.c`
+  `ovl_dir_open()` and `fs/overlayfs/file.c` `ovl_open_realfile()`, which open the real file
+  under `ovl_override_creds()`:
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs/overlayfs?h=v6.12.111>.
+
+## 57. apt with retries and a fallback Ubuntu mirror (journal 0285)
+
+- APT's sources, read through Context7 (`/debian/apt`) on 2026-11-11: `Acquire::Retries`
+  (default 3 in `apt-pkg/acquire-item.cc`, retried with exponential backoff in
+  `apt-pkg/acquire-worker.cc`), `Acquire::http::Timeout` (a per-I/O inactivity timeout, 30 s by
+  default, `methods/http.cc`), and `APT::Update::Error-Mode` (`apt-pkg/update.cc`: with `any`, a
+  transient failure to fetch an index is an error instead of a warning that keeps old indexes):
+  <https://github.com/debian/apt>; the options are documented in
+  [apt.conf(5)](https://manpages.debian.org/trixie/apt/apt.conf.5.en.html), and the deb822 source
+  format in [sources.list(5)](https://manpages.debian.org/trixie/apt/sources.list.5.en.html).
+- The kernel.org mirror of the Ubuntu archive, <http://mirrors.edge.kernel.org/ubuntu/>, checked
+  on 2026-11-11: `InRelease` of `resolute`, `resolute-updates`, `resolute-security`, `noble`,
+  `noble-updates` and `noble-security` answer 200, and the pool paths of the four pinned packages
+  (`linux-image-7.0.0-43-generic`, from `linux-signed`; `linux-modules-7.0.0-43-generic`;
+  `linux-headers-7.0.0-43-generic`; `linux-headers-7.0.0-43`, all `7.0.0-43.43`) answer 200.
+  `kernel.org` is served by other nameservers (Constellix) than `ubuntu.com` (Canonical's).
+  apt verifies its `InRelease` against `/usr/share/keyrings/ubuntu-archive-keyring.gpg`.
+- Debian's snapshot archive, <https://snapshot.debian.org/>, and its machine API
+  (`/mr/binary/<package>/`), checked on 2026-11-12 (journal 0284): sid moved from `7.3.3-1` to
+  `7.3.4-1` of `linux` (<https://sources.debian.org/api/src/linux/>) and dropped
+  `linux-image-7.3.3+deb14-amd64`; the snapshot of `20261110T000000Z` still serves it and its
+  dependencies (`linux-binary-`, `linux-modules-`, `linux-headers-7.3.3+deb14-common`,
+  `linux-kbuild-7.3.3+deb14`). The `check-valid-until=no` option of
+  [sources.list(5)](https://manpages.debian.org/trixie/apt/sources.list.5.en.html) lets apt use an
+  expired `InRelease`; its signature is still checked.

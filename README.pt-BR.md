@@ -222,7 +222,8 @@ requests 161 a 163). O que mais ajudaria, organizado por
 quanto conhecimento de kernel exige, está em **[docs/help-wanted.md](docs/help-wanted.md)**: uma
 revisão do modelo de credenciais ou das travas do índice, se você conhece o VFS; uma verificação
 de se o seu sistema de memória se encaixa, se você constrói um; uma rodada dos testes na sua
-máquina ou em outro kernel; e correções de documentação ou de reprodutibilidade que não exigem
+máquina ou em outro kernel (a chamada aberta [#195](https://github.com/studiomoob/llmoobfs/issues/195) pede uma reprodução independente das
+evidências da etapa 2 num host com KVM); e correções de documentação ou de reprodutibilidade que não exigem
 conhecimento de kernel. As regras para
 mudanças estão em [CONTRIBUTING.md](CONTRIBUTING.md).
 

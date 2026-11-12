@@ -195,3 +195,9 @@ advisory when it is a vulnerability under `SECURITY.md`; older versions are not 
   0155. A minor version: the reserved byte of a query term must be zero (ADR-0026) and two lookup
   errnos changed (`EREMOTE`, `ESTALE`); sizes, offsets, command numbers and the on-disk
   conventions did not (journal 0226).
+- Decided on 2026-11-11 (journal 0284): the next tag is `v0.6.0-experimental`, cut when stage 2
+  is declared. A minor version, not `v0.5.1`, although the UAPI header changed only in comments
+  and the on-disk conventions did not: the rule of journal 0142 says when a patch is enough for
+  compatibility, while the versions since `v0.5.0-experimental` add functionality, the ports to
+  Linux 7.3 (ADR-0034) and to Ubuntu's 7.0 series (ADR-0036) and the workspace commands of the
+  `moobfs` CLI (ADR-0035), which is what a minor version marks.

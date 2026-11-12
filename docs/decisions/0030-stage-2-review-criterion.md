@@ -1,6 +1,6 @@
 # ADR-0030 — Review criterion of the technical preview: automated coverage and triaged AI-assisted findings; a targeted human review for the public release
 
-Date: 2026-10-29. Status: **accepted by the maintainer on 2026-10-29** (journal 0240).
+Date: 2026-10-29. Status: **accepted by the maintainer on 2026-10-29** (journal 0240); amended on 2026-11-11 (journals 0283 and 0284, at the end).
 Estimated effort: S (hours) for the decision and the documents. No kernel, UAPI or format change
 (ADR-0022).
 
@@ -84,3 +84,57 @@ work moves to the stage-3 preconditions.
   human review. Old wordings are in `docs/retired-claims.txt`.
 - Risk: a defect class that neither the tests nor an AI-assisted review can see reaches the
   preview's users. The preview stays limited to VMs or dedicated hosts with documented limits.
+
+## Amendment, 2026-11-11 (journal 0283)
+
+Decided by the maintainer on 2026-11-11, about 08:30 Brasília time; the text above is kept.
+
+- **Part B of [`docs/review-findings.md`](../review-findings.md) is informative.** The reviews and
+  inspections journal 0240 does not classify as AI-assisted (journals 0019, 0020, 0023, 0066,
+  0079, 0081, 0083, 0105, and the contributor's reviews of journals 0211 to 0213) stay outside
+  criterion (2) of the decision above; the maintainer first agreed to this on 2026-11-09 and
+  confirmed it on 2026-11-11. Their findings are still tracked in that register, and journal 0283
+  added regression tests for those that lacked one and need no kernel change.
+- **Issue 117 (finding M2 of journal 0155) is a documented limit of stage 2**, not a gap of
+  criterion (2): its regression test for the part fixed (step `ixlock`) exists; the remainder
+  (inodes with an index record still take the index lock for writing on instantiation and
+  eviction) is contention under load, with no wrong answer and no security effect, and removing
+  it needs a kernel change, frozen by ADR-0022. The issue stays open for the review of the freeze
+  after `v0.6.0`.
+- **GHSA-756j-cgwq-gvwm is not an open known leak** for the "no leak is known" condition of §8:
+  fixed in journal 0216 with a regression test (`domainreuse`) and published (journal 0219).
+- Acceptance step 5 of §8 is restated to match the behaviour of `QUERY2` (see the amendment of
+  `docs/distribution-strategy.md` §8 of the same date).
+
+## Amendment, 2026-11-11, about 13:00 Brasília time (journal 0284): recorded exceptions to criterion (2)
+
+Decided by the maintainer; the text above is kept. Six findings of Part A of
+[`docs/review-findings.md`](../review-findings.md) are accepted as **recorded exceptions** to
+criterion (2) ("every finding of an AI-assisted review triaged, reproduced and turned into a
+regression test"). Each fix was checked against the code; none can be shown by a regression test
+without changing the frozen kernel (ADR-0022), or none has a symptom observable on the supported
+kernels and lower filesystems:
+
+| Finding | Fix | Why no regression test |
+| --- | --- | --- |
+| 0114 item 3, ref-walk revalidation reads a lower dentry `moobl_instantiate()` may free | journal 0120 | A test that fails without the fix needs a hold point inside ref-walk revalidation, a kernel change; a stress race would pass on the fixed code and fail only by chance on the old one. |
+| 0114 item 6, long walks without `cond_resched()` | journal 0120 | The only symptom is scheduling latency or a soft lockup, reached only with a domain far beyond the index budget or with a scheduler-latency probe. |
+| V8, rename copied the lower's whole `i_flags` | journal 0156 | No flag outside the copied mask has an effect the VFS shows on the layer inode after a rename that succeeds on ext4, btrfs or XFS; `S_SWAPFILE`, the one with a clear effect, makes the rename fail first. |
+| M7, `capable()` and `ns_capable_noaudit()` | journal 0222 | No allowed or denied outcome differs; only whether an LSM logs the check. |
+| M8.2, `getattr` without `AT_GETATTR_NOSEC` | journal 0221 | On the supported kernels `vfs_getattr()` adds the flag itself, so the two paths cannot be told apart. |
+| M8.3, `flush` with the mounter's credentials | journal 0221 | None of ext4, btrfs and XFS has `->flush`. |
+
+0114 item 8 is not an exception: it gets a regression test under the SELinux setup of S12
+(`SELINUX_DIRREAD_PASS`, journal 0284), pending until it passes. A change to the kernel freeze
+reopens these exceptions: each then gets a test or a renewed reason.
+
+*Amended, 2026-11-11, about 21:30 Brasília time (maintainer's decision; journal 0284):* 0114
+item 8 joins the exceptions. The SELinux test written for it cannot work: a domain without
+`fd use` on the guest's `kernel_t` cannot even map its own executable, and SELinux gives the
+lower file the SID of the task that opens it, which is the caller, so the old and the current
+`moobl_iterate()` are both allowed with an unconfined mounter. Telling them apart needs a
+confined mounter, and that run exposed a separate defect: since journal 0120 the read runs as
+the mounter on a file with the caller's SID, so a confined mounter needs `fd use` on every
+caller's domain (overlayfs opens its real files under the mounter's credentials and has no such
+need). That defect is a documented stage-2 limit; its fix is a change to `layer/` for a later
+batch under the freeze rules. The test was reverted.

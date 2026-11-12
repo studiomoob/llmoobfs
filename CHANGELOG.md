@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- apt retries and a fallback Ubuntu mirror (journal 0285): `vm/apt-install.sh` installs with
+  `Acquire::Retries` and, on Ubuntu, switches once to `mirrors.edge.kernel.org` (archive and
+  security, signatures still checked) when the image's own sources fail. Used by `vm/Dockerfile`,
+  `vm/fstests-ubuntu/Dockerfile`, `vm/ubuntu-drift.sh` and the Lint job, after Canonical's
+  nameservers stopped answering over IPv4 on 2026-11-11 and four attempts of the post-merge CI
+  of `d96b0db` failed on DNS.
 - Linux 7.0, Ubuntu 26.04 LTS's series (and 24.04's HWE kernel), for the layer module
   (ADR-0034, journal 0281). The 7.3 forms start at 7.0 (`MOOBL_VFS_70`); `.create` keeps `excl`
   until 7.3 (`MOOBL_CREATE_73`, with a `static_assert` on the type of `->create`); 6.13 to 6.19,
@@ -27,6 +33,46 @@
 - `docs/when-not-to-use.md` and `SECURITY.md` no longer say that issue 118 is open; it was closed on
   2026-10-27 with the slow-lower run of journal 0210 (PR 160). The old wordings are retired claims
   (journal 0282).
+- Stage-2 decisions of 2026-11-11 (journal 0283; `docs/distribution-strategy.md` §8 and ADR-0030
+  amended, earlier text kept): the remainder of issue 117 (an inode with an index record takes
+  the index lock for writing on instantiation and eviction) is a documented limit of the
+  technical preview, listed in `docs/when-not-to-use.md` §3, with the issue open until the
+  kernel freeze is reviewed after `v0.6.0`; acceptance step 5 now states what the module does
+  through a bind of a domain directory (`QUERY2` answers, `GET_INFO` and the v1 `QUERY` return
+  `ENOTTY`); GHSA-756j-cgwq-gvwm, fixed and published, is not an open known leak; Part B of
+  `docs/review-findings.md` stays informative, outside the review criterion.
+- `.github/workflows/release.yml` works with immutable releases: the release is created as a
+  draft, the archive, its SHA-256, the Sigstore bundle and the SLSA provenance are attached to
+  the draft, and a last job publishes it; the generator no longer uploads (journal 0284; linted,
+  not exercised until a tag).
+- Release decisions of 2026-11-11 (journal 0284): `v0.6.0-experimental`, a minor version for the
+  7.3 and Ubuntu 7.0 ports and the workspace CLI, is tagged only when stage 2 is declared; "a
+  third party reproduces everything" means Parts A and B of the route of issue #195; a
+  reproduction at `d96b0db` counts if `layer/` does not change; packages stay unpublished until
+  then.
+- Six Part A findings (0114 items 3 and 6, V8, M7, M8.2, M8.3) are recorded exceptions to
+  criterion (2) of ADR-0030, by the maintainer's decision of 2026-11-11, each with its reason
+  (ADR-0030 amendment, journal 0284). Finding 0114 item 8 got a test in the SELinux harness,
+  which could not work and was reverted; it is a seventh recorded exception (ADR-0030, amendment
+  of about 21:30).
+- New documented limit under SELinux: the domain that mounts the layer needs `fd use` on the
+  domain of every process that reads through it, since the layer opens lower files as the
+  caller and reads them as the mounter; a confined mounter gets `EACCES` on directory reads
+  (journal 0284, `docs/matrix-and-limits.md`). Fix in `layer/` in a later batch.
+- `tests/passthrough.c` pins the accepted limits V2 and V1 (`PT_LIMITS_PASS`) and the errnos of
+  `SB_I_NOEXEC` and `SB_I_NODEV` (`PT_NOEXEC_PASS`); `docs/review-findings.md` is no longer a
+  draft: every Part A finding is tested or listed for the maintainer's decision (journal 0284).
+- Issue #195 asks for an independent reproduction of the stage-2 test evidence on another KVM
+  host, pinned to `d96b0db`; `docs/help-wanted.md`, both READMEs, the FAQ, the site and both
+  status pages point to it. `docs/matrix-and-limits.md` states issue 117 as a documented stage-2
+  limit and GHSA-756j-cgwq-gvwm as fixed (journal 0283).
+- Regression tests for Part B findings that had none (journal 0283): `fallbackfault` in the KASAN
+  harness (0083 E: a chmod whose per-domain note cannot be stored still turns per-result checks
+  on, `FALLBACK_FAULT_PASS`; written, its VM run pending), `scripts/test-steps-filter.sh` in
+  `make lint` (0211-1), `make image-setup-unit` (0211-3; not run yet), and `tests/tools-uid.sh`
+  and `tests/tools-uapi.sh` in `make hostile-test` (0213-2 and 0213-3, the latter through an
+  `LD_PRELOAD` stand-in for `QUERY2`). 0083 A has no test: one that fails without its fix needs a
+  kernel change.
 - Python library: `layer_mounted()` reads `struct statfs`'s `f_type` with the width of the ABI,
   32-bit on s390x and a native `long` elsewhere; on s390x it was False on every mount, so
   `Domain` never used the kernel backend. Unit tests in `make pylib-test` decode fixed s390x and

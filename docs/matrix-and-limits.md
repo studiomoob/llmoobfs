@@ -33,7 +33,8 @@ installed in one VM, also under Secure Boot with lockdown, not published ([0229]
 [testing.md](testing.md) §3; what no step covers: [testing.md](testing.md) §9. **Leaks between
 users:** none known open; the fixed ones are the published
 [advisories](https://github.com/studiomoob/llmoobfs/security/advisories) and the findings of
-[review-findings.md](review-findings.md).
+[review-findings.md](review-findings.md); GHSA-756j-cgwq-gvwm is fixed and published, not an open
+leak ([0283](history/0283-stage-2-decisions.md)).
 
 ## Known limitations
 
@@ -44,8 +45,8 @@ users:** none known open; the fixed ones are the published
   is not detected (GHSA-756j-cgwq-gvwm; [when-not-to-use.md](when-not-to-use.md) §3).
 - **ext4 without `metadata_csum`**: the owner of a file can set its generation on the lower and
   make stale records current again (GHSA-756j-cgwq-gvwm; [when-not-to-use.md](when-not-to-use.md) §3).
-- **Issue [#117](https://github.com/studiomoob/llmoobfs/issues/117)**: an inode with an index
-  record still takes the mount-wide index lock on instantiation and eviction ([0223](history/0223-index-lock-instantiation-eviction.md)).
+- **Issue [#117](https://github.com/studiomoob/llmoobfs/issues/117)**, a documented stage-2 limit: an inode with an index record
+  still takes the mount-wide index lock on instantiation and eviction; contention, no wrong answer ([0283](history/0283-stage-2-decisions.md)).
 - **Slow debug kernels**: a large domain's build stops at the 10 s CPU bound (`ETIMEDOUT`) and
   five steps fail, two more miss time thresholds; left unchanged by decision ([0280](history/0280-first-s390x-run.md), [testing.md](testing.md) §9).
 - **s390x**: the `ixlock` 1 s threshold cannot tell a lock wait from `drop_caches`' own cost
@@ -57,7 +58,9 @@ users:** none known open; the fixed ones are the published
 - **Stale paths after a directory rename** until remount; **lower changed while mounted** is
   undefined; **root bypasses the layer** ([distribution-strategy.md](distribution-strategy.md) §7).
 - **Depth**: nothing below 64 path components is indexed (F14, [when-not-to-use.md](when-not-to-use.md) §3).
-- **LSMs**: SELinux needs a policy rule; AppArmor and Smack never ran ([0104](history/0104-selinux-investigation.md)).
+- **LSMs**: SELinux needs a policy rule, and a confined mounter needs `fd use` on every caller's
+  domain or gets `EACCES` on directory reads, fix later ([0104](history/0104-selinux-investigation.md),
+  [0284](history/0284-release-workflow-and-part-a-gaps.md)); AppArmor and Smack never ran.
 - **Not covered by the suite**: acceptance over btrfs and XFS, KMSAN, any performance number
   beyond pilot-grade ([testing.md](testing.md) §9, [0088](history/0088-m4-report.md)).
 - **`cachestat(2)`** on a layer file reports the layer's own, empty page cache: the data is

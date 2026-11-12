@@ -54,6 +54,13 @@ and query evidence (journals [0088](history/0088-m4-report.md) and
   `v0.4.1-experimental` still carries them, `v0.5.0-experimental` does not. Of those issues, 115 and 119 are fixed in journals 0221, 0222 and
   0224, and 117 in part (journal 0223: inodes without an index record no longer take the index
   lock on instantiation or eviction; inodes with one still do).
+- **Many inodes with index records created and evicted under load** (issue 117, accepted on
+  2026-11-11 as a documented limit of the technical preview, journal 0283): instantiating or
+  evicting a layer inode that has an index record takes the mount-wide index lock for writing,
+  so a workload that churns many attributed files through the inode cache, or memory reclaim
+  evicting them, contends with the queries and builds of every domain of the mount. Answers stay correct
+  and no permission is affected; only throughput suffers. Removing it changes the kernel, which is
+  frozen (ADR-0022); the issue stays open for the review of the freeze after `v0.6.0`.
 
 The two defects from [review 0144](history/0144-independent-review.md) remain in
 `v0.4.1-experimental` (not in `v0.5.0-experimental`), and so does a third, from [review 0151](history/0151-review-d110d4e.md): a
@@ -91,7 +98,10 @@ These limits update the cases discussed in the value assessment, §9.6.
   ([vm/selinux/moobfs_layer.cil](../vm/selinux/moobfs_layer.cil)) files keep their labels and
   the first test agreed with direct access; every `QUERY2` result is then checked for the
   caller, at a cost not measured ([journal 0104](history/0104-selinux-investigation.md)). One
-  run, one kernel; Smack and AppArmor were not exercised.
+  run, one kernel; Smack and AppArmor were not exercised. The domain that mounts the layer
+  must also be allowed `fd use` on the domains of the processes that use it, or be unconfined:
+  a confined mounter without that rule gets `EACCES` on directory reads through the layer
+  ([journal 0284](history/0284-release-workflow-and-part-a-gaps.md)).
 - **Your kernel is outside the tested matrix.** Only Debian 6.12.111, 6.12.113, 6.12.115 and
   7.3.3 and Ubuntu 7.0.0-43-generic (QEMU; on 7.0 and 7.3 the layer module only) and upstream
   6.12.112 (KASAN; on arm64 too, under emulation, as an exploratory job), 6.12.116, 7.0.14 and

@@ -78,7 +78,9 @@ apagado por trás da camada e o `O_NOATIME` ligado por `F_SETFL` agora chegam ao
 `cachestat(2)` continua uma limitação ([diário 0224](history/0224-passthrough-gaps-issue-115.md)). A
 issue 117 foi corrigida em parte: criar e despejar um inode sem registro no índice não toma mais a
 trava do índice da montagem inteira; um inode com registro ainda toma, e a issue continua aberta
-para ele ([diário 0223](history/0223-index-lock-instantiation-eviction.md)). A `v0.4.1-experimental`
+para ele ([diário 0223](history/0223-index-lock-instantiation-eviction.md)). Desde 11/11/2026 esse resto é um limite documentado da prévia técnica, mantido
+até a revisão do congelamento do kernel depois da `v0.6.0` ([diário 0283](history/0283-stage-2-decisions.md); [when-not-to-use.md](when-not-to-use.md) §3).
+A `v0.4.1-experimental`
 contém todos esses defeitos.
 *Atualização, 28/10/2026 ([diário 0227](history/0227-mcp-and-store-confinement.md)):* dois relatos
 privados do mesmo revisor externo, em espaço de usuário, estão corrigidos: o adaptador MCP seguia
@@ -123,3 +125,11 @@ diz se um `ENOMEM` veio do orçamento do índice ou do `memory.max` de um cgroup
 `docs/operations.md` §5 define `MemoryMax=` para toda fatia de usuário com um drop-in do systemd.
 Testados em unidade fora da VM; as rodadas em VM (passo `diag` da suíte, `make install-test`) e
 suas rodadas negativas passaram em 30/10/2026, e o mantenedor as aceitou no mesmo dia: o G2 está concluído.
+*Atualização, 11/11/2026 ([diário 0283](history/0283-stage-2-decisions.md)):* a etapa 2 (prévia
+técnica) não foi atingida. O mantenedor decidiu quatro das suas condições (o resto da issue 117 é
+um limite documentado, o passo 5 de aceitação foi reescrito para o `QUERY2`, a
+GHSA-756j-cgwq-gvwm não é um vazamento conhecido em aberto, a Parte B de
+`docs/review-findings.md` fica fora do critério de revisão), e a issue
+[#195](https://github.com/studiomoob/llmoobfs/issues/195) pede a linha "um terceiro reproduz
+tudo": uma rodada independente das evidências de teste da etapa 2 em outro host com KVM, fixada
+em `d96b0db`. Ninguém a reproduziu ainda.

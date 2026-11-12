@@ -74,7 +74,9 @@ layer and `O_NOATIME` set by `F_SETFL` now reach the lower; `cachestat(2)` stays
 ([journal 0224](history/0224-passthrough-gaps-issue-115.md)). Issue 117 is fixed in part: instantiation
 and eviction of an inode without an index record no longer take the mount-wide index lock; an
 inode with a record still does, and the issue stays open for it
-([journal 0223](history/0223-index-lock-instantiation-eviction.md)). `v0.4.1-experimental` contains all
+([journal 0223](history/0223-index-lock-instantiation-eviction.md)). Since 2026-11-11 that remainder is a documented limit of the technical preview, kept
+until the kernel freeze is reviewed after `v0.6.0` ([journal 0283](history/0283-stage-2-decisions.md); [when-not-to-use.md](when-not-to-use.md) §3).
+`v0.4.1-experimental` contains all
 of these defects.
 *Update, 2026-10-28 ([journal 0227](history/0227-mcp-and-store-confinement.md)):* two private
 reports from the same external reviewer, in user space, are fixed: the MCP adapter followed a
@@ -118,3 +120,10 @@ from a memory cgroup's `memory.max`, and `docs/operations.md` §5 sets `MemoryMa
 slice with a systemd drop-in. Unit-tested offline; the VM runs (suite step `diag`,
 `make install-test`) and their negative rounds passed on 2026-10-30, and the maintainer accepted
 them the same day: G2 is done.
+*Update, 2026-11-11 ([journal 0283](history/0283-stage-2-decisions.md)):* stage 2 (technical
+preview) is not reached. The maintainer settled four of its conditions (issue 117's remainder is a
+documented limit, acceptance step 5 is restated for `QUERY2`, GHSA-756j-cgwq-gvwm is not an open
+known leak, Part B of `docs/review-findings.md` is outside the review criterion), and issue
+[#195](https://github.com/studiomoob/llmoobfs/issues/195) asks for the "third party reproduces
+everything" line: an independent run of the stage-2 test evidence on another KVM host, pinned to
+`d96b0db`. No one has reproduced it yet.

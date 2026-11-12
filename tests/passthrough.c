@@ -8,6 +8,13 @@
  *              attributes are the lower's
  *   dropinode  a file removed behind the layer frees its space once the layer drops its name
  *   noatime    O_NOATIME set with F_SETFL after open stops the lower's access time
+ *   limits     the two accepted limits stay as documented (V2 and the cachestat part of V1,
+ *              journal 0284): sync_file_range(2) on a layer descriptor succeeds and writes
+ *              nothing back, and cachestat(2) on it reports no cached page, while the same
+ *              calls on the lower descriptor do (README "Limits", docs/matrix-and-limits.md)
+ *   noexec     SB_I_NOEXEC and SB_I_NODEV as docs/when-not-to-use.md §3 states them (M8.5,
+ *              journal 0284): execve and access(X_OK) fail with EACCES, mmap with PROT_EXEC
+ *              with EPERM, opening a device node with EACCES
  * Usage: passthrough <layer dir> <lower dir>. Every case runs; exit 1 if any failed.
  */
 #define _GNU_SOURCE
@@ -21,6 +28,8 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/syscall.h>
+#include <sys/sysmacros.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -333,6 +342,125 @@ static int t_noatime(void)
 	return ok;
 }
 
+#ifndef SYS_cachestat
+#define SYS_cachestat 451	/* the same number on every architecture (Linux 6.5) */
+#endif
+struct pt_cachestat_range {
+	uint64_t off, len;
+};
+struct pt_cachestat {
+	uint64_t nr_cache, nr_dirty, nr_writeback, nr_evicted, nr_recently_evicted;
+};
+
+static int cstat(int fd, struct pt_cachestat *cs)
+{
+	struct pt_cachestat_range r = { 0, 0 };	/* len 0: to the end of the file */
+
+	memset(cs, 0, sizeof(*cs));
+	return (int)syscall(SYS_cachestat, fd, &r, cs, 0);
+}
+
+/* Accepted limits V2 and V1 (cachestat): if one is ever lifted, this fails and the documents change. */
+static int t_limits(void)
+{
+	static char buf[1 << 16];
+	struct pt_cachestat lay, low, after;
+	int ufd, lfd, i, r, ok;
+
+	paths("pt-limits");
+	ufd = open(up, O_CREAT | O_EXCL | O_RDWR, 0644);
+	lfd = ufd < 0 ? -1 : open(lp, O_RDONLY);
+	if (ufd < 0 || lfd < 0) {
+		perror("limits open");
+		return 0;
+	}
+	memset(buf, 'l', sizeof(buf));
+	for (i = 0; i < 16; i++)	/* 1 MiB, left dirty: no fsync */
+		if (write(ufd, buf, sizeof(buf)) != (ssize_t)sizeof(buf))
+			return perror("limits write"), 0;
+	r = (int)sync_file_range(ufd, 0, 0, SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE |
+				 SYNC_FILE_RANGE_WAIT_AFTER);
+	if (cstat(ufd, &lay) || cstat(lfd, &low)) {
+		perror("cachestat");
+		return 0;
+	}
+	/* control: the same call on the lower descriptor writes the pages back */
+	if (sync_file_range(lfd, 0, 0, SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE |
+			    SYNC_FILE_RANGE_WAIT_AFTER) || cstat(lfd, &after))
+		perror("lower sync_file_range");
+	printf("PT_LIMITS sync_file_range=%d layer_cache=%llu lower_cache=%llu lower_dirty=%llu "
+	       "lower_dirty_after_lower_sync=%llu\n", r, (unsigned long long)lay.nr_cache,
+	       (unsigned long long)low.nr_cache, (unsigned long long)low.nr_dirty,
+	       (unsigned long long)after.nr_dirty);
+	ok = r == 0 && lay.nr_cache == 0 && low.nr_cache > 0 && low.nr_dirty > 0 && after.nr_dirty == 0;
+	puts(ok ? "PT_LIMITS_PASS" : "PT_LIMITS_FAIL");
+	close(ufd);
+	close(lfd);
+	unlink(up);
+	return ok;
+}
+
+/* SB_I_NOEXEC and SB_I_NODEV (M8.5): the errnos docs/when-not-to-use.md §3 gives. */
+static int t_noexec(void)
+{
+	char dev[4096];
+	char *const argv[] = { up, NULL };
+	int fd, ok = 1, st, e;
+	pid_t pid;
+	void *m;
+
+	paths("pt-noexec");
+	fd = open(up, O_CREAT | O_EXCL | O_WRONLY, 0755);
+	if (fd < 0 || write(fd, "#!/bin/sh\nexit 0\n", 17) != 17 || close(fd))
+		return perror("noexec create"), 0;
+	errno = 0;
+	if (!access(up, X_OK) || errno != EACCES) {
+		printf("PT_NOEXEC access(X_OK): %s\n", strerror(errno));
+		ok = 0;
+	}
+	pid = fork();
+	if (pid == 0) {
+		execve(up, argv, NULL);
+		_exit(errno == EACCES ? 0 : 1);
+	}
+	if (pid < 0 || waitpid(pid, &st, 0) != pid || !WIFEXITED(st) || WEXITSTATUS(st)) {
+		puts("PT_NOEXEC execve: not refused with EACCES");
+		ok = 0;
+	}
+	fd = open(up, O_RDONLY);
+	m = fd < 0 ? MAP_FAILED : mmap(NULL, 4096, PROT_READ | PROT_EXEC, MAP_PRIVATE, fd, 0);
+	e = errno;
+	if (m != MAP_FAILED || e != EPERM) {
+		printf("PT_NOEXEC mmap(PROT_EXEC): %s\n", m == MAP_FAILED ? strerror(e) : "mapped");
+		ok = 0;
+	}
+	if (m != MAP_FAILED)
+		munmap(m, 4096);
+	if (fd >= 0)
+		close(fd);
+	unlink(up);
+	/* a character device made on the lower (the layer has no mknod of devices to test) */
+	snprintf(dev, sizeof(dev), "%s/pt-noexec-null", lower);
+	if (mknod(dev, S_IFCHR | 0666, makedev(1, 3))) {
+		perror("mknod on the lower");
+		ok = 0;
+	} else {
+		snprintf(dev, sizeof(dev), "%s/pt-noexec-null", layer);
+		errno = 0;
+		fd = open(dev, O_RDWR);
+		if (fd >= 0 || errno != EACCES) {
+			printf("PT_NOEXEC device open: %s\n", fd >= 0 ? "opened" : strerror(errno));
+			ok = 0;
+		}
+		if (fd >= 0)
+			close(fd);
+		snprintf(dev, sizeof(dev), "%s/pt-noexec-null", lower);
+		unlink(dev);
+	}
+	puts(ok ? "PT_NOEXEC_PASS" : "PT_NOEXEC_FAIL");
+	return ok;
+}
+
 int main(int argc, char **argv)
 {
 	int ok = 1;
@@ -346,6 +474,8 @@ int main(int argc, char **argv)
 	ok &= t_statx();
 	ok &= t_dropinode();
 	ok &= t_noatime();
+	ok &= t_limits();
+	ok &= t_noexec();
 	if (!ok)
 		return 1;
 	puts("PASSTHROUGH_PASS");

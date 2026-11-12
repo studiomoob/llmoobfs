@@ -7,7 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit container-test package-test workspace-test bench-test deb pylib-test repro-test static mutants-check fstests-auto tla-check
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit image-setup-unit container-test package-test workspace-test bench-test deb pylib-test repro-test static mutants-check fstests-auto tla-check
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
@@ -33,6 +33,7 @@ help:
 	@echo '  sudo make uninstall  remove what install copied; lower directories are untouched'
 	@echo '  make install-test  follow docs/operations.md in a disposable Debian 13 VM; needs only Docker'
 	@echo '  make install-unit  install.sh never replaces an existing entry without FORCE=1 (Linux)'
+	@echo '  make image-setup-unit  the syzkaller image setup does not follow a link out of the image (root, loop; Linux)'
 	@echo '  make pylib-test    install the Python library (python/) with pip in a fresh venv and test it'
 	@echo '  make container-test  docs/container-integration.md with Docker and Podman in a disposable VM'
 	@echo '  make deb           experimental moobfs-dkms and moobfs-tools packages into build/deb (Debian; not published)'
@@ -101,10 +102,16 @@ bench-smoke: bench-tools attr-tools
 # Security roadmap S4, user-space line: trees no well-behaved writer would leave on the lower.
 $(BUILD)/hostile: tests/hostile.c | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -Wextra -Werror tests/hostile.c $(LDFLAGS) -o $@
-hostile-test: attr-tools $(BUILD)/hostile
+# Findings 0213-2 and 0213-3 (journal 0283): --uid of the oracle, and the CLI against a QUERY2
+# answer that breaks the UAPI header's bounds (an LD_PRELOAD stand-in for the kernel; Linux, glibc)
+$(BUILD)/fake-query2.so: tests/fake-query2.c include/moobfs_ioctl.h tools/moobfs-cli.h | $(BUILD)
+	$(CC) -O2 -Wall -Wextra -Werror -fPIC -shared -Iinclude tests/fake-query2.c -o $@ -ldl
+hostile-test: attr-tools $(BUILD)/hostile $(BUILD)/fake-query2.so
 	sh tests/hostile-user.sh $(BUILD) $(HOSTILE_SEEDS)
 	sh tests/tools-json.sh $(BUILD)
 	sh tests/tools-walk.sh $(BUILD)
+	sh tests/tools-uid.sh $(BUILD)
+	sh tests/tools-uapi.sh $(BUILD)
 json-test: attr-tools $(BUILD)/hostile
 	sh tests/tools-json.sh $(BUILD)
 test: tools
@@ -137,6 +144,7 @@ lint:
 	@command -v shellcheck >/dev/null 2>&1 || { echo 'shellcheck not found: apt install shellcheck, or brew install shellcheck'; exit 1; }
 	shellcheck --shell=sh $$(git ls-files 'vm/*.sh' 'scripts/*.sh' 'formal/*.sh')
 	sh scripts/check-spdx.sh
+	sh scripts/test-steps-filter.sh
 # Manual pages of the tools (issue #8): mandoc must report nothing at warning level.
 man-lint:
 	mandoc -Tlint -Wwarning man/*
@@ -185,6 +193,8 @@ install-test:
 	sh vm/install-test/run.sh
 install-unit:
 	sh scripts/test-install.sh
+image-setup-unit:
+	sh scripts/test-image-setup.sh
 container-test:
 	MOOB_TEST=container sh vm/install-test/run.sh
 # Roadmap item C6 (ADR-0028): DKMS and Debian packages, built and tested in VMs only.

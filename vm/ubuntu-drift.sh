@@ -6,9 +6,8 @@
 # can be mounted read-only. Prints "newest Ubuntu 26.04 kernel: RELEASE" and ends in
 # UBUNTU_DRIFT_PASS; any failure exits non-zero.
 set -eu
-apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-	gcc make libc6-dev kmod linux-headers-generic >/dev/null
+# retries and a fallback mirror under another domain (journal 0285)
+sh "$(dirname "$0")/apt-install.sh" -qq gcc make libc6-dev kmod linux-headers-generic
 dpkg-query -W linux-headers-generic
 kver=$(find /usr/src -maxdepth 1 -name 'linux-headers-*-generic' | sed 's|.*/linux-headers-||' | sort -V | tail -n 1)
 [ -n "$kver" ] || { echo "ubuntu-drift: no generic headers installed" >&2; exit 1; }

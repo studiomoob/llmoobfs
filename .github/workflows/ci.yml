@@ -92,13 +92,12 @@ jobs:
           fetch-depth: 0
       - name: Install shellcheck
         run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends shellcheck
+          sudo sh vm/apt-install.sh shellcheck   # retries and a fallback mirror (journal 0285)
       - name: shellcheck and SPDX headers (same command as locally)
         run: make lint
       - name: Manual pages (mandoc lint, issue 8)
         run: |
-          sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends mandoc
+          sudo sh vm/apt-install.sh mandoc   # retries and a fallback mirror (journal 0285)
           make man-lint
       - name: Pinned versions agree and the kernel tarball matches kernel.org (issue 14)
         run: sh scripts/check-pins.sh
