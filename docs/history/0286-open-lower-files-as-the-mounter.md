@@ -47,11 +47,14 @@ Nothing here is merged or published without the maintainer's decision.
 - `MOOB_ONLY="ext4 btrfs xfs" make vm-test` on `3c6f8eb` (ended 23:48): `MOOBFS_ONLY_PASS:
   steps ext4 btrfs xfs`, with `LAYER_LOWER_PASS`, `HOSTILE_LOWER_PASS`, `ISOLATION_PASS`,
   `QUERY2_PASS` and `EQUIV_PASS` on each lower, rc=0.
+- Full `make vm-test` on `aba8860` (2026-11-12, 01:27–02:27): `MOOBFS_ACCEPTANCE_PASS`,
+  `MOOBFS_LAYER_PASS`, rc=0. A first start of the KASAN suite right after it stopped at once
+  ("vng (virtme-ng) not in PATH": the queue script lacked the test host's virtme-ng path); it
+  was started again at 02:29 with that path.
 
 ## Not done
 
-- The full `make vm-test` and the full KASAN suite on this branch (once per batch, before
-  publication).
+- The full KASAN suite on this branch (running).
 - The surfaces that state the limit (`docs/matrix-and-limits.md`, `docs/when-not-to-use.md`, the
   S12 row, `CHANGELOG.md`) change only when the exception is accepted and the fix merged.
 - AppArmor and Smack, which also label a file from the allocating task, were not run.
