@@ -322,6 +322,14 @@ suites do not run.
 - Pre-push checks on `8c1cc51` (diffcheck base `d96b0db`), ended 23:32: lint, checkpatch, test,
   asan, hostile (clang/ASan), pylib, retired, pins, mutants, site, diffcheck and ubuntu-tests all
   PASS.
+- `make container-test` on `8c1cc51` (01:13–01:25 on 2026-11-12, 695 s under KVM; its last run
+  was on 2026-10-29): `MOOBFS_CONTAINER_PASS: docs/container-integration.md followed on Debian
+  13 with Docker and Podman`, rc=0.
+- Route A5 of issue #195 run as the issue states it, `KCONFIG=vm/kcsan.config
+  KCACHE=$HOME/.cache/moobfs-kcsan sh vm/kasan-local.sh`, on a clean clone at `d96b0db`
+  (23:48–01:13, kernel 6.12.116): `MOOBFS_PYLIB_PASS`, `MOOBFS_ACCEPTANCE_PASS`,
+  `MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS: layer suite under KCSAN and lockdep with no kernel
+  diagnostics`, rc=0. The command of the route works as written; nothing in it needs a change.
 
 ## Next step
 
