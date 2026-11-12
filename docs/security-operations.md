@@ -96,8 +96,9 @@ vendored code; the table above is the complete list.
 to each `v*-experimental` pre-release a source archive of the tag, its SHA-256, a Sigstore bundle
 and SLSA provenance (journal 0225). Since journal 0284 the release is created as a draft, the four
 assets are attached to the draft, and the last job publishes it: the repository has immutable
-releases, so a published release takes no new asset (not exercised until the next tag). To verify
-them:
+releases, so a published release takes no new asset. The workflow was rehearsed in a fork on
+2026-11-12 (journal 0288): the commands below accepted its assets, with the fork's repository in
+place of `studiomoob/llmoobfs`. To verify them:
 
 ```sh
 python -m pip install sigstore

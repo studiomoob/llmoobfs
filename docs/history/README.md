@@ -303,3 +303,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0285 — Canonical's DNS unreachable over IPv4: apt retries and a fallback Ubuntu mirror](0285-ubuntu-dns-incident-apt-fallback.md)
 - [0286 — Open lower files as the mounter: the fix for the confined-mounter limit](0286-open-lower-files-as-the-mounter.md)
 - [0287 — Debian's 7.3.4 added next to 7.3.3](0287-debian-7-3-4.md)
+- [0288 — The release workflow rehearsed in a fork](0288-release-rehearsal-in-a-fork.md)
