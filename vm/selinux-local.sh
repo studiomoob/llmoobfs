@@ -25,5 +25,5 @@ for run in stock fsuse; do
     vng -r --user root --cpus 2 --memory 2G --append "security=selinux" \
         --disk "$B/lower.img" --rwdir "$B" \
         --exec "sh $R/vm/selinux-guest.sh $R $B/policy-$run.33 $run" > "$B/console-$run.log" 2>&1 || true
-    grep -E '^MOOBFS_SELINUX|^  |^labels' "$B/console-$run.log" || true
+    grep -E '^MOOBFS_SELINUX|^SELINUX_|^  |^labels' "$B/console-$run.log" || true
 done
