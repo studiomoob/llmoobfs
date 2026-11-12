@@ -1594,3 +1594,24 @@ hand and carries the same code paths:
 - slsa-verifier v2.7.1, <https://github.com/slsa-framework/slsa-verifier/releases/tag/v2.7.1>,
   binary checked against <https://github.com/slsa-framework/slsa-verifier/blob/main/SHA256SUM.md>
   (`946dbec729094195e88ef78e1734324a27869f03e2c6bd2f61cbc06bd5350339  slsa-verifier-linux-amd64`).
+
+## 61. Tests for the recorded exceptions V8 and 0114 item 6 (journal 0289)
+
+- Linux 6.12.116, the KASAN kernel, read for the design:
+  `fs/open.c` `vfs_fallocate()` and `fs/namei.c` `may_delete()`, `vfs_unlink()` and
+  `vfs_rename()` (their `IS_SWAPFILE()` checks on the inode they are given);
+  `mm/swapfile.c` (`S_SWAPFILE` set by `swapon` and cleared by `swapoff`, `read_swap_header()`)
+  and `include/linux/swap.h` (`union swap_header`); `mm/vmscan.c` `drop_slab()` (the shrinkers
+  run in the task that writes `drop_caches`); `fs/namespace.c` (`cleanup_mnt()` as task work of
+  the unmounting task); `fs/dcache.c` `d_delete()` and `dentry_free()`;
+  `kernel/rcu/tree_plugin.h` `rcu_flavor_sched_clock_irq()` (a tick outside a read-side section
+  reports a quiescent state under preemptible RCU):
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/?h=v6.12.116>.
+- rt-tests' `cyclictest`, the model of the latency probe (a real-time thread sleeping to an
+  absolute time and recording how late it wakes up):
+  <https://git.kernel.org/pub/scm/utils/rt-tests/rt-tests.git/>; the Linux documentation of
+  the soft-lockup detector, considered and not used:
+  <https://docs.kernel.org/admin-guide/lockup-watchdogs.html>.
+- The Kernel Concurrency Sanitizer (KCSAN), considered for 0114 item 3 and not used:
+  <https://docs.kernel.org/dev-tools/kcsan.html>.
+- `swapon(2)`, <https://man7.org/linux/man-pages/man2/swapon.2.html>.
