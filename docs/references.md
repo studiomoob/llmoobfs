@@ -1582,3 +1582,15 @@ hand and carries the same code paths:
 - kernel.org's `sha256sums.asc` for v7.x, <https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc>,
   checked on 2026-11-12: `linux-7.3.4.tar.xz`
   `b11b6df8295e8e991ff040b71aaa4994a8b55caa23b6b092907f195b5840fd1f`.
+
+## 60. The release rehearsal (journal 0288)
+
+- GitHub REST API, "Enable immutable releases" (`PUT /repos/{owner}/{repo}/immutable-releases`)
+  and "Set GitHub Actions permissions for a repository"
+  (`PUT /repos/{owner}/{repo}/actions/permissions`),
+  <https://docs.github.com/en/rest/repos/repos> and
+  <https://docs.github.com/en/rest/actions/permissions>, used on 2026-11-12.
+- sigstore-python 4.5.1, <https://pypi.org/project/sigstore/>, `sigstore verify github`.
+- slsa-verifier v2.7.1, <https://github.com/slsa-framework/slsa-verifier/releases/tag/v2.7.1>,
+  binary checked against <https://github.com/slsa-framework/slsa-verifier/blob/main/SHA256SUM.md>
+  (`946dbec729094195e88ef78e1734324a27869f03e2c6bd2f61cbc06bd5350339  slsa-verifier-linux-amd64`).

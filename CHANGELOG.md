@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The release workflow was rehearsed in the maintainer's fork with immutable releases on
+  (journal 0288): a tag produced a published, immutable pre-release with the four assets, which
+  `sha256sum -c`, `sigstore verify github` and `slsa-verifier verify-artifact` accepted; a tag
+  whose release had a fifth asset was left as a draft, and deleting that draft did not burn the
+  tag name.
+- PR 198 (journal 0287, Debian 7.3.4) merged on 2026-11-12.
 - Debian's `7.3.4+deb14-amd64` is a supported kernel, layer module only (journal 0287), next to
   `7.3.3+deb14-amd64`, which sid replaced with it on 2026-11-12. Both come from
   snapshot.debian.org at a fixed time. CI gains "Native Linux VM (Debian 7.3.4)" and the KASAN
@@ -50,8 +56,7 @@
   `docs/review-findings.md` stays informative, outside the review criterion.
 - `.github/workflows/release.yml` works with immutable releases: the release is created as a
   draft, the archive, its SHA-256, the Sigstore bundle and the SLSA provenance are attached to
-  the draft, and a last job publishes it; the generator no longer uploads (journal 0284; linted,
-  not exercised until a tag).
+  the draft, and a last job publishes it; the generator no longer uploads (journal 0284).
 - Release decisions of 2026-11-11 (journal 0284): `v0.6.0-experimental`, a minor version for the
   7.3 and Ubuntu 7.0 ports and the workspace CLI, is tagged only when stage 2 is declared; "a
   third party reproduces everything" means Parts A and B of the route of issue #195; a

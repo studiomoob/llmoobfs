@@ -85,6 +85,8 @@ the provenance artifact after `provenance`, and a published pre-release with fou
 fork's repository). A second tag whose `publish` job is made to fail (for instance by a fifth
 asset) must leave a draft, deletable without burning the name. Not done here: it needs the
 maintainer's agreement and a fork.
+*Note, 2026-11-12 (journal [0288](0288-release-rehearsal-in-a-fork.md)):* done, in the
+maintainer's fork, with the maintainer's agreement; both expectations held.
 
 ## Part A of the review register
 
@@ -303,7 +305,8 @@ In addition to the items of journal 0283, "Pending" (its `fallbackfault` and `im
 
 ## Limitations
 
-- `release.yml` is linted, not run; the fork test above is proposed, not done.
+- `release.yml` is linted, not run; the fork test above is proposed, not done. *(Note,
+  2026-11-12: run in a fork, journal 0288.)*
 - Seven Part A items are recorded exceptions to criterion (2), with no test (six by the decision
   of 13:00, 0114 item 8 by the decision of about 21:30).
 - A confined mounter under SELinux needs `fd use` on every caller's domain (point 3 of the
