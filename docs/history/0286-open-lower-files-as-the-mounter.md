@@ -36,6 +36,14 @@ Nothing here is merged or published without the maintainer's decision.
   `SELINUX_MOUNTER_PASS`) and its negative round with the old `layer/main.c` (expected
   `MOOBFS_SELINUX_FAIL: fsuse: confined mounter: the mounter needed fd use on the reader`), then
   `MOOB_ONLY="ext4 btrfs xfs" make vm-test`. Results are recorded below when they finish.
+- `sh vm/selinux-local.sh` on `3c6f8eb` (test host, ended 23:33): `fsuse confined mounter:
+  list=0 read=0 fd_use_on_reader=0 mounter_open_logged=1`, `SELINUX_MOUNTER_PASS` in the guest
+  console, `MOOBFS_SELINUX_RESULT: fsuse differ=0 denied_directly=7`. The host script did not
+  print the marker: its filter kept only `^MOOBFS_SELINUX` lines; it now keeps `^SELINUX_` too
+  (`18a7c96`).
+- Negative round, the same tree with `layer/main.c` of `HEAD~1` (ended 23:36):
+  `fd_use_on_reader=1`, `MOOBFS_SELINUX_FAIL: fsuse: confined mounter: the mounter needed fd use
+  on the reader (1)`. The test fails without the fix and passes with it.
 
 ## Not done
 
