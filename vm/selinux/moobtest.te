@@ -53,3 +53,33 @@ type_transition moobtest_client_t moobtest_dir_t:file moobtest_rw_t;
 
 # the layer's typed attributes are user.* xattrs, governed by the file's own setattr/getattr
 fs_getattr_xattr_fs(moobtest_client_t)
+
+# A confined mounter (journal 0286): the layer opens lower files as the mounter, and its reads,
+# writes and directory reads run as the mounter, so the mounter needs no "fd use" on the domains
+# of the processes that use the layer. The mounter is permissive, so the mount needs no rules and
+# every check it would fail is logged (permissive=1); the guest fails the step on any "fd use"
+# from the mounter to the reader.
+type moobtest_mounter_t;
+domain_type(moobtest_mounter_t)
+corecmd_bin_entry_type(moobtest_mounter_t)
+role system_r types moobtest_mounter_t;
+role unconfined_r types moobtest_mounter_t;
+allow { kernel_t unconfined_t } moobtest_mounter_t:process transition;
+permissive moobtest_mounter_t;
+
+# a reader of the layer mounted by it. fd use on kernel_t: exec opens the program as the caller,
+# and a domain entered from kernel_t needs it to map its own executable.
+type moobtest_reader_t;
+domain_type(moobtest_reader_t)
+corecmd_bin_entry_type(moobtest_reader_t)
+role system_r types moobtest_reader_t;
+role unconfined_r types moobtest_reader_t;
+allow { kernel_t unconfined_t } moobtest_reader_t:process transition;
+allow moobtest_reader_t { kernel_t unconfined_t }:process sigchld;
+allow moobtest_reader_t { kernel_t unconfined_t }:fd use;
+dev_rw_null(moobtest_reader_t)
+files_search_tmp(moobtest_reader_t)
+fs_search_tmpfs(moobtest_reader_t)
+allow moobtest_reader_t unlabeled_t:dir search;
+allow moobtest_reader_t moobtest_dir_t:dir list_dir_perms;
+allow moobtest_reader_t moobtest_ro_t:file read_file_perms;

@@ -55,10 +55,14 @@
   (ADR-0030 amendment, journal 0284). Finding 0114 item 8 got a test in the SELinux harness,
   which could not work and was reverted; it is a seventh recorded exception (ADR-0030, amendment
   of about 21:30).
-- New documented limit under SELinux: the domain that mounts the layer needs `fd use` on the
-  domain of every process that reads through it, since the layer opens lower files as the
-  caller and reads them as the mounter; a confined mounter gets `EACCES` on directory reads
-  (journal 0284, `docs/matrix-and-limits.md`). Fix in `layer/` in a later batch.
+- SELinux: the layer opens lower files under the mounter's credentials, as overlayfs does
+  (ADR-0037, the third exception to the kernel freeze; journal 0286). Before, it opened them as
+  the caller and read them as the mounter, so a confined mounter needed `fd use` on the domain
+  of every process that read through it and got `EACCES` on directory reads without it (found
+  on 2026-11-11, journal 0284). New SELinux step `SELINUX_MOUNTER_PASS`, which fails on the old
+  code. The same step gives finding 0114 item 8 its test, `SELINUX_DIRREAD_PASS`, which fails
+  when directory reads run with the caller's credentials; item 8 leaves the recorded exceptions
+  of ADR-0030, and six remain.
 - `tests/passthrough.c` pins the accepted limits V2 and V1 (`PT_LIMITS_PASS`) and the errnos of
   `SB_I_NOEXEC` and `SB_I_NODEV` (`PT_NOEXEC_PASS`); `docs/review-findings.md` is no longer a
   draft: every Part A finding is tested or listed for the maintainer's decision (journal 0284).

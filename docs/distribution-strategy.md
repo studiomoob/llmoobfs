@@ -493,6 +493,10 @@ supported kernels and lowers: 0114 items 3 and 6, V8, M7, M8.2 and M8.3 of
 *Amended, 2026-11-11, about 21:30 ([journal 0284](history/0284-release-workflow-and-part-a-gaps.md)):*
 that test could not work and was reverted; 0114 item 8 is a seventh recorded exception.
 
+*Amended, 2026-11-12 ([journal 0286](history/0286-open-lower-files-as-the-mounter.md)):* with
+the fix of ADR-0037, 0114 item 8 has its test (`SELINUX_DIRREAD_PASS`, negative round done) and
+leaves the exceptions; six remain.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount
