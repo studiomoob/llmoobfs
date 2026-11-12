@@ -223,9 +223,24 @@ directory; KASAN kernel 6.12.116 from the local cache, `MOOB_ONLY=fallbackfault 
   below a directory uid 1001 cannot search was answered", `MOOBFS_VM_FAIL:
   ff-answered-without-checks-1`. The test fails without the line and passes with it.
 
+### Image setup and passthrough cases (Mac mini, 2026-11-11 evening)
+
+Same clone, at `ea62dc1`; each negative round on a fresh clone of it with one edit.
+
+- `sudo make image-setup-unit` (0211 item 3 of journal 0283): `IMAGE_SETUP_UNIT_PASS: clean
+  image set up; a link to the host inside the image stopped the write`. Negative round,
+  `loop,nosymfollow` changed to `loop` in `vm/syzkaller/image-setup.sh`: `IMAGE_SETUP_UNIT_FAIL:
+  tampered image accepted`, exit 2.
+- `MOOB_ONLY="ext4 btrfs xfs" make vm-test` on the Debian 6.12 guest: `PT_LIMITS_PASS` and
+  `PT_NOEXEC_PASS` once on each of the three lowers, `MOOBFS_ONLY_PASS: steps ext4 btrfs xfs`.
+  Negative round, `sb->s_iflags |= SB_I_NOEXEC | SB_I_NODEV | SB_I_SKIP_SYNC;` reduced to
+  `SB_I_SKIP_SYNC` in `layer/main.c`, `MOOB_ONLY=ext4`: `PT_LIMITS_PASS`, `PT_NOEXEC_FAIL`,
+  `MOOBFS_VM_FAIL: passthrough-ext4`. `PT_LIMITS_PASS` held on all three lowers, so the
+  write-back concern noted below did not show.
+
 ## Pending (test host unreachable)
 
-In addition to the items of journal 0283, "Pending" (its `fallbackfault` item is done, above):
+In addition to the items of journal 0283, "Pending" (its `fallbackfault` and `image-setup-unit` items are done, above; item 1 below is done too):
 
 1. `MOOB_ONLY=ext4 make vm-test` (the step that runs `tests/passthrough.c`; then btrfs and xfs) →
    `PT_LIMITS_PASS` and `PT_NOEXEC_PASS` beside `PASSTHROUGH_PASS` on each lower. Negative round
