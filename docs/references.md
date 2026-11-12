@@ -1570,3 +1570,15 @@ hand and carries the same code paths:
   `fs/backing-file.c` `backing_file_open()`; `security/selinux/hooks.c`
   `selinux_file_alloc_security()` (`fsec->sid = current_sid()`):
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/?h=v6.12.116>.
+
+## 59. Debian's 7.3.4 (journal 0287)
+
+- Debian's `linux` 7.3.4-1 in sid, <https://sources.debian.org/api/src/linux/>, checked on
+  2026-11-12; the snapshot archive's machine API,
+  `https://snapshot.debian.org/mr/binary/linux-image-7.3.4+deb14-amd64/7.3.4-1/binfiles?fileinfo=1`,
+  first saw `linux-headers-7.3.4+deb14-amd64` at `20261111T143227Z` and
+  `linux-image-7.3.4+deb14-amd64` (from `linux-signed-amd64`) at `20261111T202414Z`, so the
+  snapshot of `20261112T000000Z` serves both.
+- kernel.org's `sha256sums.asc` for v7.x, <https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc>,
+  checked on 2026-11-12: `linux-7.3.4.tar.xz`
+  `b11b6df8295e8e991ff040b71aaa4994a8b55caa23b6b092907f195b5840fd1f`.
