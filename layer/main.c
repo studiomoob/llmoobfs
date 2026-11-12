@@ -1563,16 +1563,25 @@ static_assert(__same_type(backing_file_open,
 					const struct cred *)),
 	      "moobfs_layer needs backing_file_open(const struct file *, ...): see docs/compatibility.md");
 
+/*
+ * The lower file is opened as the mounter, under override_creds() as overlayfs does
+ * (ovl_open_realfile()): an LSM gives a file the identity of the task that allocates it (SELinux:
+ * current_sid() in selinux_file_alloc_security()), not of the credentials passed in, and reads,
+ * writes and directory reads then run as the mounter. Opened as the caller, the file carried the
+ * caller's SID, and a confined mounter needed "fd use" on every caller's domain (journal 0286).
+ */
 static int moobl_open(struct inode *inode, struct file *file)
 {
 	struct path *lower = moobl_lower_path(file->f_path.dentry);
+	const struct cred *old;
 	struct file *realfile;
 	int err;
 
 	/* Creation and truncation were handled by the VFS before open. */
 	file->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
-	realfile = backing_file_open(file, file->f_flags, lower,
-				     MOOBL_SB(inode->i_sb)->creds);
+	old = override_creds(MOOBL_SB(inode->i_sb)->creds);
+	realfile = backing_file_open(file, file->f_flags, lower, current_cred());
+	revert_creds(old);
 	if (IS_ERR(realfile))
 		return PTR_ERR(realfile);
 	err = moobl_file_init(file, realfile);
@@ -1878,13 +1887,15 @@ static const struct file_operations moobl_file_fops = {
 
 /* ---- directory file operations ---------------------------------------- */
 
+/* As the mounter, like moobl_open() and ovl_dir_open_realfile() (journal 0286). */
 static int moobl_dir_open(struct inode *inode, struct file *file)
 {
+	const struct cred *old = override_creds(MOOBL_SB(inode->i_sb)->creds);
 	struct file *real = dentry_open(moobl_lower_path(file->f_path.dentry),
-					O_RDONLY | O_DIRECTORY,
-					MOOBL_SB(inode->i_sb)->creds);
+					O_RDONLY | O_DIRECTORY, current_cred());
 	int err;
 
+	revert_creds(old);
 	if (IS_ERR(real))
 		return PTR_ERR(real);
 	err = moobl_file_init(file, real);

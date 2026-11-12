@@ -58,6 +58,30 @@ echo "  $TAG create: direct=$d layer=$l"
 stat -c '%C %n' $L/t/new-direct $L/t/new-layer 2>&1 | sed 's/^/  /'
 dmesg | grep -c 'avc:  denied' | sed "s/^/  $TAG avc denials: /"
 dmesg | grep -i "inode_doinit\|getxattr returned" | sed "s/^/  $TAG dmesg: /"
+# A confined mounter (journal 0286): a second mount of the same lower, made in the permissive
+# domain moobtest_mounter_t, read by moobtest_reader_t. Every check the mounter would fail is
+# logged; none may be "fd use" on the reader, which the mounter would need if the layer opened
+# lower files as the caller. Control: the mounter's own "open" of the lower directory is logged,
+# so the log is complete. The audit printk limit is lifted for this step.
+if [ "$TAG" = fsuse ]; then
+    cp "$(dirname "$POL")/listdir" $S/bin/listdir && chcon -t bin_t $S/bin/listdir || fail "listdir copy"
+    mkdir $S/layerm || fail "mounter mountpoint"
+    runcon -t moobtest_mounter_t -- $BB mount -t moobfs_layer -o lower=$L none $S/layerm ||
+        fail "mount in moobtest_mounter_t"
+    echo 0 > /proc/sys/kernel/printk_ratelimit; echo 10000 > /proc/sys/kernel/printk_ratelimit_burst
+    dmesg -c > /dev/null
+    rl=$(runcon -t moobtest_reader_t -- $S/bin/listdir $S/layerm/t < /dev/null > /dev/null 2>&1; echo $?)
+    rr=$(runcon -t moobtest_reader_t -- $BB cat $S/layerm/t/ro < /dev/null > /dev/null 2>&1; echo $?)
+    dmesg > $S/mounter-dmesg.txt
+    umount $S/layerm || fail "mounter umount"
+    fu=$(grep -c 'scontext=system_u:system_r:moobtest_mounter_t:s0 tcontext=system_u:system_r:moobtest_reader_t:s0 tclass=fd' $S/mounter-dmesg.txt)
+    op=$(grep -c 'denied  { open } .*scontext=system_u:system_r:moobtest_mounter_t:s0 tcontext=system_u:object_r:moobtest_dir_t:s0 tclass=dir' $S/mounter-dmesg.txt)
+    echo "  $TAG confined mounter: list=$rl read=$rr fd_use_on_reader=$fu mounter_open_logged=$op"
+    [ "$op" -gt 0 ] || fail "confined mounter control: the mounter's open of the lower directory was not logged; the step proves nothing"
+    [ "$fu" = 0 ] || { grep 'tclass=fd' $S/mounter-dmesg.txt | sed 's/^/  /' | head -4; fail "confined mounter: the mounter needed fd use on the reader ($fu)"; }
+    [ "$rl" = 0 ] && [ "$rr" = 0 ] || fail "confined mounter: the reader could not list or read through the layer (list=$rl read=$rr)"
+    echo "SELINUX_MOUNTER_PASS: a layer mounted by a confined domain needs no fd use on its readers"
+fi
 # QUERY2 under the policy: the three files carry the same attribute; the client may getattr
 # rw and ro, not none
 B=$(dirname "$POL")

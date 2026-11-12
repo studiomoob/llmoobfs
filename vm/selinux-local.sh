@@ -13,6 +13,7 @@ mkdir -p "$B"
 # static, so that a confined process can run them from a labelled tmpfs
 gcc -static -O2 -Iinclude tests/query.c common/attr.c -o "$B/query"
 gcc -static -O2 -Iinclude tools/moobfs-attr.c common/attr.c -o "$B/moobfs-attr"
+gcc -static -O2 -Wall -Wextra -Werror tests/listdir.c -o "$B/listdir"   # confined mounter (journal 0286)
 make -C vm/selinux -f /usr/share/selinux/devel/Makefile moobtest.pp > "$B/build.log" 2>&1
 sudo semodule -i vm/selinux/moobtest.pp
 sudo semodule -r moobfs_layer 2> /dev/null || true
