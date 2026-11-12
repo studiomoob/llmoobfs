@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Test profiles of vm/apparmor-guest.sh (journal 0290). Loaded only in the guest, with
+# "apparmor_parser -r -K"; nothing here is meant for a real system. Paths are those the guest
+# builds under the tmpfs /run/aa: lower (ext4), layer (the layer, mounted by unconfined root),
+# layerm and layerx (mounted by a confined mounter), layers and ovls (mounted by a confined process
+# that then reads through its own mount), ovl (overlayfs over the lower) and bind (a bind mount of
+# the lower). Files under t/: rw (read-write), ro (read-only), none (no rule) and secret (the deny
+# rules of the bypass steps). A file without a rule is denied: AppArmor allows only what a profile
+# grants (apparmor.d(5)).
+abi <abi/4.0>,
+
+# Q1: rules on both paths, on the layer's only, on the lower's only
+profile moobaa_both {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /run/aa/{lower,layer}/ r,
+  /run/aa/{lower,layer}/t/ r,
+  /run/aa/{lower,layer}/t/rw rw,
+  /run/aa/{lower,layer}/t/ro r,
+  /run/aa/{lower,layer}/t/new-* rw,
+}
+
+profile moobaa_layer {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /run/aa/layer/ r,
+  /run/aa/layer/t/ r,
+  /run/aa/layer/t/rw rw,
+  /run/aa/layer/t/ro r,
+  /run/aa/layer/t/new-* rw,
+}
+
+profile moobaa_lower {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /run/aa/lower/ r,
+  /run/aa/lower/t/ r,
+  /run/aa/lower/t/rw rw,
+  /run/aa/lower/t/ro r,
+  /run/aa/lower/t/new-* rw,
+}
+
+# Q2: a confined mounter, with rules on the lower only, and a reader with rules on the layer only
+profile moobaa_mounter {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /etc/** r,
+  /proc/** r,
+  capability sys_admin,
+  mount fstype=moobfs_layer -> /run/aa/layerm/,
+  /run/aa/lower/ rw,
+  /run/aa/lower/** rw,
+}
+
+# the same mounter without the read-only file: the reader's read through its mount must fail
+profile moobaa_mounter_noro {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /etc/** r,
+  /proc/** r,
+  capability sys_admin,
+  mount fstype=moobfs_layer -> /run/aa/layerx/,
+  /run/aa/lower/ rw,
+  /run/aa/lower/** rw,
+  deny /run/aa/lower/t/ro rw,
+}
+
+profile moobaa_reader {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /run/aa/layer{m,x}/ r,
+  /run/aa/layer{m,x}/t/ r,
+  /run/aa/layer{m,x}/t/rw rw,
+  /run/aa/layer{m,x}/t/ro r,
+  /run/aa/layer{m,x}/t/new-* rw,
+}
+
+# Q3: a deny on the lower path, with the other paths of the same file allowed
+profile moobaa_denylower {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /run/aa/{lower,layer,ovl,bind}/ r,
+  /run/aa/{lower,layer,ovl,bind}/** r,
+  deny /run/aa/lower/t/secret r,
+}
+
+# Q3: a deny on the layer path, with the lower path allowed
+profile moobaa_denylayer {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /run/aa/{lower,layer}/ r,
+  /run/aa/{lower,layer}/** r,
+  deny /run/aa/layer/t/secret r,
+}
+
+# Q3: a second name for a denied file, by link or rename, on each path
+profile moobaa_denyalias {
+  /run/aa/bin/* mr,
+  /dev/null rw,
+  /run/aa/{lower,layer}/ r,
+  /run/aa/{lower,layer}/t/ rw,
+  /run/aa/{lower,layer}/t/** rwl,
+  deny /run/aa/{lower,layer}/t/secret* r,
+}
+
+# Q3: a process that may not read the lower file mounts the layer (and overlayfs) over the lower
+# itself and reads through its own mount
+profile moobaa_self {
+  /run/aa/bin/* mrix,
+  /dev/null rw,
+  /etc/** r,
+  /proc/** r,
+  capability sys_admin,
+  mount fstype=moobfs_layer -> /run/aa/layers/,
+  mount fstype=overlay -> /run/aa/ovls/,
+  /run/aa/lower/ r,
+  /run/aa/lower/** r,
+  deny /run/aa/lower/t/secret r,
+  /run/aa/{layers,ovls}/ r,
+  /run/aa/{layers,ovls}/** r,
+}
