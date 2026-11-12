@@ -238,6 +238,46 @@ Same clone, at `ea62dc1`; each negative round on a fresh clone of it with one ed
   `MOOBFS_VM_FAIL: passthrough-ext4`. `PT_LIMITS_PASS` held on all three lowers, so the
   write-back concern noted below did not show.
 
+### The SELinux test of 0114 item 8 does not work, and what it found (2026-11-11 night)
+
+`sh vm/selinux-local.sh` on the test host (Debian 13, Linux 6.12 guest, the host's
+`selinux-policy-default` 2:2.20250213-13~deb13u1): `MOOBFS_SELINUX_FAIL: fsuse: item 8 control:
+the reader domain used a descriptor of kernel_t (139); the step proves nothing`, the same with
+and without the negative edit. Debugged on scratch copies, with the guest's audit printk limit
+off (`/proc/sys/kernel/printk_ratelimit` 0):
+
+1. **Exit 139 is SIGSEGV at exec.** Every program run in `moobtest_reader_t`, `busybox true`
+   included, died. The denial is `{ use }` from `moobtest_reader_t` to `kernel_t` on the
+   program's own executable: exec opens it with the caller's credentials, and mapping it in the
+   new domain needs `fd use` on the caller's domain. A domain entered from `kernel_t` without
+   that rule cannot run anything, so the design (no `fd use` on `kernel_t`) cannot work.
+2. **The premise was wrong.** The design assumed the lower directory file belongs to the
+   mounter's SID because `moobl_dir_open()` passes the mounter's credentials to `dentry_open()`.
+   SELinux sets a file's SID from `current_sid()` when it is allocated
+   (`selinux_file_alloc_security()`), not from the credentials passed in, and
+   `moobl_dir_open()` does not switch credentials. The lower directory file therefore carries the
+   caller's SID. With a second mount made in a permissive domain `moobtest_mounter_t` and the
+   reader allowed `fd use` on `kernel_t`, the listing succeeded with and without the negative
+   edit: the old `moobl_iterate()` ran as the caller on a file with the caller's SID, so
+   `selinux_file_permission()` skipped its check, and the current one runs as the mounter.
+3. **Finding (not fixed).** In that same run the current code logged, for the mounter,
+   `avc: denied { use } ... scontext=moobtest_mounter_t tcontext=moobtest_reader_t tclass=fd
+   permissive=1` on `/run/se/lower/t`, and the code with the negative edit did not. Since journal
+   0120 a directory read through the layer runs as the mounter on a file that has the caller's
+   SID, so under SELinux the mounter's domain needs `fd use` on every caller's domain. A confined
+   mounter without that rule gets `EACCES` on every directory read through the layer; an
+   unconfined one (as in all our runs, `kernel_t`) does not notice. Regular files look the same:
+   `moobl_open()` calls `backing_file_open()` with the mounter's credentials but without
+   `override_creds()`, and reads and writes switch to the mounter's credentials. overlayfs opens
+   both under `ovl_override_creds()` (`ovl_dir_open()`, `ovl_open_realfile()` in Linux 6.12),
+   so its real files carry the mounter's SID. The file case was read in the source, not run.
+
+Consequences: the committed SELinux test of item 8 (3e5d739) fails on every run and proves
+nothing; the attempts above were not committed. Telling the old and the current `moobl_iterate()`
+apart under SELinux needs a confined mounter, and with the code as it is that test would fail on
+the current code because of point 3. Correcting point 3 is a change in `layer/`, which ADR-0022
+freezes: it needs the maintainer's decision.
+
 ## Pending (test host unreachable)
 
 In addition to the items of journal 0283, "Pending" (its `fallbackfault` and `image-setup-unit` items are done, above; item 1 below is done too):
