@@ -19,6 +19,11 @@ k73ver=$(yaml KERNEL73_VERSION .github/workflows/kasan.yml)
 k73sum=$(yaml KERNEL73_SHA256 .github/workflows/kasan.yml)
 echo "upstream kernel (KASAN, 7.3 leg):   linux-$k73ver  sha256 $k73sum"
 case "$k73ver" in 7.3.*) ;; *) bad "kasan.yml KERNEL73_VERSION ($k73ver) is not a 7.3 release" ;; esac
+# the 7.3.4 leg (journal 0287)
+k734ver=$(yaml KERNEL734_VERSION .github/workflows/kasan.yml)
+k734sum=$(yaml KERNEL734_SHA256 .github/workflows/kasan.yml)
+echo "upstream kernel (KASAN, 7.3.4 leg): linux-$k734ver  sha256 $k734sum"
+case "$k734ver" in 7.3.*) ;; *) bad "kasan.yml KERNEL734_VERSION ($k734ver) is not a 7.3 release" ;; esac
 # the 7.0 leg (journal 0281), the upstream base of Ubuntu 26.04's kernel
 k70ver=$(yaml KERNEL70_VERSION .github/workflows/kasan.yml)
 k70sum=$(yaml KERNEL70_SHA256 .github/workflows/kasan.yml)
@@ -43,14 +48,14 @@ echo "checkpatch.pl (scripts/checkpatch.sh): $ctag"
 [ "$ctag" = "v$kver" ] || bad "scripts/checkpatch.sh TAG ($ctag) differs from the KASAN kernel (v$kver)"
 
 # the Debian image and kernel package of make vm-test
-# vm/Dockerfile takes its base from vm/run.sh (MOOB_BASE: trixie for 6.12, sid for 7.3.3, journal
-# 0275); its ARG default is the trixie image
+# vm/Dockerfile takes its base from vm/run.sh (MOOB_BASE: trixie for 6.12, sid for 7.3.3 and 7.3.4,
+# journals 0275 and 0287); its ARG default is the trixie image
 vbase=$(sed -n 's/^ARG MOOB_BASE=//p' vm/Dockerfile | head -n 1)
 rtrixie=$(sed -n 's/^ *\*) MOOB_BASE=\(debian:trixie[^ ;]*\) *;;.*/\1/p' vm/run.sh)
-rsid=$(sed -n 's/^ *7\.3\.3) MOOB_BASE=\(debian:sid[^ ;]*\) *;;.*/\1/p' vm/run.sh)
+rsid=$(sed -n 's/^ *7\.3\.3|7\.3\.4) MOOB_BASE=\(debian:sid[^ ;]*\) *;;.*/\1/p' vm/run.sh)
 echo "Debian image (vm/Dockerfile):       $vbase"
-echo "Debian image for 7.3.3 (vm/run.sh): $rsid"
-[ -n "$rsid" ] || bad "vm/run.sh has no sid base image for 7.3.3"
+echo "Debian image for 7.3 (vm/run.sh):   $rsid"
+[ -n "$rsid" ] || bad "vm/run.sh has no sid base image for 7.3.3 and 7.3.4"
 [ "$rtrixie" = "$vbase" ] || bad "vm/run.sh trixie base ($rtrixie) differs from vm/Dockerfile's default ($vbase)"
 # the Ubuntu 26.04 image and kernel packages of MOOB_UBUNTU_KERNEL (journal 0281)
 rubuntu=$(sed -n 's/^ *7\.0\.0-43) MOOB_BASE=\(ubuntu:26\.04@sha256:[0-9a-f]\{64\}\) *;;.*/\1/p' vm/run.sh)
@@ -86,7 +91,7 @@ done
 
 # the tarballs against kernel.org's signed lists of sums (the signature itself is not checked here)
 if [ "$offline" -eq 0 ]; then
-	for pin in "$kver $ksum" "$k73ver $k73sum" "$k70ver $k70sum"; do
+	for pin in "$kver $ksum" "$k73ver $k73sum" "$k734ver $k734sum" "$k70ver $k70sum"; do
 		v=${pin% *}
 		sum=${pin#* }
 		major=${v%%.*}

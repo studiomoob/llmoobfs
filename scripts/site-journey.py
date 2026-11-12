@@ -87,8 +87,8 @@ MILESTONES = [
   'O Linux 7.0 do Ubuntu 26.04 entra na matriz para o módulo da camada; a matriz e os limites conhecidos cabem numa página.', ['0281', '0282']),
  ('2026-11-11', 'A public call for an independent reproduction of the tests (issue 195). Every finding of the AI-assisted reviews has a regression test that fails without its fix, or a recorded reason.',
   'Uma chamada pública para que alguém de fora reproduza os testes (issue 195). Todo achado das revisões assistidas por IA tem um teste de regressão que falha sem a correção, ou um motivo registrado.', ['0283', '0284']),
- ('2026-11-12', 'Under SELinux a confined domain can mount the layer: lower files are opened with the mounter\'s credentials, as overlayfs does, with a test that fails on the old code.',
-  'Com SELinux, um domínio confinado pode montar a camada: os arquivos de baixo são abertos com as credenciais de quem montou, como no overlayfs, com um teste que falha no código antigo.', ['0286']),
+ ('2026-11-12', 'Under SELinux a confined domain can mount the layer: lower files are opened with the mounter\'s credentials, as overlayfs does, with a test that fails on the old code. Debian\'s 7.3.4, which replaced 7.3.3 in sid that day, becomes a supported kernel next to it.',
+  'Com SELinux, um domínio confinado pode montar a camada: os arquivos de baixo são abertos com as credenciais de quem montou, como no overlayfs, com um teste que falha no código antigo. O 7.3.4 do Debian, que substituiu o 7.3.3 no sid nesse dia, passa a ser kernel suportado ao lado dele.', ['0286', '0287']),
 ]
 
 T = {

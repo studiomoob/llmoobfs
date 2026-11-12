@@ -141,9 +141,9 @@ other hardware remain open. There is no independent reproduction yet (issue #68 
 ## 14. Which kernels are supported?
 Three series. 6.12: Debian kernels 6.12.111, 6.12.113 and 6.12.115 in a QEMU VM, and upstream
 6.12.116 with KASAN, UBSAN and lockdep. 7.0: Ubuntu 26.04's 7.0.0-43-generic in a QEMU VM and
-upstream 7.0.14 with KASAN, UBSAN and lockdep. 7.3: Debian's 7.3.3 in a QEMU VM and upstream 7.3.3
-with KASAN, UBSAN and lockdep. On 7.0 and 7.3 the layer module only (the M1 module stays on 6.12).
-The four Debian kernels and Ubuntu's whole `7.0.0-*-generic` series (ADR-0036; only
+upstream 7.0.14 with KASAN, UBSAN and lockdep. 7.3: Debian's 7.3.3 and 7.3.4 in a QEMU VM and
+upstream 7.3.3 and 7.3.4 with KASAN, UBSAN and lockdep. On 7.0 and 7.3 the layer module only (the M1 module stays on 6.12).
+The five Debian kernels and Ubuntu's whole `7.0.0-*-generic` series (ADR-0036; only
 7.0.0-43-generic was tested, and a weekly job builds against the newest one) are accepted by
 `make install` and DKMS; fstests `quick` passed on the three lower
 filesystems for each series; the KASAN jobs run on every pull request that touches the module and

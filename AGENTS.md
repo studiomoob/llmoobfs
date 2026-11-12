@@ -6,6 +6,7 @@ Read `README.md`, `docs/history/README.md`, the most recent session journal and 
 
 - Record requests and results in `docs/history/`, as factual technical summaries: goal, decisions, alternatives, brief justifications, changes, evidence, limitations and next steps.
 - Record decisions, including those that arise from user questions, but not the questions themselves nor the clarifying answers. Errors found together with their fix, discarded hypotheses and failed experiments continue to be recorded. An investigation in progress has its own journal, marked as in progress and updated at each round.
+- A journal that records a code review, or a finding from one, says who reviewed (by role) and whether an AI assistant was used, naming the tool (for example Claude Code or Codex); when this is not known, it says so.
 - Document architectural decisions in `docs/decisions/` with sequential IDs. Preserve old decisions; a change must point to the decision it replaces.
 - Preserve previous specifications. Clearly identify proposal, implementation and actually tested behavior.
 - Update `CHANGELOG.md` for relevant changes. Keep reproducible commands and summaries of results; never present an unexecuted test as passed.

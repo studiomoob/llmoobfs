@@ -468,3 +468,9 @@ S16 done locally
 `make layer` does not)
 a confined mounter needs `fd use`
 must also be allowed `fd use` on the domains
+6.12.115 and 7.3.3 and
+6.12.116, 7.0.14 and 7.3.3
+6.12.115 e 7.3.3 e o
+6.12.116, 7.0.14 e 7.3.3
+The four Debian kernels
+Two kernel series (Debian

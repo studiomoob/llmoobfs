@@ -1,6 +1,7 @@
-# vm/run.sh passes MOOB_BASE: Debian 13 for the 6.12 kernels, sid for 7.3.3 (journal 0275)
-# sid dropped 7.3.3 for 7.3.4 on 2026-11-12; its packages come from snapshot.debian.org at a fixed
-# time, still checked against the image's Debian keyring (journal 0284)
+# vm/run.sh passes MOOB_BASE: Debian 13 for the 6.12 kernels, sid for 7.3.3 and 7.3.4 (journals
+# 0275 and 0287). sid dropped 7.3.3 for 7.3.4 on 2026-11-12, so the packages of both come from
+# snapshot.debian.org at a fixed time, still checked against the image's Debian keyring (journals
+# 0284 and 0287): sid moving on does not break either build.
 ARG MOOB_BASE=debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f
 FROM $MOOB_BASE
 ARG MOOB_DEBIAN_KERNEL=6.12.111
@@ -26,6 +27,10 @@ RUN QEMU=qemu-system-x86 && \
       7.3.3) set -- linux-image-7.3.3+deb14-amd64=7.3.3-1 \
         linux-headers-7.3.3+deb14-amd64=7.3.3-1 && \
         echo 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20261110T000000Z/ sid main' \
+          > /etc/apt/sources.list.d/moob-snapshot.list ;; \
+      7.3.4) set -- linux-image-7.3.4+deb14-amd64=7.3.4-1 \
+        linux-headers-7.3.4+deb14-amd64=7.3.4-1 && \
+        echo 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20261112T000000Z/ sid main' \
           > /etc/apt/sources.list.d/moob-snapshot.list ;; \
       ubuntu:7.0.0-43) set -- linux-image-7.0.0-43-generic=7.0.0-43.43 \
         linux-modules-7.0.0-43-generic=7.0.0-43.43 \

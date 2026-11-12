@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Debian's `7.3.4+deb14-amd64` is a supported kernel, layer module only (journal 0287), next to
+  `7.3.3+deb14-amd64`, which sid replaced with it on 2026-11-12. Both come from
+  snapshot.debian.org at a fixed time. CI gains "Native Linux VM (Debian 7.3.4)" and the KASAN
+  leg "Layer suite under KASAN/lockdep (7.3.4)" (upstream 7.3.4); `MOOB_DEBIAN_KERNEL=7.3.4
+  make vm-test` and `MOOB_KASAN_KERNEL=7.3.4 sh vm/kasan-local.sh` run them locally.
+  Announcement under rule 3 of `docs/compatibility.md`: `7.3.3+deb14-amd64` and its KASAN leg
+  are planned for removal in the release after the next one.
 - apt retries and a fallback Ubuntu mirror (journal 0285): `vm/apt-install.sh` installs with
   `Acquire::Retries` and, on Ubuntu, switches once to `mirrors.edge.kernel.org` (archive and
   security, signatures still checked) when the image's own sources fail. Used by `vm/Dockerfile`,

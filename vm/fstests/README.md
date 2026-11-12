@@ -144,6 +144,21 @@ same list on btrfs.
 | kernel.org 7.3.3 built with `vm/fstests.config` (`MOOB_KDIR`), 2026-11-09, `exclude-quick.txt` only | 631 passed | 631 passed (`generic/301` 1 159 extents) | 631 passed |
 | Debian `6.12.115+deb13.1-amd64` (`MOOB_KVER`), 2026-11-09, btrfs only, `exclude-quick.txt` and `exclude-quick-btrfs.txt` | — | 630 passed, 0 failures | — |
 
+## Linux 7.3.4 (journal 0287)
+
+kernel.org 7.3.4 built with `vm/fstests.config` (`MOOB_KDIR`), standing for Debian's
+`7.3.4+deb14-amd64` as 7.3.3 did, 2026-11-12, `exclude-quick.txt` (and `exclude-quick-btrfs.txt`
+on btrfs), module from `ba32a30`:
+
+| | ext4 | btrfs | XFS |
+| --- | --- | --- | --- |
+| ran | 630 | 629 | 630 |
+| passed | 185 | 278 | 306 |
+| not run | 445 | 351 | 324 |
+| failed | 0 | 0 | 0 |
+
+"Passed all" on each, no kernel diagnostic.
+
 ## Ubuntu 26.04's 7.0.0-43-generic (journal 0281)
 
 `sh vm/fstests-ubuntu.sh ~/fstests <lower>` runs `vm/fstests-local.sh` in an Ubuntu 26.04 container

@@ -11,7 +11,8 @@
 # suite steps and ends in MOOBFS_KASAN_ONLY_PASS. MOOB_PERMCHURN=SEEDS,STEPS[,FIRST] lengthens the
 # permchurn step (vm/suite.sh). MOOB_SELFCHECK=1 runs it with the index self-check on (S16). MOOB_KASAN_KERNEL=7.3
 # runs the workflow's 7.3 leg (KERNEL73_VERSION and KERNEL73_SHA256) instead of the 6.12 one (journal 0279);
-# MOOB_KASAN_KERNEL=7.0 its 7.0 leg (KERNEL70_*, journal 0281).
+# MOOB_KASAN_KERNEL=7.0 its 7.0 leg (KERNEL70_*, journal 0281); MOOB_KASAN_KERNEL=7.3.4 its 7.3.4 leg
+# (KERNEL734_*, journal 0287).
 # This is a faster loop for development; the required check is still the workflow on the pull request.
 set -eu
 PATH=$PATH:/usr/sbin:/sbin   # mke2fs, mkfs.btrfs, mkfs.xfs and dmsetup for a non-root user
@@ -19,7 +20,8 @@ case ${MOOB_KASAN_KERNEL:-6.12} in
 6.12) KPIN=KERNEL ;;
 7.3) KPIN=KERNEL73 ;;
 7.0) KPIN=KERNEL70 ;;
-*) echo "kasan-local: MOOB_KASAN_KERNEL must be 6.12, 7.3 or 7.0" >&2; exit 1 ;;
+7.3.4) KPIN=KERNEL734 ;;
+*) echo "kasan-local: MOOB_KASAN_KERNEL must be 6.12, 7.3, 7.0 or 7.3.4" >&2; exit 1 ;;
 esac
 KERNEL_VERSION=$(sed -n "s/^ *${KPIN}_VERSION: *//p" .github/workflows/kasan.yml)
 KERNEL_SHA256=$(sed -n "s/^ *${KPIN}_SHA256: *//p" .github/workflows/kasan.yml)
