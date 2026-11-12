@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Keeps docs/matrix-and-limits.md from drifting (journal 0282): the releases between its
 # "supported-kernels" markers must be exactly those of scripts/supported-kernels, the upstream
-# releases between its "kasan-pins" markers exactly the pins of the KASAN workflow (three since
-# journal 0281), every
+# releases between its "kasan-pins" markers exactly the pins of the KASAN workflow (four since
+# journal 0287), every
 # relative link must name a file of the tree, and the page must stay short enough to print on one
 # page. Run from the repository root; no network.
 set -eu
@@ -27,7 +27,7 @@ want=$(grep -v '^#' scripts/supported-kernels | grep -v '^ *$' | sort)
 
 yaml() { sed -n "s/^ *$1: *//p" .github/workflows/kasan.yml; }
 pins=$(block kasan-pins | grep -o 'upstream [0-9][0-9.]*[0-9]' | sed 's/^upstream //' | sort)
-wantpins=$(printf '%s\n%s\n%s\n' "$(yaml KERNEL_VERSION)" "$(yaml KERNEL73_VERSION)" "$(yaml KERNEL70_VERSION)" | sort)
+wantpins=$(printf '%s\n%s\n%s\n%s\n' "$(yaml KERNEL_VERSION)" "$(yaml KERNEL73_VERSION)" "$(yaml KERNEL734_VERSION)" "$(yaml KERNEL70_VERSION)" | sort)
 [ "$pins" = "$wantpins" ] || bad "KASAN pins differ from kasan.yml: page [$(printf %s "$pins" | tr "\n" " ")] workflow [$(printf %s "$wantpins" | tr "\n" " ")]"
 
 # relative links, resolved from docs/ (fragments are not checked)

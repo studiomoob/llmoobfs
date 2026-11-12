@@ -14,7 +14,8 @@ There are three interfaces, each with its own version and its own rule.
 ## 1. Kernels
 
 **Today.** Three series, x86-64: Debian 13's 6.12 builds, Debian's 7.3.3 (journal
-[0277](history/0277-kernels-6-12-115-and-7-3-supported.md)) and Ubuntu 26.04's 7.0 series
+[0277](history/0277-kernels-6-12-115-and-7-3-supported.md)) and 7.3.4 (journal
+[0287](history/0287-debian-7-3-4.md)) and Ubuntu 26.04's 7.0 series
 `7.0.0-*-generic`, of which `7.0.0-43-generic` was tested (journal
 [0281](history/0281-port-ubuntu-7-0.md), [ADR-0036](decisions/0036-ubuntu-abi-series-policy.md)).
 On 7.0 and 7.3 only the layer module (`layer/`) builds and is tested; the M1 read-only module
@@ -26,8 +27,10 @@ On 7.0 and 7.3 only the layer module (`layer/`) builds and is tested; the M1 rea
 | Debian 6.12.113+deb13-amd64 | yes, every pull request (first passed in PR 148) | no (distribution kernel) | yes, three lower filesystems, on the dedicated host (journal 0206) |
 | Debian 6.12.115+deb13.1-amd64 | yes, every pull request (job added in journal 0277) | no (distribution kernel) | yes, three lower filesystems, on the dedicated host (journal 0272; btrfs with `exclude-quick-btrfs.txt`, journal 0277) |
 | Debian 7.3.3+deb14-amd64 (layer module only) | yes, every pull request (job added in journal 0277) | no (distribution kernel) | the upstream 7.3.3 build below stands for it (journal 0275) |
+| Debian 7.3.4+deb14-amd64 (layer module only) | yes, every pull request (job added in journal 0287) | no (distribution kernel) | the upstream 7.3.4 build below stands for it (journal 0287) |
 | Upstream 6.12.116, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` | yes | no |
 | Upstream 7.3.3, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` (job added in journal 0277) | yes | yes, three lower filesystems, built with `vm/fstests.config` (journal 0275) |
+| Upstream 7.3.4, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` (job added in journal 0287) | yes | yes, three lower filesystems, built with `vm/fstests.config` (journal 0287) |
 | Ubuntu 26.04 `7.0.0-*-generic` series (layer module only; ADR-0036) | `7.0.0-43-generic`, every pull request (job added in journal 0281) | no (distribution kernel) | `7.0.0-43-generic`, three lower filesystems, Ubuntu's own build (journal 0281; `generic/798` excluded) |
 | Upstream 7.0.14, `vm/kasan.config` | yes, every pull request that touches `layer/` or `vm/` (job added in journal 0281) | yes | no |
 | Anything else | no | no | no |
@@ -94,6 +97,13 @@ On 7.0 and 7.3 only the layer module (`layer/`) builds and is tested; the M1 rea
    KASAN, UBSAN and lockdep on upstream 7.0.14 with `vm/kasan.config`, and fstests `quick`
    passed on the three lowers over Ubuntu's own build (`vm/fstests-ubuntu.sh`). It has a native
    CI job, a third leg of the KASAN workflow and the weekly drift build.
+   *Note, 2026-11-12 (journal [0287](history/0287-debian-7-3-4.md)):* Debian's
+   `7.3.4+deb14-amd64`, which replaced 7.3.3 in sid that day, was added by the maintainer's
+   decision, with the evidence 7.3.3 had: the full suite passed on it (layer module only), the
+   full suite passed under KASAN, UBSAN and lockdep on upstream 7.3.4, and fstests `quick` passed
+   on the three lowers over upstream 7.3.4 built with `vm/fstests.config` (630, 629 and 630 tests
+   with today's exclusions). It has a native CI job and a fourth leg of the KASAN workflow. 7.3.3
+   stays; its removal in the release after the next one is announced in the changelog.
 4. Lower filesystems: ext4, btrfs and XFS, on a local block device. A network or FUSE filesystem
    as the lower is unsupported.
    *Note, 2026-10-29 (journal 0234):* one reason is now part of the rule. Since journal 0216

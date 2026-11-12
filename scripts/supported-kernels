@@ -4,8 +4,8 @@
 # BUILD_EXCLUSIVE_KERNEL). The rule is docs/compatibility.md section 1: a kernel is supported
 # when the full suite and the KASAN job pass on it in CI, with one fstests quick run per lower
 # filesystem (rule 3). Three series: Debian 13's 6.12 builds, Debian's 7.3.3 (sid on 2026-11-09,
-# journal 0277) and Ubuntu 26.04's 7.0 (journal 0281); on 7.0 and 7.3 the layer module only, the
-# M1 module (kernel/) stays 6.12-only. The upstream 6.12.116, 7.0.14 and 7.3.3 KASAN kernels are
+# journal 0277) and 7.3.4 (sid on 2026-11-12, journal 0287) and Ubuntu 26.04's 7.0 (journal 0281); on 7.0 and 7.3 the layer module only, the
+# M1 module (kernel/) stays 6.12-only. The upstream 6.12.116, 7.0.14, 7.3.3 and 7.3.4 KASAN kernels are
 # test builds, not installation targets, so they are not listed. One entry per line: an exact
 # release, or (Ubuntu only, ADR-0036) a series whose one '*' stands for one or more digits, the
 # ABI number. 7.0.0-*-generic was tested on 7.0.0-43-generic; .github/workflows/ubuntu-drift.yml
@@ -15,4 +15,5 @@
 6.12.113+deb13-amd64
 6.12.115+deb13.1-amd64
 7.3.3+deb14-amd64
+7.3.4+deb14-amd64
 7.0.0-*-generic

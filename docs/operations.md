@@ -17,7 +17,7 @@ users their directories, and removes it again. To try MoobFS without installing 
 
 | Requirement | Why |
 | --- | --- |
-| x86-64, Debian 13 with kernel **`6.12.113+deb13-amd64`**, **`6.12.115+deb13.1-amd64`** or **`6.12.111+deb13-amd64`**, or Debian's **`7.3.3+deb14-amd64`** (sid), exactly; or Ubuntu 26.04 (or 24.04 HWE) on a **`7.0.0-*-generic`** kernel, of which **`7.0.0-43-generic`** was tested ([ADR-0036](decisions/0036-ubuntu-abi-series-policy.md)) | The distribution kernels the suite and fstests run on ([compatibility.md](compatibility.md)). `make install` and the DKMS package refuse any other kernel. On Ubuntu the build prints a frame-size warning for `query2_exec()` (1248 bytes against Ubuntu's 1024-byte threshold), accepted (journal 0281). This guide's VM tests ran on Debian 13 only. |
+| x86-64, Debian 13 with kernel **`6.12.113+deb13-amd64`**, **`6.12.115+deb13.1-amd64`** or **`6.12.111+deb13-amd64`**, or Debian's **`7.3.4+deb14-amd64`** or **`7.3.3+deb14-amd64`** (sid), exactly; or Ubuntu 26.04 (or 24.04 HWE) on a **`7.0.0-*-generic`** kernel, of which **`7.0.0-43-generic`** was tested ([ADR-0036](decisions/0036-ubuntu-abi-series-policy.md)) | The distribution kernels the suite and fstests run on ([compatibility.md](compatibility.md)). `make install` and the DKMS package refuse any other kernel. On Ubuntu the build prints a frame-size warning for `query2_exec()` (1248 bytes against Ubuntu's 1024-byte threshold), accepted (journal 0281). This guide's VM tests ran on Debian 13 only. |
 | Root (`sudo`) | Loading a module and mounting need `CAP_SYS_ADMIN` in the initial user namespace. |
 | A directory on ext4, btrfs or XFS, on a local disk | The lower tree that holds the files. Network and FUSE filesystems are unsupported. |
 | Secure Boot off, or your own MOK to sign the module | `make install` does not sign the module; with Secure Boot on, the kernel refuses to load it. The packages below sign it with a DKMS key you enrol once. |
@@ -26,7 +26,8 @@ users their directories, and removes it again. To try MoobFS without installing 
 `6.12.113+deb13-amd64`, which is supported (journal 0206); nothing to change:
 
 ```sh
-uname -r          # 6.12.113+deb13-amd64, 6.12.115+deb13.1-amd64, 6.12.111+deb13-amd64, 7.3.3+deb14-amd64 or 7.0.0-N-generic
+uname -r          # 6.12.113+deb13-amd64, 6.12.115+deb13.1-amd64, 6.12.111+deb13-amd64, 7.3.3+deb14-amd64,
+                  # 7.3.4+deb14-amd64 or 7.0.0-N-generic
 ```
 
 A Debian 13 system that has updated to `6.12.115+deb13.1-amd64` (trixie-security) is supported
