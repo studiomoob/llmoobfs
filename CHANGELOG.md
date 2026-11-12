@@ -54,7 +54,7 @@
   criterion (2) of ADR-0030, by the maintainer's decision of 2026-11-11, each with its reason
   (ADR-0030 amendment, journal 0284). Finding 0114 item 8 got a test in the SELinux harness,
   which could not work and was reverted; it is a seventh recorded exception (ADR-0030, amendment
-  of about 23:30).
+  of about 21:30).
 - New documented limit under SELinux: the domain that mounts the layer needs `fd use` on the
   domain of every process that reads through it, since the layer opens lower files as the
   caller and reads them as the mounter; a confined mounter gets `EACCES` on directory reads

@@ -275,7 +275,7 @@ off (`/proc/sys/kernel/printk_ratelimit` 0):
 Consequences: the committed SELinux test of item 8 (3e5d739) fails on every run and proves
 nothing; the attempts above were not committed.
 
-**Maintainer's decision, 2026-11-11, about 23:30 Brasília time:** record point 3 as a documented
+**Maintainer's decision, 2026-11-11, about 21:30 Brasília time:** record point 3 as a documented
 stage-2 limit and fix it in a later batch; revert the item 8 test (da67b9c) and make 0114 item 8
 a seventh exception to criterion (2) (ADR-0030 amendment of that time). Surfaces updated:
 `docs/matrix-and-limits.md` (LSMs), `docs/when-not-to-use.md` (SELinux), the S12 row of

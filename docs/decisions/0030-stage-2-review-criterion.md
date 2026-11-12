@@ -128,7 +128,7 @@ kernels and lower filesystems:
 (`SELINUX_DIRREAD_PASS`, journal 0284), pending until it passes. A change to the kernel freeze
 reopens these exceptions: each then gets a test or a renewed reason.
 
-*Amended, 2026-11-11, about 23:30 Brasília time (maintainer's decision; journal 0284):* 0114
+*Amended, 2026-11-11, about 21:30 Brasília time (maintainer's decision; journal 0284):* 0114
 item 8 joins the exceptions. The SELinux test written for it cannot work: a domain without
 `fd use` on the guest's `kernel_t` cannot even map its own executable, and SELinux gives the
 lower file the SID of the task that opens it, which is the caller, so the old and the current
