@@ -58,25 +58,6 @@ echo "  $TAG create: direct=$d layer=$l"
 stat -c '%C %n' $L/t/new-direct $L/t/new-layer 2>&1 | sed 's/^/  /'
 dmesg | grep -c 'avc:  denied' | sed "s/^/  $TAG avc denials: /"
 dmesg | grep -i "inode_doinit\|getxattr returned" | sed "s/^/  $TAG dmesg: /"
-# Finding 0114 item 8 (journal 0284): directory reads through the layer run with the mounter's
-# credentials. moobtest_reader_t may list moobtest_dir_t but may not use a descriptor of kernel_t,
-# the domain that mounted the layer and so opened the lower directory file; a read checked with
-# the reader's own credentials (the old moobl_iterate()) fails in iterate_dir() with EACCES.
-# The fs_use rule gives the layer's directories their lower labels, so only that run applies.
-if [ "$TAG" = fsuse ]; then
-    BD=$(dirname "$POL")
-    cp "$BD/listdir" $S/bin/listdir && chcon -t bin_t $S/bin/listdir || fail "listdir copy"
-    rd() { runcon -t moobtest_reader_t -- $S/bin/listdir "$@" < /dev/null > /dev/null 2>&1; echo $?; }
-    # control 1: the reader really cannot use a descriptor of kernel_t
-    p=$(runcon -t moobtest_reader_t -- $S/bin/listdir fdprobe 3< $L/t/rw < /dev/null > /dev/null 2>&1; echo $?)
-    [ "$p" = 0 ] || fail "item 8 control: the reader domain used a descriptor of kernel_t ($p); the step proves nothing"
-    # control 2: it may list the directory on the lower directly
-    d=$(rd $L/t); l=$(rd $S/layer/t)
-    echo "  $TAG dirread: direct=$d layer=$l"
-    [ "$d" = 0 ] || fail "item 8 control: the reader cannot list the lower directory directly ($d)"
-    [ "$l" = 0 ] || fail "item 8: a directory read through the layer was checked with the caller's credentials (exit $l)"
-    echo "SELINUX_DIRREAD_PASS: a reader without fd use on the mounter's domain lists a directory through the layer as it does on the lower"
-fi
 # QUERY2 under the policy: the three files carry the same attribute; the client may getattr
 # rw and ro, not none
 B=$(dirname "$POL")

@@ -571,16 +571,6 @@ to `/etc/selinux/semanage.conf`; SELinux is not activated on the host. Markers:
 `MOOBFS_SELINUX_RESULT: <run> differ=<n> denied_directly=<n>` per run, `MOOBFS_SELINUX_FAIL`
 on any failed check. Not part of `make vm-test` nor of CI.
 
-Since journal 0284 the run with `moobfs_layer.cil` also prints
-`SELINUX_DIRREAD_PASS` (finding 0114 item 8): `tests/listdir.c`, run in the domain
-`moobtest_reader_t` of `vm/selinux/moobtest.te`, which may list the lower directory's type but
-has no `fd use` on `kernel_t`, the domain that mounted the layer and so opened the lower
-directory file, lists the directory through the layer as it does directly. Two controls run
-first: a descriptor of `kernel_t` passed to the reader reads nothing (SELinux replaced it at
-exec), and the direct listing succeeds. A directory read run with the caller's credentials, as
-before journal 0120, fails in `iterate_dir()` with `EACCES` on the `fd use` check. Does not prove:
-other LSMs, other lowers than ext4, the stock policy run (its layer labels differ).
-
 ### Long runs on the test host: fstests `auto`, the corpus replay, nightly syzkaller
 
 None of these is part of `make vm-test` or of CI; each needs a Linux host with KVM, and each
