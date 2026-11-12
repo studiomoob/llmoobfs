@@ -131,7 +131,7 @@ timeout 3600 $QEMU \
     -machine $MACHINE -accel $ACCEL -cpu max -m 512M -smp 2 \
     "$@" \
     -kernel "/boot/vmlinuz-$KERNEL" -initrd build/vm/initramfs.cpio.gz \
-    -append "console=$CONSOLE rdinit=/init panic=-1 loglevel=4${MOOB_ONLY:+ moob_only=$(echo "$MOOB_ONLY" | tr ' ' ',')}${MOOB_PERMCHURN:+ moob_permchurn=$MOOB_PERMCHURN}${MOOB_SELFCHECK:+ moob_selfcheck=$MOOB_SELFCHECK}" \
+    -append "console=$CONSOLE rdinit=/init panic=-1 loglevel=4${MOOB_ONLY:+ moob_only=$(echo "$MOOB_ONLY" | tr ' ' ',')}${MOOB_PERMCHURN:+ moob_permchurn=$MOOB_PERMCHURN}${MOOB_SELFCHECK:+ moob_selfcheck=$MOOB_SELFCHECK}${MOOB_WALKLAT:+ moob_walklat=$MOOB_WALKLAT}" \
     -nographic -no-reboot -nic none > build/vm/console.log 2>&1
 RESULT=$?
 set -e

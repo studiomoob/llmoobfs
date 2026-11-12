@@ -59,6 +59,9 @@ export MOOB_PERMCHURN
 # moob_selfcheck=1: the whole suite with the index self-check on (S16, journal 0271)
 MOOB_SELFCHECK=$(sed -n 's/.*moob_selfcheck=\([01]\).*/\1/p' /proc/cmdline)
 export MOOB_SELFCHECK
+# moob_walklat=FILES,ATTRS,LIMIT_MS,MIN_MS: the size of the walklatency step (journal 0289)
+MOOB_WALKLAT=$(sed -n 's/.*moob_walklat=\([0-9,]*\).*/\1/p' /proc/cmdline)
+export MOOB_WALKLAT
 MOOB_EXPECT_MEMCG=1 # the pinned Debian guest has CONFIG_MEMCG=y
 export MOOB_EXPECT_MEMCG
 . /suite.sh
