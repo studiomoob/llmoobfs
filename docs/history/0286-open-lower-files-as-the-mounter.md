@@ -51,10 +51,14 @@ Nothing here is merged or published without the maintainer's decision.
   `MOOBFS_LAYER_PASS`, rc=0. A first start of the KASAN suite right after it stopped at once
   ("vng (virtme-ng) not in PATH": the queue script lacked the test host's virtme-ng path); it
   was started again at 02:29 with that path.
+- Full KASAN/UBSAN/lockdep suite on `aba8860` (`sh vm/kasan-local.sh`, kernel 6.12.116,
+  02:29–03:46): `MOOBFS_PYLIB_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`,
+  `MOOBFS_KASAN_PASS: layer suite under KASAN, UBSAN and lockdep with no kernel diagnostics`,
+  rc=0.
 
 ## Not done
 
-- The full KASAN suite on this branch (running).
+- The pre-push checks (`run6.sh`) on this branch, after a rebase on the merged batch 22.
 - The surfaces that state the limit (`docs/matrix-and-limits.md`, `docs/when-not-to-use.md`, the
   S12 row, `CHANGELOG.md`) change only when the exception is accepted and the fix merged.
 - AppArmor and Smack, which also label a file from the allocating task, were not run.
