@@ -104,6 +104,14 @@ review-findings register); `site/index.html` (the count, the date, s390x, 7.0.14
 the architectures answer, both languages, pages regenerated). Checks: retired claims, the FAQ
 page and the matrix page pass.
 
+## Batch 22 merged (2026-11-12, about 07:40)
+
+Pull request #196 (batch 22, journals 0283–0285) was merged with the maintainer's agreement after
+its 19 checks passed (merge commit `5b5b237`); this branch was rebased on it. The CI run of #196
+also confirmed the 7.3.3 image from the snapshot archive (`Native Linux VM (Debian 7.3.3)`, 11 min
+29 s), and the full suite on 7.3.3 passed on the test host with the same image
+(`MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`).
+
 ## Not done
 
 - The pre-push checks (`run6.sh`) on this branch, after a rebase on the merged batch 22.
