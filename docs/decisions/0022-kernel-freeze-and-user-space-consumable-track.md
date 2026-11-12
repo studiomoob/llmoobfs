@@ -10,6 +10,8 @@ S16's self-check, a test-only parameter that is off by default and only reads an
 freeze otherwise stays.
 *Note, 2026-11-07:* [ADR-0034](0034-kernel-compat-freeze-exception.md) makes a second one, for
 adaptations to newer kernel interfaces only.
+*Note, 2026-11-12:* [ADR-0037](0037-open-lower-files-as-the-mounter.md) makes a third one: the
+layer opens lower files under the mounter's credentials, at two call sites.
 
 ## Context
 

@@ -301,4 +301,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0283 — Stage-2 decisions of 2026-11-11: issue 117, acceptance step 5, the known-leak condition and Part B, with tests for Part B](0283-stage-2-decisions.md)
 - [0284 — The release workflow under immutable releases, Part A's remaining gaps, and the release decisions of 2026-11-11](0284-release-workflow-and-part-a-gaps.md)
 - [0285 — Canonical's DNS unreachable over IPv4: apt retries and a fallback Ubuntu mirror](0285-ubuntu-dns-incident-apt-fallback.md)
-- [0286 — Open lower files as the mounter: the fix for the confined-mounter limit (proposed)](0286-open-lower-files-as-the-mounter.md)
+- [0286 — Open lower files as the mounter: the fix for the confined-mounter limit](0286-open-lower-files-as-the-mounter.md)

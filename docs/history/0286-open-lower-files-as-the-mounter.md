@@ -1,7 +1,8 @@
-# 0286 — Open lower files as the mounter: the fix for the confined-mounter limit (proposed)
+# 0286 — Open lower files as the mounter: the fix for the confined-mounter limit
 
-Date: 2026-11-11. Work started about 21:50 Brasília time. Status: **in progress, local, not
-published; the freeze exception (ADR-0037) is proposed and needs the maintainer's acceptance.**
+Date: 2026-11-11 and 12. Work started about 21:50 Brasília time; test runs until 03:46 on the
+12th; decision and documents 06:15–06:40. Status: **done locally; ADR-0037 accepted; pull
+request after batch 22's (#196) is merged and this branch is rebased on it.**
 Estimated effort S; the time recorded is calendar time of one session.
 
 ## Goal
@@ -10,6 +11,16 @@ Prepare, while the maintainer is away, the later batch that journal 0284 left fo
 limit found that evening: under SELinux the domain that mounts the layer needs `fd use` on every
 caller's domain, because the layer opens lower files as the caller and reads them as the mounter.
 Nothing here is merged or published without the maintainer's decision.
+
+## Decision (maintainer, 2026-11-12, about 06:15 Brasília time)
+
+ADR-0037 is accepted: the third narrow exception to the kernel freeze. With the fix the
+documented limit of journal 0284 is gone; the surfaces that stated it now state the fix
+(`CHANGELOG.md`, `docs/matrix-and-limits.md`, `docs/when-not-to-use.md`, the S12 row of
+`docs/security-roadmap.md`, a dated note in `docs/review-findings.md`), ADR-0022 lists the
+exception, ADR-0030 is amended (the change to the freeze reopens the exception of 0114 item 8,
+which gets a test with a confined mounter or a renewed reason in a later batch), and the old
+wording is in `docs/retired-claims.txt`.
 
 ## Change
 
@@ -59,10 +70,10 @@ Nothing here is merged or published without the maintainer's decision.
 ## Not done
 
 - The pre-push checks (`run6.sh`) on this branch, after a rebase on the merged batch 22.
-- The surfaces that state the limit (`docs/matrix-and-limits.md`, `docs/when-not-to-use.md`, the
-  S12 row, `CHANGELOG.md`) change only when the exception is accepted and the fix merged.
 - AppArmor and Smack, which also label a file from the allocating task, were not run.
 
 ## Next step
 
-The maintainer's decision on ADR-0037; then the batch's full suites and its pull request.
+Once #196 is merged: rebase on `main`, the pre-push checks, then the pull request with the
+maintainer's agreement. Later batch: 0114 item 8's test with a confined mounter, or a renewed
+reason.

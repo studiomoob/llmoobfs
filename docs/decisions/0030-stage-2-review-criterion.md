@@ -138,3 +138,8 @@ the mounter on a file with the caller's SID, so a confined mounter needs `fd use
 caller's domain (overlayfs opens its real files under the mounter's credentials and has no such
 need). That defect is a documented stage-2 limit; its fix is a change to `layer/` for a later
 batch under the freeze rules. The test was reverted.
+
+*Amended, 2026-11-12, about 06:15 Brasília time (maintainer's decision; journal 0286):* the
+defect is fixed under [ADR-0037](0037-open-lower-files-as-the-mounter.md). That change to the
+freeze reopens the item 8 exception, as this criterion requires: a confined mounter now makes
+its test possible; it gets the test or a renewed reason in a later batch.

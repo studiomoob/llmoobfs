@@ -1,6 +1,7 @@
 # ADR-0037 — A third narrow exception to the kernel freeze: open lower files as the mounter
 
-Date: 2026-11-11. Status: **proposed**; it needs the maintainer's acceptance before it is merged.
+Date: 2026-11-11. Status: **accepted** by the maintainer on 2026-11-12, about 06:15 Brasília time (journal 0286);
+proposed on 2026-11-11.
 Amends [ADR-0022](0022-kernel-freeze-and-user-space-consumable-track.md) by one exception, beside
 those of [ADR-0033](0033-s16-freeze-exception.md) and
 [ADR-0034](0034-kernel-compat-freeze-exception.md); the freeze otherwise stays. Estimated effort:
@@ -23,7 +24,7 @@ with the fix left to a later batch.
 overlayfs opens its real files under `ovl_override_creds()` (`ovl_open_realfile()` and
 `ovl_dir_open_realfile()`, Linux 6.12.116), so they carry the mounter's identity.
 
-## Decision (proposed)
+## Decision
 
 `moobl_open()` and `moobl_dir_open()` open the lower file under `override_creds()` with the
 mounter's credentials, as overlayfs does. Nothing else changes: the permission checks of the open

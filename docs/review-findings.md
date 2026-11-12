@@ -370,6 +370,12 @@ the six reviews: under SELinux a confined mounter needs `fd use` on every caller
 because the layer opens lower files without switching to the mounter's credentials while it
 reads them as the mounter. Documented in [matrix-and-limits.md](matrix-and-limits.md); fix in a
 later batch.
+
+*Note, 2026-11-12 (journal 0286):* that limit is fixed under ADR-0037, accepted that morning:
+the layer opens lower files as the mounter, and `SELINUX_MOUNTER_PASS` fails on the old code.
+By ADR-0030's rule a change to the freeze reopens the item 8 exception: with a confined
+mounter its test can now tell the old and the current `moobl_iterate()` apart; it gets that test
+or a renewed reason in a later batch.
 13. **D4**: closed on 2026-11-09 as a design objection answered by ADR-0012 (journal 0276); no
     test, as for D1 to D3.
 

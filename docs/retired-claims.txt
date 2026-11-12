@@ -466,3 +466,5 @@ Issue 118 remains open for a real slow lower device
 Avoid untrusted multi-user query workloads while this issue is open
 S16 done locally
 `make layer` does not)
+a confined mounter needs `fd use`
+must also be allowed `fd use` on the domains

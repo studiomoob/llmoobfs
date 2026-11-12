@@ -98,10 +98,9 @@ These limits update the cases discussed in the value assessment, §9.6.
   ([vm/selinux/moobfs_layer.cil](../vm/selinux/moobfs_layer.cil)) files keep their labels and
   the first test agreed with direct access; every `QUERY2` result is then checked for the
   caller, at a cost not measured ([journal 0104](history/0104-selinux-investigation.md)). One
-  run, one kernel; Smack and AppArmor were not exercised. The domain that mounts the layer
-  must also be allowed `fd use` on the domains of the processes that use it, or be unconfined:
-  a confined mounter without that rule gets `EACCES` on directory reads through the layer
-  ([journal 0284](history/0284-release-workflow-and-part-a-gaps.md)).
+  run, one kernel; Smack and AppArmor were not exercised. A confined domain may mount the layer:
+  it opens lower files with the mounter's credentials, so it needs no rule on the domains of
+  the processes that use it (one permissive-domain run, [journal 0286](history/0286-open-lower-files-as-the-mounter.md)).
 - **Your kernel is outside the tested matrix.** Only Debian 6.12.111, 6.12.113, 6.12.115 and
   7.3.3 and Ubuntu 7.0.0-43-generic (QEMU; on 7.0 and 7.3 the layer module only) and upstream
   6.12.112 (KASAN; on arm64 too, under emulation, as an exploratory job), 6.12.116, 7.0.14 and
