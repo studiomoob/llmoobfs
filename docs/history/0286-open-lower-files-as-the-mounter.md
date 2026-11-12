@@ -67,6 +67,30 @@ wording is in `docs/retired-claims.txt`.
   `MOOBFS_KASAN_PASS: layer suite under KASAN, UBSAN and lockdep with no kernel diagnostics`,
   rc=0.
 
+## Finding 0114 item 8 gets its test (2026-11-12 morning)
+
+ADR-0030 reopened the item 8 exception when the freeze changed. With the fix, the lower
+directory file carries the mounter's domain, so the confined-mounter step can tell the old and
+the current `moobl_iterate()` apart: the reader domain has no `fd use` on `moobtest_mounter_t`,
+and a directory read checked with the reader's credentials is refused that use. The step now
+also counts the reader's `fd use` refusals on the mounter and checks that the reader is not
+permissive (control), and prints `SELINUX_DIRREAD_PASS` (`e1d93dc`).
+
+- Positive round on `e1d93dc` (test host, 07:27–07:28): `list=0 read=0 fd_use_on_reader=0
+  mounter_open_logged=1 reader_fd_use_on_mounter=0 reader_permissive=0`,
+  `SELINUX_MOUNTER_PASS`, `SELINUX_DIRREAD_PASS`.
+- Negative round, `override_creds()` and `revert_creds()` removed from `moobl_iterate()`
+  (07:28–07:29): `list=11 ... reader_fd_use_on_mounter=1 reader_permissive=0`,
+  `MOOBFS_SELINUX_FAIL: fsuse: item 8: a directory read through the layer was checked with the
+  caller's credentials (list=11, fd use refusals=1)`.
+- A first attempt at 07:23 failed at `insmod` in both rounds (`.gnu.linkonce.this_module section
+  size must match`): the queue script did not run `make layer`, so the guest loaded the module
+  the KASAN run had left in that clone. Not a defect of the harness, whose header says the
+  module must be built; the rounds above build it first.
+
+0114 item 8 leaves the recorded exceptions (ADR-0030 amended); six remain. Updated:
+`docs/review-findings.md`, ADR-0030, `docs/distribution-strategy.md` §8, `CHANGELOG.md`.
+
 ## Public surfaces brought up to date (2026-11-12 morning)
 
 A walk of `docs/public-surfaces.md` found states left behind by journals 0273–0284: the README's
@@ -88,5 +112,4 @@ page and the matrix page pass.
 ## Next step
 
 Once #196 is merged: rebase on `main`, the pre-push checks, then the pull request with the
-maintainer's agreement. Later batch: 0114 item 8's test with a confined mounter, or a renewed
-reason.
+maintainer's agreement.

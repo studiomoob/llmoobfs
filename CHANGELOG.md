@@ -60,7 +60,9 @@
   the caller and read them as the mounter, so a confined mounter needed `fd use` on the domain
   of every process that read through it and got `EACCES` on directory reads without it (found
   on 2026-11-11, journal 0284). New SELinux step `SELINUX_MOUNTER_PASS`, which fails on the old
-  code.
+  code. The same step gives finding 0114 item 8 its test, `SELINUX_DIRREAD_PASS`, which fails
+  when directory reads run with the caller's credentials; item 8 leaves the recorded exceptions
+  of ADR-0030, and six remain.
 - `tests/passthrough.c` pins the accepted limits V2 and V1 (`PT_LIMITS_PASS`) and the errnos of
   `SB_I_NOEXEC` and `SB_I_NODEV` (`PT_NOEXEC_PASS`); `docs/review-findings.md` is no longer a
   draft: every Part A finding is tested or listed for the maintainer's decision (journal 0284).

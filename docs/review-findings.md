@@ -10,6 +10,8 @@ maintainer's decision, with the reason a test is not written. *Later the same da
 maintainer decided those items: six are recorded exceptions to criterion (2) (ADR-0030,
 amendment of 2026-11-11, about 13:00), and 0114 item 8 has a test under SELinux, pending. *Night of the same day:* that test could not work and was reverted; 0114 item 8 is a seventh exception (ADR-0030, amendment of about 21:30), and the run found a new SELinux limit (journal 0284). The tests added in journals 0283
 and 0284 are written and compiled; their VM runs are pending (journal 0284, "Pending").
+*2026-11-12:* those runs passed, with their negative rounds (journal 0284); with the fix of
+ADR-0037, 0114 item 8 has its test and leaves the exceptions, six remain (journal 0286).
 
 ## What this is
 
@@ -87,7 +89,7 @@ at the end of journal 0114). Items 1, 2 and the frozen lower were private adviso
 | 5 | A build holds a whole directory listing in unaccounted memory | fixed | journal 0120 (PR 82, git) | step `bigdir`, `BIGDIR_PASS`, tag `bd-differs-from-oracle` [suite] | Negative round in journal 0131 (batch boundary broken). Checks answers, not memory |
 | 6 | `domain_drop`/`moobl_index_destroy` long walks without `cond_resched` | fixed | journal 0120 | none | Journal 0120: "no test, the cost is a scheduling point". Recorded exception to criterion (2), maintainer 2026-11-11 (ADR-0030 amendment, journal 0284) |
 | 7 | Typed attribute cannot be set on a write-only file | fixed | journal 0120 | `tests/query.c` mode `xset` in each lower's step, tag `typed-attr-write-only-refused-$fs` [suite] | Negative round in journal 0131 |
-| 8 | Directory reads run with the caller's credentials, not the mounter's | fixed | journal 0120 | `vm/selinux-guest.sh` with `tests/listdir.c`, `SELINUX_DIRREAD_PASS` [SELinux harness, `vm/selinux-local.sh`] (journal 0284) | Journal 0120: the difference shows only under an LSM policy. Test written 2026-11-11; **pending** until its run and negative round pass |
+| 8 | Directory reads run with the caller's credentials, not the mounter's | fixed | journal 0120 | `vm/selinux-guest.sh`, confined-mounter step with `tests/listdir.c`, `SELINUX_DIRREAD_PASS` [SELinux harness, `vm/selinux-local.sh`] (journal 0286) | Journal 0120: the difference shows only under an LSM policy. The first test (journal 0284) could not work and was reverted; the second needs the fix of ADR-0037. Negative round 2026-11-12: without `override_creds()` in `moobl_iterate()` the reader is refused `fd use` and the listing fails |
 | 9 | Pushed equality ignores the constraint's collation (SQLite table) | fixed | journal 0120 | step `sqlext`, `SQLEXT_PASS`, tag `sx-differs` [suite] | Negative round in journal 0131 |
 | V-a | Frozen lower: any user's create or chmod hits `WARN_ON` in ext4 | fixed | journal 0117; PR 80 | step `lowerro`, tag `lr-fz-kernel-warning` [suite] | New finding of the verification, part of F11 |
 | V-b (F12) | Idmapped lower mount accepted, mapping ignored | fixed (refused at mount) | journal 0117; PR 80 | step `lowerro`, `LOWERRO_PASS` "idmapped lower: refused" [suite] | The Debian guest prints "idmapped lower: not tested (no idmapped bind mount here)" (journal 0171) |
@@ -326,8 +328,9 @@ Part A (inside the criterion as worded):
 1. **0114 item 3** (ref-walk revalidation reads a freed lower dentry): fixed in journal 0120,
    no reproducer and no test.
 2. **0114 item 6** (`cond_resched` in long walks): no test, by the decision of journal 0120.
-3. **0114 item 8** (directory reads with the caller's credentials): no test; differs only under
-   an LSM policy, which `make vm-test` does not load.
+3. **0114 item 8** (directory reads with the caller's credentials): closed by journal 0286,
+   step `SELINUX_DIRREAD_PASS` in the SELinux harness (an LSM policy, which `make vm-test` does
+   not load).
 4. **0114 V-c** (suspected wait on a layer directory lock): closed by journal 0278, step
    `dirstall` in the full suite (needs root's userfaultfd; `DIRSTALL_SKIPPED` without it).
 5. **R2-1 (F14)**: closed by journal 0276, step `deeptree` in the full suite.
@@ -376,6 +379,10 @@ the layer opens lower files as the mounter, and `SELINUX_MOUNTER_PASS` fails on 
 By ADR-0030's rule a change to the freeze reopens the item 8 exception: with a confined
 mounter its test can now tell the old and the current `moobl_iterate()` apart; it gets that test
 or a renewed reason in a later batch.
+
+*Update, 2026-11-12, about 07:30 (journal 0286):* it got the test in the same batch:
+`SELINUX_DIRREAD_PASS`, with its negative round. 0114 item 8 is no longer an exception; six
+remain.
 13. **D4**: closed on 2026-11-09 as a design objection answered by ADR-0012 (journal 0276); no
     test, as for D1 to D3.
 
