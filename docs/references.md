@@ -1554,3 +1554,11 @@ hand and carries the same code paths:
   `linux-headers-7.0.0-43-generic`; `linux-headers-7.0.0-43`, all `7.0.0-43.43`) answer 200.
   `kernel.org` is served by other nameservers (Constellix) than `ubuntu.com` (Canonical's).
   apt verifies its `InRelease` against `/usr/share/keyrings/ubuntu-archive-keyring.gpg`.
+- Debian's snapshot archive, <https://snapshot.debian.org/>, and its machine API
+  (`/mr/binary/<package>/`), checked on 2026-11-12 (journal 0284): sid moved from `7.3.3-1` to
+  `7.3.4-1` of `linux` (<https://sources.debian.org/api/src/linux/>) and dropped
+  `linux-image-7.3.3+deb14-amd64`; the snapshot of `20261110T000000Z` still serves it and its
+  dependencies (`linux-binary-`, `linux-modules-`, `linux-headers-7.3.3+deb14-common`,
+  `linux-kbuild-7.3.3+deb14`). The `check-valid-until=no` option of
+  [sources.list(5)](https://manpages.debian.org/trixie/apt/sources.list.5.en.html) lets apt use an
+  expired `InRelease`; its signature is still checked.

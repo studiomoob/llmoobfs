@@ -331,6 +331,19 @@ suites do not run.
   `MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS: layer suite under KCSAN and lockdep with no kernel
   diagnostics`, rc=0. The command of the route works as written; nothing in it needs a change.
 
+## The Debian 7.3.3 kernel left sid (2026-11-12 morning)
+
+The first CI run of the pull request (#196) failed in `Native Linux VM (Debian 7.3.3)` after 13
+s: `E: Unable to locate package linux-image-7.3.3+deb14-amd64`. Debian sid moved to `7.3.4-1`
+and no longer carries 7.3.3; the job fails the same way on `main`, nothing in the batch caused
+it. Choice: keep the tested kernel and fetch it from snapshot.debian.org at a fixed time
+(`20261110T000000Z`) in `vm/Dockerfile`, only for the 7.3.3 image, over http (the slim image has
+no CA certificates before its first install; apt checks the archive's signature, and
+`check-valid-until=no` only accepts the snapshot's expired `InRelease`). Alternative not taken:
+move the supported kernel to 7.3.4, a change to the support matrix and to every surface that
+names 7.3.3, for the maintainer to decide. On the test host the image build fetched
+`linux-image-7.3.3+deb14-amd64 7.3.3-1` and its dependencies from the snapshot.
+
 ## Next step
 
 The maintainer's decision on the fork test; then the batch's pull request with the maintainer's
