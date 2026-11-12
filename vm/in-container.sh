@@ -6,7 +6,7 @@ MOOB_DEBIAN_KERNEL=${MOOB_DEBIAN_KERNEL:-6.12.111}
 case "$MOOB_DEBIAN_KERNEL" in
     6.12.111|6.12.113) KERNEL="$MOOB_DEBIAN_KERNEL+deb13-amd64" ;;
     6.12.115) KERNEL="$MOOB_DEBIAN_KERNEL+deb13.1-amd64" ;;   # a trixie-security build
-    7.3.3) KERNEL="$MOOB_DEBIAN_KERNEL+deb14-amd64" ;;        # sid on 2026-11-08 (journal 0275)
+    7.3.3|7.3.4) KERNEL="$MOOB_DEBIAN_KERNEL+deb14-amd64" ;;  # sid, journals 0275 and 0287
     *) echo "Unsupported Debian VM kernel: $MOOB_DEBIAN_KERNEL" >&2; exit 1 ;;
 esac
 # MOOB_UBUNTU_KERNEL=7.0.0-43 (vm/run.sh, journal 0281) replaces the Debian kernel with Ubuntu

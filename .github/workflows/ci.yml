@@ -218,6 +218,31 @@ jobs:
             build/vm/kernel.config
           if-no-files-found: warn
           retention-days: 30
+  native_734:
+    # Debian's 7.3.4, in sid since 2026-11-12, from snapshot.debian.org as 7.3.3 is (journal 0287);
+    # layer suite and acceptance steps only, as on 7.3.3.
+    name: Native Linux VM (Debian 7.3.4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make vm-test
+        env:
+          MOOB_DEBIAN_KERNEL: 7.3.4
+      - name: Preserve VM evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-vm-734-evidence
+          path: |
+            build/vm/console.log
+            build/vm/image-report.json
+            build/vm/environment.txt
+            build/vm/kernel.config
+          if-no-files-found: warn
+          retention-days: 30
   native_ubuntu_70:
     # Ubuntu 26.04's 7.0.0-43-generic, in an ubuntu:26.04 image pinned by digest (vm/run.sh,
     # MOOB_UBUNTU_KERNEL). The M1 module (kernel/) does not build on 7.x, so the guest runs the

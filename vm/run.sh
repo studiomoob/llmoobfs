@@ -3,9 +3,10 @@
 set -eu
 cd "$(dirname "$0")/.."
 MOOB_DEBIAN_KERNEL=${MOOB_DEBIAN_KERNEL:-6.12.111}
-# Debian's 7.3.3 is in sid only on 2026-11-08 (forky has 7.2.15): its headers need sid's compiler
+# Debian's 7.3 builds are in sid only (forky has 7.2.15 on 2026-11-08): their headers need sid's
+# compiler. 7.3.3 (journal 0275) and 7.3.4 (journal 0287) share the base.
 case "$MOOB_DEBIAN_KERNEL" in
-    7.3.3) MOOB_BASE=debian:sid-slim@sha256:07a3205e8583fdff12d2b05bd030f50437e9fd340ee616df0c05dc77af75767b ;;
+    7.3.3|7.3.4) MOOB_BASE=debian:sid-slim@sha256:07a3205e8583fdff12d2b05bd030f50437e9fd340ee616df0c05dc77af75767b ;;
     *) MOOB_BASE=debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f ;;
 esac
 # MOOB_UBUNTU_KERNEL=7.0.0-43 runs the suite on Ubuntu 26.04's 7.0.0-43-generic instead of a Debian
