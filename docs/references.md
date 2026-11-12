@@ -1562,3 +1562,11 @@ hand and carries the same code paths:
   `linux-kbuild-7.3.3+deb14`). The `check-valid-until=no` option of
   [sources.list(5)](https://manpages.debian.org/trixie/apt/sources.list.5.en.html) lets apt use an
   expired `InRelease`; its signature is still checked.
+
+## 58. Lower files opened as the mounter (journal 0286, ADR-0037)
+
+- Linux 6.12.116 `fs/overlayfs/file.c` `ovl_open_realfile()` and `fs/overlayfs/readdir.c`
+  `ovl_dir_open_realfile()`, which open the real file under `ovl_override_creds()`;
+  `fs/backing-file.c` `backing_file_open()`; `security/selinux/hooks.c`
+  `selinux_file_alloc_security()` (`fsec->sid = current_sid()`):
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/?h=v6.12.116>.
