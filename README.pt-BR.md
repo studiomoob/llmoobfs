@@ -155,18 +155,24 @@ respostas do `QUERY2` para usuários que já não conseguem lê-lo (diários
 [0151](docs/history/0151-review-d110d4e.md), [0152](docs/history/0152-chmod-during-build-fixed.md)),
 os três relatos privados de 2026-10-27 listados abaixo e uma ACL mínima gravada por fora do VFS
 que o índice julgava pelos bits de modo (F17, diário [0222](docs/history/0222-term-padding-admin-test-extended-acl.md)).
-Fatos em 2026-10-25:
+Fatos em 2026-11-12:
 
-- **Uma série de kernel**, em VM: Debian 6.12.111 no QEMU e o 6.12.112 upstream sob
-  KASAN/UBSAN/lockdep, obrigatório em todo pull request que mexe no módulo; x86-64; sistemas de
-  arquivos de baixo ext4, btrfs e XFS apenas. Os testes da codificação de atributos também passam em
-  s390x big-endian, com emulação. O módulo também roda em arm64 com emulação, sem KVM, num job
-  exploratório: os passos de ext4, btrfs e XFS passaram sob KASAN ([diário 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
+- **Kernels**, em VM, a cada pull request: Debian 6.12.111, 6.12.113, 6.12.115 e 7.3.3 e o
+  7.0.0-43 do Ubuntu 26.04 no QEMU, e os upstream 6.12.116, 7.0.14 e 7.3.3 sob
+  KASAN/UBSAN/lockdep; no 7.0 e no 7.3 só o módulo da camada; x86-64; sistemas de arquivos de
+  baixo ext4, btrfs e XFS apenas. A matriz em uma página é
+  [docs/matrix-and-limits.md](docs/matrix-and-limits.md) (em inglês). Exploratório, sem
+  suporte: s390x big-endian no IBM LinuxONE Community Cloud, onde a suíte completa passou sob
+  KVM ([diário 0280](docs/history/0280-first-s390x-run.md)), e arm64 com emulação
+  ([diário 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
 - **Testado com** injeção de falhas dentro do módulo, o grupo `quick` do fstests nos três sistemas
   de arquivos de baixo e o grupo `auto` com listas de exclusão justificadas,
-  syzkaller (sete rodadas de seis horas; um defeito achado e corrigido), uma primeira rodada do
-  KCSAN (nenhuma corrida no módulo) e SELinux em modo enforcing (diários 0091, 0096, 0104, 0109,
-  0112, 0115, 0133, 0138, 0143, 0239, 0248).
+  syzkaller (sete rodadas de seis horas; um defeito achado e corrigido), KCSAN (nenhuma corrida
+  no módulo) e SELinux em modo enforcing, inclusive com a montagem feita por um domínio
+  confinado (diários 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143, 0239, 0248, 0286).
+  Todo achado das revisões assistidas por IA tem um teste de regressão que falha sem a correção,
+  ou um motivo registrado para não ter ([docs/review-findings.md](docs/review-findings.md), em
+  inglês).
 - **Ainda sem revisão humana independente do código do kernel.** Foi pedida em 2026-10-13. O
   código do kernel foi verificado por ferramentas automáticas (a suíte sob KASAN, UBSAN e
   lockdep, KCSAN, syzkaller, fstests, fuzzing) e por revisões assistidas por IA, e por nenhum

@@ -145,17 +145,22 @@ domain that could leave the file in `QUERY2` answers to users who can no longer 
 [0151](docs/history/0151-review-d110d4e.md), [0152](docs/history/0152-chmod-during-build-fixed.md)),
 the three private reports of 2026-10-27 listed below, and a minimal ACL written outside the VFS
 that the index judged by the mode bits (F17, journal [0222](docs/history/0222-term-padding-admin-test-extended-acl.md)).
-Facts as of 2026-10-25:
+Facts as of 2026-11-12:
 
-- **One kernel series**, in a VM: Debian 6.12.111 in QEMU and upstream 6.12.112 under
-  KASAN/UBSAN/lockdep, required on every pull request that touches the module; x86-64; lower
-  filesystems ext4, btrfs and XFS only. The attribute encoding's tests also pass on big-endian
-  s390x under emulation. The module also runs on arm64 under emulation, without KVM, in an
-  exploratory job: the ext4, btrfs and XFS steps passed under KASAN ([journal 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
+- **Kernels**, in VMs, on every pull request: Debian 6.12.111, 6.12.113, 6.12.115 and 7.3.3 and
+  Ubuntu 26.04's 7.0.0-43 in QEMU, and upstream 6.12.116, 7.0.14 and 7.3.3 under
+  KASAN/UBSAN/lockdep; on 7.0 and 7.3 the layer module only; x86-64; lower filesystems ext4,
+  btrfs and XFS only. The one-page matrix is [docs/matrix-and-limits.md](docs/matrix-and-limits.md).
+  Exploratory, not supported: big-endian s390x on IBM LinuxONE Community Cloud, where the full
+  suite passed under KVM ([journal 0280](docs/history/0280-first-s390x-run.md)), and arm64
+  under emulation ([journal 0137](docs/history/0137-arm64-guest-boots-under-emulation.md)).
 - **Tested with** fault injection inside the module, fstests' `quick` group on the three lower
   filesystems and its `auto` group with justified exclusion lists, syzkaller
-  (seven six-hour runs; one defect found and fixed), a first KCSAN run (no race in the module) and
-  SELinux enforcing (journals 0091, 0096, 0104, 0109, 0112, 0115, 0133, 0138, 0143, 0239, 0248).
+  (seven six-hour runs; one defect found and fixed), KCSAN (no race in the module), and
+  SELinux enforcing, including a mount made by a confined domain (journals 0091, 0096, 0104,
+  0109, 0112, 0115, 0133, 0138, 0143, 0239, 0248, 0286). Every finding of the AI-assisted
+  reviews has a regression test that fails without its fix, or a recorded reason why not
+  ([docs/review-findings.md](docs/review-findings.md)).
 - **No independent human review of the kernel code yet.** It was requested on 2026-10-13. The
   kernel code has been checked by automated tools (the suite under KASAN, UBSAN and lockdep,
   KCSAN, syzkaller, fstests, fuzzing) and by AI-assisted reviews, and by no independent human

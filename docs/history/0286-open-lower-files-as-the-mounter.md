@@ -67,6 +67,19 @@ wording is in `docs/retired-claims.txt`.
   `MOOBFS_KASAN_PASS: layer suite under KASAN, UBSAN and lockdep with no kernel diagnostics`,
   rc=0.
 
+## Public surfaces brought up to date (2026-11-12 morning)
+
+A walk of `docs/public-surfaces.md` found states left behind by journals 0273–0284: the README's
+"Facts as of 2026-10-25" list (both languages) still said "one kernel series" and big-endian
+"under emulation"; the landing page counted "1 kernel series tested" beside a text listing three,
+dated its facts 2026-10-25 and left 7.0.14 out of the KASAN item; the journey pages stopped at
+2026-11-01. Updated: the README lists (as of 2026-11-12: the kernels on every pull request, s390x
+on IBM LinuxONE Community Cloud as exploratory, KCSAN, the confined-mounter SELinux run, the
+review-findings register); `site/index.html` (the count, the date, s390x, 7.0.14);
+`scripts/site-journey.py` (six milestones from 2026-11-04 to 2026-11-12, the IBM LinuxONE host in
+the architectures answer, both languages, pages regenerated). Checks: retired claims, the FAQ
+page and the matrix page pass.
+
 ## Not done
 
 - The pre-push checks (`run6.sh`) on this branch, after a rebase on the merged batch 22.
