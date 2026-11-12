@@ -112,12 +112,17 @@ also confirmed the 7.3.3 image from the snapshot archive (`Native Linux VM (Debi
 29 s), and the full suite on 7.3.3 passed on the test host with the same image
 (`MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`).
 
+## Pre-push checks (2026-11-12, 07:32–07:37)
+
+On `f5bc6bc` (rebased on `5b5b237`), test host: lint, checkpatch, test, asan, hostile (clang
+ASan/UBSan), pylib, retired, pins, mutants, site, `git diff --check 5b5b237` and ubuntu-tests
+all PASS. The full `make vm-test` and KASAN suite ran on `aba8860`, before the rebase; the
+commits since change no file of `layer/` (the item 8 check and documents only).
+
 ## Not done
 
-- The pre-push checks (`run6.sh`) on this branch, after a rebase on the merged batch 22.
 - AppArmor and Smack, which also label a file from the allocating task, were not run.
 
 ## Next step
 
-Once #196 is merged: rebase on `main`, the pre-push checks, then the pull request with the
-maintainer's agreement.
+The pull request with the maintainer's agreement.
