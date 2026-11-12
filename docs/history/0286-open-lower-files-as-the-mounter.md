@@ -44,6 +44,9 @@ Nothing here is merged or published without the maintainer's decision.
 - Negative round, the same tree with `layer/main.c` of `HEAD~1` (ended 23:36):
   `fd_use_on_reader=1`, `MOOBFS_SELINUX_FAIL: fsuse: confined mounter: the mounter needed fd use
   on the reader (1)`. The test fails without the fix and passes with it.
+- `MOOB_ONLY="ext4 btrfs xfs" make vm-test` on `3c6f8eb` (ended 23:48): `MOOBFS_ONLY_PASS:
+  steps ext4 btrfs xfs`, with `LAYER_LOWER_PASS`, `HOSTILE_LOWER_PASS`, `ISOLATION_PASS`,
+  `QUERY2_PASS` and `EQUIV_PASS` on each lower, rc=0.
 
 ## Not done
 
