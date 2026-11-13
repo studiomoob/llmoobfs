@@ -231,3 +231,8 @@ The maintainer confirms (or not) that V8, with the inode-creation site covered, 
 6, with an opt-in test, leave the recorded exceptions; then a pull request of this batch with
 the full `make vm-test` and the full local KASAN suite, as AGENTS.md asks once per batch.
 
+## Pre-push checks
+
+`~/b11night/prepr/run11.sh` on `ad2b66f`, 23:29–23:34: every step passed except `diffcheck`
+(a blank line at the end of this journal), fixed in the next commit; `git diff --check 8a8d09b
+HEAD` then clean.
