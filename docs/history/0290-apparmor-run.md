@@ -2,7 +2,7 @@
 
 Date: 2026-11-12 and 13. Work started about 20:30 Brasília time on the 12th; guest runs on the
 13th from 09:15 (after the release-candidate queue and the soft-lockup runs of the test host);
-ended about 10:00 on the 13th. Status: **done locally; not pushed**. Estimated effort S; the time recorded is calendar time of one session, most of it
+ended about 09:30 on the 13th. Status: **done locally; not pushed**. Estimated effort S; the time recorded is calendar time of one session, most of it
 waiting for the test host.
 
 ## Goal
@@ -163,6 +163,12 @@ ADR-0037, `CHANGELOG.md`; the old wording is in `docs/retired-claims.txt`. The S
 `docs/security-roadmap.md` is about SELinux and already says AppArmor is outside it: unchanged.
 Checks: `scripts/check-matrix-page.sh`, `scripts/check-retired-claims.sh`,
 `scripts/site-faq.py --check` pass.
+
+## Pre-push checks
+
+On `67828a2`, test host, 09:22–09:28 (`run12.sh`, the pre-push script against `8a8d09b`): lint,
+checkpatch, test, asan, hostile, pylib, retired, pins, mutants, site, `git diff --check 8a8d09b`
+and ubuntu-tests all PASS. No file of `layer/` changed, so neither `make vm-test` nor KASAN ran.
 
 ## Limitations
 
