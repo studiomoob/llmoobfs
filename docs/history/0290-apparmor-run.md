@@ -2,7 +2,8 @@
 
 Date: 2026-11-12 and 13. Work started about 20:30 Brasília time on the 12th; guest runs on the
 13th from 09:15 (after the release-candidate queue and the soft-lockup runs of the test host);
-ended about 09:30 on the 13th. Status: **done locally; not pushed**. Estimated effort S; the time recorded is calendar time of one session, most of it
+ended about 09:30 on the 13th. Status: **done; pull request with the maintainer's agreement** (rebased on batch 26, journal
+0289). Estimated effort S; the time recorded is calendar time of one session, most of it
 waiting for the test host.
 
 ## Goal
@@ -169,6 +170,14 @@ Checks: `scripts/check-matrix-page.sh`, `scripts/check-retired-claims.sh`,
 On `67828a2`, test host, 09:22–09:28 (`run12.sh`, the pre-push script against `8a8d09b`): lint,
 checkpatch, test, asan, hostile, pylib, retired, pins, mutants, site, `git diff --check 8a8d09b`
 and ubuntu-tests all PASS. No file of `layer/` changed, so neither `make vm-test` nor KASAN ran.
+
+## Decisions (maintainer, 2026-11-13, morning)
+
+- The advice in `docs/when-not-to-use.md` stays: a deny rule meant to cover files under the
+  layer must also name the layer paths, as for overlayfs and bind mounts.
+- The AppArmor harness stays a manual run, like the SELinux one; it does not enter CI now.
+- References: this journal's sources are `docs/references.md` §62 (renumbered from §61 when the
+  branch was rebased on batch 26, whose journal 0289 took §61).
 
 ## Limitations
 
