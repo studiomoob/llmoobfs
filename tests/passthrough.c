@@ -20,7 +20,7 @@
  *              file is an active swap area, then swapoff on the lower, and fallocate, rename and
  *              unlink through the layer succeed, as on the lower. With the whole i_flags word
  *              copied when the layer inode is made, the VFS refuses them on the layer inode
- *              (ETXTBSY, ETXTBSY, EPERM: vfs_fallocate(), vfs_rename(), may_delete())
+ *              (ETXTBSY from vfs_fallocate(), EPERM from may_delete() for both of the others)
  * Usage: passthrough <layer dir> <lower dir>. Every case runs; exit 1 if any failed.
  */
 #define _GNU_SOURCE

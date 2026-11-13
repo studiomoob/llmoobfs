@@ -12,6 +12,8 @@ amendment of 2026-11-11, about 13:00), and 0114 item 8 has a test under SELinux,
 and 0284 are written and compiled; their VM runs are pending (journal 0284, "Pending").
 *2026-11-12:* those runs passed, with their negative rounds (journal 0284); with the fix of
 ADR-0037, 0114 item 8 has its test and leaves the exceptions, six remain (journal 0286).
+*Night of 2026-11-12 (journal 0289):* V8 and 0114 item 6 have tests with negative rounds and
+leave the exceptions; four remain: 0114 item 3, M7, M8.2 and M8.3.
 
 ## What this is
 
@@ -87,7 +89,7 @@ at the end of journal 0114). Items 1, 2 and the frozen lower were private adviso
 | 3 | Ref-walk `d_revalidate` reads a lower dentry `moobl_instantiate` may free | fixed | journal 0120 (PR 82, git) | none | No reproducer: needs a preemptible kernel and a full grace period (journal 0120). Recorded exception to criterion (2), maintainer 2026-11-11 (ADR-0030 amendment, journal 0284) |
 | 4 (F11) | Name operations ignore a read-only lower mount | fixed | journal 0117; PR 80 | step `lowerro`, `LOWERRO_PASS`, tags `lr-ro-accepted`, `lr-fz-kernel-warning` [suite] | Negative round in journal 0117. Only ext4 is frozen in the step |
 | 5 | A build holds a whole directory listing in unaccounted memory | fixed | journal 0120 (PR 82, git) | step `bigdir`, `BIGDIR_PASS`, tag `bd-differs-from-oracle` [suite] | Negative round in journal 0131 (batch boundary broken). Checks answers, not memory |
-| 6 | `domain_drop`/`moobl_index_destroy` long walks without `cond_resched` | fixed | journal 0120 | none | Journal 0120: "no test, the cost is a scheduling point". Recorded exception to criterion (2), maintainer 2026-11-11 (ADR-0030 amendment, journal 0284) |
+| 6 | `domain_drop`/`moobl_index_destroy` long walks without `cond_resched` | fixed | journal 0120 | step `walklatency`, `tests/walklatency.c`, `WALKLATENCY_PASS`, tags `wl-drop-latency`, `wl-destroy-latency` [opt-in] (journal 0289) | Journal 0120: "no test, the cost is a scheduling point". Was a recorded exception to criterion (2) (ADR-0030 amendment of 2026-11-11, journal 0284); left it on 2026-11-12 (journal 0289). Measures scheduling latency with a real-time probe; meaningful only on kernels without forced preemption (the KASAN kernel, Debian's 6.12). Negative rounds under KASAN: without the `cond_resched()` of `domain_drop()` the probe waited 1651 ms; without that of `moobl_index_destroy()`, 1226 ms (limit 50 ms) |
 | 7 | Typed attribute cannot be set on a write-only file | fixed | journal 0120 | `tests/query.c` mode `xset` in each lower's step, tag `typed-attr-write-only-refused-$fs` [suite] | Negative round in journal 0131 |
 | 8 | Directory reads run with the caller's credentials, not the mounter's | fixed | journal 0120 | `vm/selinux-guest.sh`, confined-mounter step with `tests/listdir.c`, `SELINUX_DIRREAD_PASS` [SELinux harness, `vm/selinux-local.sh`] (journal 0286) | Journal 0120: the difference shows only under an LSM policy. The first test (journal 0284) could not work and was reverted; the second needs the fix of ADR-0037. Negative round 2026-11-12: without `override_creds()` in `moobl_iterate()` the reader is refused `fd use` and the listing fails |
 | 9 | Pushed equality ignores the constraint's collation (SQLite table) | fixed | journal 0120 | step `sqlext`, `SQLEXT_PASS`, tag `sx-differs` [suite] | Negative round in journal 0131 |
@@ -161,7 +163,7 @@ for the deferred items.
 | V5 | Default `drop_inode` pins deleted lower inodes | fixed | journal 0224; PR 170 (git) | `tests/passthrough.c`, `PT_DROP_INODE_PASS` [suite] | |
 | V6 | `RENAME_WHITEOUT` forwarded | fixed (refused, `EINVAL`) | journal 0156, `fb602d8` | `tests/query.c` mode `whiteout`, tag `v6-rename-whiteout-not-refused-$fs` [suite] | |
 | V7 | `F_SETFL` bits other than `O_APPEND` never reach the lower | fixed | journals 0149, 0224; PR 170 (git) | `tests/passthrough.c`, `PT_NOATIME_PASS` [suite]; `tests/fcntl-flags.c` | |
-| V8 | `moobl_rename` copies the whole lower `i_flags` word | fixed (all five sites) | journal 0156, `fb602d8` | none dedicated | Journal 0156: "no dedicated test". Recorded exception to criterion (2), maintainer 2026-11-11 (ADR-0030 amendment, journal 0284) |
+| V8 | `moobl_rename` copies the whole lower `i_flags` word | fixed (all five sites) | journal 0156, `fb602d8` | `tests/passthrough.c` case `swapflag`, `PT_SWAPFLAG_PASS`, in `run_lower` [suite] (journal 0289) | Journal 0156: "no dedicated test". Was a recorded exception to criterion (2) (ADR-0030 amendment of 2026-11-11, journal 0284); left it on 2026-11-12 (journal 0289). The test covers the fifth site, `moobl_inode_set()`: a layer inode made while its lower is an active swap area kept `S_SWAPFILE` after `swapoff`, and `fallocate`, `rename` and `unlink` through the layer failed. Negative round under KASAN with the fix reverted: `ETXTBSY`, `EPERM`, `EPERM`. The four rename sites alone have no VFS-visible effect on the supported lowers (the old reason, still true): a regression only there would pass the test |
 | V9 | FIFO/socket comment says opening is refused | fixed (comment) | journal 0156, `cfed44b` | not applicable | |
 
 **Maintainer's reading M1 to M8**
@@ -328,6 +330,7 @@ Part A (inside the criterion as worded):
 1. **0114 item 3** (ref-walk revalidation reads a freed lower dentry): fixed in journal 0120,
    no reproducer and no test.
 2. **0114 item 6** (`cond_resched` in long walks): no test, by the decision of journal 0120.
+   *Closed, 2026-11-12 (journal 0289):* step `walklatency` [opt-in], with negative rounds.
 3. **0114 item 8** (directory reads with the caller's credentials): closed by journal 0286,
    step `SELINUX_DIRREAD_PASS` in the SELinux harness (an LSM policy, which `make vm-test` does
    not load).
@@ -338,6 +341,8 @@ Part A (inside the criterion as worded):
 7. **R2-12**: closed by journal 0276, step `attrlist` (btrfs and XFS).
 8. **V4 / M5**: closed by journal 0276, `tests/layer.c behind` in `run_lower`.
 9. **V8**: no dedicated test (journal 0156).
+   *Closed, 2026-11-12 (journal 0289):* `tests/passthrough.c` case `swapflag` [suite], with its
+   negative round; it covers the inode-creation site of the fix, not the four rename sites.
 10. **V2** and the `cachestat(2)` part of **V1**: accepted limits, no test.
 11. **M7**: no negative round; the outcome is checked by `demo` and by `buildlimit`, which is
     opt-in.
@@ -383,6 +388,16 @@ or a renewed reason in a later batch.
 *Update, 2026-11-12, about 07:30 (journal 0286):* it got the test in the same batch:
 `SELINUX_DIRREAD_PASS`, with its negative round. 0114 item 8 is no longer an exception; six
 remain.
+
+*Update, 2026-11-12, night (journal 0289):* V8 and 0114 item 6 got tests that fail without
+their fixes. The V8 reason above held for the four rename sites, but the fix also covered the
+site where every layer inode is made, and there `S_SWAPFILE` of a lower that is an active swap
+area stays on the layer inode after `swapoff` (`tests/passthrough.c`, `swapflag`). For item 6,
+scheduling latency is measured from user space by a real-time probe pinned to the walk's CPU
+(step `walklatency`, opt-in). Both leave the exceptions; four remain: 0114 item 3 (re-assessed
+in journal 0289: a test that fails without the fix still needs the reader held inside the
+window for a grace period; a KCSAN run would check only the `READ_ONCE()` marking), M7, M8.2
+and M8.3.
 13. **D4**: closed on 2026-11-09 as a design objection answered by ADR-0012 (journal 0276); no
     test, as for D1 to D3.
 

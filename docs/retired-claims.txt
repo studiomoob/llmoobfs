@@ -476,3 +476,4 @@ The four Debian kernels
 Two kernel series (Debian
 not exercised until the next tag
 not exercised until a tag
+six remain

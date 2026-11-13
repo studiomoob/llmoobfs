@@ -30,8 +30,9 @@ is an active swap area when its layer inode is made gives the layer inode `S_SWA
 `moobl_copy_attr()` (getattr, revalidation, after I/O) updates only `MOOBL_COPY_I_FLAGS` with
 `inode_set_flags()`, so nothing clears the copied bit when `swapoff` clears it on the lower
 (`mm/swapfile.c`, `inode->i_flags &= ~S_SWAPFILE`). The VFS checks the bit on the layer inode
-before the layer is called: `vfs_fallocate()` returns `ETXTBSY` (`fs/open.c`), `vfs_rename()`
-`ETXTBSY` and `may_delete()` `EPERM` (`fs/namei.c`), all read in Linux 6.12.116, the KASAN
+before the layer is called: `vfs_fallocate()` returns `ETXTBSY` (`fs/open.c`), and `may_delete()`, which
+`vfs_unlink()` and `vfs_rename()` call on the name being removed or moved, `EPERM` (`fs/namei.c`;
+`vfs_rename()` has an `ETXTBSY` check of its own, reached only after it), all read in Linux 6.12.116, the KASAN
 kernel. So, after `swapoff` on the lower, the old code refuses through the layer what the lower
 allows.
 
@@ -138,8 +139,32 @@ than none.
 
 ## Evidence
 
-Pending: the VM rounds wait for the release-candidate queue of the same night
-(`rc-8a8d09b`), which uses the test host until about 04:00–05:00.
+All on the test host (Debian 13, KVM), from a `git bundle` of commit `b4a16b9` (the tests),
+through `~/b11night/b26/b26queue.sh`, which waited for the release-candidate queue of the same
+night (`rc-8a8d09b`; its `all.done` was written at 22:39) and ran one round after another.
+KASAN rounds: `make layer; MOOB_ONLY=... sh vm/kasan-local.sh` (Linux 6.12.116 with KASAN,
+UBSAN and lockdep, 2 vCPUs, `PREEMPT_VOLUNTARY` under `PREEMPT_DYNAMIC`). Negative rounds are
+throwaway clones of the same commit with one change under `layer/`, never committed, applied
+with `perl` and checked in a saved `git diff`. Times are Brasília time.
+
+| Round | Change under `layer/` | `MOOB_ONLY` | Result (times) | Markers |
+| --- | --- | --- | --- | --- |
+| positive | none | `ext4 btrfs xfs walklatency` | `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostic (22:39–22:58) | `PT_SWAPFLAG active_fallocate=Text file busy after_swapoff: fallocate=0 rename=0 unlink=0` and `PT_SWAPFLAG_PASS` on each of ext4, btrfs and XFS; `WALKLATENCY_PLANT files=12000 attrs=8 names=96000`, index `used=18624890`; drop: `action_ms=2699 max_latency_ms=10.904 baseline_ms=0.057 wakeups=2687`; unmount: `action_ms=1476 max_latency_ms=0.588 baseline_ms=0.122 wakeups=1478`; `WALKLATENCY_PASS` |
+| V8 negative | `moobl_copy_attr_nlink()` back to `fsstack_copy_attr_all()` (all five sites, the fix of `fb602d8` reverted) | `ext4` | `MOOBFS_VM_FAIL: passthrough-ext4` (22:58–22:59) | `PT_SWAPFLAG active_fallocate=Text file busy after_swapoff: fallocate=Text file busy rename=Operation not permitted unlink=Operation not permitted`, `PT_SWAPFLAG_FAIL` |
+| item 6 negative, drop | the `cond_resched()` of `domain_drop()` removed | `walklatency` | `MOOBFS_VM_FAIL: wl-drop-latency (rc 1)` (22:59–23:00) | drop: `action_ms=2682 max_latency_ms=1650.968 wakeups=1029` |
+| item 6 negative, destroy | the `cond_resched()` of `moobl_index_destroy()` removed | `walklatency` | `MOOBFS_VM_FAIL: wl-destroy-latency (rc 1)` (23:00–23:02) | drop: `max_latency_ms=1.206` (passes); unmount: `action_ms=1264 max_latency_ms=1226.081 wakeups=40` |
+
+The V8 negative round fails at `rename` with `EPERM`: `may_delete()` on the source runs before
+the `ETXTBSY` check of `vfs_rename()` (`fs/namei.c`). The analysis first expected `ETXTBSY`
+there; corrected after the run.
+
+On the fixed code the largest delay of the drop probe was 10.9 ms in the positive round and
+1.2 ms in the destroy-negative round (same code for `domain_drop()`): the step's 50 ms limit is
+about five times the worst seen, and the old code exceeds it about thirty times over.
+
+Pre-push checks (`~/b11night/prepr/run11.sh`, `run8.sh` with base `8a8d09b`) on `59d0275`,
+20:45–20:53: lint, checkpatch, test, asan, hostile, pylib, retired, pins, mutants, site,
+diffcheck and ubuntu-tests passed.
 
 ## Changes
 

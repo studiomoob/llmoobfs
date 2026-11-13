@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Regression tests for two recorded exceptions of ADR-0030 (journal 0289), no change to
+  `layer/`. V8: `tests/passthrough.c` case `swapflag` (every lower in the suite) checks that a
+  layer inode made while its lower file is an active swap area does not keep `S_SWAPFILE` after
+  `swapoff`. 0114 item 6: the opt-in suite step `walklatency` (`tests/walklatency.c`,
+  `MOOB_WALKLAT`) measures, with a real-time probe pinned to the walk's CPU, that releasing a
+  built domain and unmounting give the CPU away. Both fail with their fixes reverted (KASAN
+  negative rounds). V8 and item 6 leave the exceptions; four remain (0114 item 3, M7, M8.2,
+  M8.3), pending the maintainer's confirmation. 0114 item 3 was re-assessed and keeps its
+  reason.
 - The release workflow was rehearsed in the maintainer's fork with immutable releases on
   (journal 0288): a tag produced a published, immutable pre-release with the four assets, which
   `sha256sum -c`, `sigstore verify github` and `slsa-verifier verify-artifact` accepted; a tag
