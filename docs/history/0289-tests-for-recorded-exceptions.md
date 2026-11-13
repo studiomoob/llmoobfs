@@ -236,12 +236,31 @@ diffcheck and ubuntu-tests passed.
 
 ## Next step
 
-The maintainer confirms (or not) that V8, with the inode-creation site covered, and 0114 item
-6, with an opt-in test, leave the recorded exceptions; then a pull request of this batch with
-the full `make vm-test` and the full local KASAN suite, as AGENTS.md asks once per batch.
+The pull request of this batch, with the maintainer's agreement. (Before 2026-11-13: the
+maintainer's confirmation of the exception count, given that morning, and the batch's full
+suites, below.)
 
 ## Pre-push checks
 
 `~/b11night/prepr/run11.sh` on `ad2b66f`, 23:29–23:34: every step passed except `diffcheck`
 (a blank line at the end of this journal), fixed in the next commit; `git diff --check 8a8d09b
 HEAD` then clean.
+
+## Full suites of the batch (2026-11-13)
+
+Run once for batches 26 and 27 together, on the tip of batch 27 (`06e015b`), whose ancestor is
+this batch's last commit (`399d307`); batch 27 adds a manual AppArmor harness under `vm/` and
+documentation, nothing that `make vm-test` or KASAN runs. Test host, Debian 13, KVM, fresh clone
+per run (`~/b11night/b2627/b2627-queue.sh`):
+
+| Run | Times | Result |
+| --- | --- | --- |
+| `MOOB_VM_KVM=1 make vm-test` (Debian 6.12.111) | 16:42–17:02 | `MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS` |
+| `sh vm/kasan-local.sh` (upstream 6.12.116, KASAN, UBSAN, lockdep) | 17:02–18:18 | `MOOBFS_KASAN_PASS` (with `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_PYLIB_PASS`), no kernel diagnostics |
+
+The KASAN guest's console has one `EXT4-fs (vda): warning: mounting fs with errors` after the
+`renamepath-fault` step; the same line is in the release-candidate KASAN run on `main`
+(`8a8d09b`, journal 0291), so it is not from this batch. Its cause was not examined.
+
+The pre-push checks queued after these runs were cut by a power failure at the test host
+(between 18:18 and 18:50) and were run again after this entry.
