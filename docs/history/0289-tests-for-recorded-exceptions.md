@@ -1,8 +1,8 @@
 # 0289 — Tests for the recorded exceptions of ADR-0030: V8, 0114 item 6, and an assessment of 0114 item 3
 
 Date: 2026-11-12. Work started about 20:30 Brasília time; VM rounds 22:39–23:27; ended about
-23:45. Status: **done locally, not pushed; both new tests passed with failing negative rounds;
-the exception count awaits the maintainer's confirmation.** Estimated effort M (one to three days); the time recorded is calendar time of
+23:45. Status: **done; both new tests passed with failing negative rounds; the maintainer confirmed
+the exception count on 2026-11-13; pull request with the maintainer's agreement.** Estimated effort M (one to three days); the time recorded is calendar time of
 one night session, with the VM rounds queued behind the release-candidate runs of the same
 night. Done without the maintainer, who was asleep: nothing pushed, posted or published; local
 commits only.
@@ -137,6 +137,15 @@ racing with `WRITE_ONCE()` in `moobl_instantiate()`, and the current code marks 
 told apart from other reports on the same path (`d_unhashed()` of a lower dentry that
 `__d_drop()` clears under `d_lock`). Not written: a test that passes on the defect is worse
 than none.
+
+## Decisions (maintainer, 2026-11-13, morning)
+
+- V8 and 0114 item 6 leave the recorded exceptions of ADR-0030; four remain (0114 item 3, M7,
+  M8.2, M8.3). Accepted with the limits recorded below: `swapflag` covers the inode-creation
+  site of V8, not the four rename sites, and `walklatency` is an opt-in step.
+- The remaining granularity of `domain_drop()` (with an attribute name shared by every file, up
+  to one entry per file freed without a scheduling point) is accepted as it is: changing it needs
+  a kernel change, which the freeze of ADR-0022 does not allow for this.
 
 ## Evidence
 

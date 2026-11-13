@@ -502,7 +502,7 @@ leaves the exceptions; six remain.
 *Amended, 2026-11-12, night ([journal 0289](history/0289-tests-for-recorded-exceptions.md)):*
 V8 and 0114 item 6 have regression tests with negative rounds (`swapflag` in
 `tests/passthrough.c`; the opt-in step `walklatency`) and leave the exceptions; four remain
-(0114 item 3, M7, M8.2, M8.3), pending the maintainer's confirmation.
+(0114 item 3, M7, M8.2, M8.3), confirmed by the maintainer on 2026-11-13.
 
 ### Stage 3 — Public release
 
