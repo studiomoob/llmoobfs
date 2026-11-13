@@ -1,7 +1,8 @@
 # 0289 — Tests for the recorded exceptions of ADR-0030: V8, 0114 item 6, and an assessment of 0114 item 3
 
-Date: 2026-11-12 to 2026-11-13. Work started 2026-11-12 about 20:30 Brasília time. Status:
-**in progress.** Estimated effort M (one to three days); the time recorded is calendar time of
+Date: 2026-11-12. Work started about 20:30 Brasília time; VM rounds 22:39–23:27; ended about
+23:45. Status: **done locally, not pushed; both new tests passed with failing negative rounds;
+the exception count awaits the maintainer's confirmation.** Estimated effort M (one to three days); the time recorded is calendar time of
 one night session, with the VM rounds queued behind the release-candidate runs of the same
 night. Done without the maintainer, who was asleep: nothing pushed, posted or published; local
 commits only.
@@ -154,6 +155,25 @@ with `perl` and checked in a saved `git diff`. Times are Brasília time.
 | item 6 negative, drop | the `cond_resched()` of `domain_drop()` removed | `walklatency` | `MOOBFS_VM_FAIL: wl-drop-latency (rc 1)` (22:59–23:00) | drop: `action_ms=2682 max_latency_ms=1650.968 wakeups=1029` |
 | item 6 negative, destroy | the `cond_resched()` of `moobl_index_destroy()` removed | `walklatency` | `MOOBFS_VM_FAIL: wl-destroy-latency (rc 1)` (23:00–23:02) | drop: `max_latency_ms=1.206` (passes); unmount: `action_ms=1264 max_latency_ms=1226.081 wakeups=40` |
 
+Further rounds, same night, Debian VM rounds with `MOOB_VM_KVM=1 MOOB_ONLY=... sh vm/run.sh`
+(Debian's `6.12.111+deb13-amd64`, `PREEMPT_VOLUNTARY` under `PREEMPT_DYNAMIC`):
+
+| Round | Change under `layer/` | Harness, `MOOB_ONLY` | Result (times) | Markers |
+| --- | --- | --- | --- | --- |
+| positive | none | Debian, `ext4 btrfs xfs` | `MOOBFS_ONLY_PASS` (23:02–23:08) | `PT_SWAPFLAG_PASS` on ext4, btrfs and XFS, same line as under KASAN |
+| V8 negative | as above | Debian, `ext4` | `MOOBFS_VM_FAIL: passthrough-ext4` (23:08–23:09) | same `PT_SWAPFLAG` line as under KASAN, `PT_SWAPFLAG_FAIL` |
+| V8, rename sites only | the four `moobl_copy_attr_nlink()` calls of `moobl_rename()` back to `fsstack_copy_attr_all()`, `moobl_inode_set()` kept | KASAN, `ext4` | `MOOBFS_KASAN_ONLY_PASS` (23:10–23:17) | `PT_SWAPFLAG_PASS`: as expected, the test does not see the rename sites |
+| item 6 at the default size | none, `negdrop`, `negdestroy` | Debian, `walklatency` | all three `wl-drop-too-short` (23:17–23:19) | drop `action_ms` 89–91; the negative drop round's probe waited 53.8 ms, under the 100 ms minimum: the guard reported "inconclusive" instead of passing |
+| item 6, 40,000 files | none, `negdrop`, `negdestroy` | Debian, `walklatency`, `MOOB_WALKLAT=40000,8,50,100` | all three `wl-build` (23:21–23:24) | `MOOB_IOC_QUERY2: Argument list too long`: over `index_build_work` (65,536 at most) |
+| item 6 positive | none | Debian, `walklatency`, `MOOB_WALKLAT=12000,8,10,40` | `MOOBFS_ONLY_PASS` (23:25–23:26) | drop `action_ms=79 max_latency_ms=1.705`; unmount `action_ms=339 max_latency_ms=0.212`; `WALKLATENCY_PASS` |
+| item 6 negative, drop | as under KASAN | same | `wl-drop-latency (rc 1)` (23:26) | drop `action_ms=89 max_latency_ms=56.644 wakeups=34` |
+| item 6 negative, destroy | as under KASAN | same | `wl-destroy-latency (rc 1)` (23:26–23:27) | drop `max_latency_ms=1.531`; unmount `action_ms=249 max_latency_ms=66.362 wakeups=184` |
+
+So the step discriminates on a production kernel too, with a 10 ms limit at the default size
+(fixed code at most 1.7 ms, old code 57 and 66 ms). The default `12000,8,50,100` is the KASAN
+harness's; on Debian's kernel `MOOB_WALKLAT=12000,8,10,40` is the size that was run. A larger
+domain is not possible: one domain's build is bounded by `index_build_work`.
+
 The V8 negative round fails at `rename` with `EPERM`: `may_delete()` on the source runs before
 the `ETXTBSY` check of `vfs_rename()` (`fs/namei.c`). The analysis first expected `ETXTBSY`
 there; corrected after the run.
@@ -173,3 +193,41 @@ diffcheck and ubuntu-tests passed.
 - `vm/suite.sh`: step `walklatency` (optional, named in `MOOB_ONLY`).
 - `vm/run.sh`, `vm/in-container.sh`, `vm/init`, `vm/kasan-local.sh`: `MOOB_WALKLAT`.
 - Nothing under `layer/`.
+- Records: `docs/review-findings.md` (rows 6 and V8, status, Gaps items 2 and 9, a dated
+  update), ADR-0030 (amendment of about 23:30), `docs/distribution-strategy.md` §8 (dated
+  amendment), `docs/testing.md` (`PT_SWAPFLAG_PASS`, step `walklatency`, its marker row),
+  `CHANGELOG.md`, `docs/references.md` §61, `docs/retired-claims.txt` ("six remain"). Other
+  public surfaces (README, status pages, site) state no count of exceptions and stay true.
+
+## Observations
+
+- With an attribute name shared by every file of a domain, `domain_drop()` frees that name's
+  entries in an inner loop with no scheduling point: at most one entry per file, and a domain's
+  files are bounded by `index_build_work`. Not measured this night; it is the granularity
+  journal 0120 chose (between names), not part of the finding, and changing it would be a
+  kernel change under the freeze.
+- The release-candidate queue `rc-8a8d09b` wrote its `all.done` at 22:39, earlier than the
+  04:00–05:00 expected; its results were not examined here.
+
+## Limitations
+
+- `walklatency` is opt-in: it formats the scratch disk and its limit is wall-clock time in a
+  guest that may share its host, so it is not part of `make vm-test` nor of the KASAN check
+  of CI. It proves nothing on a kernel with full or lazy preemption (not checked here: Debian's
+  and Ubuntu's 7.x kernels).
+- `swapflag` covers the inode-creation site of the V8 fix; a regression in the four rename
+  sites alone passes it (round "rename sites only").
+- The new `swapflag` case runs in the full suite of every harness; only the KASAN 6.12.116 and
+  Debian 6.12.111 runs above exercised it. The CI legs on 7.x, arm64 and s390x will run it
+  first on the pull request.
+
+## Not done
+
+- 0114 item 3: assessed, no test (above). M7, M8.2, M8.3: not taken up; their reasons stand.
+
+## Next step
+
+The maintainer confirms (or not) that V8, with the inode-creation site covered, and 0114 item
+6, with an opt-in test, leave the recorded exceptions; then a pull request of this batch with
+the full `make vm-test` and the full local KASAN suite, as AGENTS.md asks once per batch.
+

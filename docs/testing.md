@@ -154,7 +154,10 @@ the domain through `domain_drop()`, with `index_idle=0`) and the unmount
 sleeps 1 ms at a time and records how late it wakes up (as rt-tests' `cyclictest`). On a kernel
 without forced preemption the walk gives the CPU to that thread only at its `cond_resched()`
 calls. `MOOB_WALKLAT=FILES,ATTRS,LIMIT_MS,MIN_MS` (default `12000,8,50,100`, sized for the KASAN
-harness), through `vm/run.sh` and `vm/kasan-local.sh`. Its success marker is
+harness; on Debian's 6.12 kernel, without KASAN, use `12000,8,10,40`: the walks are about ten
+times faster, and a larger domain is refused by `index_build_work`), through `vm/run.sh` and
+`vm/kasan-local.sh`. Passed, and failed with either `cond_resched()` removed, under KASAN 6.12.116
+and on Debian 6.12.111 (journal 0289). Its success marker is
 `WALKLATENCY_PASS`; it is opt-in because its limit is a wall-clock time of a guest that may
 share its host, and it says nothing on a kernel with full or lazy preemption.
 
