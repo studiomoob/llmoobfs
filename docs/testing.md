@@ -586,6 +586,21 @@ to `/etc/selinux/semanage.conf`; SELinux is not activated on the host. Markers:
 `MOOBFS_SELINUX_RESULT: <run> differ=<n> denied_directly=<n>` per run, `MOOBFS_SELINUX_FAIL`
 on any failed check. Not part of `make vm-test` nor of CI.
 
+### AppArmor
+
+`sh vm/apparmor-local.sh` (journal 0290) runs, on a Debian host with KVM, the `apparmor` package
+and the module built, a guest of the host's kernel, where AppArmor is the default LSM, and loads
+the test profiles of `vm/apparmor/moobtest.profiles` in the guest only. It compares a confined
+client's operations directly and through the layer with rules on both paths, the layer's only and
+the lower's only; mounts the layer from a confined mounter and reads, lists, appends and creates
+through it from a reader with rules on the layer paths only (the regression test of ADR-0037 for
+AppArmor: without the fix the append fails); and checks deny rules on one path of a file against
+the other, beside overlayfs and a bind mount. Markers: `APPARMOR_UNCONFINED_PASS`,
+`APPARMOR_PARITY_PASS`, `APPARMOR_LAYERPATH_PASS`, `APPARMOR_MOUNTER_PASS`,
+`APPARMOR_MOUNTER_RULES_PASS`, `APPARMOR_ALIAS_SAME_AS_OVERLAYFS`, `APPARMOR_LINK_PASS`,
+`APPARMOR_SELFMOUNT_PASS`, `MOOBFS_APPARMOR_RESULT: fails=<n>`, and `MOOBFS_APPARMOR_FAIL` on any
+failed check. Not part of `make vm-test` nor of CI.
+
 ### Long runs on the test host: fstests `auto`, the corpus replay, nightly syzkaller
 
 None of these is part of `make vm-test` or of CI; each needs a Linux host with KVM, and each
@@ -687,7 +702,7 @@ kernel versions are unverified.
 
 The matrix and the known limitations on one page: [matrix-and-limits.md](matrix-and-limits.md).
 
-- Linux security modules beyond the SELinux run above (AppArmor, Smack, and Landlock
+- Linux security modules beyond the SELinux and AppArmor runs above (Smack, and Landlock
   beyond the CLI run of the step `landlock`).
 - Inside `make vm-test`: fstests over the layer (only the vendored `fsx`; fstests
   runs separately, `vm/fstests/`, with `quick` passing and one `auto` run, journal

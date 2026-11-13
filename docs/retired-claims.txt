@@ -477,3 +477,9 @@ Two kernel series (Debian
 not exercised until the next tag
 not exercised until a tag
 six remain
+AppArmor and Smack never ran
+AppArmor and Smack were not
+AppArmor was not tested
+Smack and AppArmor were not exercised
+AppArmor e Smack não foram
+Run the suite under AppArmor or Smack

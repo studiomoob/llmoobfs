@@ -585,7 +585,8 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   pontos de chamada do KCOV, acima do limiar de 85 % do item S3 do
   [roteiro de segurança](docs/security-roadmap.md), que conta pontos de chamada desde o ADR-0032
   (diários 0239 e 0245); o S3 está concluído. O SELinux em
-  modo enforcing foi exercitado uma vez (diário 0104); AppArmor e Smack não foram.
+  modo enforcing foi exercitado uma vez (diário 0104), o AppArmor uma vez (diário 0290: um processo
+  é verificado pelo caminho da camada, o montador pelo caminho de baixo); o Smack não foi.
 - A autorização do `QUERY` vale só no momento da consulta (contrato TOCTOU). Renomear um
   diretório pela camada torna o domínio desatualizado e a próxima consulta o reconstrói;
   mudanças diretas na árvore de baixo continuam sem rastreamento

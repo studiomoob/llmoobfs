@@ -1,8 +1,8 @@
 # 0290 — AppArmor: a first run of the layer under Debian's default LSM
 
-Date: 2026-11-12 and 13. Work started about 20:30 Brasília time on the 12th; guest runs from the
-13th, after the release-candidate queue and the soft-lockup runs of the test host. Status: **in
-progress**. Estimated effort S; the time recorded is calendar time of one session, most of it
+Date: 2026-11-12 and 13. Work started about 20:30 Brasília time on the 12th; guest runs on the
+13th from 09:15 (after the release-candidate queue and the soft-lockup runs of the test host);
+ended about 10:00 on the 13th. Status: **done locally; not pushed**. Estimated effort S; the time recorded is calendar time of one session, most of it
 waiting for the test host.
 
 ## Goal
@@ -80,4 +80,99 @@ backing-file hooks (`include/linux/lsm_hook_defs.h`: `backing_file_alloc`, `mmap
 
 ## Evidence
 
-Pending: the runs start after 09:15 on the 13th.
+All on the test host (Debian 13), guest kernel `6.12.111+deb13-amd64`,
+`lsm=lockdown,capability,landlock,yama,apparmor,tomoyo,bpf,ipe,ima,evm`, ten test profiles in
+enforce mode, `make layer` run in each clone first.
+
+**First attempt** (`41d5464`, 09:15–09:16): questions 1 and 2 ran, the step 3 stopped at the
+overlayfs mount (`overlayfs: at least 2 lowerdir are needed while upperdir nonexistent`), and two
+checks of step 2 failed for the harness, not the layer: a plain `deny` rule is not logged, so the
+mounter's refusal left no denial to count; and the reader's control read of the lower file was
+counted among the denials the reader must not cause. Fixed in `6efe513` (`audit deny`, a second
+empty lower layer for overlayfs, the control after the log is taken).
+
+**Positive round** (`6efe513`, `sh vm/apparmor-local.sh`, 09:19:51–09:20:04), rc=0:
+
+- `APPARMOR_UNCONFINED_PASS`: root mounts, reads, writes, sets an attribute on four files and
+  `QUERY2` names all four.
+- 18 operations (read, stat, append, list, setxattr, create on `rw`, `ro`, `none`):
+  `q1: differ=0 denied_directly=3 layer_rules_mismatch=0 lower_rules_refused=9
+  lower_rules_allowed=0`, `APPARMOR_PARITY_PASS`, `APPARMOR_LAYERPATH_PASS`; the profile with
+  rules on the lower path only is refused through the layer with
+  `operation="open" profile="moobaa_lower" name="/run/aa/layer/t/rw"` (12 such denials).
+- `confined mounts: layerm=0 layerx=0`; `q2 reader through layerm: read=0 list=0 append=0 stat=0
+  create=0; through layerx: read=1 append=0; lower directly: read=1`; `q2 denials: reader on a
+  lower path=0 mounter_noro on lower/t/ro=1` with `operation="open"
+  profile="moobaa_mounter_noro" name="/run/aa/lower/t/ro"`; `APPARMOR_MOUNTER_PASS`,
+  `APPARMOR_MOUNTER_RULES_PASS`.
+- `deny on the lower path: lower=1 layer=0 overlayfs=0 bind=0`; `deny on the layer path: layer=1
+  lower=0`; `second name of a denied file: link direct=1 layer=1; rename direct=1 layer=1`
+  (`operation="link"` and `operation="rename_src"` denials naming the layer path through the
+  layer); `self-mount (secret through own layer, own overlayfs, ro through own layer): 1 1 0`;
+  `APPARMOR_ALIAS_SAME_AS_OVERLAYFS`, `APPARMOR_LINK_PASS`, `APPARMOR_SELFMOUNT_PASS`,
+  `MOOBFS_APPARMOR_RESULT: fails=0`.
+
+**Negative round** (same tree, `git show 3179b63 -- layer/main.c | git apply -R`: no
+`override_creds()` in `moobl_open()` and `moobl_dir_open()`, 09:20:12–09:20:25), rc=1: every
+step as above except `q2 reader through layerm: read=0 list=0 append=1 ...; through layerx:
+read=1 append=1`, with `operation="file_perm" profile="moobaa_reader"
+name="/run/aa/lower/t/rw" requested_mask="w"`, and `MOOBFS_APPARMOR_FAIL: q2: the reader through
+a confined mounter's layer was refused or checked on the lower path (... append=1 ...
+lower-path denials=2)`, `MOOBFS_APPARMOR_RESULT: fails=1`. The prediction from the sources held:
+read and list do not tell the two apart; an append does.
+
+## Answers
+
+1. **Unconfined root**: mount, read, write, setxattr and `QUERY2` work with AppArmor enforcing.
+   **A confined client is checked by the layer's path**: rules on the layer path give through
+   the layer exactly what rules on the lower path give directly (`differ=0`), and rules on the
+   lower path alone neither grant anything through the layer nor are needed. AppArmor did not
+   refuse `stat` or `setxattr` on a file without a rule in these profiles, directly or through
+   the layer alike (it has no xattr hook in 6.12).
+2. **The mounter's profile needs the lower path, the reader's only the layer path**, with
+   ADR-0037. Without the fix, a confined reader's profile also needed write on the lower path to
+   append through a confined mounter's layer: the lower file carried the reader's label, and
+   `__file_path_perm()` checked it on the lower path whenever a use asked more than the open
+   granted. ADR-0037 therefore also holds for AppArmor, and the step is its regression test.
+   Unconfined mounter or unconfined reader: no difference (`aa_file_perm()` returns at once).
+3. **No bypass specific to the layer.** A deny rule names a path: a deny on the lower path does
+   not cover the layer path, as it does not cover the same file through overlayfs or a bind mount
+   (all three read it); a deny on the layer path does not cover the lower path, which the profile
+   grants. Neither link nor rename gives a denied file a second name, through the layer or
+   directly. A process denied a lower file cannot read it through a layer it mounts itself: the
+   lower file is opened with its own credentials and checked on the lower path, as with
+   overlayfs. This is AppArmor's path model, the same for overlayfs and bind mounts, not a defect;
+   a profile that must protect lower files from a confined process has to deny the layer paths
+   too (or not grant them). `QUERY2` names files the profile does not grant, as ADR-0011 item 3
+   already states for path-based LSMs (seen: `none` and `secret` in a confined client's answer).
+   Nothing here is a new security issue; the maintainer may still want the profile advice above
+   in the user documentation.
+
+One difference from overlayfs, seen in the self-mount step: overlayfs opens its real files on a
+private clone of the lower mount, so AppArmor logs them as a disconnected path (`info="Failed name
+lookup - disconnected path" name="t/secret"`) and a confined overlayfs mounter needs
+`attach_disconnected`; the layer opens them on the lower's own mount, so they carry the full path
+(`name="/run/aa/lower/t/secret"`) and the mounter's rules are written on that path.
+
+## Surfaces brought up to date
+
+`docs/matrix-and-limits.md`, `docs/when-not-to-use.md` (a new entry on AppArmor deny rules),
+`docs/testing.md` (the harness and its markers; §9), `docs/faq.md` and `site/faq.html`
+(regenerated), `docs/help-wanted.md`, the README facts in both languages, a dated note in
+ADR-0037, `CHANGELOG.md`; the old wording is in `docs/retired-claims.txt`. The S12 row of
+`docs/security-roadmap.md` is about SELinux and already says AppArmor is outside it: unchanged.
+Checks: `scripts/check-matrix-page.sh`, `scripts/check-retired-claims.sh`,
+`scripts/site-faq.py --check` pass.
+
+## Limitations
+
+- One kernel (Debian 6.12.111), one host, ext4 lower, two runs; profiles of the test, not of a
+  real service; processes confined with `aa-exec`, not by an attached profile. Not run on 7.x,
+  not under KASAN (no kernel code changed), not in CI.
+- Not exercised: mmap, `file_lock`, exec through the layer, chmod/chown/truncate path hooks, user
+  namespaces, AppArmor's policy namespaces and stacking with SELinux. Smack still never ran.
+
+## Next step
+
+The pull request of this batch with the maintainer's agreement; whether to add the profile advice
+of answer 3 to `docs/when-not-to-use.md` beyond the line added there.
