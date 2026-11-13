@@ -52,3 +52,8 @@ pull requests that led to `8a8d09b` (#197, #198), and 7.3.4's on the test host (
 ## Next step
 
 The stage-2 declaration, after the independent reproduction of issue #195.
+
+## Merges recorded here
+
+- #199 (batch 25, journal 0288) entered `main` on 2026-11-12 at 20:22 as `8a8d09b`, the commit
+  these runs used.

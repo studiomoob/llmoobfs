@@ -187,7 +187,15 @@ and ubuntu-tests all PASS. No file of `layer/` changed, so neither `make vm-test
 - Not exercised: mmap, `file_lock`, exec through the layer, chmod/chown/truncate path hooks, user
   namespaces, AppArmor's policy namespaces and stacking with SELinux. Smack still never ran.
 
+## Full suites of the batch (2026-11-13)
+
+`MOOB_VM_KVM=1 make vm-test` (16:42–17:02) and `sh vm/kasan-local.sh` on upstream 6.12.116
+(17:02–18:18) passed on this batch's tip before its rebase, `06e015b`, with no kernel
+diagnostics; the table is in journal 0289, which covers batches 26 and 27 together. The rebase
+on batch 26's next commit (a journal entry only) changed no file this batch touches. The
+AppArmor harness is manual and is not part of either run.
+
 ## Next step
 
-The pull request of this batch with the maintainer's agreement; whether to add the profile advice
-of answer 3 to `docs/when-not-to-use.md` beyond the line added there.
+The pull request of this batch with the maintainer's agreement, after batch 26's; whether to add
+the profile advice of answer 3 to `docs/when-not-to-use.md` beyond the line added there.
