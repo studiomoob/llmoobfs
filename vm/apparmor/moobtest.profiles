@@ -6,7 +6,7 @@
 # that then reads through its own mount), ovl (overlayfs over the lower) and bind (a bind mount of
 # the lower). Files under t/: rw (read-write), ro (read-only), none (no rule) and secret (the deny
 # rules of the bypass steps). A file without a rule is denied: AppArmor allows only what a profile
-# grants (apparmor.d(5)).
+# grants (apparmor.d(5)). Deny rules are written "audit deny": a plain deny is not logged.
 abi <abi/4.0>,
 
 # Q1: rules on both paths, on the layer's only, on the lower's only
@@ -62,7 +62,7 @@ profile moobaa_mounter_noro {
   mount fstype=moobfs_layer -> /run/aa/layerx/,
   /run/aa/lower/ rw,
   /run/aa/lower/** rw,
-  deny /run/aa/lower/t/ro rw,
+  audit deny /run/aa/lower/t/ro rw,
 }
 
 profile moobaa_reader {
@@ -81,7 +81,7 @@ profile moobaa_denylower {
   /dev/null rw,
   /run/aa/{lower,layer,ovl,bind}/ r,
   /run/aa/{lower,layer,ovl,bind}/** r,
-  deny /run/aa/lower/t/secret r,
+  audit deny /run/aa/lower/t/secret r,
 }
 
 # Q3: a deny on the layer path, with the lower path allowed
@@ -90,7 +90,7 @@ profile moobaa_denylayer {
   /dev/null rw,
   /run/aa/{lower,layer}/ r,
   /run/aa/{lower,layer}/** r,
-  deny /run/aa/layer/t/secret r,
+  audit deny /run/aa/layer/t/secret r,
 }
 
 # Q3: a second name for a denied file, by link or rename, on each path
@@ -100,7 +100,7 @@ profile moobaa_denyalias {
   /run/aa/{lower,layer}/ r,
   /run/aa/{lower,layer}/t/ rw,
   /run/aa/{lower,layer}/t/** rwl,
-  deny /run/aa/{lower,layer}/t/secret* r,
+  audit deny /run/aa/{lower,layer}/t/secret* r,
 }
 
 # Q3: a process that may not read the lower file mounts the layer (and overlayfs) over the lower
@@ -115,7 +115,8 @@ profile moobaa_self {
   mount fstype=overlay -> /run/aa/ovls/,
   /run/aa/lower/ r,
   /run/aa/lower/** r,
-  deny /run/aa/lower/t/secret r,
+  audit deny /run/aa/lower/t/secret r,
+  /run/aa/empty/ r,
   /run/aa/{layers,ovls}/ r,
   /run/aa/{layers,ovls}/** r,
 }

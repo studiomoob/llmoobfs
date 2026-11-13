@@ -30,7 +30,7 @@ echo 0 > /proc/sys/kernel/printk_ratelimit; echo 10000 > /proc/sys/kernel/printk
 
 S=/run/aa
 mkdir -p $S && mount -t tmpfs none $S || die tmpfs
-mkdir $S/bin $S/lower $S/layer $S/layerm $S/layerx $S/layers $S/ovl $S/ovls $S/bind || die dirs
+mkdir $S/bin $S/lower $S/layer $S/layerm $S/layerx $S/layers $S/ovl $S/ovls $S/bind $S/empty || die dirs
 cp /bin/busybox "$B/query" "$B/moobfs-attr" "$B/listdir" $S/bin/ || die "copy tools"
 BB=$S/bin/busybox
 mount -t ext4 /dev/vda $S/lower || die "lower mount"
@@ -113,9 +113,9 @@ mr=$(op moobaa_reader read $S/layerm/t/ro); ml=$(op moobaa_reader list $S/layerm
 ma=$(op moobaa_reader append $S/layerm/t/rw); ms=$(op moobaa_reader stat $S/layerm/t/rw)
 mc=$(op moobaa_reader create $S/layerm/t/rw m)
 xr=$(op moobaa_reader read $S/layerx/t/ro); xa=$(op moobaa_reader append $S/layerx/t/rw)
-# control: the reader has no rule on the lower, directly
-dr=$(op moobaa_reader read $L/t/ro)
 denials > $S/q2.txt
+# control: the reader has no rule on the lower, directly (after the log is taken)
+dr=$(op moobaa_reader read $L/t/ro)
 rl=$(grep -c 'profile="moobaa_reader" name="/run/aa/lower/' $S/q2.txt)
 xl=$(grep -c 'profile="moobaa_mounter_noro" name="/run/aa/lower/t/ro"' $S/q2.txt)
 echo "  q2 reader through layerm: read=$mr list=$ml append=$ma stat=$ms create=$mc; through layerx: read=$xr append=$xa; lower directly: read=$dr"
@@ -136,7 +136,7 @@ fi
 
 # ---- 3. bypass of a deny rule by the other path ------------------------------------------------
 dmesg -c > /dev/null
-mount -t overlay -o lowerdir=$L overlay $S/ovl || die "overlay mount"
+mount -t overlay -o lowerdir=$L:$S/empty overlay $S/ovl || die "overlay mount"
 mount --bind $L $S/bind || die "bind mount"
 sl=$(op moobaa_denylower read $L/t/secret); sy=$(op moobaa_denylower read $S/layer/t/secret)
 so=$(op moobaa_denylower read $S/ovl/t/secret); sb=$(op moobaa_denylower read $S/bind/t/secret)
@@ -147,7 +147,7 @@ kd=$(c moobaa_denyalias $BB ln $L/t/secret $L/t/alias-d); ky=$(c moobaa_denyalia
 vd=$(c moobaa_denyalias $BB mv $L/t/secret $L/t/moved-d); vy=$(c moobaa_denyalias $BB mv $S/layer/t/secret $S/layer/t/moved-l)
 echo "  second name of a denied file: link direct=$kd layer=$ky; rename direct=$vd layer=$vy"
 self=$(aa-exec -p moobaa_self -- $BB sh -c "$BB mount -t moobfs_layer -o lower=$L none $S/layers || exit 90
-    $BB mount -t overlay -o lowerdir=$L overlay $S/ovls || exit 91
+    $BB mount -t overlay -o lowerdir=$L:$S/empty overlay $S/ovls || exit 91
     $BB cat $S/layers/t/secret > /dev/null 2>&1; a=\$?; $BB cat $S/ovls/t/secret > /dev/null 2>&1; b=\$?
     $BB cat $S/layers/t/ro > /dev/null 2>&1; echo \$a \$b \$?" 2>&1 < /dev/null)
 echo "  self-mount (secret through own layer, own overlayfs, ro through own layer): $self"
