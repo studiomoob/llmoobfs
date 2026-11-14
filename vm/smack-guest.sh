@@ -53,6 +53,7 @@ get() { getfattr --absolute-names --only-values -n security.SMACK64 "$1" 2> /dev
 # exit status of one command run as uid 1000, no capabilities, Smack label $1
 c() {
     l=$1; shift
+    # shellcheck disable=SC2016 # $0 and $@ are the inner shell's, expanded there
     $BB sh -c 'echo "$0" > '"$ATTR"' || exit 97
         exec setpriv --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- "$@"' \
         "$l" "$@" < /dev/null > /dev/null 2>&1
@@ -63,9 +64,9 @@ op() {  # op <label> <name> <path> <tag>
     read) c "$1" $BB cat "$3" ;;
     append) c "$1" $BB sh -c "echo x >> $3" ;;
     stat) c "$1" $BB stat "$3" ;;
-    list) c "$1" $LD "$3" ;;
+    list) c "$1" "$LD" "$3" ;;
     create) c "$1" $BB touch "$3/new-$4" ;;
-    setx) c "$1" $MA set "$3" kind string v ;;
+    setx) c "$1" "$MA" set "$3" kind string v ;;
     esac
 }
 same() { { [ "$1" = 0 ] && [ "$2" = 0 ]; } || { [ "$1" != 0 ] && [ "$2" != 0 ]; }; }
@@ -118,8 +119,8 @@ ctl=$(op Sub read $L/t/hid ctl)
 bad=0
 for t in d y; do
     for dd in dir tr; do
-        f=$(ls $L/t/$dd | grep "^new-$t" | head -1)
-        v=$(get $L/t/$dd/$f)
+        f=''; for p in "$L/t/$dd/new-$t"*; do [ -e "$p" ] && f=${p##*/} && break; done
+        v=$(get "$L/t/$dd/$f")
         want=Sub; [ $dd = tr ] && want=Tr
         echo "  new file in $dd by the subject ($([ $t = d ] && echo directly || echo 'through the layer')): $f label=$v (expected $want)"
         [ -n "$f" ] && [ "$v" = "$want" ] || bad=$((bad + 1))
