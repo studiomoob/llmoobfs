@@ -159,10 +159,20 @@ Smack.
   the label of the domains they query. That is recorded in `docs/when-not-to-use.md`, not
   changed.
 
+## Full suites of the batch (2026-11-14)
+
+Test host, one fresh clone per run of `1e5d196` (this batch on top of batch 28's `43ac8e9`):
+
+| Run | Times | Result |
+| --- | --- | --- |
+| `sh vm/smack-local.sh` | 10:26–10:27 | `MOOBFS_SMACK_RESULT: fails=0` |
+| `MOOB_VM_KVM=1 make vm-test` | 10:27–10:48 | `MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS` |
+| `sh vm/kasan-local.sh` (upstream 6.12.116) | 10:48–12:04 | `MOOBFS_KASAN_PASS` (with `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_PYLIB_PASS`), `FAULTS_E2FSCK: exit 1`, no kernel diagnostics |
+| pre-push checks (lint, checkpatch, test, asan, hostile, pylib, retired, pins, mutants, site, diffcheck, ubuntu-tests) | 12:04–12:09 | all PASS |
+
 ## Next step
 
-The batch's full suites (`make vm-test`, the full KASAN suite, the pre-push checks) and the pull
-request after batch 28's.
+The pull request after batch 28's merge, rebased on `main`.
 
 ## Surfaces brought up to date
 
