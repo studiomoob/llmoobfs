@@ -1635,3 +1635,10 @@ hand and carries the same code paths:
   `parser/parser_yacc.y`, <https://gitlab.com/apparmor/apparmor> (read through Context7,
   `/gitlab_apparmor/apparmor`, on 2026-11-12); the `abi <abi/4.0>` file of the package.
 - virtme-ng (`vng -r`), as in journal 0104.
+
+## 63. The Ubuntu guest's memory (journal 0292)
+
+- Linux 6.12.116, `mm/oom_kill.c` (`out_of_memory()`: `Out of memory and no killable
+  processes...`, then `panic("System is deadlocked on memory")`),
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/mm/oom_kill.c?h=v6.12.116>.
+- QEMU's `-m` option (guest RAM size), <https://www.qemu.org/docs/master/system/invocation.html>.

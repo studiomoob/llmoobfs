@@ -27,7 +27,9 @@ First pass, one clone for all runs, in sequence:
 The failures were the queue's, not the project's: every run shared one clone, and the
 container runs of `vm/run.sh` leave `build/` owned by root, so the later runs could not write
 there. The Ubuntu guest's boot panic in the same clone is attributed to that shared `build/vm`
-(the guest has 512 MiB); this is a hypothesis, not verified.
+(the guest has 512 MiB); this is a hypothesis, not verified. *Note, 2026-11-14: wrong. The
+Ubuntu guest panics at boot in 512 MiB in about one boot in five, also in CI's fresh checkouts; it gets
+1 GiB since journal 0292.*
 
 Second pass, one fresh clone per run:
 
