@@ -134,7 +134,7 @@ for d in lower-ext4:ext4 lower-btrfs:btrfs lower-xfs:xfs scratch:scratch log:log
     fi
 done
 timeout 3600 $QEMU \
-    -machine $MACHINE -accel $ACCEL -cpu max -m $VM_MEM -smp 2 \
+    -machine $MACHINE -accel $ACCEL -cpu max -m "$VM_MEM" -smp 2 \
     "$@" \
     -kernel "/boot/vmlinuz-$KERNEL" -initrd build/vm/initramfs.cpio.gz \
     -append "console=$CONSOLE rdinit=/init panic=-1 loglevel=4${MOOB_ONLY:+ moob_only=$(echo "$MOOB_ONLY" | tr ' ' ',')}${MOOB_PERMCHURN:+ moob_permchurn=$MOOB_PERMCHURN}${MOOB_SELFCHECK:+ moob_selfcheck=$MOOB_SELFCHECK}${MOOB_WALKLAT:+ moob_walklat=$MOOB_WALKLAT}" \
