@@ -16,6 +16,12 @@ case "${MOOB_UBUNTU_KERNEL:-}" in
     7.0.0-43) KERNEL="$MOOB_UBUNTU_KERNEL-generic" ;;
     *) echo "Unsupported Ubuntu VM kernel: $MOOB_UBUNTU_KERNEL" >&2; exit 1 ;;
 esac
+# Guest memory. Ubuntu's generic kernel sometimes panicked while booting in 512 MiB, before the
+# module loaded ("System is deadlocked on memory", "bio: can't create integrity buf pool"), so its
+# guest gets 1 GiB (journal 0292). MOOB_VM_MEM overrides both, for experiments.
+VM_MEM=512M
+[ -z "${MOOB_UBUNTU_KERNEL:-}" ] || VM_MEM=1G
+VM_MEM=${MOOB_VM_MEM:-$VM_MEM}
 # MOOB_ARCH=s390x (vm/run.sh, journal 0280): Debian's s390x build of the same kernel, booted by
 # QEMU's s390x machine with virtio-blk over CCW and the SCLP console; the default is amd64.
 QEMU=qemu-system-x86_64 QEMU_PKG=qemu-system-x86 MACHINE=q35 CONSOLE=ttyS0
@@ -128,7 +134,7 @@ for d in lower-ext4:ext4 lower-btrfs:btrfs lower-xfs:xfs scratch:scratch log:log
     fi
 done
 timeout 3600 $QEMU \
-    -machine $MACHINE -accel $ACCEL -cpu max -m 512M -smp 2 \
+    -machine $MACHINE -accel $ACCEL -cpu max -m "$VM_MEM" -smp 2 \
     "$@" \
     -kernel "/boot/vmlinuz-$KERNEL" -initrd build/vm/initramfs.cpio.gz \
     -append "console=$CONSOLE rdinit=/init panic=-1 loglevel=4${MOOB_ONLY:+ moob_only=$(echo "$MOOB_ONLY" | tr ' ' ',')}${MOOB_PERMCHURN:+ moob_permchurn=$MOOB_PERMCHURN}${MOOB_SELFCHECK:+ moob_selfcheck=$MOOB_SELFCHECK}${MOOB_WALKLAT:+ moob_walklat=$MOOB_WALKLAT}" \

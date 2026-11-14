@@ -307,3 +307,5 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0289 — Tests for the recorded exceptions V8 and 0114 item 6; 0114 item 3 assessed](0289-tests-for-recorded-exceptions.md)
 - [0290 — AppArmor: a first run of the layer under Debian's default LSM](0290-apparmor-run.md)
 - [0291 — Release-candidate runs on `8a8d09b` for `v0.6.0-experimental`](0291-v0-6-0-candidate-runs.md)
+- [0292 — The Ubuntu guest panicked while booting in 512 MiB; it gets 1 GiB](0292-ubuntu-guest-memory.md)
+- [0293 — The ext4 lower after the KASAN fault injection: e2fsck](0293-e2fsck-after-fault-injection.md)

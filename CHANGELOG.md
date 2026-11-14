@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- The KASAN harness checks the ext4 lower with `e2fsck -fy` after the fault-injection step
+  (journal 0293): the injected faults reach ext4 under the layer, which records them as errors,
+  and the next step mounted that lower with the record still set. The check fails on damage
+  e2fsck cannot repair; in its first run it repaired one inode that `ext4_evict_inode()` had
+  left allocated when its journal start failed, as ext4 does by design.
+- The Ubuntu 7.0.0-43 guest of `vm/run.sh` gets 1 GiB instead of 512 MiB (journal 0292): it
+  panicked at boot, out of memory before the module loaded, in 3 of 13 recent CI runs and 2 of
+  10 rounds on the test host; 40 rounds at 1 GiB booted. `MOOB_VM_MEM` overrides the guest
+  memory. Debian guests keep 512 MiB. No change to `layer/`.
 - Regression tests for two recorded exceptions of ADR-0030 (journal 0289), no change to
   `layer/`. V8: `tests/passthrough.c` case `swapflag` (every lower in the suite) checks that a
   layer inode made while its lower file is an active swap area does not keep `S_SWAPFILE` after

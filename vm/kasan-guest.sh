@@ -118,6 +118,13 @@ if [ -z "${MOOB_ONLY:-}" ] || case " ${MOOB_ONLY:-} " in *" faults "*) true ;; *
     if ! kdiag "$OUT/dmesg-lower.txt" 'BUG: Dentry|still in use|BUG:|^WARNING:'; then
         fail "fi-lower-pinned after the layer was unmounted"
     fi
+    # The faults reach ext4 under the layer too (its allocations have the module on the stack),
+    # and ext4 records them as errors in its superblock (journal 0293). e2fsck must find nothing
+    # it cannot repair; it also clears that record, so the next steps mount a clean lower.
+    rc=0; e2fsck -fy "$DEV_EXT4" > "$OUT/e2fsck-faults.txt" 2>&1 || rc=$?
+    cat "$OUT/e2fsck-faults.txt"
+    [ $rc -le 1 ] || fail "fi-lower-ext4-damaged (e2fsck exit $rc, see build/vng/e2fsck-faults.txt)"
+    echo "FAULTS_E2FSCK: exit $rc after the injected faults"
     rmmod moobfs_layer || fail fi-rmmod
     echo "FAULT_INJECTION_PASS: $(grep '^FAILNTH_DONE' "$OUT/failnth.txt" | cut -d' ' -f2-); no kernel diagnostic; index equal to the oracle"
 fi
