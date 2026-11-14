@@ -551,7 +551,8 @@ KASAN harness runs the layer suite), and no benchmark exists.
   handler function, `moobl_xattr_get` included, and the handlers reach 88.1 % of their KCOV call
   sites, above the 85 % threshold of [security roadmap](docs/security-roadmap.md) S3, which counts
   call sites since ADR-0032 (journals 0239 and 0245); S3 is done. SELinux enforcing was exercised once (journal
-  0104); AppArmor and Smack were not.
+  0104), AppArmor once (journal 0290: a process is checked by the layer path, the mounter by
+  the lower path); Smack was not.
 - `QUERY` authorization holds at query time only (TOCTOU contract). A directory rename through
   the layer makes its domain stale and the next query rebuilds it; direct lower-tree changes
   remain untracked ([spec-m3](docs/spec-m3.md) §3.1 and its correction note).

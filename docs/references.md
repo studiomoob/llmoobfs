@@ -1615,3 +1615,23 @@ hand and carries the same code paths:
 - The Kernel Concurrency Sanitizer (KCSAN), considered for 0114 item 3 and not used:
   <https://docs.kernel.org/dev-tools/kcsan.html>.
 - `swapon(2)`, <https://man7.org/linux/man-pages/man2/swapon.2.html>.
+
+## 62. AppArmor (journal 0290)
+
+- Linux 6.12.116 and 6.12.112, read on the test host (the files below are the same in both):
+  `security/apparmor/lsm.c` (`apparmor_file_open()`, `apparmor_file_alloc_security()`,
+  `common_file_perm()`, the hook table: no xattr, `inode_permission` or backing-file hook),
+  `security/apparmor/file.c` (`aa_file_perm()`, `__file_path_perm()`, `aa_path_perm()`),
+  `security/apparmor/include/file.h` (`aa_map_file_to_perms()`), `security/apparmor/label.c`
+  (`__aa_label_next_not_in_set()`), `security/apparmor/include/lib.h` (`path_mediated_fs()`),
+  `fs/backing-file.c` (`backing_file_open()`, `backing_file_read_iter()`,
+  `backing_file_write_iter()`), `fs/read_write.c` (`rw_verify_area()`), `fs/readdir.c`
+  (`iterate_dir()`), `fs/overlayfs/file.c` (`ovl_open_realfile()`),
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/security/apparmor?h=v6.12.116>.
+  Debian 6.12.111's `include/linux/lsm_hook_defs.h` (headers package) for the backing-file hooks.
+- The kernel's AppArmor documentation, `Documentation/admin-guide/LSM/apparmor.rst`.
+- AppArmor 4.1.0 (Debian 13's `apparmor` package): `apparmor_parser` (`-r`, `-K`, `-Q`), `aa-exec`,
+  the profile language of `apparmor.d(5)` and the rule grammar of `parser/mount.cc` and
+  `parser/parser_yacc.y`, <https://gitlab.com/apparmor/apparmor> (read through Context7,
+  `/gitlab_apparmor/apparmor`, on 2026-11-12); the `abi <abi/4.0>` file of the package.
+- virtme-ng (`vng -r`), as in journal 0104.

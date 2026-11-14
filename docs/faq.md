@@ -64,7 +64,7 @@ restrict reading xattrs either (its documentation lists `stat` and xattr calls a
 cannot restrict yet; a metadata access right is in progress upstream, landlock-lsm/linux issue
 11), so a query reveals the names and values that `getxattr` already returns there, and the
 content stays protected (journals 0030 and 0220). Once Landlock restricts metadata, the layer
-should follow it. AppArmor was not tested. No independent human has reviewed the kernel code; an external reviewer's AI-assisted
+should follow it. Under AppArmor (one run, journal 0290) a process is checked by the layer path and the mounter by the lower path; a deny on a lower path does not cover the layer path, as with overlayfs. No independent human has reviewed the kernel code; an external reviewer's AI-assisted
 private reports found three kernel defects, one of them F15 in this rule (journal 0215).
 [`docs/spec-query-v2.md` §3; `docs/decisions/0011-threat-and-credential-model.md`; journals 0104, 0116]
 

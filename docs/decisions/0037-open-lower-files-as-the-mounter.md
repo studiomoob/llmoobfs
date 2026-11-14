@@ -47,5 +47,7 @@ it, and no `fd use` from the mounter to the reader in the audit log; control: th
 ## Consequences
 
 The exception is limited to these two call sites. AppArmor and Smack also label files from the
-allocating task; neither was run. The change re-runs the steps that open lower files (the whole
+allocating task; neither was run. (Note of 2026-11-13: AppArmor ran in journal 0290; without the
+fix a confined reader appending through a confined mounter's layer needed a write rule on the
+lower path, and the AppArmor step `APPARMOR_MOUNTER_PASS` is a second regression test.) The change re-runs the steps that open lower files (the whole
 suite) and KASAN once for its batch.

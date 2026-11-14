@@ -98,9 +98,16 @@ These limits update the cases discussed in the value assessment, §9.6.
   ([vm/selinux/moobfs_layer.cil](../vm/selinux/moobfs_layer.cil)) files keep their labels and
   the first test agreed with direct access; every `QUERY2` result is then checked for the
   caller, at a cost not measured ([journal 0104](history/0104-selinux-investigation.md)). One
-  run, one kernel; Smack and AppArmor were not exercised. A confined domain may mount the layer:
+  run, one kernel; Smack was not exercised. A confined domain may mount the layer:
   it opens lower files with the mounter's credentials, so it needs no rule on the domains of
   the processes that use it (one permissive-domain run, [journal 0286](history/0286-open-lower-files-as-the-mounter.md)).
+- **You rely on an AppArmor deny rule for a lower path.** AppArmor checks a process by the path
+  it uses: through the layer, the layer path; the lower path is checked against the mounter's
+  profile. A deny on a lower path does not cover the same file through the layer, as it does not
+  through overlayfs or a bind mount; deny the layer paths too. A confined mounter needs rules on
+  the lower paths and its readers only on the layer paths (one run, one kernel,
+  [journal 0290](history/0290-apparmor-run.md)); `QUERY2` still names files a profile does not
+  grant (ADR-0011).
 - **Your kernel is outside the tested matrix.** Only Debian 6.12.111, 6.12.113, 6.12.115,
   7.3.3 and 7.3.4 and Ubuntu 7.0.0-43-generic (QEMU; on 7.0 and 7.3 the layer module only) and upstream
   6.12.112 (KASAN; on arm64 too, under emulation, as an exploratory job), 6.12.116, 7.0.14,

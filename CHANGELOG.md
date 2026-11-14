@@ -11,6 +11,13 @@
   negative rounds). V8 and item 6 leave the exceptions; four remain (0114 item 3, M7, M8.2,
   M8.3), confirmed by the maintainer on 2026-11-13. 0114 item 3 was re-assessed and keeps its
   reason.
+- AppArmor ran for the first time (journal 0290): `vm/apparmor-local.sh` boots a guest of the
+  host's Debian kernel, where AppArmor is the default LSM, with test profiles loaded in the guest
+  only. A confined process is checked by the layer path, the mounter by the lower path; a reader
+  needs rules on the layer paths only, the mounter on the lower paths. Negative round without
+  ADR-0037's `override_creds()`: a confined reader's append through a confined mounter's layer
+  is refused on the lower path (`MOOBFS_APPARMOR_FAIL`). A deny rule on a lower path does not
+  cover the layer path, as with overlayfs and bind mounts (`docs/when-not-to-use.md`).
 - The release workflow was rehearsed in the maintainer's fork with immutable releases on
   (journal 0288): a tag produced a published, immutable pre-release with the four assets, which
   `sha256sum -c`, `sigstore verify github` and `slsa-verifier verify-artifact` accepted; a tag
