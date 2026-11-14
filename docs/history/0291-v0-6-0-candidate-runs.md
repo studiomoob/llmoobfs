@@ -45,6 +45,18 @@ Second pass, one fresh clone per run:
 The upstream 7.3.3, 7.3.4 and 7.0.14 KASAN legs were not rerun here: each passed in CI on the
 pull requests that led to `8a8d09b` (#197, #198), and 7.3.4's on the test host (journal 0287).
 
+Exploratory runs on s390x (2026-11-14, a LinuxONE guest with 2 CPUs and 7 GB, KVM, from the IBM
+LinuxONE open source cloud, journal 0280), each on a fresh clone of `main` at `f960474` (#200):
+
+| Run | Times | Result |
+| --- | --- | --- |
+| `MOOB_ARCH=s390x MOOB_VM_KVM=1 sh vm/run.sh` | 07:58–08:13 | `MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS` |
+| same, again | 08:13–08:26 | same three markers |
+| `MOOB_ONLY="ext4 btrfs xfs" sh vm/kasan-local.sh` (upstream 6.12.116 built for s390x) | 08:26–10:09 | `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostics |
+
+The KASAN run covers only the per-lower steps (a partial run, chosen for the machine's two CPUs);
+the full KASAN suite has not run on s390x.
+
 ## Limitations
 
 - The tag's commit will be later than `8a8d09b` (batches 26 and 27 at least); journal 0284's

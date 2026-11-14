@@ -51,6 +51,11 @@ vm/kasan-local.sh` (upstream 6.12.116, KASAN, UBSAN, lockdep), 08:07–08:10:
 - `FAULTS_E2FSCK: exit 1 after the injected faults`; `fallbackfault` passed; no `mounting fs
   with errors` in the console; `MOOBFS_KASAN_ONLY_PASS`.
 
+Full suite, test host, a fresh clone of `1781572` (this branch before the rebase onto #201; the
+trees differ only in journal 0291's list of merges), `sh vm/kasan-local.sh`, 08:41–09:55:
+`MOOBFS_KASAN_PASS`, `FAULTS_E2FSCK: exit 1 after the injected faults`, and no kernel
+diagnostics nor `mounting fs with errors` in the console.
+
 In 6.12.116's `fs/ext4/inode.c`, `ext4_evict_inode()` handles a failed `ext4_journal_start()`
 with `ext4_std_error()` and `goto no_delete`: the inode stays allocated on disk and is left for
 e2fsck. That is the inode e2fsck freed. `__ext4_new_inode()` treats a failed journal start the
@@ -63,8 +68,9 @@ oracle comparison already check.
 - One run. Which inode leaks, and whether one does, depends on which allocation fails; other
   runs may need e2fsck for other repairs, all of which exit 1 if they succeed.
 - Only the ext4 lower of the KASAN harness is checked; the step does not run on btrfs or XFS.
-- The full KASAN suite was not rerun for this change: the check runs once, after the last
-  steps that use injection, and the step after it passed.
+
+Pre-push checks on `ac2a265` (base `138f250`), 09:55–10:00: lint, checkpatch, test, asan,
+hostile, pylib, retired, pins, mutants, site, diffcheck, ubuntu-tests: all PASS.
 
 ## Next step
 
