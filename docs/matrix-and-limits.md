@@ -61,8 +61,7 @@ leak ([0283](history/0283-stage-2-decisions.md)).
 - **Depth**: nothing below 64 path components is indexed (F14, [when-not-to-use.md](when-not-to-use.md) §3).
 - **LSMs**: SELinux needs a policy rule; a confined mounter reads through the layer with no rule
   on its callers' domains since ADR-0037 ([0104](history/0104-selinux-investigation.md),
-  [0286](history/0286-open-lower-files-as-the-mounter.md)); AppArmor: one run ([0290](history/0290-apparmor-run.md)); Smack: one run, and a `QUERY2` caller
-  needs write access to the domain's label ([0294](history/0294-smack-run.md)).
+  [0286](history/0286-open-lower-files-as-the-mounter.md)); AppArmor: one run ([0290](history/0290-apparmor-run.md)); Smack: one run ([0294](history/0294-smack-run.md)).
 - **Not covered by the suite**: acceptance over btrfs and XFS, KMSAN, any performance number
   beyond pilot-grade ([testing.md](testing.md) §9, [0088](history/0088-m4-report.md)).
 - **`cachestat(2)`** on a layer file reports the layer's own, empty page cache: the data is
