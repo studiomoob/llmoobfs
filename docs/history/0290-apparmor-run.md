@@ -195,6 +195,9 @@ diagnostics; the table is in journal 0289, which covers batches 26 and 27 togeth
 on batch 26's next commit (a journal entry only) changed no file this batch touches. The
 AppArmor harness is manual and is not part of either run.
 
+Pre-push checks on `3446465` (the tip before the rebase on #200, same tree), 2026-11-13,
+19:01–19:06: all twelve steps PASS.
+
 ## Next step
 
 The pull request of this batch with the maintainer's agreement, after batch 26's; whether to add

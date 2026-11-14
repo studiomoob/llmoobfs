@@ -57,3 +57,9 @@ The stage-2 declaration, after the independent reproduction of issue #195.
 
 - #199 (batch 25, journal 0288) entered `main` on 2026-11-12 at 20:22 as `8a8d09b`, the commit
   these runs used.
+- #200 (batch 26, journal 0289) entered `main` on 2026-11-14 at 07:23 as `f960474`. Its
+  pre-push checks, rerun after the power failure, passed on `c3de5d2` (2026-11-13, 18:55–19:01).
+  In its CI the `Native Linux VM (Ubuntu 7.0.0-43)` job panicked while the guest booted, before
+  the module loaded ("bio: can't create integrity buf pool"); rerun, it passed. The same job had
+  panicked at boot on `main` twice on 2026-11-12 (runs 43201204547 and 43328363771, "System is
+  deadlocked on memory").
