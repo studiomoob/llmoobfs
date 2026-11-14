@@ -40,7 +40,7 @@ done
 S=/run/sm
 mkdir -p $S && mount -t tmpfs -o mode=755 none $S || die tmpfs
 mkdir $S/lower $S/layer || die dirs
-BB=/bin/busybox; Q=$B/query; MA=$B/moobfs-attr; LD=$B/listdir
+BB=/bin/busybox; SP=/usr/bin/setpriv; Q=$B/query; MA=$B/moobfs-attr; LD=$B/listdir
 mount -t ext4 /dev/vda $S/lower || die "lower mount"
 L=$S/lower; Y=$S/layer
 mkdir -m 777 $L/t $L/t/dir $L/t/tr || die "lower dirs"
@@ -55,7 +55,7 @@ c() {
     l=$1; shift
     # shellcheck disable=SC2016 # $0 and $@ are the inner shell's, expanded there
     $BB sh -c 'echo "$0" > '"$ATTR"' || exit 97
-        exec setpriv --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- "$@"' \
+        exec '"$SP"' --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- "$@"' \
         "$l" "$@" < /dev/null > /dev/null 2>&1
     echo $?
 }
@@ -73,6 +73,13 @@ same() { { [ "$1" = 0 ] && [ "$2" = 0 ]; } || { [ "$1" != 0 ] && [ "$2" != 0 ]; 
 
 mount -t moobfs_layer -o lower=$L none $Y || die "layer mount by root"
 
+# self-test of the harness: the subject runs (uid 1000, no capabilities, label Sub), may read Rd,
+# may not read Hid, directly on the lower; without these the steps below prove nothing
+st=$(c Sub $BB true); sr=$(c Sub $BB cat $L/t/rd); sh_=$(c Sub $BB cat $L/t/hid)
+sid=$($BB sh -c 'echo Sub > '"$ATTR"' && exec '"$SP"' --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- '"$BB"' sh -c "id -u; cat /proc/self/attr/current"' 2> /dev/null | tr '\n' ' ')
+echo "  harness self-test: run=$st read-Rd=$sr read-Hid=$sh_ (uid and label: $sid)"
+[ "$st" = 0 ] && [ "$sr" = 0 ] && [ "$sh_" != 0 ] || die "harness self-test (run=$st read-Rd=$sr read-Hid=$sh_)"
+
 # ---- 1. labels through the layer ---------------------------------------------------------------
 # first contact by the confined subject, then by root (journal 0104: an inode set up by a
 # confined first caller must not stay unlabelled)
@@ -89,12 +96,12 @@ echo "  layer root's label: $(get $Y) (lower root: $(get $L))"
     fail "labels: $bad differ between the lower and the layer"
 
 # ---- 2. decisions ------------------------------------------------------------------------------
-differ=0; denied=0; n=0
+differ=0; denied=0; allowed=0; n=0
 for f in rd rw hid; do
     for o in read append stat setx; do
         n=$((n + 1))
         d=$(op Sub $o $L/t/$f d$n); y=$(op Sub $o $Y/t/$f y$n)
-        [ "$d" = 0 ] || denied=$((denied + 1))
+        if [ "$d" = 0 ]; then allowed=$((allowed + 1)); else denied=$((denied + 1)); fi
         if same "$d" "$y"; then r=same; else r=DIFFERS; differ=$((differ + 1)); fi
         echo "  $o $f: lower=$d layer=$y $r"
     done
@@ -103,7 +110,7 @@ for dd in t/dir t/tr t; do   # t itself has root's label, the floor: list yes, c
     for o in list create; do
         n=$((n + 1))
         d=$(op Sub $o $L/$dd d$n); y=$(op Sub $o $Y/$dd y$n)
-        [ "$d" = 0 ] || denied=$((denied + 1))
+        if [ "$d" = 0 ]; then allowed=$((allowed + 1)); else denied=$((denied + 1)); fi
         if same "$d" "$y"; then r=same; else r=DIFFERS; differ=$((differ + 1)); fi
         echo "  $o $dd: lower=$d layer=$y $r"
     done
@@ -111,8 +118,8 @@ done
 # a label the subject has no rule for, directly: the control that the rules are in force
 ctl=$(op Sub read $L/t/hid ctl)
 [ "$ctl" != 0 ] || fail "control: the subject read a file labelled Hid directly; the rules are not in force"
-[ $denied -gt 0 ] || fail "decisions: nothing was denied directly; the step proves nothing"
-[ $differ = 0 ] && [ $denied -gt 0 ] && echo "SMACK_PARITY_PASS: $n operations, $denied denied directly; every one through the layer agrees with the lower" ||
+[ $denied -gt 0 ] && [ $allowed -gt 0 ] || fail "decisions: allowed=$allowed denied=$denied directly; the step needs both"
+[ $differ = 0 ] && [ $denied -gt 0 ] && [ $allowed -gt 0 ] && echo "SMACK_PARITY_PASS: $n operations, $allowed allowed and $denied denied directly; every one through the layer agrees with the lower" ||
     fail "decisions: $differ of $n operations differ between the lower and the layer"
 
 # ---- 3. labels of new files --------------------------------------------------------------------
@@ -132,7 +139,7 @@ done
 # ---- 4. QUERY2 ---------------------------------------------------------------------------------
 for f in rd rw hid; do $MA set $Y/t/$f kind string secret > /dev/null || die "attr $f"; done
 qr=$($Q $Y/t q2 kind eq string secret 2>&1 | tr '\n' ' ')
-qs=$($BB sh -c 'echo Sub > '"$ATTR"' && exec setpriv --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- '"$Q $Y/t"' q2 kind eq string secret' 2>&1 | tr '\n' ' ')
+qs=$($BB sh -c 'echo Sub > '"$ATTR"' && exec '"$SP"' --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- '"$Q $Y/t"' q2 kind eq string secret' 2>&1 | tr '\n' ' ')
 echo "  query2 as root: $qr"
 echo "  query2 as Sub: $qs"
 has() { echo " $1 " | grep -q "[[:space:]/]$2[[:space:]]"; }
