@@ -54,6 +54,10 @@
 #   buildwork           optional per-mount query-build work policy regression (#118)
 #   buildtime           optional build CPU-time budget and elapsed backstop (#118, ADR-0031)
 #   buildmoved          optional cumulative work across a moved-directory rescan (#118)
+#   walklatency         optional: a real-time probe on CPU 0 is not held off by the index walks
+#                       of a domain release and of the unmount, which give the CPU away between
+#                       names and inodes (0114 item 6, journals 0120 and 0289); formats the
+#                       scratch disk; meaningful only without forced preemption
 #   stall               a FUSE mount that never answers, inside a checked domain (journal 0116)
 #   dirstall            a reader stalled in getdents64 of a checked domain's directory, by a
 #                       userfaultfd fault in its buffer (finding V-c of journal 0114, journal 0278)
@@ -104,7 +108,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -2807,6 +2811,43 @@ echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail bm-delay-off
 [ "$("$BIN/query" "$LAYER" info | sed -n 's/.*domain_builds=\([0-9]*\).*/\1/p')" -eq 1 ] || fail bm-rebuild-count
 umount "$LAYER" && rm -rf "$LOWER/bm" && umount "$LOWER" || fail bm-cleanup
 echo "BUILD_MOVED_PASS: one allowance across original and moved-directory scans"
+fi
+if [ -n "${MOOB_ONLY:-}" ] && want walklatency; then
+# 0114 item 6 (journals 0120 and 0289): domain_drop() and moobl_index_destroy() walk every name
+# and every inode of the index with its lock held for writing, and give the CPU away between
+# them with cond_resched(). A SCHED_FIFO probe pinned to CPU 0 measures how late it wakes up
+# while the action runs on CPU 0: the shrinker's release of a built domain (drop_caches,
+# index_idle=0) and the unmount. Each file's attributes have names no other file uses, so each
+# name has one entry. Only on kernels without forced preemption (none or voluntary): with full
+# or lazy preemption the probe preempts the walk anyway and cannot tell. Optional: it formats
+# the scratch disk, and the limit is a wall-clock time of a guest that may share its host.
+# MOOB_WALKLAT=FILES,ATTRS,LIMIT_MS,MIN_MS (default 12000,8,50,100).
+wl_cfg=${MOOB_WALKLAT:-12000,8,50,100}
+IFS=, read -r wl_files wl_attrs wl_limit wl_min <<EOF_WL
+$wl_cfg
+EOF_WL
+wl_info() { "$BIN/query" "$LAYER" info | tr ' ' '\n' | sed -n "s/^$1=//p" | head -1; }
+"$TOOLS/mke2fs" -q -F -t ext4 -b 4096 -I 512 -N $((wl_files + 1000)) "$DEV_SCRATCH" || fail wl-mkfs
+mount -t ext4 "$DEV_SCRATCH" "$LOWER" && mkdir -p "$LOWER/wl/d" || fail wl-lower
+"$BIN/walklatency" plant "$LOWER/wl/d" "$wl_files" "$wl_attrs" || fail wl-plant
+wl_build() {
+    "$BIN/query" "$LAYER/d" q2 kind exists - - > /dev/null || return 1
+    [ "$(wl_info domains_built)" -eq 1 ] || { "$BIN/query" "$LAYER" info; return 1; }
+    echo "walklatency: domain built, index used=$(wl_info used)"
+}
+mount -t moobfs_layer -o lower="$LOWER/wl",domain_depth=1,index_budget=1073741824,index_build_work=65536,index_idle=0 none "$LAYER" || fail wl-mount
+wl_build || fail wl-build
+sync
+# domain_drop(), through the shrinker: drop_caches runs the shrinkers in the writing task
+"$BIN/walklatency" probe "$wl_limit" "$wl_min" write /proc/sys/vm/drop_caches 2; wl_rc=$?
+[ "$(wl_info domains_built)" -eq 0 ] || fail wl-shrinker-released-nothing
+case $wl_rc in 0) ;; 3) fail "wl-drop-too-short (MOOB_WALKLAT: more files)" ;; *) fail "wl-drop-latency (rc $wl_rc)" ;; esac
+# moobl_index_destroy(), at unmount (cleanup_mnt() runs in the unmounting task)
+wl_build || fail wl-rebuild
+"$BIN/walklatency" probe "$wl_limit" "$wl_min" umount "$LAYER"; wl_rc=$?
+case $wl_rc in 0) ;; 3) fail "wl-destroy-too-short (MOOB_WALKLAT: more files)" ;; *) fail "wl-destroy-latency (rc $wl_rc)" ;; esac
+umount "$LOWER" || fail wl-cleanup
+echo "WALKLATENCY_PASS: $wl_files files with $wl_attrs names each; the shrinker's domain release and the unmount kept a CPU-0 real-time probe under $wl_limit ms"
 fi
 if want xattrread; then
 # The test-only knob returns one error after listxattr finds a typed attribute. A failed

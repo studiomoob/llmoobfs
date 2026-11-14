@@ -15,6 +15,12 @@
  *   noexec     SB_I_NOEXEC and SB_I_NODEV as docs/when-not-to-use.md §3 states them (M8.5,
  *              journal 0284): execve and access(X_OK) fail with EACCES, mmap with PROT_EXEC
  *              with EPERM, opening a device node with EACCES
+ *   swapflag   the lower's S_SWAPFILE does not outlive the lower's swap area on the layer inode
+ *              (V8 of journal 0155, fixed in journal 0156): a layer inode made while its lower
+ *              file is an active swap area, then swapoff on the lower, and fallocate, rename and
+ *              unlink through the layer succeed, as on the lower. With the whole i_flags word
+ *              copied when the layer inode is made, the VFS refuses them on the layer inode
+ *              (ETXTBSY from vfs_fallocate(), EPERM from may_delete() for both of the others)
  * Usage: passthrough <layer dir> <lower dir>. Every case runs; exit 1 if any failed.
  */
 #define _GNU_SOURCE
@@ -25,13 +31,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <sys/statvfs.h>
 #include <sys/syscall.h>
+#include <sys/swap.h>
 #include <sys/sysmacros.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <linux/fs.h>
 
 /*
  * The statx fields compared below are newer than some C libraries' struct statx (glibc 2.39 of
@@ -461,6 +471,110 @@ static int t_noexec(void)
 	return ok;
 }
 
+/*
+ * A swap area of npages pages in an open file: the header of union swap_header
+ * (include/linux/swap.h of 6.12): version 1 and last_page at byte 1024, the SWAPSPACE2 magic in
+ * the last ten bytes of the first page, as read_swap_header() of mm/swapfile.c checks them.
+ */
+static int swap_area(int fd, long pg, unsigned int npages)
+{
+	char *page = calloc(1, (size_t)pg);
+	uint32_t info[3] = { 1, npages - 1, 0 };	/* version, last_page, nr_badpages */
+	unsigned int i;
+	int err = -1;
+
+	if (!page)
+		return -1;
+	memcpy(page + 1024, info, sizeof(info));
+	memcpy(page + pg - 10, "SWAPSPACE2", 10);
+	if (write(fd, page, (size_t)pg) != (ssize_t)pg)
+		goto out;
+	memset(page, 0, (size_t)pg);
+	for (i = 1; i < npages; i++)	/* written, not allocated: swapon refuses holes */
+		if (write(fd, page, (size_t)pg) != (ssize_t)pg)
+			goto out;
+	err = fsync(fd);
+out:
+	free(page);
+	return err;
+}
+
+/* errno of opening path for writing and growing it by one page, 0 if both succeed */
+static int grow_errno(const char *path, long pg)
+{
+	int fd = open(path, O_WRONLY), e = 0;
+
+	if (fd < 0)
+		return errno;
+	if (fallocate(fd, 0, 0, 65 * pg))
+		e = errno;
+	close(fd);
+	return e;
+}
+
+static int t_swapflag(void)
+{
+	char up2[4096];
+	long pg = sysconf(_SC_PAGESIZE);
+	struct stat st;
+	struct statfs sf;
+	int fd, pin, flags, ok = 1, e_active, e_fall, e_ren, e_unl;
+
+	paths("pt-swapflag");
+	snprintf(up2, sizeof(up2), "%s/pt-swapflag-moved", layer);
+	/* made on the lower, so that the layer has no inode for it before swapon */
+	fd = open(lp, O_CREAT | O_EXCL | O_WRONLY, 0600);
+	if (fd < 0)
+		return perror("swapflag create"), 0;
+	/* btrfs makes a swap area only of a nocow file, set while the file is empty */
+	if (!fstatfs(fd, &sf) && sf.f_type == 0x9123683e) {	/* BTRFS_SUPER_MAGIC */
+		if (ioctl(fd, FS_IOC_GETFLAGS, &flags))
+			return perror("swapflag getflags"), 0;
+		flags |= FS_NOCOW_FL;
+		if (ioctl(fd, FS_IOC_SETFLAGS, &flags))
+			return perror("swapflag nocow"), 0;
+	}
+	if (swap_area(fd, pg, 64) || close(fd))
+		return perror("swapflag swap area"), 0;
+	if (swapon(lp, 0)) {
+		perror("swapon on the lower");
+		unlink(lp);
+		puts("PT_SWAPFLAG_FAIL swapon");
+		return 0;
+	}
+	/* the layer's inode is made now, while the lower inode carries S_SWAPFILE */
+	if (stat(up, &st) || (pin = open(up, O_RDONLY)) < 0) {
+		perror("swapflag layer lookup");
+		swapoff(lp);
+		unlink(lp);
+		return 0;
+	}
+	/* control: while the area is active the refusal is the lower's, through the layer */
+	e_active = grow_errno(up, pg);
+	if (swapoff(lp)) {
+		perror("swapoff on the lower");
+		close(pin);
+		return 0;
+	}
+	/* the same layer inode (pinned by the descriptor); the lower is no longer a swap area */
+	e_fall = grow_errno(up, pg);
+	e_ren = rename(up, up2) ? errno : 0;
+	e_unl = unlink(e_ren ? up : up2) ? errno : 0;
+	close(pin);
+	printf("PT_SWAPFLAG active_fallocate=%s after_swapoff: fallocate=%s rename=%s unlink=%s\n",
+	       e_active ? strerror(e_active) : "0", e_fall ? strerror(e_fall) : "0",
+	       e_ren ? strerror(e_ren) : "0", e_unl ? strerror(e_unl) : "0");
+	if (e_active != ETXTBSY || e_fall || e_ren || e_unl)
+		ok = 0;
+	if (e_unl) {	/* leave nothing behind for the next cases */
+		unlink(lp);
+		snprintf(lp, sizeof(lp), "%s/pt-swapflag-moved", lower);
+		unlink(lp);
+	}
+	puts(ok ? "PT_SWAPFLAG_PASS" : "PT_SWAPFLAG_FAIL");
+	return ok;
+}
+
 int main(int argc, char **argv)
 {
 	int ok = 1;
@@ -476,6 +590,7 @@ int main(int argc, char **argv)
 	ok &= t_noatime();
 	ok &= t_limits();
 	ok &= t_noexec();
+	ok &= t_swapflag();
 	if (!ok)
 		return 1;
 	puts("PASSTHROUGH_PASS");

@@ -9,7 +9,8 @@
 # vm/kasan-requirements.txt). Exit status 0 only on MOOBFS_KASAN_PASS. HOSTILE_SEEDS=N plants N adversarial
 # lower trees per filesystem instead of 3 (security roadmap S4). MOOB_ONLY="xfs ioerror" runs only those
 # suite steps and ends in MOOBFS_KASAN_ONLY_PASS. MOOB_PERMCHURN=SEEDS,STEPS[,FIRST] lengthens the
-# permchurn step (vm/suite.sh). MOOB_SELFCHECK=1 runs it with the index self-check on (S16). MOOB_KASAN_KERNEL=7.3
+# permchurn step (vm/suite.sh). MOOB_SELFCHECK=1 runs it with the index self-check on (S16). MOOB_WALKLAT sizes
+# the optional walklatency step (journal 0289). MOOB_KASAN_KERNEL=7.3
 # runs the workflow's 7.3 leg (KERNEL73_VERSION and KERNEL73_SHA256) instead of the 6.12 one (journal 0279);
 # MOOB_KASAN_KERNEL=7.0 its 7.0 leg (KERNEL70_*, journal 0281); MOOB_KASAN_KERNEL=7.3.4 its 7.3.4 leg
 # (KERNEL734_*, journal 0287).
@@ -92,7 +93,7 @@ for attempt in 1 2; do
     (cd "$KDIR" && vng --user root --cpus 2 --memory 3G --verbose ${VNGINIT:+"$VNGINIT"} \
         --rwdir "$R/build" \
         "$@" \
-        --exec "HOSTILE_SEEDS=${HOSTILE_SEEDS:-3} MOOB_ONLY='${MOOB_ONLY:-}' MOOB_PERMCHURN='${MOOB_PERMCHURN:-}' MOOB_SELFCHECK='${MOOB_SELFCHECK:-}' sh $R/vm/kasan-guest.sh") > "build/vng/console-$attempt.log" 2>&1 || true
+        --exec "HOSTILE_SEEDS=${HOSTILE_SEEDS:-3} MOOB_ONLY='${MOOB_ONLY:-}' MOOB_PERMCHURN='${MOOB_PERMCHURN:-}' MOOB_SELFCHECK='${MOOB_SELFCHECK:-}' MOOB_WALKLAT='${MOOB_WALKLAT:-}' sh $R/vm/kasan-guest.sh") > "build/vng/console-$attempt.log" 2>&1 || true
     cp "build/vng/console-$attempt.log" build/vng/console.log
     grep -q '^MOOBFS_VM_ENV_FAIL:' build/vng/console.log || break
     echo "kasan-local: attempt $attempt hit a boot-time diagnostic; retrying once"

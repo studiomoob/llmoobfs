@@ -147,3 +147,13 @@ its test possible; it gets the test or a renewed reason in a later batch.
 *Amended, 2026-11-12, about 07:30 Brasília time (journal 0286):* it got the test in the same
 batch (`SELINUX_DIRREAD_PASS` in the SELinux harness, which fails without `override_creds()` in
 `moobl_iterate()`). 0114 item 8 leaves the exceptions; the six of 13:00 on 2026-11-11 remain.
+
+*Amended, 2026-11-12, about 23:30 Brasília time (journal 0289):* V8 and 0114 item 6 got
+regression tests that fail without their fixes, with no change to `layer/`, and leave the
+exceptions, as item 8 did. V8: `tests/passthrough.c` case `swapflag` (suite), which covers the
+site of the fix where a layer inode is made (a lower that is an active swap area gave the layer
+inode `S_SWAPFILE`, kept after `swapoff`); the reason in the table above still holds for the
+four rename sites. 0114 item 6: the opt-in suite step `walklatency`, a real-time latency probe
+on the walk's CPU, meaningful on kernels without forced preemption. Four exceptions remain:
+0114 item 3, M7, M8.2 and M8.3. Recorded without the maintainer, by the rule applied to item 8;
+for the maintainer to confirm, in particular that V8's partial coverage suffices.

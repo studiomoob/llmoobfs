@@ -28,6 +28,7 @@ t mount-scale -Iinclude tests/mount-scale.c
 t query-build-cost -Iinclude tests/query-build-cost.c
 t query-build-denial -Iinclude tests/query-build-denial.c
 t query-build-limit -Iinclude tests/query-build-limit.c
+t walklatency tests/walklatency.c -pthread
 t query-build-moved -Iinclude tests/query-build-moved.c
 t hostile    tests/hostile.c
 t buildrace  -Iinclude tests/buildrace.c -lpthread
