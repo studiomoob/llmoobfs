@@ -65,3 +65,4 @@ The stage-2 declaration, after the independent reproduction of issue #195.
   the module loaded ("bio: can't create integrity buf pool"); rerun, it passed. The same job had
   panicked at boot on `main` twice on 2026-11-12 (runs 43201204547 and 43328363771, "System is
   deadlocked on memory").
+- #201 (batch 27, journal 0290) entered `main` on 2026-11-14 at 08:48 as `138f250`.
