@@ -1635,3 +1635,19 @@ hand and carries the same code paths:
   `parser/parser_yacc.y`, <https://gitlab.com/apparmor/apparmor> (read through Context7,
   `/gitlab_apparmor/apparmor`, on 2026-11-12); the `abi <abi/4.0>` file of the package.
 - virtme-ng (`vng -r`), as in journal 0104.
+
+## 63. The Ubuntu guest's memory (journal 0292)
+
+- Linux 6.12.116, `mm/oom_kill.c` (`out_of_memory()`: `Out of memory and no killable
+  processes...`, then `panic("System is deadlocked on memory")`),
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/mm/oom_kill.c?h=v6.12.116>.
+- QEMU's `-m` option (guest RAM size), <https://www.qemu.org/docs/master/system/invocation.html>.
+
+## 64. The ext4 lower after fault injection (journal 0293)
+
+- Linux 6.12.116, `fs/ext4/inode.c` (`ext4_evict_inode()`: when `ext4_journal_start()` fails it
+  calls `ext4_std_error()` and skips the deletion, `goto no_delete`) and `fs/ext4/ialloc.c`
+  (`__ext4_new_inode()`, the same on a failed journal start),
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs/ext4?h=v6.12.116>.
+- e2fsprogs 1.47.2, `e2fsck(8)`: `-f`, `-y` and the exit codes (0 no errors, 1 errors
+  corrected, 4 and above left uncorrected or failed).

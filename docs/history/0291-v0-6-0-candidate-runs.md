@@ -27,7 +27,9 @@ First pass, one clone for all runs, in sequence:
 The failures were the queue's, not the project's: every run shared one clone, and the
 container runs of `vm/run.sh` leave `build/` owned by root, so the later runs could not write
 there. The Ubuntu guest's boot panic in the same clone is attributed to that shared `build/vm`
-(the guest has 512 MiB); this is a hypothesis, not verified.
+(the guest has 512 MiB); this is a hypothesis, not verified. *Note, 2026-11-14: wrong. The
+Ubuntu guest panics at boot in 512 MiB in about one boot in five, also in CI's fresh checkouts; it gets
+1 GiB since journal 0292.*
 
 Second pass, one fresh clone per run:
 
@@ -42,6 +44,18 @@ Second pass, one fresh clone per run:
 
 The upstream 7.3.3, 7.3.4 and 7.0.14 KASAN legs were not rerun here: each passed in CI on the
 pull requests that led to `8a8d09b` (#197, #198), and 7.3.4's on the test host (journal 0287).
+
+Exploratory runs on s390x (2026-11-14, a LinuxONE guest with 2 CPUs and 7 GB, KVM, from the IBM
+LinuxONE open source cloud, journal 0280), each on a fresh clone of `main` at `f960474` (#200):
+
+| Run | Times | Result |
+| --- | --- | --- |
+| `MOOB_ARCH=s390x MOOB_VM_KVM=1 sh vm/run.sh` | 07:58–08:13 | `MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS` |
+| same, again | 08:13–08:26 | same three markers |
+| `MOOB_ONLY="ext4 btrfs xfs" sh vm/kasan-local.sh` (upstream 6.12.116 built for s390x) | 08:26–10:09 | `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostics |
+
+The KASAN run covers only the per-lower steps (a partial run, chosen for the machine's two CPUs);
+the full KASAN suite has not run on s390x.
 
 ## Limitations
 
@@ -63,3 +77,4 @@ The stage-2 declaration, after the independent reproduction of issue #195.
   the module loaded ("bio: can't create integrity buf pool"); rerun, it passed. The same job had
   panicked at boot on `main` twice on 2026-11-12 (runs 43201204547 and 43328363771, "System is
   deadlocked on memory").
+- #201 (batch 27, journal 0290) entered `main` on 2026-11-14 at 08:48 as `138f250`.

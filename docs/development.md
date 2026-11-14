@@ -99,7 +99,7 @@ Inside the container, `vm/in-container.sh`:
   256 MiB, `lower-xfs.img` 300 MiB) and two blank disks (`scratch.img`,
   `log.img`, 64 MiB each) for dm-log-writes and dm-flakey;
 - boots `qemu-system-x86_64 -machine q35 -accel tcg -cpu max -m 512M -smp 2`
-  with the five images as virtio disks, `rdinit=/init`, no network, under
+  (1 GiB for the Ubuntu guest, `MOOB_VM_MEM` overrides it, journal 0292) with the five images as virtio disks, `rdinit=/init`, no network, under
   `timeout 2400`;
 - requires QEMU to exit 0 and the console to contain `MOOBFS_VM_PASS:`,
   `MOOBFS_LAYER_PASS:` and `MOOBFS_ACCEPTANCE_PASS:` and no `MOOBFS_VM_FAIL:`.
