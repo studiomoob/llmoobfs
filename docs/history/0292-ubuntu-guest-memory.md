@@ -59,6 +59,10 @@ MOOB_UBUNTU_KERNEL=7.0.0-43 MOOB_ONLY=diag sh vm/run.sh` with `MOOB_VM_MEM` set;
 Then the full Ubuntu suite at the new default, `MOOB_VM_KVM=1 MOOB_UBUNTU_KERNEL=7.0.0-43 sh
 vm/run.sh`, 06:49–07:08: `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`.
 
+Also: `MOOB_VM_KVM=1 make vm-test` (Debian 6.12.111, guest still 512 MiB) on `22d0911`, 07:35–08:01:
+`MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`. The pre-push checks on the same
+commit failed `make lint` (shellcheck SC2086: `-m $VM_MEM` unquoted); fixed in the next commit.
+
 ## Limitations
 
 - 40 boots without a panic bound the rate at 1 GiB; they do not prove it is zero. If it comes
