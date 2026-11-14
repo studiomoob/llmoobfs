@@ -137,17 +137,32 @@ done
     fail "create: $bad new files with an unexpected label"
 
 # ---- 4. QUERY2 ---------------------------------------------------------------------------------
-for f in rd rw hid; do $MA set $Y/t/$f kind string secret > /dev/null || die "attr $f"; done
-qr=$($Q $Y/t q2 kind eq string secret 2>&1 | tr '\n' ' ')
-qs=$($BB sh -c 'echo Sub > '"$ATTR"' && exec '"$SP"' --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- '"$Q $Y/t"' q2 kind eq string secret' 2>&1 | tr '\n' ' ')
-echo "  query2 as root: $qr"
-echo "  query2 as Sub: $qs"
+# QUERY2 is an _IOWR ioctl, and smack_file_ioctl() asks for write access to the label of the
+# file the ioctl is issued on, read access too. So the subject queries t/q, labelled Dir (rwxat),
+# which holds one file it may read (Rd) and one it may not (Hid); on t, root's label, Smack
+# refuses the ioctl before the layer runs (round 2 of journal 0294).
+mkdir -m 777 $L/t/q && lab $L/t/q Dir || die "query dir"
+for f in qrd qhid; do echo "$f" > $L/t/q/$f && chmod 666 $L/t/q/$f || die "file $f"; done
+lab $L/t/q/qrd Rd && lab $L/t/q/qhid Hid || die "query labels"
+for f in qrd qhid; do $MA set $Y/t/q/$f kind string secret > /dev/null || die "attr $f"; done
+# shellcheck disable=SC2016 # $0 is the inner shell's
+qsub() { $BB sh -c 'echo Sub > '"$ATTR"' && exec '"$SP"' --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- '"$Q"' "$0" q2 kind eq string secret' "$1" 2>&1 | tr '\n' ' '; }
+qr=$($Q $Y/t/q q2 kind eq string secret 2>&1 | tr '\n' ' ')
+qs=$(qsub $Y/t/q)
+qt=$(qsub $Y/t)
+echo "  query2 on t/q as root: $qr"
+echo "  query2 on t/q as Sub: $qs"
+echo "  query2 on t (root's label) as Sub: $qt"
 has() { echo " $1 " | grep -q "[[:space:]/]$2[[:space:]]"; }
-if has "$qr" hid && has "$qr" rd && has "$qs" rd && ! has "$qs" hid; then
-    echo "SMACK_QUERY_PASS: QUERY2 names, for the subject, the files it may read and not the one labelled Hid"
+if has "$qr" qhid && has "$qr" qrd && has "$qs" qrd && ! has "$qs" qhid; then
+    echo "SMACK_QUERY_PASS: QUERY2 names, for the subject, the file it may read and not the one labelled Hid"
 else
     fail "query2: the results for the subject do not follow its rules (root: $qr; Sub: $qs)"
 fi
+case $qt in
+*"Permission denied"*) echo "SMACK_QUERY_IOCTL_PASS: on a directory the subject may not write, Smack refuses QUERY2 (an _IOWR ioctl)" ;;
+*) fail "query2 on t: expected Smack's refusal of the ioctl, got: $qt" ;;
+esac
 
 # ---- 5. relabelling ----------------------------------------------------------------------------
 echo relabel > $L/t/relab && chmod 666 $L/t/relab && lab $L/t/relab Hid || die relab
