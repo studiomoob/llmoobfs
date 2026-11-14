@@ -601,6 +601,23 @@ the other, beside overlayfs and a bind mount. Markers: `APPARMOR_UNCONFINED_PASS
 `APPARMOR_SELFMOUNT_PASS`, `MOOBFS_APPARMOR_RESULT: fails=<n>`, and `MOOBFS_APPARMOR_FAIL` on any
 failed check. Not part of `make vm-test` nor of CI.
 
+### Smack
+
+`sh vm/smack-local.sh` (journal 0294) builds the KASAN kernel pin with `vm/kasan.config` and
+`vm/smack.config` (Smack the only major LSM; KASAN, UBSAN and lockdep kept) into
+`~/.cache/moobfs-smack`, and boots it with virtme-ng over an ext4 lower. Needs, on a Linux host
+with KVM, what `vm/kasan-local.sh` needs, `attr`, util-linux's `setpriv` and a static busybox.
+The guest loads test rules through smackfs and runs a subject labelled `Sub` as uid 1000 with no
+capabilities, after a self-test (it runs, may read `Rd`, may not read `Hid`). It compares labels
+read through the layer after a first contact by the subject, read, append, stat, attribute
+writes, listing and creation on the lower and through the layer, labels of new files (plain and
+transmuting directory), `QUERY2` on a domain the subject may write (a result labelled `Hid` left
+out) and on one it may not (refused by Smack's ioctl rule), and relabelling. Markers:
+`SMACK_LABELS_PASS`, `SMACK_PARITY_PASS`, `SMACK_CREATE_PASS`, `SMACK_QUERY_PASS`,
+`SMACK_QUERY_IOCTL_PASS`, `SMACK_RELABEL_PASS`, `SMACK_RELABEL_DENIED_PASS`,
+`MOOBFS_SMACK_RESULT: fails=<n>`, and `MOOBFS_SMACK_FAIL` on any failed check; any kernel
+diagnostic fails the run. Not part of `make vm-test` nor of CI.
+
 ### Long runs on the test host: fstests `auto`, the corpus replay, nightly syzkaller
 
 None of these is part of `make vm-test` or of CI; each needs a Linux host with KVM, and each
@@ -702,8 +719,8 @@ kernel versions are unverified.
 
 The matrix and the known limitations on one page: [matrix-and-limits.md](matrix-and-limits.md).
 
-- Linux security modules beyond the SELinux and AppArmor runs above (Smack, and Landlock
-  beyond the CLI run of the step `landlock`).
+- Linux security modules beyond the SELinux, AppArmor and Smack runs above (Landlock beyond
+  the CLI run of the step `landlock`).
 - Inside `make vm-test`: fstests over the layer (only the vendored `fsx`; fstests
   runs separately, `vm/fstests/`, with `quick` passing and one `auto` run, journal
   0239), syzkaller over the ioctls and `setxattr` (run by hand, seven six-hour rounds,

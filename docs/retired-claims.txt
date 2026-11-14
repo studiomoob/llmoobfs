@@ -483,3 +483,8 @@ AppArmor was not tested
 Smack and AppArmor were not exercised
 AppArmor e Smack não foram
 Run the suite under AppArmor or Smack
+Smack never ran
+Smack was not exercised
+Smack was not.
+o Smack não foi
+Run the suite under Smack

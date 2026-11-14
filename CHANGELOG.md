@@ -27,6 +27,14 @@
   ADR-0037's `override_creds()`: a confined reader's append through a confined mounter's layer
   is refused on the lower path (`MOOBFS_APPARMOR_FAIL`). A deny rule on a lower path does not
   cover the layer path, as with overlayfs and bind mounts (`docs/when-not-to-use.md`).
+- Smack ran for the first time (journal 0294): `vm/smack-local.sh` builds the KASAN kernel pin
+  with Smack as the only major LSM (`vm/smack.config`) and runs a labelled subject, uid 1000 with
+  no capabilities, directly and through the layer. Labels, decisions, labels of new files
+  (transmuting directory included), `QUERY2` and relabelling agree with the lower. Negative round
+  without journal 0104's label read with the mounter's credentials: a confined first caller
+  leaves the inode with the default label, and a `stat` Smack refuses directly is allowed through
+  the layer. A `QUERY2` caller needs write access to the domain's label, because Smack checks
+  `_IOWR` ioctls as writes (`docs/when-not-to-use.md`).
 - The release workflow was rehearsed in the maintainer's fork with immutable releases on
   (journal 0288): a tag produced a published, immutable pre-release with the four assets, which
   `sha256sum -c`, `sigstore verify github` and `slsa-verifier verify-artifact` accepted; a tag
