@@ -85,6 +85,7 @@ the shrinker, which takes it with a trylock. Removing the scope would be a separ
   and only the name the build did not record is looked up through the layer. The mount-wide
   `QUERY` must name the file by that name, from the dentry cache.
 - `docs/decisions/0038-index-keeps-no-inode-pointer.md`.
+- `tests/static/baseline.txt`: the justified Coccinelle entry quotes the new line.
 
 ## Evidence
 
@@ -123,6 +124,11 @@ KASAN on the tip of the branch.
   The step now uses a mount without domains, where the mount-wide `QUERY` answers the file.
 - A rerun in the same clone directories stopped at once: the earlier runs had left root-owned
   build files there. It was repeated in new directories.
+- The static-analysis job of pull request #204 failed on its first run. The justified
+  Coccinelle false positive in `tests/static/baseline.txt` (journal 0242: the alias reference
+  is dropped by the query after the lock) quoted the old line `d_find_alias(rec->upper)`. It
+  is now quoted as `d_find_alias(upper)`, with the same justification. The pre-push checks do
+  not run `make static`, so this was found only in CI.
 
 ## Limitations
 
