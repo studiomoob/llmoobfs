@@ -89,6 +89,8 @@ MILESTONES = [
   'Uma chamada pública para que alguém de fora reproduza os testes (issue 195). Todo achado das revisões assistidas por IA tem um teste de regressão que falha sem a correção, ou um motivo registrado.', ['0283', '0284']),
  ('2026-11-12', 'Under SELinux a confined domain can mount the layer: lower files are opened with the mounter\'s credentials, as overlayfs does, with a test that fails on the old code. Debian\'s 7.3.4, which replaced 7.3.3 in sid that day, becomes a supported kernel next to it.',
   'Com SELinux, um domínio confinado pode montar a camada: os arquivos de baixo são abertos com as credenciais de quem montou, como no overlayfs, com um teste que falha no código antigo. O 7.3.4 do Debian, que substituiu o 7.3.3 no sid nesse dia, passa a ser kernel suportado ao lado dele.', ['0286', '0287']),
+ ('2026-11-14', 'Smack runs for the first time under the layer. Issue 117 is closed in the kernel: the index keeps no pointer to cached inodes, so memory reclaim no longer waits for the index lock, with a test that fails on the old code.',
+  'O Smack roda pela primeira vez com a camada. A issue 117 é fechada no kernel: o índice não guarda mais ponteiro para inodes em cache, então a recuperação de memória não espera mais pela trava do índice, com um teste que falha no código antigo.', ['0294', '0295']),
 ]
 
 T = {

@@ -488,3 +488,10 @@ Smack was not exercised
 Smack was not.
 o Smack não foi
 Run the suite under Smack
+
+# Journal 0295 (ADR-0038): issue 117's remainder removed.
+Many inodes with index records created and evicted under load
+inodes with one still do
+an inode with a record still does
+um inode com registro ainda toma
+still takes the mount-wide index lock on instantiation and eviction

@@ -48,11 +48,11 @@
 #include "moobl_trace.h"
 
 /*
- * The index lock is taken when a layer inode that has a record is evicted
- * (moobl_index_inode_evicted), and memory reclaim evicts inodes. An allocation made with the
- * lock held must therefore not recurse into filesystem reclaim, or the task would wait for the
- * lock it holds. Every section runs in a NOFS scope, so the accounted allocations inside it can
- * keep the reclaim behavior of GFP_KERNEL_ACCOUNT.
+ * Every section runs in a NOFS scope, so an accounted allocation made with the index lock held
+ * does not recurse into filesystem reclaim. The scope dates from when eviction took the lock;
+ * since ADR-0038 (issue #117) eviction does not, and reclaim reaches the lock only through the
+ * shrinker, which takes it with a trylock. The scope and the lockdep annotation in
+ * moobl_index_init() are kept unchanged.
  */
 static inline unsigned int ix_write_lock(struct moobl_index *ix)
 {
@@ -92,7 +92,7 @@ struct moobl_ix_inode {
 	u64 ino;
 	u32 gen;			/* the lower inode's i_generation: with ino, one inode */
 	struct list_head entries;	/* this inode's typed attributes */
-	struct inode *upper;		/* cached layer inode, or NULL */
+	struct rcu_head rcu;		/* freed after a grace period: see moobl_index_inode_cached */
 	char *path;			/* mount-relative path recorded at scan or write time */
 	u64 domain;			/* partition key of all its entries */
 	bool hetero;
@@ -392,7 +392,7 @@ static void inode_rec_put_if_empty(struct moobl_index *ix, struct moobl_ix_inode
 	xa_erase(&ix->inodes, rec->ino);
 	uncharge(ix, rec->domain, rec_bytes(rec));
 	kfree(rec->path);
-	kfree(rec);
+	kfree_rcu(rec, rcu);	/* moobl_index_inode_cached() reads gen under RCU */
 	ix->inode_count--;
 }
 
@@ -1844,7 +1844,7 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 		      struct dentry *where, struct attr_buf *b)
 {
 	struct moobl_index *ix = IX(sb);
-	struct inode *li = d_inode(lower), *upper;
+	struct inode *li = d_inode(lower);
 	struct moobl_loader ld = { .ino = li->i_ino };
 	struct moobl_place cur = *pl;
 	struct moobl_ix_inode *rec;
@@ -1897,20 +1897,6 @@ static int index_load(struct super_block *sb, struct dentry *lower, struct dentr
 		ix_write_unlock(ix, nofs);
 		if (!rec || err)
 			return err;
-		/*
-		 * The layer inode may have been in memory before the record existed, in which
-		 * case moobl_index_inode_cached() found nothing to link. Looked up after the
-		 * record is in, so that one of the two always makes the link.
-		 */
-		upper = moobl_find_inode(sb, li);
-		if (upper) {
-			nofs = ix_write_lock(ix);
-			rec = xa_load(&ix->inodes, li->i_ino);
-			if (rec)
-				rec->upper = upper;
-			ix_write_unlock(ix, nofs);
-			iput(upper);	/* outside the lock: the last reference evicts, which takes it */
-		}
 		if (unlikely(READ_ONCE(moobl_selfcheck)))
 			selfcheck_run(sb, lower);
 		return 0;
@@ -2596,6 +2582,7 @@ void moobl_index_init(struct super_block *sb, u64 budget, bool enabled, unsigned
 {
 	struct moobl_index *ix = IX(sb);
 
+	ix->sb = sb;
 	/* a cursor carries the value of the entry it stopped at */
 	BUILD_BUG_ON(MOOB_ATTR_STRING_MAX > MOOB_QUERY_VALUE_MAX);
 	/* every byte of a term is a named field that term_check() reads (ADR-0026) */
@@ -2792,7 +2779,6 @@ int moobl_index_set(struct super_block *sb, struct dentry *dentry, const char *n
 			 */
 			if (made && domain_built(ix, pl.domain))
 				rec->whole = true;
-			rec->upper = inode;
 			record_dentry_path(ix, rec, dentry);
 		}
 	}
@@ -3157,52 +3143,35 @@ bool moobl_rename_crosses_domain(struct super_block *sb, struct dentry *old_dent
 }
 
 /*
- * Instantiation and eviction take the index lock only when the inode has a record (issue
- * #117): most inodes of a mount have none, and eviction runs in memory reclaim. xa_load()
- * reads ix->inodes under RCU without the lock; the result is only tested for NULL, never
- * dereferenced, since records are freed without RCU.
+ * Instantiation takes the index lock only to drop a removed file's record, and eviction never
+ * takes it (issue #117, ADR-0038): a record holds no pointer to the layer inode, which
+ * result_path() finds by number in the inode cache when a result needs a name.
  *
- * Instantiation: the record may be stored by a scan just after the lockless look found none.
- * The scan looks the layer inode up with ilookup5() after storing the record, and both that
- * lookup and the insertion of the new inode by iget5_locked() take inode_hash_lock, the
- * insertion before this look: either the scan's lookup finds the inode and makes the link, or
- * it ran before the insertion, and then the stored record is visible here. The other writers
- * of rec->upper (moobl_index_set) set it themselves.
- *
- * Eviction: rec->upper = inode is only ever stored under the index lock by a task holding a
- * reference to inode, into a record that is in ix->inodes at the time. Dropping that reference
- * is a fully ordered atomic that comes before the final iput(), so the record, or its later
- * removal from ix->inodes, is visible here. No record means no pointer to inode to clear.
+ * The record's gen is read without the index lock, under RCU: records are freed with
+ * kfree_rcu(), and gen never changes once a record is in ix->inodes (inode_rec_get() makes a
+ * new record for a new generation). A record stored by a scan after this look carries the
+ * lower inode's current generation, so it is not one to drop.
  */
 void moobl_index_inode_cached(struct super_block *sb, struct inode *inode)
 {
-	unsigned int nofs;
+	u32 gen = READ_ONCE(moobl_lower_inode(inode)->i_generation);
 	struct moobl_index *ix = IX(sb);
 	struct moobl_ix_inode *rec;
+	unsigned int nofs;
+	bool stale;
 
-	if (!ix->enabled || !xa_load(&ix->inodes, inode->i_ino))
+	if (!ix->enabled)
+		return;
+	rcu_read_lock();
+	rec = xa_load(&ix->inodes, inode->i_ino);
+	stale = rec && READ_ONCE(rec->gen) != gen;
+	rcu_read_unlock();
+	if (!stale)
 		return;
 	nofs = ix_write_lock(ix);
 	rec = xa_load(&ix->inodes, inode->i_ino);
-	if (rec && rec->gen != READ_ONCE(moobl_lower_inode(inode)->i_generation))
+	if (rec && rec->gen != gen)
 		rec_drop(ix, rec);	/* a removed file's record: see inode_rec_get() */
-	else if (rec)
-		rec->upper = inode;
-	ix_write_unlock(ix, nofs);
-}
-
-void moobl_index_inode_evicted(struct super_block *sb, struct inode *inode)
-{
-	unsigned int nofs;
-	struct moobl_index *ix = IX(sb);
-	struct moobl_ix_inode *rec;
-
-	if (!ix->enabled || !xa_load(&ix->inodes, inode->i_ino))
-		return;
-	nofs = ix_write_lock(ix);
-	rec = xa_load(&ix->inodes, inode->i_ino);
-	if (rec && rec->upper == inode)
-		rec->upper = NULL;
 	ix_write_unlock(ix, nofs);
 }
 
@@ -3311,9 +3280,9 @@ static bool inode_matches_all(struct moobl_ix_inode *rec, const struct moob_quer
 
 /*
  * The name of rec, relative to the mount root: from the dentry cache when the inode is in
- * memory, else the name recorded at the scan. NULL when neither is known. *held gets a dentry
- * reference to drop once the index lock is released: dropping the last reference to an
- * unlinked file evicts its inode, and eviction takes the index lock.
+ * memory, else the name recorded at the scan. NULL when neither is known. *held and *held_inode
+ * get references to drop once the index lock is released: dropping the last reference to an
+ * unlinked file evicts its inode, which releases the lower inode and its blocks.
  */
 /*
  * Whether the names recorded for rec's domain can be trusted. A directory rename leaves the
@@ -3329,12 +3298,17 @@ static bool paths_fresh(struct moobl_index *ix, const struct moobl_ix_inode *rec
 }
 
 static const char *result_path(struct moobl_index *ix, struct moobl_ix_inode *rec,
-			       char *pathbuf, struct dentry **held)
+			       char *pathbuf, struct dentry **held, struct inode **held_inode)
 {
+	struct inode *upper;
+
 	lockdep_assert_held(&ix->lock);
 	*held = NULL;
-	if (rec->upper) {
-		struct dentry *alias = d_find_alias(rec->upper);
+	/* may sleep on an inode being freed or made; neither path takes the index lock */
+	upper = moobl_find_cached_inode(ix->sb, rec->ino, rec->gen);
+	*held_inode = upper;
+	if (upper) {
+		struct dentry *alias = d_find_alias(upper);
 
 		if (alias) {
 			char *p = dentry_path_raw(alias, pathbuf, PAGE_SIZE);
@@ -3368,6 +3342,7 @@ struct moobl_candidate {
 	u64 ino;
 	char *path;	/* mount-relative, or NULL when unknown */
 	struct dentry *held;	/* dropped after the index lock, see result_path() */
+	struct inode *held_inode;	/* likewise */
 	u8 type;	/* scan key of the entry that produced it (QUERY2 cursors) */
 	u16 len;
 	u8 *value;
@@ -3611,7 +3586,7 @@ static int add_candidate(struct moobl_index *ix, struct moobl_ix_entry *e,
 	int err = 0;
 
 	lockdep_assert_held(&ix->lock);
-	path = result_path(ix, e->owner, pathbuf, &c->held);
+	path = result_path(ix, e->owner, pathbuf, &c->held, &c->held_inode);
 	c->ino = e->owner->ino;
 	c->path = NULL;
 	c->value = NULL;
@@ -3957,6 +3932,8 @@ chunk_done:
 		for (i = 0; i < ncand; i++) {
 			dput(cand[i].held);
 			cand[i].held = NULL;
+			iput(cand[i].held_inode);
+			cand[i].held_inode = NULL;
 			cand[i].ok = !err && !sc->check;
 		}
 		if (!err && sc->check && ncand) {
@@ -3999,6 +3976,7 @@ out:
 	if (cand)
 		for (i = 0; i < MOOBL_QUERY_CHUNK; i++) {
 			dput(cand[i].held);
+			iput(cand[i].held_inode);
 			kfree(cand[i].path);
 			kfree(cand[i].value);
 		}

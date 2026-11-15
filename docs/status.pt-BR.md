@@ -76,10 +76,11 @@ reservado de um termo de consulta tem de ser zero (`EINVAL`) e um só teste de p
 `posix_fadvise`, `readahead`, os campos de `statx` do sistema de baixo, o espaço de um arquivo
 apagado por trás da camada e o `O_NOATIME` ligado por `F_SETFL` agora chegam ao sistema de baixo;
 `cachestat(2)` continua uma limitação ([diário 0224](history/0224-passthrough-gaps-issue-115.md)). A
-issue 117 foi corrigida em parte: criar e despejar um inode sem registro no índice não toma mais a
-trava do índice da montagem inteira; um inode com registro ainda toma, e a issue continua aberta
-para ele ([diário 0223](history/0223-index-lock-instantiation-eviction.md)). Desde 11/11/2026 esse resto é um limite documentado da prévia técnica, mantido
-até a revisão do congelamento do kernel depois da `v0.6.0` ([diário 0283](history/0283-stage-2-decisions.md); [when-not-to-use.md](when-not-to-use.md) §3).
+issue 117 foi corrigida: criar e despejar um inode sem registro no índice deixou de tomar a trava
+do índice da montagem inteira no [diário 0223](history/0223-index-lock-instantiation-eviction.md),
+e um inode com registro no [diário 0295](history/0295-index-keeps-no-inode-pointer.md) (14/11/2026,
+uma exceção ao congelamento, [ADR-0038](decisions/0038-index-keeps-no-inode-pointer.md)), o que
+encerra o limite documentado do [diário 0283](history/0283-stage-2-decisions.md).
 A `v0.4.1-experimental`
 contém todos esses defeitos.
 *Atualização, 28/10/2026 ([diário 0227](history/0227-mcp-and-store-confinement.md)):* dois relatos

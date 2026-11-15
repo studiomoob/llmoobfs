@@ -25,8 +25,9 @@ clang|layer/index.c|Use of memory after it is freed [clang-analyzer-unix.Malloc]
 
 # result_path() hands the reference d_find_alias() took to its caller through *held
 # (c->held), and the query drops it with dput(cand[i].held) once the index lock is released;
-# api/d_find_alias.cocci looks for the dput() in the same function. Not a defect (journal 0242).
-coccinelle|layer/index.c|Missing call to dput() at line N.|struct dentry *alias = d_find_alias(rec->upper);
+# api/d_find_alias.cocci looks for the dput() in the same function. Not a defect (journal 0242;
+# since journal 0295 the inode is the one ilookup5() found, no longer rec->upper).
+coccinelle|layer/index.c|Missing call to dput() at line N.|struct dentry *alias = d_find_alias(upper);
 
 # misc/minmax.cocci suggests min(err, 0) for "err = err < 0 ? err : 0;" in scan_child(): a style
 # suggestion, not a defect; the kernel code is frozen (ADR-0022), so it waits for the next

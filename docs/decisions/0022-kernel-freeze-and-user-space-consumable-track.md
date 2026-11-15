@@ -12,6 +12,8 @@ freeze otherwise stays.
 adaptations to newer kernel interfaces only.
 *Note, 2026-11-12:* [ADR-0037](0037-open-lower-files-as-the-mounter.md) makes a third one: the
 layer opens lower files under the mounter's credentials, at two call sites.
+*Note, 2026-11-14:* [ADR-0038](0038-index-keeps-no-inode-pointer.md) makes a fourth one: the
+index keeps no pointer to layer inodes, so eviction takes no index lock (issue #117).
 
 ## Context
 

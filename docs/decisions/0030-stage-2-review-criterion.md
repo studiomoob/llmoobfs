@@ -100,7 +100,8 @@ Decided by the maintainer on 2026-11-11, about 08:30 Brasília time; the text ab
   (inodes with an index record still take the index lock for writing on instantiation and
   eviction) is contention under load, with no wrong answer and no security effect, and removing
   it needs a kernel change, frozen by ADR-0022. The issue stays open for the review of the freeze
-  after `v0.6.0`.
+  after `v0.6.0`. *Note, 2026-11-14:* [ADR-0038](0038-index-keeps-no-inode-pointer.md) makes
+  that change an exception to the freeze, and journal 0295 removes the remainder.
 - **GHSA-756j-cgwq-gvwm is not an open known leak** for the "no leak is known" condition of §8:
   fixed in journal 0216 with a regression test (`domainreuse`) and published (journal 0219).
 - Acceptance step 5 of §8 is restated to match the behaviour of `QUERY2` (see the amendment of
