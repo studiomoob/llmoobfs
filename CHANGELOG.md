@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+## v0.6.0-experimental — 2026-11-15
+
+Seventh source pre-release, and the first of stage 2 (technical preview) of
+`docs/distribution-strategy.md` §8, declared on 2026-11-15 with the third-party reproduction
+still pending (ADR-0039, journal 0297; issue #195 asks for it, pinned to this tag). A minor
+version, as decided on 2026-11-11 (journal 0284): the UAPI header changed only in comments and
+the on-disk conventions did not, but the release adds functionality. Its source archive is signed
+with Sigstore and carries SLSA provenance, as before. No binaries are attached; the experimental
+`.deb` packages are a separate step. No independent human review of the kernel code.
+
+- **Kernel (four narrow exceptions to the freeze):** the S16 self-check, a test-only parameter
+  (ADR-0033); adaptations to Linux 7.3 and Ubuntu's 7.0 series (ADR-0034, ADR-0036); lower files
+  opened under the mounter's credentials, as overlayfs does (ADR-0037); the index keeps no
+  pointer to layer inodes, which closes issue #117 (ADR-0038).
+- **Fixed:** fair shares of the index budget, the rest of F2 (ADR-0027); the scan fallback's
+  walk by path (GHSA-f769-xjf5-54wc); permission-change accounting through a hard-link alias in
+  an unbuilt domain; issues #167 and #168.
+- **Kernels:** Debian 6.12.115, 7.3.3 and 7.3.4 and Ubuntu's 7.0 series join 6.12.111 and
+  6.12.113 in the matrix (the 7.x kernels for the layer module only); upstream 6.12.116 for
+  KASAN; `make layer` refuses a kernel outside the matrix. One page of matrix and limits
+  (`docs/matrix-and-limits.md`).
+- **User space:** the workspace commands of the `moobfs` CLI (ADR-0035); experimental DKMS and
+  Debian packages, reproducible and tested in VMs (ADR-0028), not published.
+- **Testing:** security roadmap S3 and S14 to S21 done (syzkaller, mutants, KCSAN,
+  permission-sequence campaigns, TLA+, fstests `auto`); SELinux, AppArmor and Smack runs; the
+  container, package, backup and restore acceptance steps; a first exploratory run on s390x.
+
+The entries below are the detail.
+
 - Recoll's source decodes MoobFS typed attributes when built with `-Dmoobfs=true` (off by
   default), from the project's merge request !57 rewritten by Recoll's maintainer (journal 0296).
   `docs/client-contract.md` §4 notes it; packaged Recoll still sees the stored bytes.

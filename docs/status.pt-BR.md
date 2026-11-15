@@ -15,8 +15,9 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 revisão humana independente do código do kernel, só ferramentas automáticas e revisões assistidas por IA ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): duas revisões do código, feitas por
 assistentes de IA, diários 0111 e 0114; os relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele, acharam três defeitos do kernel, e o revisor
 escreveu a correção de um deles, F16, diários 0215, 0216 e 0218; um colaborador de fora revisou scripts,
-ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163. A última tag, `v0.5.0-experimental` (2026-10-28), contém as correções anteriores à tag; as mudanças posteriores abaixo indicam seu próprio estado de publicação; a anterior,
-`v0.4.1-experimental` (2026-10-20), é um retrato do
+ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163. A tag mais recente, `v0.6.0-experimental` (2026-11-15), a primeira da etapa 2 (prévia técnica,
+[ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)), contém as correções anteriores à tag; as mudanças posteriores abaixo indicam seu próprio estado de publicação. Tags anteriores:
+`v0.5.0-experimental` (2026-10-28) e `v0.4.1-experimental` (2026-10-20), um retrato do
 código anterior a elas. Os dois achados da
 [revisão independente](history/0144-independent-review.md) têm correções na
 `main`. Esse lote passou na suíte completa integrada em VM e na
@@ -134,3 +135,8 @@ GHSA-756j-cgwq-gvwm não é um vazamento conhecido em aberto, a Parte B de
 [#195](https://github.com/studiomoob/llmoobfs/issues/195) pede a linha "um terceiro reproduz
 tudo": uma rodada independente das evidências de teste da etapa 2 em outro host com KVM, fixada
 em `d96b0db`. Ninguém a reproduziu ainda.
+*Atualização, 15/11/2026 ([diário 0297](history/0297-stage-2-declared-v0-6-0.md),
+[ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)):* a etapa 2 (prévia técnica)
+está declarada, com a reprodução por terceiros ainda pendente: o mantenedor a tornou um item em
+aberto conhecido da prévia, e não mais uma condição. A tag `v0.6.0-experimental` a marca, e a rota
+da issue #195 passa a ser fixada nessa tag, no lugar de `d96b0db`. Ninguém a reproduziu ainda.

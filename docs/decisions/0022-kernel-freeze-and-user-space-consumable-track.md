@@ -14,6 +14,8 @@ adaptations to newer kernel interfaces only.
 layer opens lower files under the mounter's credentials, at two call sites.
 *Note, 2026-11-14:* [ADR-0038](0038-index-keeps-no-inode-pointer.md) makes a fourth one: the
 index keeps no pointer to layer inodes, so eviction takes no index lock (issue #117).
+*Note, 2026-11-15:* [ADR-0039](0039-stage-2-declared-reproduction-pending.md) records that
+setting `MODULE_VERSION` for a tag is a release step, not a kernel change under the freeze.
 
 ## Context
 

@@ -11,9 +11,10 @@ meets what the project is before its status history. The facts are unchanged. Th
 **Experimental. Not for production.** Three kernel series (6.12; Ubuntu's 7.0 and Debian's 7.3 for the layer module only), tested in a VM only; no independent
 human review of the kernel code yet, only automated tools and AI-assisted reviews ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): two source reviews by AI assistants, journals 0111 and 0114;
 an external reviewer's AI-assisted private reports, triaged and reproduced by the reviewer, found three kernel defects, and the reviewer wrote the fix of one, F16, journals 0215, 0216 and 0218;
-an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163. The last
-tag, `v0.5.0-experimental` (2026-10-28), contains the corrections made before that tag; later changes below identify their own publication state; the previous one,
-`v0.4.1-experimental` (2026-10-20), is a source snapshot before this review batch.
+an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163. The latest
+tag, `v0.6.0-experimental` (2026-11-15), the first of stage 2 (technical preview,
+[ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)), contains the corrections made before that tag; later changes below identify their own publication state. Earlier tags are
+`v0.5.0-experimental` (2026-10-28) and `v0.4.1-experimental` (2026-10-20), a source snapshot before this review batch.
 The two findings of the [independent review](history/0144-independent-review.md)
 have corrections on `main`; the review batch passed the full integrated VM suite
 and local KASAN/UBSAN/lockdep. The required pull-request checks passed before merge.
@@ -128,3 +129,8 @@ known leak, Part B of `docs/review-findings.md` is outside the review criterion)
 [#195](https://github.com/studiomoob/llmoobfs/issues/195) asks for the "third party reproduces
 everything" line: an independent run of the stage-2 test evidence on another KVM host, pinned to
 `d96b0db`. No one has reproduced it yet.
+*Update, 2026-11-15 ([journal 0297](history/0297-stage-2-declared-v0-6-0.md),
+[ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)):* stage 2 (technical
+preview) is declared, with the third-party reproduction still pending: the maintainer made it a
+known open item of the preview instead of a condition. The tag `v0.6.0-experimental` marks it,
+and issue #195's route is pinned to that tag instead of `d96b0db`. No one has reproduced it yet.

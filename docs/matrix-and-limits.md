@@ -1,7 +1,8 @@
 # Matrix and known limitations
 
 One page, for the technical preview (stage 2 of [distribution-strategy.md](distribution-strategy.md)
-§8). It points to the sources of truth instead of copying them; `scripts/check-matrix-page.sh`
+§8, declared on 2026-11-15 with the third-party reproduction pending,
+[ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)). It points to the sources of truth instead of copying them; `scripts/check-matrix-page.sh`
 checks in CI that the releases below match `scripts/supported-kernels` and the KASAN workflow's
 pins. The rules behind the list are [compatibility.md](compatibility.md) §1.
 

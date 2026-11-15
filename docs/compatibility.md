@@ -211,3 +211,6 @@ advisory when it is a vulnerability under `SECURITY.md`; older versions are not 
   compatibility, while the versions since `v0.5.0-experimental` add functionality, the ports to
   Linux 7.3 (ADR-0034) and to Ubuntu's 7.0 series (ADR-0036) and the workspace commands of the
   `moobfs` CLI (ADR-0035), which is what a minor version marks.
+- 2026-11-15: `v0.6.0-experimental`, the first tag of stage 2 (ADR-0039, journal 0297). The UAPI
+  header changed only in comments and the on-disk conventions did not; the module version is
+  `0.6.0`.
