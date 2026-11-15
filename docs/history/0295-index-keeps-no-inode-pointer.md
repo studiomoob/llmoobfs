@@ -1,8 +1,8 @@
 # 0295 — The index keeps no pointer to layer inodes: issue #117 closed in the kernel (ADR-0038)
 
-Date: 2026-11-14. Work started about 21:45 Brasília time. Status: **in progress; runs on the test
-host.** Estimated effort M (ADR-0038). The time recorded is calendar time; most of it is machine
-time on the test host.
+Date: 2026-11-14. Work started about 21:45 Brasília time and ended at 00:02 on 2026-11-15.
+Status: **done.** Estimated effort M (ADR-0038); about 2 h 15 min of calendar time, most of it
+machine time on the test host.
 
 ## Goal
 
@@ -99,6 +99,9 @@ On the test host (Debian 13, KVM), each run on a fresh clone of the branch:
 | `MOOB_ONLY=dcname` | `6f1a1a7` | 22:47–22:48 | `DCNAME_PASS: recorded name d/one; with only d/two in the dentry cache, the answer named d/two` |
 | same, with the `layer/` of `cdf36b1` | `6f1a1a7` | 22:48–22:49 | `DCNAME_PASS` (the old code named it through `rec->upper`) |
 | same, lookup always `NULL` | `6f1a1a7` | 22:49–22:50 | `MOOBFS_VM_FAIL: dn-not-from-dentry-cache (recorded d/two, in memory d/one)` |
+| full KASAN/UBSAN/lockdep suite (Linux 6.12.116) | `2932243` | 22:40–23:54 | `MOOBFS_KASAN_PASS: layer suite under KASAN, UBSAN and lockdep with no kernel diagnostics`, with `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_PYLIB_PASS` |
+| pre-push checks (lint, checkpatch, test, asan, hostile, pylib, retired, pins, matrix, mutants, site, diffcheck, ubuntu-tests) | `27ba1f4` | 23:54–00:00 | all `PASS` |
+| `MOOB_ONLY="dcname ixlock"` under KASAN/UBSAN/lockdep | `27ba1f4` | 00:00–00:01 | `MOOBFS_KASAN_ONLY_PASS: steps dcname ixlock ... with no kernel diagnostics` |
 
 Negative round A shows that the extended step fails on the old code, on the case it adds, and
 still passes there on the case of journal 0223.
@@ -109,7 +112,8 @@ the whole suite. Before this change the same path went through `rec->upper`, als
 test. The step `dcname` closes the gap: it passes on the new and on the old code, and fails when
 the lookup never finds.
 
-To be completed: the full KASAN/lockdep suite (started 22:40), and the pre-push checks.
+The full KASAN run predates the step `dcname`; that step and the extended `ixlock` ran under
+KASAN on the tip of the branch.
 
 ## Errors found on the way
 
@@ -148,6 +152,6 @@ in both languages, which also names journal 0294) and the pages it writes, and
 
 ## Next step
 
-The full KASAN suite and the pre-push checks; then the batch's pull request. After the merge,
+The batch's pull request. After the merge,
 close issue #117 and, if the maintainer agrees, move the reproduction pin of issue #195 to the
 merge commit.
