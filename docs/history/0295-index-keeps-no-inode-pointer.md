@@ -80,21 +80,74 @@ the shrinker, which takes it with a trylock. Removing the scope would be a separ
   evicted. Its files are instantiated during a third build and evicted during a fourth, each in
   under 1 s. After the four builds the kernel still gives the first answer for `rec`.
   `domain_builds=5`.
+- `vm/suite.sh`, new step `dcname` (in the full suite; `docs/testing.md`): on ext4, on a mount
+  without domains, a file with two hard links is built once. The layer's caches are then dropped
+  and only the name the build did not record is looked up through the layer. The mount-wide
+  `QUERY` must name the file by that name, from the dentry cache.
 - `docs/decisions/0038-index-keeps-no-inode-pointer.md`.
 
 ## Evidence
 
 On the test host (Debian 13, KVM), each run on a fresh clone of the branch:
 
-- `make checkpatch` on `2932243`: `checkpatch.pl: OK`, 21:55.
+| Run | Tree | Times | Result |
+| --- | --- | --- | --- |
+| `make checkpatch` | `2932243` | 21:55 | `checkpatch.pl: OK` |
+| `MOOB_VM_KVM=1 make vm-test` (full) | `2932243` | 21:55–22:17 | `MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_ACCEPTANCE_PASS`; `IXLOCK_PASS: ... 8 inodes without a record instantiated in 1 ms and evicted (drop_caches) in 1 ms, 8 with a record in 1 ms and 1 ms` |
+| negative round A: `MOOB_ONLY=ixlock`, with the `layer/` of `cdf36b1` | `2932243` | 22:17–22:19 | `stat_ms=0`, `drop_ms=0` without a record; `stat_ms=6670`, `drop_ms=6664` with one; `MOOBFS_VM_FAIL: il-instantiate-record-waited (6670 ms for 8 files with a record)` |
+| negative round B: full `make vm-test`, `moobl_find_cached_inode()` always `NULL` | `2932243` | 22:19–22:40 | all three markers **pass**: no step covered naming from the dentry cache (see below) |
+| `MOOB_ONLY=dcname` | `6f1a1a7` | 22:47–22:48 | `DCNAME_PASS: recorded name d/one; with only d/two in the dentry cache, the answer named d/two` |
+| same, with the `layer/` of `cdf36b1` | `6f1a1a7` | 22:48–22:49 | `DCNAME_PASS` (the old code named it through `rec->upper`) |
+| same, lookup always `NULL` | `6f1a1a7` | 22:49–22:50 | `MOOBFS_VM_FAIL: dn-not-from-dentry-cache (recorded d/two, in memory d/one)` |
 
-To be completed: the full `make vm-test`, negative round A (the `layer/` of `cdf36b1` with the new
-step), negative round B (the lookup always misses), and the touched steps under KASAN.
+Negative round A shows that the extended step fails on the old code, on the case it adds, and
+still passes there on the case of journal 0223.
+
+Negative round B found a gap that predates this change. No step checked that a result whose
+inode is in memory is named from the dentry cache, so a lookup that never finds the inode passed
+the whole suite. Before this change the same path went through `rec->upper`, also without a
+test. The step `dcname` closes the gap: it passes on the new and on the old code, and fails when
+the lookup never finds.
+
+To be completed: the full KASAN/lockdep suite (started 22:40), and the pre-push checks.
+
+## Errors found on the way
+
+- The first form of `dcname` put the linked file in a domain. A linked regular file is left out
+  of a domain (`target_ok()`: another name may live in another domain), so the first query
+  answered nothing, and the step failed with `dn-first-answer` in all three rounds (22:41–22:45).
+  The step now uses a mount without domains, where the mount-wide `QUERY` answers the file.
+- A rerun in the same clone directories stopped at once: the earlier runs had left root-owned
+  build files there. It was repeated in new directories.
 
 ## Limitations
 
-To be completed with the runs.
+- Measured on ext4 only, as in journal 0223. The `ext4`, `btrfs` and `xfs` steps exercise the
+  changed paths on all three lowers.
+- The `ixlock` step depends on a 1 s limit; a guest so slow that 8 `stat` calls take a second
+  fails it without a lock problem (journal 0280 on s390x under KASAN).
+- Naming a result now takes `inode_hash_lock` once per candidate. No measurement of that cost
+  was made.
+- An inode whose lower generation changed after it was made is named from the recorded name
+  (ADR-0038, consequences). No test makes that case.
+- The reproduction call of issue #195 is pinned to `d96b0db`, and rule 3 of journal 0284 counts
+  a reproduction there only if `layer/` does not change before the tag. `layer/` already changed
+  on 2026-11-12 (`3179b63`, ADR-0037), and changes again here. The pin was not updated after
+  ADR-0037; that is for the maintainer to decide (next step).
+
+## Surfaces brought up to date
+
+`docs/status.md` and `docs/status.pt-BR.md`, `docs/when-not-to-use.md` (§2 sentence; the §3
+bullet removed), `docs/matrix-and-limits.md` (the issue-117 limit removed),
+`docs/review-findings.md` (M2 fixed), `docs/security-roadmap.md` (dated update), `ROADMAP.md`,
+dated notes on `docs/distribution-strategy.md` §8, ADR-0022 and ADR-0030, `docs/testing.md`,
+`CHANGELOG.md`, `docs/references.md` §66, `scripts/site-journey.py` (a milestone of 2026-11-14,
+in both languages, which also names journal 0294) and the pages it writes, and
+`docs/retired-claims.txt`. The issue #195 body and `docs/help-wanted.md` keep the pin
+`d96b0db` until the maintainer decides (limitations).
 
 ## Next step
 
-The runs above; then the surfaces that state the remainder of issue 117 as a limit, and the issue.
+The full KASAN suite and the pre-push checks; then the batch's pull request. After the merge,
+close issue #117 and, if the maintainer agrees, move the reproduction pin of issue #195 to the
+merge commit.
