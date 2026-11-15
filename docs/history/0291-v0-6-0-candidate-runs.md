@@ -57,6 +57,25 @@ LinuxONE open source cloud, journal 0280), each on a fresh clone of `main` at `f
 The KASAN run covers only the per-lower steps (a partial run, chosen for the machine's two CPUs);
 the full KASAN suite has not run on s390x.
 
+Note of 2026-11-14: the last sentence is wrong. The full KASAN suite ran on s390x in journal 0280
+and stopped at the step `release`, on the build's 10 s CPU bound. It had not run on `f960474`.
+
+The full KASAN suite on s390x, on a fresh clone of `43ac8e9` (batch 28, before #202's merge), same
+guest:
+
+| Run | Times | Result |
+| --- | --- | --- |
+| `sh vm/kasan-local.sh` (upstream 6.12.116 built for s390x) | 10:33–13:45 | **failed** at `release`, `MOOBFS_VM_FAIL: rl-measure-ext4` |
+| the step `release` alone, with the tracepoint `moobfs_domain_build` enabled (a test clone; the repository unchanged) | 13:56–14:05 | **failed** the same way; `moobfs_domain_build: ... err=-110 tries=1 released=0 bytes=0 ns=12809729731` |
+
+The same failure as journal 0280, with the same cause. The first build of the step's 500-file
+domain needs 12.8 s of CPU under KASAN on this 2-CPU guest (12.7 s in 0280), more than
+`MOOBL_BUILD_CPU_NS` (10 s, ADR-0031). The module refuses the build with `ETIMEDOUT`, as
+specified. This is the known limit of slow debug kernels in `docs/testing.md` §9 and
+`docs/matrix-and-limits.md`, left unchanged by the maintainer's decision of 2026-11-10. No
+surface changes. The steps after `release` still have not run in one full KASAN suite on s390x;
+journal 0280 ran them by name.
+
 ## Limitations
 
 - The tag's commit will be later than `8a8d09b` (batches 26 and 27 at least); journal 0284's
@@ -81,3 +100,7 @@ The stage-2 declaration, after the independent reproduction of issue #195.
 - #202 (batch 28, journals 0292 and 0293) entered `main` on 2026-11-14 at 13:34 as `f4060d8`.
   Its CI passed on `43ac8e9`, the Ubuntu 7.0.0-43 job with the guest's 1 GiB and each KASAN
   job with `FAULTS_E2FSCK: exit 1 after the injected faults`.
+- #203 (batch 29, journal 0294) entered `main` on 2026-11-14 at 21:31 as `cdf36b1`. Its first CI
+  run failed Lint: the matrix page had 71 lines, over the limit of 70 of
+  `scripts/check-matrix-page.sh`. The fix, `6171632`, passed all 21 jobs; the test host's pre-push
+  checks now run that script too.
