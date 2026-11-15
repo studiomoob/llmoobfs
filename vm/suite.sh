@@ -3187,20 +3187,21 @@ if want dcname; then
 # Journal 0295 (ADR-0038): a query names a result from the dentry cache when the layer has the
 # file's inode in memory, else by the name the build recorded. The inode is found by number in
 # the inode cache since ADR-0038; before, through a pointer in the record. Of a file with two
-# hard links in one domain, the build records the name it read last. With the layer's caches
-# dropped and only the other name looked up through the layer, the answer must give that other
-# name; a lookup that never finds the inode gives the recorded one.
+# hard links, the build records the name it read last. A linked file is left out of a domain
+# (target_ok()), so the mount has no domains and the mount-wide QUERY answers. With the layer's
+# caches dropped and only the other name looked up through the layer, the answer must give that
+# other name; a lookup that never finds the inode gives the recorded one.
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail dn-lower-mount
 rm -rf "$LOWER/dn" && mkdir -p "$LOWER/dn/d" || fail dn-mkdir
 echo dn > "$LOWER/dn/d/one" && ln "$LOWER/dn/d/one" "$LOWER/dn/d/two" || fail dn-link
 "$BIN/moobfs-attr" set "$LOWER/dn/d/one" kind string note > /dev/null || fail dn-attr
-mount -t moobfs_layer -o lower="$LOWER/dn",domain_depth=1 none "$LAYER" || fail dn-mount
-"$BIN/query" "$LAYER/d" q2 kind exists - - | cut -f2 > /tmp/dn-1.txt || fail dn-query-1
+mount -t moobfs_layer -o lower="$LOWER/dn",domain_depth=0 none "$LAYER" || fail dn-mount
+"$BIN/query" "$LAYER" kind eq string note | cut -f2 > /tmp/dn-1.txt || fail dn-query-1
 dn_rec=$(cat /tmp/dn-1.txt)
-case $dn_rec in one) dn_other=two ;; two) dn_other=one ;; *) cat /tmp/dn-1.txt; fail "dn-first-answer (not one name of the file)" ;; esac
+case $dn_rec in d/one) dn_other=d/two ;; d/two) dn_other=d/one ;; *) cat /tmp/dn-1.txt; fail "dn-first-answer (not one name of the file)" ;; esac
 echo 2 > /proc/sys/vm/drop_caches || fail dn-drop
-stat "$LAYER/d/$dn_other" > /dev/null || fail dn-stat
-"$BIN/query" "$LAYER/d" q2 kind exists - - | cut -f2 > /tmp/dn-2.txt || fail dn-query-2
+stat "$LAYER/$dn_other" > /dev/null || fail dn-stat
+"$BIN/query" "$LAYER" kind eq string note | cut -f2 > /tmp/dn-2.txt || fail dn-query-2
 [ "$(cat /tmp/dn-2.txt)" = "$dn_other" ] || { cat /tmp/dn-2.txt; fail "dn-not-from-dentry-cache (recorded $dn_rec, in memory $dn_other)"; }
 umount "$LAYER" && rm -rf "$LOWER/dn" && umount "$LOWER" || fail dn-cleanup
 echo "DCNAME_PASS: recorded name $dn_rec; with only $dn_other in the dentry cache, the answer named $dn_other"
