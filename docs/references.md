@@ -1651,3 +1651,16 @@ hand and carries the same code paths:
   <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs/ext4?h=v6.12.116>.
 - e2fsprogs 1.47.2, `e2fsck(8)`: `-f`, `-y` and the exit codes (0 no errors, 1 errors
   corrected, 4 and above left uncorrected or failed).
+
+## 65. Smack (journal 0294)
+
+- Linux 6.12.116, read on the test host: `security/smack/smack_lsm.c` (`smack_d_instantiate()`,
+  `smk_fetch()`, `smack_inode_getsecurity()`, `smack_inode_listsecurity()`,
+  `smack_inode_permission()`, `smack_file_ioctl()`, the hook table), `security/smack/Kconfig`,
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/security/smack?h=v6.12.116>.
+- The kernel's Smack documentation, `Documentation/admin-guide/LSM/Smack.rst` (rules in `load2`,
+  `/proc/self/attr/current`, `SMACK64TRANSMUTE`, `CAP_MAC_OVERRIDE`).
+- util-linux `setpriv(1)` (`--reuid`, `--regid`, `--clear-groups`, `--inh-caps`,
+  `--bounding-set`), <https://man7.org/linux/man-pages/man1/setpriv.1.html>; in the guest,
+  BusyBox's shell ran its own `setpriv` applet for the bare name (journal 0294, round 1).
+- virtme-ng (`vng --kconfig --config`, `vng --build`), as in journal 0104.

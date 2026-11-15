@@ -78,3 +78,6 @@ The stage-2 declaration, after the independent reproduction of issue #195.
   panicked at boot on `main` twice on 2026-11-12 (runs 43201204547 and 43328363771, "System is
   deadlocked on memory").
 - #201 (batch 27, journal 0290) entered `main` on 2026-11-14 at 08:48 as `138f250`.
+- #202 (batch 28, journals 0292 and 0293) entered `main` on 2026-11-14 at 13:34 as `f4060d8`.
+  Its CI passed on `43ac8e9`, the Ubuntu 7.0.0-43 job with the guest's 1 GiB and each KASAN
+  job with `FAULTS_E2FSCK: exit 1 after the injected faults`.
