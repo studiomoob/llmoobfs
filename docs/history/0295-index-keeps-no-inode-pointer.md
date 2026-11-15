@@ -161,3 +161,9 @@ in both languages, which also names journal 0294) and the pages it writes, and
 The batch's pull request. After the merge,
 close issue #117 and, if the maintainer agrees, move the reproduction pin of issue #195 to the
 merge commit.
+
+*Note, 2026-11-15:* merged through pull request #204 as `1f9dd80` (journal 0291). On s390x
+(the LinuxONE guest of journal 0280, KVM, no KASAN; exploratory, not a gate), the tip `a11f62b`
+passed `MOOB_ONLY="dcname ixlock"` (`IXLOCK_PASS: ... 8 with a record in 0 ms and 1 ms`,
+`DCNAME_PASS`) and then the full `vm/run.sh` (`MOOBFS_VM_PASS`, `MOOBFS_LAYER_PASS`,
+`MOOBFS_ACCEPTANCE_PASS`, 847 s).
