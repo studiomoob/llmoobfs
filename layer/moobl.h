@@ -63,6 +63,7 @@ struct moobl_domain {
 };
 
 struct moobl_index {
+	struct super_block *sb;		/* the layer superblock this index belongs to */
 	struct rw_semaphore lock;
 	struct rb_root names;		/* struct moobl_ix_name, by attribute name */
 	struct xarray inodes;		/* ino -> struct moobl_ix_inode */
@@ -144,7 +145,7 @@ static inline struct dentry *moobl_lower_dentry(struct dentry *dentry)
 }
 
 /* main.c */
-struct inode *moobl_find_inode(struct super_block *sb, struct inode *lower);
+struct inode *moobl_find_cached_inode(struct super_block *sb, u64 ino, u32 gen);
 int moobl_other_device(struct super_block *sb, struct dentry *lower);
 struct moob_query_result;
 struct moob_query_result *moobl_qbuf_get(struct file *file, u32 n);
@@ -166,7 +167,6 @@ void moobl_index_dir_removed(struct super_block *sb, u64 ino);
 void moobl_index_renamed(struct super_block *sb, struct dentry *moved, struct dentry *where);
 void moobl_index_linked(struct super_block *sb, struct dentry *new_dentry);
 void moobl_index_inode_cached(struct super_block *sb, struct inode *inode);
-void moobl_index_inode_evicted(struct super_block *sb, struct inode *inode);
 long moobl_root_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 void moobl_index_perm_changed(struct super_block *sb, struct dentry *dentry);
 bool moobl_rename_crosses_domain(struct super_block *sb, struct dentry *old_dentry,

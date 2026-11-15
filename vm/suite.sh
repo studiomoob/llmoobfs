@@ -70,8 +70,8 @@
 #                       reused: the new ones are not answered from the removed ones' index
 #   minacl              minimal access ACLs planted with debugfs: the kernel, moobfs-index,
 #                       moobfs-check and the Python scan agree on which ones are extended (0222)
-#   ixlock              inodes without an index record are instantiated and evicted without
-#                       waiting for the index lock held by a build (issue #117)
+#   ixlock              inodes with and without an index record are instantiated and evicted
+#                       without waiting for the index lock held by a build (issue #117)
 #   fairshare           a uid over its share of index_budget lends room to a uid under its own,
 #                       and a uid within its share keeps its domain (ADR-0027)
 #   limits              S9 caps hit: a domain larger than index_budget, retained QUERY2 buffers
@@ -3125,22 +3125,29 @@ umount "$LAYER" && umount "$LOWER" || fail ma-cleanup
 echo "MINACL_PASS: kernel answered plain and same, left out other0 (minimal ACL other than the mode) and named; moobfs-index and moobfs-check equal; python scan: $ma_py"
 fi
 if want ixlock; then
-# Issue #117 (journal 0223): instantiating or evicting a layer inode took the index lock for
-# writing even when the inode had no record. A build holds that lock for 2.5 s per file
-# (scan_hold_us, 3 files per domain), and the measurement starts 1 s into it, so a path that
-# takes the lock waits at least the 1.5 s left of the first hold (a few evictions in a row may
-# then get the lock between two holds). During the build of domain s1, tests/ixlock.c
-# instantiates the 8 files of domain plain, which have no record; during the build of s2 it
-# evicts them with drop_caches. Neither may wait for the build, and each build must still be
-# running when its measurement ends, or nothing was measured under the lock.
+# Issue #117 (journals 0223 and 0295, ADR-0038): instantiating or evicting a layer inode took
+# the index lock for writing, first for every inode, then (0223) only for inodes with a record.
+# A build holds that lock for 2.5 s per file (scan_hold_us, 3 files per domain), and each
+# measurement starts 1 s into a build, so a path that takes the lock waits at least the 1.5 s
+# left of the first hold (a few evictions in a row may then get the lock between two holds).
+# Domain plain has 8 files without attributes, so without records; domain rec has 8 files with
+# one, and is built first, so its files have records. tests/ixlock.c instantiates the files of
+# plain during the build of s1 and evicts them with drop_caches during the build of s2, then
+# does the same with the files of rec during the builds of s3 and s4. None may wait for the
+# build, and each build must still be running when its measurement ends, or nothing was
+# measured under the lock.
 il_hold=/sys/module/moobfs_layer/parameters/scan_hold_us
 [ -w "$il_hold" ] || fail "il-no-param (module without the scan_hold_us test parameter)"
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail il-lower-mount
-rm -rf "$LOWER/il" && mkdir -p "$LOWER/il/s1" "$LOWER/il/s2" "$LOWER/il/plain" || fail il-mkdir
-"$BIN/overbudget-race" plant "$LOWER/il/s1" 3 && "$BIN/overbudget-race" plant "$LOWER/il/s2" 3 || fail il-plant
+rm -rf "$LOWER/il" && mkdir -p "$LOWER/il/s1" "$LOWER/il/s2" "$LOWER/il/s3" "$LOWER/il/s4" "$LOWER/il/plain" "$LOWER/il/rec" || fail il-mkdir
+for d in s1 s2 s3 s4; do "$BIN/overbudget-race" plant "$LOWER/il/$d" 3 || fail "il-plant-$d"; done
+"$BIN/overbudget-race" plant "$LOWER/il/rec" 8 || fail il-plant-rec
 i=0
 while [ $i -lt 8 ]; do : > "$LOWER/il/plain/f0000$i" || fail "il-plain-$i"; i=$((i + 1)); done
 mount -t moobfs_layer -o lower="$LOWER/il",domain_depth=1 none "$LAYER" || fail il-mount
+"$BIN/query" "$LAYER/rec" q2 kind exists - - | cut -f2 | sort > /tmp/il-rec.txt || fail il-rec-build
+[ "$(wc -l < /tmp/il-rec.txt)" -eq 8 ] || { cat /tmp/il-rec.txt; fail "il-rec-records (domain rec did not index its 8 files)"; }
+echo 2 > /proc/sys/vm/drop_caches || fail il-rec-evict
 echo 2500000 > "$il_hold" || fail il-hold-on
 # il_under <domain> <ixlock arguments>: runs ixlock while the build of <domain> holds the lock
 il_under() {
@@ -3156,14 +3163,23 @@ il_under s1 stat "$LAYER/plain" 8
 il_stat=$(sed -n 's/.*stat_ms=\([0-9]*\).*/\1/p' /tmp/il.txt); il_alive1=$il_alive
 il_under s2 drop
 il_drop=$(sed -n 's/.*drop_ms=\([0-9]*\).*/\1/p' /tmp/il.txt); il_alive2=$il_alive
+il_under s3 stat "$LAYER/rec" 8
+il_rstat=$(sed -n 's/.*stat_ms=\([0-9]*\).*/\1/p' /tmp/il.txt); il_alive3=$il_alive
+il_under s4 drop
+il_rdrop=$(sed -n 's/.*drop_ms=\([0-9]*\).*/\1/p' /tmp/il.txt); il_alive4=$il_alive
 echo 0 > "$il_hold" || fail il-hold-off
-[ -n "$il_stat" ] && [ -n "$il_drop" ] || fail il-parse
+[ -n "$il_stat" ] && [ -n "$il_drop" ] && [ -n "$il_rstat" ] && [ -n "$il_rdrop" ] || fail il-parse
 [ "$il_stat" -lt 1000 ] || fail "il-instantiate-waited ($il_stat ms for 8 files without a record)"
 [ "$il_drop" -lt 1000 ] || fail "il-evict-waited ($il_drop ms to evict them)"
-[ $il_alive1 -eq 0 ] && [ $il_alive2 -eq 0 ] || fail "il-window (a build ended before its measurement did)"
-"$BIN/query" "$LAYER" info | grep -q 'domain_builds=2' || fail il-build-count
+[ "$il_rstat" -lt 1000 ] || fail "il-instantiate-record-waited ($il_rstat ms for 8 files with a record)"
+[ "$il_rdrop" -lt 1000 ] || fail "il-evict-record-waited ($il_rdrop ms to evict them)"
+[ $il_alive1 -eq 0 ] && [ $il_alive2 -eq 0 ] && [ $il_alive3 -eq 0 ] && [ $il_alive4 -eq 0 ] || fail "il-window (a build ended before its measurement did)"
+"$BIN/query" "$LAYER" info | grep -q 'domain_builds=5' || fail il-build-count
+# the records survived the evictions: the kernel still answers for every file of rec
+"$BIN/query" "$LAYER/rec" q2 kind exists - - | cut -f2 | sort > /tmp/il-rec2.txt || fail il-rec-query
+cmp -s /tmp/il-rec.txt /tmp/il-rec2.txt || { cat /tmp/il-rec.txt /tmp/il-rec2.txt; fail il-rec-answer-changed; }
 umount "$LAYER" && rm -rf "$LOWER/il" && umount "$LOWER" || fail il-cleanup
-echo "IXLOCK_PASS: 8 inodes without a record instantiated in $il_stat ms and evicted (drop_caches) in $il_drop ms while builds held the index lock"
+echo "IXLOCK_PASS: while builds held the index lock, 8 inodes without a record instantiated in $il_stat ms and evicted (drop_caches) in $il_drop ms, 8 with a record in $il_rstat ms and $il_rdrop ms"
 fi
 if want landlock; then
 # Issue #167 (journal 0230): the moobfs CLI read /proc/self/mountinfo before every query and

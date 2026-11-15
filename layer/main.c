@@ -159,6 +159,8 @@ static int moobl_inode_set(struct inode *inode, void *data)
 	moobl_copy_attr_nlink(inode, lower);
 	fsstack_copy_inode_size(inode, lower);
 	inode->i_ino = lower->i_ino;
+	/* with i_ino, what moobl_find_cached_inode() matches: a layer field, see there */
+	inode->i_generation = READ_ONCE(lower->i_generation);
 #ifdef CONFIG_FS_POSIX_ACL
 	/*
 	 * ACLs are the lower's. The VFS would otherwise remember here the first one it
@@ -195,8 +197,8 @@ static struct inode *moobl_get_inode(struct super_block *sb, struct inode *lower
 	if (lower->i_sb != MOOBL_SB(sb)->lower.dentry->d_sb)
 		return ERR_PTR(-EXDEV);
 	ihold(lower);
-	inode = iget5_locked(sb, (unsigned long)lower, moobl_inode_test,
-			     moobl_inode_set, lower);
+	/* hashed by inode number, so that moobl_find_cached_inode() can find it from a record */
+	inode = iget5_locked(sb, lower->i_ino, moobl_inode_test, moobl_inode_set, lower);
 	if (!inode) {
 		iput(lower);
 		return ERR_PTR(-ENOMEM);
@@ -210,10 +212,36 @@ static struct inode *moobl_get_inode(struct super_block *sb, struct inode *lower
 	return inode;
 }
 
-/* The layer inode of a lower inode if it is in memory, referenced; NULL otherwise. May sleep. */
-struct inode *moobl_find_inode(struct super_block *sb, struct inode *lower)
+struct moobl_ino_gen {
+	u64 ino;
+	u32 gen;
+};
+
+/*
+ * find_inode() calls the test before it checks I_FREEING, and an inode being evicted may
+ * already have dropped its lower inode (moobl_evict_inode), so the test reads only fields of
+ * the layer inode itself, whose memory stays valid under the RCU walk of the hash.
+ */
+static int moobl_ino_gen_test(struct inode *inode, void *data)
 {
-	return ilookup5(sb, (unsigned long)lower, moobl_inode_test, lower);
+	const struct moobl_ino_gen *k = data;
+
+	return inode->i_ino == k->ino && inode->i_generation == k->gen;
+}
+
+/*
+ * The layer inode of lower inode (ino, gen) if it is in memory, referenced; NULL otherwise.
+ * May sleep: ilookup5() waits for an inode being made or freed. An inode whose lower
+ * generation changed after it was made (FS_IOC_SETVERSION on ext4) is not found; the caller
+ * then uses the recorded name. The lower filesystem's numbers are unique within the one lower
+ * superblock moobl_get_inode() accepts, except across btrfs subvolumes, which the index keys
+ * by number alone in any case.
+ */
+struct inode *moobl_find_cached_inode(struct super_block *sb, u64 ino, u32 gen)
+{
+	struct moobl_ino_gen k = { .ino = ino, .gen = gen };
+
+	return ilookup5(sb, ino, moobl_ino_gen_test, &k);
 }
 
 static struct inode *moobl_alloc_inode(struct super_block *sb)
@@ -249,10 +277,8 @@ static void moobl_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
-	if (moobl_lower_inode(inode)) {
-		moobl_index_inode_evicted(inode->i_sb, inode);
-		iput(moobl_lower_inode(inode));
-	}
+	if (moobl_lower_inode(inode))
+		iput(moobl_lower_inode(inode));	/* the index holds no pointer to inode (ADR-0038) */
 }
 
 static int moobl_statfs(struct dentry *dentry, struct kstatfs *buf)
