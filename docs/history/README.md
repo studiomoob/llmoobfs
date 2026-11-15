@@ -311,3 +311,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0293 — The ext4 lower after the KASAN fault injection: e2fsck](0293-e2fsck-after-fault-injection.md)
 - [0294 — Smack: a first run of the layer](0294-smack-run.md)
 - [0295 — The index keeps no pointer to layer inodes: issue #117 closed in the kernel (ADR-0038)](0295-index-keeps-no-inode-pointer.md)
+- [0296 — Recoll decodes MoobFS typed attributes, behind a build option](0296-recoll-decodes-typed-attributes.md)

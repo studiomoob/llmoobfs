@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Recoll's source decodes MoobFS typed attributes when built with `-Dmoobfs=true` (off by
+  default), from the project's merge request !57 rewritten by Recoll's maintainer (journal 0296).
+  `docs/client-contract.md` §4 notes it; packaged Recoll still sees the stored bytes.
 - The index keeps no pointer to layer inodes (issue #117, journal 0295, ADR-0038, a fourth
   exception to the kernel freeze). Eviction of a layer inode no longer takes the mount-wide index
   lock, and instantiation takes it only to drop a removed file's record; since journal 0223 an
