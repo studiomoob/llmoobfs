@@ -78,6 +78,18 @@ Left as they are on purpose:
 The checks of this batch are listed with the pull request (journal 0291 records the merge).
 `scripts/check-retired-claims.sh`: `RETIRED_CLAIMS_OK`.
 
+On the dedicated host (Debian 13, KVM), at `0a4ec84`, the tip of the batch when the run started;
+the later commits change only journals:
+
+- the pre-push checks, 10:16 to 10:26: lint, checkpatch, unit tests, ASan build, hostile
+  images, Python library, retired claims, pins, matrix page, mutants, site, `git diff --check`
+  against `1f9dd80`, `make static` and the Ubuntu tests, all `PASS`;
+- the full `MOOB_VM_KVM=1 make vm-test`, 10:26 to 10:47: `MOOBFS_VM_PASS`,
+  `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, exit code 0;
+- the full local KASAN/UBSAN/lockdep suite (`vm/kasan-local.sh`), 10:47 to 12:00:
+  `MOOBFS_PYLIB_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS`, exit
+  code 0.
+
 ## Next step
 
 After the batch is merged, each with the maintainer's agreement:
