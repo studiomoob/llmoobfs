@@ -72,6 +72,8 @@
 #                       moobfs-check and the Python scan agree on which ones are extended (0222)
 #   ixlock              inodes with and without an index record are instantiated and evicted
 #                       without waiting for the index lock held by a build (issue #117)
+#   dcname              a result whose inode is in memory is named from the dentry cache: of
+#                       two hard links, the one the layer has in memory (journal 0295)
 #   fairshare           a uid over its share of index_budget lends room to a uid under its own,
 #                       and a uid within its share keeps its domain (ADR-0027)
 #   limits              S9 caps hit: a domain larger than index_budget, retained QUERY2 buffers
@@ -108,7 +110,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -3180,6 +3182,28 @@ echo 0 > "$il_hold" || fail il-hold-off
 cmp -s /tmp/il-rec.txt /tmp/il-rec2.txt || { cat /tmp/il-rec.txt /tmp/il-rec2.txt; fail il-rec-answer-changed; }
 umount "$LAYER" && rm -rf "$LOWER/il" && umount "$LOWER" || fail il-cleanup
 echo "IXLOCK_PASS: while builds held the index lock, 8 inodes without a record instantiated in $il_stat ms and evicted (drop_caches) in $il_drop ms, 8 with a record in $il_rstat ms and $il_rdrop ms"
+fi
+if want dcname; then
+# Journal 0295 (ADR-0038): a query names a result from the dentry cache when the layer has the
+# file's inode in memory, else by the name the build recorded. The inode is found by number in
+# the inode cache since ADR-0038; before, through a pointer in the record. Of a file with two
+# hard links in one domain, the build records the name it read last. With the layer's caches
+# dropped and only the other name looked up through the layer, the answer must give that other
+# name; a lookup that never finds the inode gives the recorded one.
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail dn-lower-mount
+rm -rf "$LOWER/dn" && mkdir -p "$LOWER/dn/d" || fail dn-mkdir
+echo dn > "$LOWER/dn/d/one" && ln "$LOWER/dn/d/one" "$LOWER/dn/d/two" || fail dn-link
+"$BIN/moobfs-attr" set "$LOWER/dn/d/one" kind string note > /dev/null || fail dn-attr
+mount -t moobfs_layer -o lower="$LOWER/dn",domain_depth=1 none "$LAYER" || fail dn-mount
+"$BIN/query" "$LAYER/d" q2 kind exists - - | cut -f2 > /tmp/dn-1.txt || fail dn-query-1
+dn_rec=$(cat /tmp/dn-1.txt)
+case $dn_rec in one) dn_other=two ;; two) dn_other=one ;; *) cat /tmp/dn-1.txt; fail "dn-first-answer (not one name of the file)" ;; esac
+echo 2 > /proc/sys/vm/drop_caches || fail dn-drop
+stat "$LAYER/d/$dn_other" > /dev/null || fail dn-stat
+"$BIN/query" "$LAYER/d" q2 kind exists - - | cut -f2 > /tmp/dn-2.txt || fail dn-query-2
+[ "$(cat /tmp/dn-2.txt)" = "$dn_other" ] || { cat /tmp/dn-2.txt; fail "dn-not-from-dentry-cache (recorded $dn_rec, in memory $dn_other)"; }
+umount "$LAYER" && rm -rf "$LOWER/dn" && umount "$LOWER" || fail dn-cleanup
+echo "DCNAME_PASS: recorded name $dn_rec; with only $dn_other in the dentry cache, the answer named $dn_other"
 fi
 if want landlock; then
 # Issue #167 (journal 0230): the moobfs CLI read /proc/self/mountinfo before every query and
