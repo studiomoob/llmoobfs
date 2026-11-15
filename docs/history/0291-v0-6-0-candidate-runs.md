@@ -108,3 +108,8 @@ The stage-2 declaration, after the independent reproduction of issue #195.
   Its first CI run failed the static-analysis job: the justified Coccinelle entry of
   `tests/static/baseline.txt` quoted the old line of `result_path()`. The fix, `a11f62b`, passed
   all 26 jobs. The test host's pre-push checks did not run `make static`; they do now.
+  The merge also closed issue #117: the pull request body ended with "Closes #117 after merge
+  (manual close)", which GitHub reads as a closing keyword. The maintainer added the closing
+  comment afterwards, with the fix, the evidence and the limits:
+  <https://github.com/studiomoob/llmoobfs/issues/117#issuecomment-6894925826>. Later pull request
+  bodies use a closing keyword only when the automatic close is meant.
