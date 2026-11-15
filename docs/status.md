@@ -71,11 +71,12 @@ must be zero (`EINVAL`) and one privilege test gates the index
 ([ADR-0026](decisions/0026-ioctl-magic-term-padding-and-admin-test.md)). Issue 115:
 `posix_fadvise`, `readahead`, the lower's `statx` fields, the space of a file removed behind the
 layer and `O_NOATIME` set by `F_SETFL` now reach the lower; `cachestat(2)` stays a limitation
-([journal 0224](history/0224-passthrough-gaps-issue-115.md)). Issue 117 is fixed in part: instantiation
-and eviction of an inode without an index record no longer take the mount-wide index lock; an
-inode with a record still does, and the issue stays open for it
-([journal 0223](history/0223-index-lock-instantiation-eviction.md)). Since 2026-11-11 that remainder is a documented limit of the technical preview, kept
-until the kernel freeze is reviewed after `v0.6.0` ([journal 0283](history/0283-stage-2-decisions.md); [when-not-to-use.md](when-not-to-use.md) §3).
+([journal 0224](history/0224-passthrough-gaps-issue-115.md)). Issue 117 is fixed: instantiation
+and eviction of an inode without an index record stopped taking the mount-wide index lock in
+[journal 0223](history/0223-index-lock-instantiation-eviction.md), and those of an inode with one in
+[journal 0295](history/0295-index-keeps-no-inode-pointer.md) (2026-11-14, a freeze exception,
+[ADR-0038](decisions/0038-index-keeps-no-inode-pointer.md)), which ends the documented limit of
+[journal 0283](history/0283-stage-2-decisions.md).
 `v0.4.1-experimental` contains all
 of these defects.
 *Update, 2026-10-28 ([journal 0227](history/0227-mcp-and-store-confinement.md)):* two private

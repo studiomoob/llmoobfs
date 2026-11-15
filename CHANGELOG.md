@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- The index keeps no pointer to layer inodes (issue #117, journal 0295, ADR-0038, a fourth
+  exception to the kernel freeze). Eviction of a layer inode no longer takes the mount-wide index
+  lock, and instantiation takes it only to drop a removed file's record; since journal 0223 an
+  inode with an index record still took it on both, which a reclaimer waited on behind any
+  index writer. A query names a result in memory by looking its inode up by number in the inode
+  cache, which is now keyed by the lower inode number. Records are freed after an RCU grace
+  period and are 8 bytes larger. The step `ixlock` now also measures inodes with a record; on
+  the old code they waited 6.7 s.
 - The KASAN harness checks the ext4 lower with `e2fsck -fy` after the fault-injection step
   (journal 0293): the injected faults reach ext4 under the layer, which records them as errors,
   and the next step mounted that lower with the record still set. The check fails on damage

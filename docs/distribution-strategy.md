@@ -464,6 +464,10 @@ above is kept.
   contention under load, with no wrong answer and no security effect. Removing it changes the
   kernel, which is frozen ([ADR-0022](decisions/0022-kernel-freeze-and-user-space-consumable-track.md)); the issue stays open as a candidate for when
   the freeze is reviewed after `v0.6.0`. [when-not-to-use.md](when-not-to-use.md) §3 lists it.
+  *Note, 2026-11-14:* the maintainer authorized that kernel change before the tag
+  ([ADR-0038](decisions/0038-index-keeps-no-inode-pointer.md)); journal
+  [0295](history/0295-index-keeps-no-inode-pointer.md) removes the remainder, so this limit no
+  longer exists. The text above is kept as it was decided.
 - *"No leak is known."* GHSA-756j-cgwq-gvwm (the record of a removed inode answering its inode
   number's next owner) is fixed (journal 0216: records keep `i_generation`; suite step
   `domainreuse`, `DOMAINREUSE_PASS`) and its advisory was published with the merge of pull request

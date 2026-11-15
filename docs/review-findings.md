@@ -38,8 +38,8 @@ criterion covers them.
 on 2026-11-11) that Part B stays informative, outside criterion (2) of ADR-0030 (amendment of
 ADR-0030 of the same date). Its findings without a test whose test needs no kernel change were
 given one in journal 0283 (Gaps, items 14, 16 and 17); 0083 A and the remainder of B2 R3 were
-not, for the reasons given there. In Part A, the remainder of M2 (issue 117) is a documented
-limit of stage 2, and GHSA-756j-cgwq-gvwm is not an open known leak (`docs/distribution-strategy.md`
+not, for the reasons given there. In Part A, the remainder of M2 (issue 117) was a documented
+limit of stage 2 until journal 0295 removed it (2026-11-14, ADR-0038), and GHSA-756j-cgwq-gvwm is not an open known leak (`docs/distribution-strategy.md`
 §8, amendment of 2026-11-11).
 
 ## How to read the tables
@@ -171,7 +171,7 @@ for the deferred items.
 | ID | Finding | Triage | Fix | Regression test | Notes |
 | --- | --- | --- | --- | --- | --- |
 | M1 | Kernel memory sized by an unprivileged user, not memcg-accounted | fixed | journal 0180 (issue 116); PR 129 | step `memcg`, `tests/memcg-query.c`, `MEMCG_ACCOUNT_PASS` [suite] | Isolated negative rounds for buffer and index (journal 0180) |
-| M2 | Mount-wide rwsem taken for writing on every instantiation and eviction | fixed, partial | journal 0223 (issue 117); PR 170 (git) | step `ixlock`, `tests/ixlock.c`, `IXLOCK_PASS` [suite] | Inodes with a record still take the lock; removing `rec->upper` stays a proposal. Accepted on 2026-11-11 as a documented stage-2 limit (journal 0283); issue 117 stays open |
+| M2 | Mount-wide rwsem taken for writing on every instantiation and eviction | fixed | journals 0223 and 0295 (issue 117, ADR-0038); PR 170 (git) | step `ixlock`, `tests/ixlock.c`, `IXLOCK_PASS` [suite] | Journal 0223 fixed inodes without a record; journal 0295 removed `rec->upper`, so inodes with one take no lock on eviction and only for a removed file's record on instantiation. Negative round in each journal |
 | M3 | Unprivileged `QUERY2` triggers an unbounded subtree walk with the mounter's credentials | accepted limit (bounded by work, deadline and rate; stated in `SECURITY.md`) | journals 0182 to 0193, 0210, 0241; PRs 135, 138 | steps `buildlimit` (`BUILD_LIMIT_PASS`), `buildwork` (`BUILD_WORK_OPTION_PASS`), `buildtime` (`BUILD_TIME_PASS`), `buildmoved` (`BUILD_MOVED_PASS`), `builddenial` [opt-in]; `buildcost` [suite] | Issue 118 closed with the slow-lower evidence of journal 0210 |
 | M4 | `->lookup` returns `EXDEV`/`EOPNOTSUPP` for listed names and warns from a user path | fixed | journal 0221 (issue 119); PR 170 (git) | `tests/layer.c` `cfcheck`, `LAYER_CASEFOLD_PASS`, `CASEFOLD_REFUSED_PASS`, `LAYER_SUBVOLUME_PASS` [suite] | Negative round (tag `cf-check`, journal 0221) |
 | M5 | Two halves of `d_revalidate` disagree | duplicate of V4 | journal 0156, `d7f244d` | see V4 | |

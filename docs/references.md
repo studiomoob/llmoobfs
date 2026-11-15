@@ -1664,3 +1664,19 @@ hand and carries the same code paths:
   `--bounding-set`), <https://man7.org/linux/man-pages/man1/setpriv.1.html>; in the guest,
   BusyBox's shell ran its own `setpriv` applet for the bare name (journal 0294, round 1).
 - virtme-ng (`vng --kconfig --config`, `vng --build`), as in journal 0104.
+
+## 66. The index keeps no pointer to layer inodes (issue #117, journal 0295, ADR-0038)
+
+- Linux 6.12.116, read on the test host, `fs/inode.c`: `find_inode()` (the test runs before the
+  `I_FREEING` check, under RCU), `ilookup5()`, `ilookup5_nowait()`, `evict()` (`->evict_inode()`
+  before `remove_inode_hash()`), `i_callback()`; the same functions in 7.0.14 and 7.3.4
+  (`ilookup5_nowait()` with an `isnew` argument),
+  <https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/fs/inode.c?h=v6.12.116>.
+- `fs/fuse/inode.c`, `fuse_ilookup()` and `fuse_inode_eq()`, same tree: a cached inode found by
+  number with `ilookup5()` from outside the VFS.
+- `fs/btrfs/inode.c`, `btrfs_iget_locked()`, `btrfs_find_actor()` and `btrfs_inode_hash()`, same
+  tree: an inode hash keyed by number and subvolume root.
+- `fs/overlayfs/inode.c`, `ovl_lookup_inode()`, same tree: the hash keyed by the real inode's
+  address that the layer used before.
+- `include/linux/rcupdate.h`, `kfree_rcu()`, and `Documentation/core-api/xarray.rst` ("Takes RCU
+  read lock: xa_load()"; RCU "to avoid dereferencing freed memory"), same tree.
