@@ -8,6 +8,12 @@
 - `docs/tag-checklist.md`: the steps before, at and after a tag. The access table of
   `docs/security-operations.md` §1 was re-read after `v0.6.0-experimental`, not before it, and
   had not changed (journal 0297).
+- Security roadmap S12, tests only (journal 0298): the SELinux run compares shared mappings
+  (read, write, and a type the client may open but not map), attribute writes, hard links and
+  renames directly and through the layer, each change made once per view; the Smack run adds
+  shared mappings, `SMACK64MMAP`, exec (refused through the layer, which is `SB_I_NOEXEC`), a
+  refused unprivileged mount and a labelled mounter with `CAP_SYS_ADMIN` only. New static helper
+  `tests/mmapfile.c`.
 
 ## v0.6.0-experimental — 2026-11-15
 

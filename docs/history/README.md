@@ -313,3 +313,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0295 — The index keeps no pointer to layer inodes: issue #117 closed in the kernel (ADR-0038)](0295-index-keeps-no-inode-pointer.md)
 - [0296 — Recoll decodes MoobFS typed attributes, behind a build option](0296-recoll-decodes-typed-attributes.md)
 - [0297 — Stage 2 declared with the third-party reproduction pending; v0.6.0-experimental tagged (ADR-0039)](0297-stage-2-declared-v0-6-0.md)
+- [0298 — SELinux and Smack: mappings, changes, exec and mounters (S12)](0298-selinux-smack-mappings-exec-mounters.md)

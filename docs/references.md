@@ -1688,3 +1688,29 @@ hand and carries the same code paths:
   <https://framagit.org/medoc92/recoll/-/commit/76ccda944936fb64d400b6a24ab04cbd9544e498>:
   `src/internfile/moobfsxattrs.cpp`, `src/internfile/extrameta.cpp`, meson option `moobfs`.
   GPL-2.0-or-later; not vendored.
+
+## 68. SELinux and Smack: mappings, changes, exec and mounters (journal 0298)
+
+- SELinux test suite, commit `a30256ea18f7474183cfb51b5c3f98fd4620882d` (main, read on
+  2026-11-16): `tests/mmap/mmap_file_shared.c` (a shared file mapping, `open(O_RDWR)` then
+  `mmap(MAP_SHARED)`), `tests/link/`, `tests/rename/` and `tests/setattr/` with their policies
+  `policy/test_mmap.te`, `policy/test_link.te`, `policy/test_rename.te` and
+  `policy/test_setattr.te`. `tests/mmapfile.c` follows the shared-mapping test; the layer runs
+  compare each operation directly and through the layer instead of against a fixed verdict.
+  https://github.com/SELinuxProject/selinux-testsuite
+- Linux 6.12.116, read on the test host, `security/smack/smack_lsm.c`: `smack_mmap_file()`
+  (`SMACK64MMAP`: every rule of the subject with some access must be matched by the mapping
+  label's), `smack_bprm_creds_for_exec()` (`SMACK64EXEC`), `smack_set_mnt_opts()` (a mounter
+  without `CAP_MAC_ADMIN` gives its label to the filesystem's root and default), the root case
+  of `smack_d_instantiate()`, `smack_inode_permission()`; `security/smack/smack_access.c`,
+  `smk_access()`; `security/smack/smack.h`, `MAY_ANYREAD`.
+- The kernel's Smack documentation, `Documentation/admin-guide/LSM/Smack.rst`, same tree
+  (`SMACK64EXEC`, `SMACK64MMAP`).
+- `layer/main.c`, `moobl_fill_super()` (`SB_I_NOEXEC`); `fs/super.c`,
+  `mount_capable()` (`FS_USERNS_MOUNT`), Linux 6.12.116.
+- util-linux `unshare(1)` (`-U -r -m`), <https://man7.org/linux/man-pages/man1/unshare.1.html>.
+- util-linux `sys-utils/setpriv.c` (2.41.5 on the test host; read on GitHub, master, on
+  2026-11-16): `PR_SET_KEEPCAPS` and a second `capng_apply()` keep root's effective capabilities
+  across the uid change until `execvp()`, so the program setpriv starts is opened with
+  `CAP_MAC_OVERRIDE` (journal 0298, round 2).
+  <https://github.com/util-linux/util-linux/blob/master/sys-utils/setpriv.c>

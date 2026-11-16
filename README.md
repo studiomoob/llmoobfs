@@ -554,8 +554,9 @@ KASAN harness runs the layer suite), and no benchmark exists.
   sites, above the 85 % threshold of [security roadmap](docs/security-roadmap.md) S3, which counts
   call sites since ADR-0032 (journals 0239 and 0245); S3 is done. SELinux enforcing was exercised once (journal
   0104), AppArmor once (journal 0290: a process is checked by the layer path, the mounter by
-  the lower path), Smack once (journal 0294: the lower's labels and decisions through the layer;
-  a `QUERY2` caller needs write access to the domain's label).
+  the lower path), Smack in two runs (journal 0294: the lower's labels and decisions through the layer;
+  a `QUERY2` caller needs write access to the domain's label). Journal 0298 added mappings,
+  attribute writes, links, renames, exec and mounters under SELinux and Smack.
 - `QUERY` authorization holds at query time only (TOCTOU contract). A directory rename through
   the layer makes its domain stale and the next query rebuilds it; direct lower-tree changes
   remain untracked ([spec-m3](docs/spec-m3.md) §3.1 and its correction note).
