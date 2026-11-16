@@ -9,7 +9,11 @@
 #   3. labels of files created through the layer, plain and in a transmuting directory;
 #   4. QUERY2 for a process that may not read some of the results (ADR-0011: the per-result
 #      check asks inode_permission, which Smack answers);
-#   5. relabelling through the layer, by root and by an unprivileged process.
+#   5. relabelling through the layer, by root and by an unprivileged process;
+#   6. shared mappings, read and write, and SMACK64MMAP (journal 0298);
+#   7. exec through the layer, and the label SMACK64EXEC gives the program (journal 0298);
+#   8. mounts by a labelled mounter: refused without CAP_SYS_ADMIN, and the rules of a labelled
+#      mounter that has it bound what its layer gives (journal 0298).
 # Arguments: repository copy, build directory. A failed check prints MOOBFS_SMACK_FAIL and the run
 # goes on, so that a negative round shows every step that changed.
 set -u
@@ -34,7 +38,14 @@ echo 0 > /proc/sys/kernel/printk_ratelimit; echo 10000 > /proc/sys/kernel/printk
 
 # Rules for the subject Sub: Rd read only, Rw read and write, Hid nothing, Dir a directory where
 # it may create, Tr a transmuting directory. Labels not named here get Smack's defaults.
-for r in "Sub Rd r" "Sub Rw rwa" "Sub Hid -" "Sub Dir rwxat" "Sub Tr rwxat"; do
+# Journal 0298: Ex a program the subject may run, Only a file the subject may read and the
+# labelled mounter Mnt may not; MmOk, a SMACK64MMAP label with at least every access of the
+# subject, and MmNo, one with none; Mnt the rules of the labelled mounter of step 8. A mounter
+# without CAP_MAC_ADMIN gives its own label to the root of the filesystem it mounts and to every
+# inode whose label cannot be read (smack_set_mnt_opts(), smack_d_instantiate()), hence "Sub Mnt rx".
+for r in "Sub Rd r" "Sub Rw rwa" "Sub Hid -" "Sub Dir rwxat" "Sub Tr rwxat" "Sub Ex rx" "Sub Only r" \
+    "MmOk Rd rwxat" "MmOk Rw rwxat" "MmOk Dir rwxat" "MmOk Tr rwxat" "MmOk Ex rwxat" "MmOk Only rwxat" \
+    "Mnt Rd r" "Mnt Rw rwa" "Mnt Dir rx" "Sub Mnt rx"; do
     echo "$r" > $F/load2 || die "rule $r"
 done
 S=/run/sm
@@ -48,6 +59,22 @@ for f in rd rw hid; do echo "$f" > $L/t/$f && chmod 666 $L/t/$f || die "file $f"
 lab() { setfattr -n security.SMACK64 -v "$2" "$1"; }
 lab $L/t/rd Rd && lab $L/t/rw Rw && lab $L/t/hid Hid && lab $L/t/dir Dir && lab $L/t/tr Tr || die labels
 setfattr -n security.SMACK64TRANSMUTE -v TRUE $L/t/tr || die transmute
+# Journal 0298, made before the layer is mounted so that the lower does not change behind it:
+# md and my, files labelled as rd, rw and hid for the mapped writes, md reached only directly
+# and my only through the layer; mok and mno, labelled Rd with SMACK64MMAP MmOk and MmNo; only,
+# labelled Only; three copies of busybox named cat: x labelled Ex with SMACK64EXEC Run, xs
+# labelled Ex without it, xn labelled Rd (no execute rule).
+for d in md my; do
+    mkdir -m 777 $L/$d && for f in rd rw hid; do echo "$f" > $L/$d/$f && chmod 666 $L/$d/$f; done &&
+        lab $L/$d/rd Rd && lab $L/$d/rw Rw && lab $L/$d/hid Hid || die "set $d"
+done
+for f in mok mno only; do echo "$f" > $L/t/$f && chmod 666 $L/t/$f || die "file $f"; done
+lab $L/t/mok Rd && lab $L/t/mno Rd && lab $L/t/only Only &&
+    setfattr -n security.SMACK64MMAP -v MmOk $L/t/mok &&
+    setfattr -n security.SMACK64MMAP -v MmNo $L/t/mno || die "mmap labels"
+for d in x xs xn; do mkdir $L/t/$d && cp $BB $L/t/$d/cat && chmod 755 $L/t/$d/cat || die "program $d"; done
+lab $L/t/x/cat Ex && lab $L/t/xs/cat Ex && lab $L/t/xn/cat Rd &&
+    setfattr -n security.SMACK64EXEC -v Run $L/t/x/cat || die "program labels"
 get() { getfattr --absolute-names --only-values -n security.SMACK64 "$1" 2> /dev/null; }
 
 # exit status of one command run as uid 1000, no capabilities, Smack label $1
@@ -182,6 +209,93 @@ if [ "$us" != 0 ] && [ "$uv" = Rw ]; then
     echo "SMACK_RELABEL_DENIED_PASS: an unprivileged process cannot relabel through the layer"
 else
     fail "relabel by the subject (set=$us lower=$uv)"
+fi
+
+# ---- 6. mappings -------------------------------------------------------------------------------
+# a mapped read changes nothing and runs on t through both views; a mapped write runs once per
+# file, directly on md and through the layer on my
+MM=$B/mmapfile
+differ=0; denied=0; allowed=0; n=0
+for f in rd rw hid; do
+    for o in r w; do
+        n=$((n + 1))
+        if [ $o = r ]; then d=$(c Sub "$MM" r $L/t/$f); y=$(c Sub "$MM" r $Y/t/$f)
+        else d=$(c Sub "$MM" w $L/md/$f); y=$(c Sub "$MM" w $Y/my/$f); fi
+        if [ "$d" = 0 ]; then allowed=$((allowed + 1)); else denied=$((denied + 1)); fi
+        if same "$d" "$y"; then r=same; else r=DIFFERS; differ=$((differ + 1)); fi
+        echo "  mmap $o $f: lower=$d layer=$y $r"
+    done
+done
+wb=$(head -c 1 $L/my/rw)
+echo "  first byte of the lower of my/rw after the mapped write through the layer: $wb"
+[ $differ = 0 ] && [ $denied -gt 0 ] && [ $allowed -gt 0 ] && [ "$wb" = M ] &&
+    echo "SMACK_MMAP_PASS: $n shared mappings, $allowed allowed and $denied denied directly; every one through the layer agrees with the lower, and the mapped write reached it" ||
+    fail "mmap: $differ of $n differ (allowed=$allowed denied=$denied directly; byte=$wb)"
+# SMACK64MMAP: a mapping of mno, whose MmNo has none of the subject's access, is refused; of mok
+# it is not; reading mno with read(2) is allowed, so the refusal is SMACK64MMAP's
+ok_d=$(c Sub "$MM" r $L/t/mok); ok_y=$(c Sub "$MM" r $Y/t/mok)
+no_d=$(c Sub "$MM" r $L/t/mno); no_y=$(c Sub "$MM" r $Y/t/mno); no_r=$(c Sub $BB cat $Y/t/mno)
+echo "  SMACK64MMAP: mok lower=$ok_d layer=$ok_y; mno lower=$no_d layer=$no_y, read(2) through the layer=$no_r"
+echo "  SMACK64MMAP labels: mok lower=$(getfattr --absolute-names --only-values -n security.SMACK64MMAP $L/t/mok 2> /dev/null) layer=$(getfattr --absolute-names --only-values -n security.SMACK64MMAP $Y/t/mok 2> /dev/null)"
+[ "$ok_d" = 0 ] && [ "$ok_y" = 0 ] && [ "$no_d" != 0 ] && [ "$no_y" != 0 ] && [ "$no_r" = 0 ] &&
+    echo "SMACK_MMAPLABEL_PASS: SMACK64MMAP refuses through the layer the mapping it refuses directly, and allows the one it allows" ||
+    fail "SMACK64MMAP (mok lower=$ok_d layer=$ok_y; mno lower=$no_d layer=$no_y read=$no_r)"
+
+# ---- 7. exec -----------------------------------------------------------------------------------
+# the program reads its own label; prints "<exit> <label>"
+# shellcheck disable=SC2016 # $0 is the inner shell's
+xr() { o=$($BB sh -c 'echo Sub > '"$ATTR"' || exit 97
+        exec '"$SP"' --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- "$0" '"$ATTR"'' "$1" 2> /dev/null < /dev/null); echo "$? ${o:-none}"; }
+bad=0
+for d in x xs xn; do
+    a=$(xr $L/t/$d/cat); b=$(xr $Y/t/$d/cat)
+    case $d in x) want="0 Run" ;; xs) want="0 Sub" ;; xn) want=refused ;; esac
+    echo "  exec $d/cat: lower=($a) layer=($b) expected=($want)"
+    if [ "$want" = refused ]; then [ "${a%% *}" != 0 ] && [ "${b%% *}" != 0 ] || bad=$((bad + 1))
+    else [ "$a" = "$want" ] && [ "$b" = "$want" ] || bad=$((bad + 1)); fi
+done
+[ $bad = 0 ] && echo "SMACK_EXEC_PASS: exec through the layer is allowed and refused as directly, and the program runs with the label SMACK64EXEC names (Run), or the caller's without it" ||
+    fail "exec: $bad programs differ from the expected"
+
+# ---- 8. mounters -------------------------------------------------------------------------------
+# moobfs_layer is not FS_USERNS_MOUNT: mounting it needs CAP_SYS_ADMIN in the initial user
+# namespace, so an unprivileged mounter, labelled or not, is refused, also as root of its own
+# user namespace. Control: in that namespace the subject may mount a tmpfs (FS_USERNS_MOUNT).
+mkdir $S/um $S/lm || die "mountpoints"
+mu=$(c Sub $BB mount -t moobfs_layer -o lower=$L none $S/um)
+mn=$(c Sub /usr/bin/unshare -Urm $BB mount -t moobfs_layer -o lower=$L none $S/um)
+mt=$(c Sub /usr/bin/unshare -Urm $BB mount -t tmpfs none $S/um)
+echo "  unprivileged mount by the subject: plain=$mu in its user namespace=$mn; control, tmpfs in that namespace=$mt"
+[ "$mu" != 0 ] && [ "$mn" != 0 ] && [ "$mt" = 0 ] && ! mountpoint -q $S/um &&
+    echo "SMACK_UNPRIV_MOUNT_PASS: an unprivileged labelled process cannot mount the layer, in its own user namespace either" ||
+    fail "unprivileged mount (plain=$mu userns=$mn tmpfs control=$mt)"
+# A labelled mounter: uid 0 with CAP_SYS_ADMIN only (no CAP_MAC_OVERRIDE), label Mnt, which may
+# read Rd, Rw and Dir and nothing labelled Hid or Only. The layer opens lower files as the
+# mounter (ADR-0011, ADR-0037), so its rules bound what the subject gets: only, which the
+# subject may read directly, is refused through this mount.
+# shellcheck disable=SC2016 # $0 and $@ are the inner shell's
+mm=$($BB sh -c 'echo Mnt > '"$ATTR"' || exit 97
+    exec '"$SP"' --inh-caps=-all --bounding-set=-all,+sys_admin -- '"$BB"' mount -t moobfs_layer -o lower="$0" none "$1"' \
+    $L $S/lm < /dev/null > /dev/null 2>&1; echo $?)
+echo "  mount by the labelled mounter (Mnt, CAP_SYS_ADMIN only): $mm"
+if [ "$mm" = 0 ]; then
+    M=$S/lm; bad=0
+    for t in "read rd 0" "stat rd 0" "read rw 0" "read hid x" "stat hid x" "read only x" "list dir 0"; do
+        # shellcheck disable=SC2086 # split on purpose
+        set -- $t
+        p=$M/t/$2; q=$L/t/$2
+        y=$(op Sub "$1" "$p" m); d=$(op Sub "$1" "$q" m)
+        case $3 in 0) [ "$y" = 0 ] || bad=$((bad + 1)) ;; x) [ "$y" != 0 ] || bad=$((bad + 1)) ;; esac
+        echo "  through Mnt's layer, $1 $2: lower=$d layer=$y expected=$([ "$3" = 0 ] && echo allowed || echo refused)"
+    done
+    for f in rd rw hid only dir; do echo "  label $f through Mnt's layer: lower=$(get $L/t/$f) layer=$(get $M/t/$f)"; done
+    od=$(op Sub read $L/t/only m)
+    [ "$od" = 0 ] || fail "control: the subject could not read only directly"
+    [ $bad = 0 ] && echo "SMACK_MOUNTER_PASS: through a labelled mounter's layer the subject gets what both its rules and the mounter's allow" ||
+        fail "labelled mounter: $bad operations not as expected"
+    umount $M || fail "umount of the labelled mounter's layer"
+else
+    fail "the labelled mounter with CAP_SYS_ADMIN could not mount the layer ($mm)"
 fi
 
 umount $Y && umount $L

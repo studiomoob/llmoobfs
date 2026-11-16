@@ -40,6 +40,7 @@ mkdir -p "$B"
 gcc -static -O2 -Iinclude tests/query.c common/attr.c -o "$B/query"
 gcc -static -O2 -Iinclude tools/moobfs-attr.c common/attr.c -o "$B/moobfs-attr"
 gcc -static -O2 -Wall -Wextra -Werror tests/listdir.c -o "$B/listdir"
+gcc -static -O2 -Wall -Wextra -Werror tests/mmapfile.c -o "$B/mmapfile"
 rm -f "$B/lower.img"
 truncate -s 256M "$B/lower.img" && mkfs.ext4 -q -F "$B/lower.img"
 (cd "$KDIR" && vng --user root --cpus 2 --memory 3G --verbose \
