@@ -2,7 +2,7 @@
 
 Date: 2026-11-15 and 16. Work started about 09:50 Brasília time on the 15th and ended at 07:10
 on the 16th, when the published release was verified. Status: **done; the tag and its release
-exist; the body of issue #195 and the `.deb` packages remain (Next step).** Estimated effort S
+exist and issue #195 is pinned to the tag; the `.deb` packages remain (Next step).** Estimated effort S
 (ADR-0039); the time recorded is calendar time, most of it machine time of the test runs.
 
 ## Goal
@@ -121,10 +121,13 @@ The changelog section, `CITATION.cff` and `SECURITY.md` date the release 2026-11
 the declaration; the tag was cut on 2026-11-16. The tagged files cannot change, so the date is
 left as it is.
 
+On 2026-11-16 the maintainer replaced the body of issue #195. It now pins the route to the
+tag (commit `b40e3b6`) instead of `d96b0db`, says that stage 2 is declared with the
+reproduction pending (ADR-0039), offers the release's signed source archive, adds Debian 7.3.4
+and the 7.3.4 KASAN build, and says issue #117 was fixed before the tag (ADR-0038). The old
+text is in the issue's edit history.
+
 ## Next step
 
-Each with the maintainer's agreement:
-
-1. the body of issue #195 pinned to the tag (the maintainer edits it);
-2. the `.deb` packages: how and where to publish them is still to be decided. The release
-   workflow publishes source only.
+The `.deb` packages: how and where to publish them is still to be decided, with the maintainer.
+The release workflow publishes source only.
