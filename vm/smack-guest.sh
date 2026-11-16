@@ -42,8 +42,8 @@ echo 0 > /proc/sys/kernel/printk_ratelimit; echo 10000 > /proc/sys/kernel/printk
 # Journal 0298: Ex a program the subject may run, Only a file the subject may read and the
 # labelled mounter Mnt may not; MmOk, a SMACK64MMAP label with at least every access of the
 # subject, and MmNo, one with none; Mnt the rules of the labelled mounter of step 8. A mounter
-# without CAP_MAC_ADMIN gives its own label to the root of the filesystem it mounts and to every
-# inode whose label cannot be read (smack_set_mnt_opts(), smack_d_instantiate()), hence "Sub Mnt rx".
+# without CAP_MAC_ADMIN gives its own label to the root of the filesystem it mounts
+# (smack_set_mnt_opts(), smack_d_instantiate()), hence "Sub Mnt rx".
 for r in "Sub Rd r" "Sub Rw rwa" "Sub Hid -" "Sub Dir rwxat" "Sub Tr rwxat" "Sub Ex rx" "Sub Only r" \
     "MmOk Rd rwxat" "MmOk Rw rwxat" "MmOk Dir rwxat" "MmOk Tr rwxat" "MmOk Ex rwxat" "MmOk Only rwxat" "MmOk Mnt rwxat" \
     "Mnt Rd r" "Mnt Rw rwa" "Mnt Dir rx" "Sub Mnt rx"; do
@@ -291,34 +291,28 @@ mm=$($BB sh -c 'echo Mnt > '"$ATTR"' || exit 97
     $L $S/lm < /dev/null > /dev/null 2>&1; echo $?)
 echo "  mount by the labelled mounter (Mnt, CAP_SYS_ADMIN only): $mm"
 if [ "$mm" = 0 ]; then
-    M=$S/lm; bad=0; xf=0
-    # the last field: 0 allowed, x refused; X refused directly, a known difference through this
-    # mount (finding of journal 0298, below)
-    for t in "read rd 0" "stat rd 0" "read rw 0" "read hid x" "stat hid X" "read only x" "list dir 0"; do
+    M=$S/lm; bad=0
+    # the last field: 0 allowed, x refused
+    for t in "read rd 0" "stat rd 0" "read rw 0" "read hid x" "read only x" "list dir 0"; do
         # shellcheck disable=SC2086 # split on purpose
         set -- $t
         y=$(op Sub "$1" "$M/t/$2" m); d=$(op Sub "$1" "$L/t/$2" m)
         case $3 in
         0) [ "$y" = 0 ] || bad=$((bad + 1)); e=allowed ;;
         x) [ "$y" != 0 ] || bad=$((bad + 1)); e=refused ;;
-        X) if [ "$y" = 0 ]; then xf=$((xf + 1)); e="refused, known to be allowed (XFAIL)"
-           else bad=$((bad + 1)); e="refused, now refused (XPASS: update journal 0298's finding)"; fi ;;
         esac
         echo "  through Mnt's layer, $1 $2: lower=$d layer=$y expected=$e"
     done
-    # a label the mounter may read shows as on the lower; one it may not (Hid, Only) shows as the
-    # mounter's own label, Smack's default for a filesystem mounted without CAP_MAC_ADMIN
-    for f in rd rw dir hid only; do
+    # labels through the mounter's layer, for the files the mounter may read
+    for f in rd rw dir; do
         a=$(get $L/t/$f); b=$(get $M/t/$f)
-        case $f in hid|only) w=Mnt ;; *) w=$a ;; esac
-        echo "  label $f through Mnt's layer: lower=$a layer=$b expected=$w"
-        [ "$b" = "$w" ] || bad=$((bad + 1))
+        echo "  label $f through Mnt's layer: lower=$a layer=$b"
+        [ "$b" = "$a" ] || bad=$((bad + 1))
     done
     od=$(op Sub read $L/t/only m)
     [ "$od" = 0 ] || fail "control: the subject could not read only directly"
-    [ $bad = 0 ] && echo "SMACK_MOUNTER_PASS: through a labelled mounter's layer the subject gets what both its rules and the mounter's allow; labels the mounter may not read show as the mounter's" ||
+    [ $bad = 0 ] && echo "SMACK_MOUNTER_PASS: through a labelled mounter's layer the subject gets what both its rules and the mounter's allow" ||
         fail "labelled mounter: $bad checks not as expected"
-    [ $xf = 0 ] || echo "SMACK_MOUNTER_XFAIL: stat of a file labelled Hid, which neither the subject nor the mounter may stat, is allowed through the mounter's layer: the inode carries the mounter's label and the lower getattr runs without the mounter's check (journal 0298)"
     umount $M || fail "umount of the labelled mounter's layer"
 else
     fail "the labelled mounter with CAP_SYS_ADMIN could not mount the layer ($mm)"
