@@ -50,10 +50,19 @@ Only `getattr` had the gap.
 
 ## Evidence
 
-On the s390x host (exploratory; Ubuntu 24.04, KVM), queue started at about 14:16, from a bundle
+On the s390x host (exploratory; Ubuntu 24.04, KVM), queue started at about 14:18, from a bundle
 of the local branch (nothing published):
 
-RUNS
+| Run (BRT) | Tree | Result |
+| --- | --- | --- |
+| 14:18 | `bc02ac2` | `make checkpatch`: exit 0 |
+| 14:18–14:32 | `bc02ac2` | full `MOOB_VM_KVM=1` suite (`vm/run.sh`, `MOOB_ARCH=s390x`): `MOOBFS_VM_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, exit 0 |
+| 14:32–14:38 | `bc02ac2` | `vm/smack-local.sh` (6.12.116, `vm/kasan.config` + `vm/kasan-s390x.config` + `vm/smack.config`): every `SMACK_*_PASS`, `MOOBFS_SMACK_RESULT: fails=0`; through the labelled mounter's layer `stat hid: lower=1 layer=1 expected=refused`, `stat only: lower=0 layer=0`; labels of `hid` and `only` there `Mnt`; no kernel diagnostic |
+| 14:38–14:43 | `bc02ac2` with `layer/main.c` of `bf2e576^` (negative) | `stat hid: lower=1 layer=0 expected=refused`, `MOOBFS_SMACK_FAIL: labelled mounter: 1 checks not as expected`; every other Smack step passed |
+| 14:43–16:35 | `bc02ac2` | `MOOB_ONLY="ext4 btrfs xfs" vm/kasan-local.sh`: `MOOBFS_KASAN_ONLY_PASS` (KASAN, UBSAN, lockdep, no kernel diagnostics; not a complete run), exit 0 |
+
+The negative round shows that the regression check fails without the fix and that nothing else
+in the Smack run depends on it.
 
 ## Limitations
 
