@@ -116,6 +116,19 @@ lockdep and Smack, reused from `~/.cache/moobfs-smack`. Each run took about one 
 On 2026-11-16, before publication, one check of the labelled-mounter step is held back from the published harness, recorded privately under `SECURITY.md`, and returns with its fix. The surfaces of this batch name the Smack steps without
 it; this is the stale-on-purpose case of `docs/public-surfaces.md`.
 
+## Also recorded here
+
+- #206 (batch 32, journal 0297: the tag recorded, the access table read after it, and
+  `docs/tag-checklist.md`) entered `main` on 2026-11-16 at 09:09 as `2c4a519`, after its 20
+  checks passed on `24a172b`.
+- The tag `v0.6.0-experimental` on the s390x host (exploratory; Ubuntu 24.04, KVM), each run on a
+  fresh clone of the tag from GitHub, 2026-11-16: the full `MOOB_VM_KVM=1` suite twice (07:07 to
+  07:22 and 07:22 to 07:37), `MOOBFS_VM_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, exit
+  0 each; `MOOB_ONLY="ext4 btrfs xfs" vm/kasan-local.sh` (07:37 to 09:15),
+  `MOOBFS_KASAN_ONLY_PASS`, no kernel diagnostics (not a complete run), exit 0.
+- The test host lost power at about 08:27 and came back in the evening; the final runs below were
+  started at about 20:20.
+
 ## Final runs on the tip
 
 FINAL_RUNS
