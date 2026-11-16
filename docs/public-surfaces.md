@@ -41,7 +41,7 @@ until a coordinated disclosure) is named in the journal of the change, with the 
 | Repository description and topics | one-line pitch | the pitch changes |
 | Issues with review requests and calls (`help wanted`, `good first issue`) | reading lists, limits, findings, what is asked | a finding, a test or a limit they cite changes |
 | Discussions ("Call for reviewers", "Welcome") | calls and status for newcomers | a call is answered, closed or changed |
-| Releases and tags | source snapshots and known defects | a tag is made |
+| Releases and tags | source snapshots and known defects | a tag is made ([tag-checklist.md](tag-checklist.md)) |
 | Security advisories | private reports and their fixes | a fix is merged (then published) |
 
 ## Outside GitHub (content not kept in the repository)

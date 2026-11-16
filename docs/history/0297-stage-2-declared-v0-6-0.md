@@ -1,8 +1,9 @@
-# 0297 — Stage 2 declared with the third-party reproduction pending; v0.6.0-experimental prepared (ADR-0039)
+# 0297 — Stage 2 declared with the third-party reproduction pending; v0.6.0-experimental tagged (ADR-0039)
 
-Date: 2026-11-15. Work started about 09:50 Brasília time. Status: **in progress; the release
-steps wait for the maintainer.** Estimated effort S (ADR-0039). The time recorded is calendar
-time.
+Date: 2026-11-15 and 16. Work started about 09:50 Brasília time on the 15th and ended at 07:10
+on the 16th, when the published release was verified. Status: **done; the tag and its release
+exist and issue #195 is pinned to the tag; the `.deb` packages remain (Next step).** Estimated effort S
+(ADR-0039); the time recorded is calendar time, most of it machine time of the test runs.
 
 ## Goal
 
@@ -90,13 +91,51 @@ the later commits change only journals:
   `MOOBFS_PYLIB_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS`, exit
   code 0.
 
+## The tag and the release
+
+With the maintainer's agreement, after the merge of #205 (`b40e3b6`, 2026-11-16 06:50):
+
+- the annotated tag `v0.6.0-experimental` on `b40e3b6`, pushed at about 06:55;
+- the release workflow, run `43844134071`, 06:55–06:56: `Source archive, signature and
+  pre-release`, the SLSA generator (`upload-assets` skipped, as configured) and `Attach the
+  provenance and publish` succeeded. The release is a published pre-release, immutable
+  (`isImmutable: true`), with `llmoobfs-v0.6.0-experimental.tar.gz`, its `.sha256`, its
+  `.sigstore.json` and `llmoobfs-v0.6.0-experimental.intoto.jsonl`:
+  <https://github.com/studiomoob/llmoobfs/releases/tag/v0.6.0-experimental>.
+
+Pushing the tag publishes the release: the workflow's last job turns the draft into a published
+pre-release, so there is no separate publishing step, as the rehearsal of journal 0288 showed.
+The list in this journal's first version counted one.
+
+Verification on the test host (Debian 13), with the commands of `docs/security-operations.md`
+§4 and the assets downloaded from the release:
+
+- `sha256sum -c llmoobfs-v0.6.0-experimental.tar.gz.sha256`: `OK` (`60cfc13f71059d33...`);
+- `python -m sigstore verify github ... --repository studiomoob/llmoobfs --ref
+  refs/tags/v0.6.0-experimental`, sigstore 4.5.1: `OK`;
+- `slsa-verifier verify-artifact ... --source-uri github.com/studiomoob/llmoobfs --source-tag
+  v0.6.0-experimental`, slsa-verifier 2.7.1 (the binary checked in journal 0288): `PASSED: SLSA
+  verification passed`.
+
+The changelog section, `CITATION.cff` and `SECURITY.md` date the release 2026-11-15, the day of
+the declaration; the tag was cut on 2026-11-16. The tagged files cannot change, so the date is
+left as it is.
+
+On 2026-11-16 the maintainer replaced the body of issue #195. It now pins the route to the
+tag (commit `b40e3b6`) instead of `d96b0db`, says that stage 2 is declared with the
+reproduction pending (ADR-0039), offers the release's signed source archive, adds Debian 7.3.4
+and the 7.3.4 KASAN build, and says issue #117 was fixed before the tag (ADR-0038). The old
+text is in the issue's edit history.
+
+### The access table, read after the tag
+
+`docs/security-operations.md` §1 asks for the access table to be re-read "in any case before a
+tag". It was not read before `v0.6.0-experimental`; it was read on 2026-11-16, after the release,
+with the `gh api` calls that section lists, and nothing had changed (the dated note in §1). No
+written checklist listed the steps of a tag, and the release workflow does not check this one.
+`docs/tag-checklist.md` now lists them, gathered from journals 0226, 0284, 0288 and this one.
+
 ## Next step
 
-After the batch is merged, each with the maintainer's agreement:
-
-1. the annotated tag `v0.6.0-experimental` on the merge commit, which runs the release workflow
-   (draft first, rehearsed in journal 0288);
-2. publishing the release;
-3. the body of issue #195 pinned to the tag;
-4. the `.deb` packages: how and where to publish them is still to be decided. The release
-   workflow publishes source only.
+- The `.deb` packages: how and where to publish them is still to be decided, with the maintainer.
+  The release workflow publishes source only.

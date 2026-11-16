@@ -113,3 +113,5 @@ The stage-2 declaration, after the independent reproduction of issue #195.
   comment afterwards, with the fix, the evidence and the limits:
   <https://github.com/studiomoob/llmoobfs/issues/117#issuecomment-6894925826>. Later pull request
   bodies use a closing keyword only when the automatic close is meant.
+- #205 (batch 31, journals 0296 and 0297) entered `main` on 2026-11-16 at 06:50 as `b40e3b6`,
+  after all 22 jobs passed. The tag `v0.6.0-experimental` is on that commit (journal 0297).

@@ -30,6 +30,7 @@ accepted but may be only partly implemented, and only the journals and
 | [testing.md](testing.md) | EN | What each test runs, its success markers, and what they do not prove |
 | [research-test-infrastructure.md](research-test-infrastructure.md) | EN | How comparable projects get test hardware; resources open to MoobFS (journal 0123) |
 | [public-surfaces.md](public-surfaces.md) | EN | Every place that states the project's state, and when each must be updated (journal 0122) |
+| [tag-checklist.md](tag-checklist.md) | EN | The steps before, at and after a tag: tests, module version, changelog, surfaces, access table, verification (journal 0297) |
 | [labels.md](labels.md) | EN | Issue and pull request labels, including `good first issue` and `help wanted` |
 
 ## Specifications and formats
