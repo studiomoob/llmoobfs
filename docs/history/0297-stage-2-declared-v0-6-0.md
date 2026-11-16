@@ -132,12 +132,10 @@ text is in the issue's edit history.
 `docs/security-operations.md` §1 asks for the access table to be re-read "in any case before a
 tag". It was not read before `v0.6.0-experimental`; it was read on 2026-11-16, after the release,
 with the `gh api` calls that section lists, and nothing had changed (the dated note in §1). No
-written checklist lists the steps of a tag, and the release workflow does not check this one;
-a checklist is a next step.
+written checklist listed the steps of a tag, and the release workflow does not check this one.
+`docs/tag-checklist.md` now lists them, gathered from journals 0226, 0284, 0288 and this one.
 
 ## Next step
 
 - The `.deb` packages: how and where to publish them is still to be decided, with the maintainer.
   The release workflow publishes source only.
-- A written checklist of the steps of a tag (the access table among them), so that none is
-  missed at the next one.

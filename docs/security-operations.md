@@ -28,7 +28,7 @@ of that organization; the project changes only what belongs to its own repositor
 | Outside GitHub | The maintainer's own kernel.org account and patch-signing key, used for upstream kernel patches, not for this repository. The dedicated benchmark host is reached by an SSH key the maintainer holds; CI has no access to it, and its address is not published. |
 
 Re-read this table when an owner, a collaborator, a secret, a key or a protection rule changes,
-and in any case before a tag. Read it again with `gh api repos/studiomoob/llmoobfs/collaborators`,
+and in any case before a tag ([tag-checklist.md](tag-checklist.md), step 7). Read it again with `gh api repos/studiomoob/llmoobfs/collaborators`,
 `.../actions/secrets`, `.../keys`, `.../branches/main/protection`, `.../rulesets` and
 `.../immutable-releases`.
 *Re-read on 2026-11-16 (journal 0297), after the tag `v0.6.0-experimental` rather than before

@@ -5,6 +5,9 @@
 - `v0.6.0-experimental` is tagged on `b40e3b6` (2026-11-16) and its release is published: the
   source archive, its SHA-256, the Sigstore bundle and the SLSA provenance, verified on the test
   host with the commands of `docs/security-operations.md` §4 (journal 0297).
+- `docs/tag-checklist.md`: the steps before, at and after a tag. The access table of
+  `docs/security-operations.md` §1 was re-read after `v0.6.0-experimental`, not before it, and
+  had not changed (journal 0297).
 
 ## v0.6.0-experimental — 2026-11-15
 
