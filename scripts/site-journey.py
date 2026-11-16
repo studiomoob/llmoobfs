@@ -91,6 +91,8 @@ MILESTONES = [
   'Com SELinux, um domínio confinado pode montar a camada: os arquivos de baixo são abertos com as credenciais de quem montou, como no overlayfs, com um teste que falha no código antigo. O 7.3.4 do Debian, que substituiu o 7.3.3 no sid nesse dia, passa a ser kernel suportado ao lado dele.', ['0286', '0287']),
  ('2026-11-14', 'Smack runs for the first time under the layer. Issue 117 is closed in the kernel: the index keeps no pointer to cached inodes, so memory reclaim no longer waits for the index lock, with a test that fails on the old code.',
   'O Smack roda pela primeira vez com a camada. A issue 117 é fechada no kernel: o índice não guarda mais ponteiro para inodes em cache, então a recuperação de memória não espera mais pela trava do índice, com um teste que falha no código antigo.', ['0294', '0295']),
+ ('2026-11-15', 'Stage 2, the technical preview, is declared and tagged v0.6.0-experimental, before any independent reproduction: that stays an open call, pinned to the tag. Recoll\'s maintainer merges a decoder for the typed attributes, behind a build option.',
+  'A etapa 2, a prévia técnica, é declarada e marcada com a tag v0.6.0-experimental, antes de qualquer reprodução independente: ela segue como chamada aberta, fixada na tag. O mantenedor do Recoll incorpora um decodificador dos atributos tipados, atrás de uma opção de compilação.', ['0296', '0297']),
 ]
 
 T = {

@@ -5,7 +5,7 @@ short on ceremony but strict about evidence, because the code runs in ring 0.
 
 ## Experimental stage: what to expect
 
-MoobFS is an experimental research project with one maintainer and only source pre-release tags (the last one is `v0.5.0-experimental`; work from `main`).
+MoobFS is an experimental research project with one maintainer and only source pre-release tags (the latest is `v0.6.0-experimental`; work from `main`).
 The layer module has been tested on three kernel series (Debian 6.12.111, 6.12.113, 6.12.115,
 7.3.3 and 7.3.4 and Ubuntu 7.0.0-43-generic in QEMU, upstream 6.12.116, 7.0.14, 7.3.3 and 7.3.4 under KASAN/lockdep), over ext4, btrfs and XFS, in a
 VM; the M1 module on 6.12 only. The

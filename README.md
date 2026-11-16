@@ -134,10 +134,12 @@ from your own run, see [Try it in a VM](#try-it-in-a-vm).
 
 ## Status
 
-**Experimental. Source pre-release tags only; the last one, `v0.5.0-experimental` (2026-10-28), has
-the fixes of findings F1 to F17 of ADR-0011 except the fair-shares part of F2, and is the first
-whose source archive is signed (Sigstore, SLSA provenance). Not for production.** The previous
-tag, `v0.4.1-experimental` (2026-10-20), had F1 to F12; later findings affect it and are fixed
+**Experimental. Source pre-release tags only; the latest, `v0.6.0-experimental` (2026-11-15), is the
+first of stage 2, the technical preview, declared before any independent reproduction
+([ADR-0039](docs/decisions/0039-stage-2-declared-reproduction-pending.md)); it has the fixes of
+findings F1 to F17 of ADR-0011, F2's fair shares included. Not for production.**
+`v0.5.0-experimental` (2026-10-28) lacks F2's fair shares and the later fixes
+([changelog](CHANGELOG.md)). The tag before it, `v0.4.1-experimental` (2026-10-20), had F1 to F12; later findings affect it and are fixed
 from `v0.5.0-experimental` on: stale file-status flags
 after `F_SETFL` and attribute-read errors taken as "no attribute" while indexing (review
 [0144](docs/history/0144-independent-review.md), R1 and R2), a chmod during the first build of a
@@ -544,7 +546,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) and
   [0083](docs/history/0083-index-inspection-fixes.md). Tags up to `v0.4.1-experimental` carry
-  defects fixed later; `v0.5.0-experimental` has every fix up to 2026-10-28, later ones land on `main`. fstests' `quick` group passes with an exclusion list. The initial `auto` run had 1 to 4
+  defects fixed later; `v0.6.0-experimental` has every fix up to 2026-11-15, later ones land on `main`. fstests' `quick` group passes with an exclusion list. The initial `auto` run had 1 to 4
   failures per lower filesystem, none a layer defect; the rerun with justified exclusions
   passed on all three lowers with zero failures ([vm/fstests/](vm/fstests/README.md),
   journals 0239 and 0248). Skipped cases are not counted as executed tests. syzkaller ran for seven six-hour rounds with no open report. The last two cover every

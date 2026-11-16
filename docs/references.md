@@ -1680,3 +1680,11 @@ hand and carries the same code paths:
   address that the layer used before.
 - `include/linux/rcupdate.h`, `kfree_rcu()`, and `Documentation/core-api/xarray.rst` ("Takes RCU
   read lock: xa_load()"; RCU "to avoid dereferencing freed memory"), same tree.
+
+## 67. Recoll decodes MoobFS typed attributes (journal 0296)
+
+- Recoll, merge request !57, <https://framagit.org/medoc92/recoll/-/merge_requests/57>, closed in
+  favour of commit `76ccda94` ("Added optional support for moobfs extended attributes"),
+  <https://framagit.org/medoc92/recoll/-/commit/76ccda944936fb64d400b6a24ab04cbd9544e498>:
+  `src/internfile/moobfsxattrs.cpp`, `src/internfile/extrameta.cpp`, meson option `moobfs`.
+  GPL-2.0-or-later; not vendored.

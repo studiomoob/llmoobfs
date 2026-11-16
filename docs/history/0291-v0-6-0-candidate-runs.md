@@ -104,3 +104,12 @@ The stage-2 declaration, after the independent reproduction of issue #195.
   run failed Lint: the matrix page had 71 lines, over the limit of 70 of
   `scripts/check-matrix-page.sh`. The fix, `6171632`, passed all 21 jobs; the test host's pre-push
   checks now run that script too.
+- #204 (batch 30, journals 0291 and 0295) entered `main` on 2026-11-15 at 10:01 as `1f9dd80`.
+  Its first CI run failed the static-analysis job: the justified Coccinelle entry of
+  `tests/static/baseline.txt` quoted the old line of `result_path()`. The fix, `a11f62b`, passed
+  all 26 jobs. The test host's pre-push checks did not run `make static`; they do now.
+  The merge also closed issue #117: the pull request body ended with "Closes #117 after merge
+  (manual close)", which GitHub reads as a closing keyword. The maintainer added the closing
+  comment afterwards, with the fix, the evidence and the limits:
+  <https://github.com/studiomoob/llmoobfs/issues/117#issuecomment-6894925826>. Later pull request
+  bodies use a closing keyword only when the automatic close is meant.

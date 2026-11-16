@@ -143,10 +143,12 @@ na sua própria execução, veja [Experimente numa VM](#experimente-numa-vm).
 
 ## Estado
 
-**Experimental. Só tags de pré-lançamento do código-fonte; a última, `v0.5.0-experimental`
-(2026-10-28), contém as correções dos achados F1 a F17 do ADR-0011, exceto a parte
-de cotas justas do F2, e é a primeira com o arquivo de código-fonte assinado (Sigstore,
-proveniência SLSA). Não é para produção.** A tag anterior, `v0.4.1-experimental` (2026-10-20),
+**Experimental. Só tags de pré-lançamento do código-fonte; a mais recente, `v0.6.0-experimental`
+(2026-11-15), é a primeira da etapa 2, a prévia técnica, declarada antes de qualquer reprodução
+independente ([ADR-0039](docs/decisions/0039-stage-2-declared-reproduction-pending.md)); contém
+as correções dos achados F1 a F17 do ADR-0011, inclusive as cotas justas do F2. Não é para
+produção.** A `v0.5.0-experimental` (2026-10-28) não tem as cotas justas do F2 nem as correções
+posteriores ([changelog](CHANGELOG.md)). A tag anterior a ela, `v0.4.1-experimental` (2026-10-20),
 tinha F1 a F12; achados posteriores a afetam e estão corrigidos a partir da
 `v0.5.0-experimental`: flags de estado do arquivo desatualizadas depois de `F_SETFL` e erros de leitura de
 atributo tomados como "sem atributo" ao indexar (revisão [0144](docs/history/0144-independent-review.md),
@@ -576,7 +578,7 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) e
   [0083](docs/history/0083-index-inspection-fixes.md). As tags até a `v0.4.1-experimental` carregam
-  defeitos corrigidos depois; a `v0.5.0-experimental` tem todas as correções até 2026-10-28, e as posteriores entram na `main`. O grupo `quick` do fstests
+  defeitos corrigidos depois; a `v0.6.0-experimental` tem todas as correções até 2026-11-15, e as posteriores entram na `main`. O grupo `quick` do fstests
   passa com uma lista de exclusões. A primeira rodada do grupo `auto` teve 1 a 4 falhas por
   sistema de arquivos de baixo, nenhuma delas defeito da camada; a repetição com exclusões
   justificadas passou nos três, sem falhas ([vm/fstests/](vm/fstests/README.md), diários

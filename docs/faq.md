@@ -8,8 +8,8 @@ Rendered copy: [studiomoob.github.io/llmoobfs/faq.html](https://studiomoob.githu
 MoobFS is an experimental GPL-2.0 Linux kernel module, stacked over ext4, btrfs or XFS, that
 passes POSIX operations to the lower filesystem and adds typed `user.moob.*` attributes, an
 in-memory attribute index and query ioctls. It is a research project: the tags are source
-pre-releases, and the last one, `v0.5.0-experimental` (2026-10-28), is a source
-snapshot with every correction up to that date.
+pre-releases, and the latest, `v0.6.0-experimental` (2026-11-15), is a source
+snapshot with every correction up to that date and the first of stage 2, the technical preview.
 [`README.md`; `docs/research-originality.md` §9]
 
 ## 2. What problem does it target?
@@ -157,10 +157,11 @@ APIs change between versions; compatibility with other kernels is not promised.
 [`README.md`; `docs/testing.md` §1; `docs/compatibility.md` §1; journals 0124, 0277 and 0280]
 
 ## 15. Is it production-ready? Is there a release?
-It is not production-ready. It is a research project with source pre-release tags only, the last of which,
-`v0.5.0-experimental` (2026-10-28), is a source snapshot with every correction up to that date. A module bug can cause a
+It is not production-ready. It is a research project with source pre-release tags only, the latest of which,
+`v0.6.0-experimental` (2026-11-15), is a source snapshot with every correction up to that date. It is
+the technical preview of stage 2, declared before any independent reproduction (ADR-0039). A module bug can cause a
 kernel panic or data loss; the project's tests, two source reviews by AI assistants and AI-assisted private
-reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011, all fixed on `main`; the fair shares of F2 came after
+reports from an external reviewer found kernel-side defects, security ones among them (findings F1 to F17 of ADR-0011, all fixed on `main` and in `v0.6.0-experimental`; the fair shares of F2 came after
 `v0.5.0-experimental`). Run it only in a disposable VM with synthetic data.
 
 The [review of 2026-10-20](https://github.com/studiomoob/llmoobfs/blob/main/docs/history/0144-independent-review.md)

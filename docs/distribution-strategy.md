@@ -508,6 +508,15 @@ V8 and 0114 item 6 have regression tests with negative rounds (`swapflag` in
 `tests/passthrough.c`; the opt-in step `walklatency`) and leave the exceptions; four remain
 (0114 item 3, M7, M8.2, M8.3), confirmed by the maintainer on 2026-11-13.
 
+*Amended, 2026-11-15 ([ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md),
+[journal 0297](history/0297-stage-2-declared-v0-6-0.md)):* the text above is kept. **Stage 2 is
+declared on 2026-11-15.** "A third party reproduces everything" is no longer a condition of the
+declaration; it is a known open item of the technical preview, stated wherever the stage is,
+until a third party reports a reproduction. Issue #195's route is pinned to the tag
+`v0.6.0-experimental`, which replaces the pin at `d96b0db` of the amendment of 2026-11-11 above.
+Setting `MODULE_VERSION` to `"0.6.0"` is a release step, not a kernel change under the freeze. The
+tag, the release and the `.deb` packages each need the maintainer's agreement.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount

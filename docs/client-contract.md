@@ -90,6 +90,10 @@ correct). Clients should set permissions when they create a domain and leave the
   plain-text value written by such a tool under `user.moob.*` is refused with `EINVAL`; prefixing
   the type byte works (`setfattr -v 0x0168656c6c6f`). Other `user.*` names pass through
   unchanged. Journal 0140, `vm/interop-guest.sh`.
+  *Note, 2026-11-15 ([journal 0296](history/0296-recoll-decodes-typed-attributes.md)):* Recoll's
+  source, built with the meson option `-Dmoobfs=true` (off by default), decodes these values into
+  text: strings, decimal integers and doubles, `true`/`false`, times in seconds; raw values are
+  not indexed. Packaged Recoll, as tested above, still sees the stored bytes.
 
 ## 5. Identity and provenance
 
