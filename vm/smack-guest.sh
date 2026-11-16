@@ -293,7 +293,8 @@ echo "  mount by the labelled mounter (Mnt, CAP_SYS_ADMIN only): $mm"
 if [ "$mm" = 0 ]; then
     M=$S/lm; bad=0
     # the last field: 0 allowed, x refused
-    for t in "read rd 0" "stat rd 0" "read rw 0" "read hid x" "read only x" "list dir 0"; do
+    for t in "read rd 0" "stat rd 0" "read rw 0" "read hid x" "stat hid x" "read only x" "stat only 0" \
+        "list dir 0"; do
         # shellcheck disable=SC2086 # split on purpose
         set -- $t
         y=$(op Sub "$1" "$M/t/$2" m); d=$(op Sub "$1" "$L/t/$2" m)
@@ -303,11 +304,14 @@ if [ "$mm" = 0 ]; then
         esac
         echo "  through Mnt's layer, $1 $2: lower=$d layer=$y expected=$e"
     done
-    # labels through the mounter's layer, for the files the mounter may read
-    for f in rd rw dir; do
+    # labels through the mounter's layer: a label the mounter may not read is not read, and the
+    # inode keeps the mount's default, the mounter's label (smack_set_mnt_opts()); "stat hid"
+    # above is refused all the same, by the lower's hook run as the caller (ADR-0040)
+    for f in rd rw dir hid only; do
         a=$(get $L/t/$f); b=$(get $M/t/$f)
-        echo "  label $f through Mnt's layer: lower=$a layer=$b"
-        [ "$b" = "$a" ] || bad=$((bad + 1))
+        case $f in hid|only) w=Mnt ;; *) w=$a ;; esac
+        echo "  label $f through Mnt's layer: lower=$a layer=$b expected=$w"
+        [ "$b" = "$w" ] || bad=$((bad + 1))
     done
     od=$(op Sub read $L/t/only m)
     [ "$od" = 0 ] || fail "control: the subject could not read only directly"

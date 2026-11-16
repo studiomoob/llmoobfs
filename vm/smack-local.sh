@@ -20,7 +20,13 @@ KERNEL_SHA256=$(sed -n "s/^ *KERNEL_SHA256: *//p" .github/workflows/kasan.yml)
 [ -n "$KERNEL_VERSION" ] && [ -n "$KERNEL_SHA256" ] || { echo "smack-local: no KERNEL pin in kasan.yml" >&2; exit 1; }
 KCACHE=${KCACHE:-$HOME/.cache/moobfs-smack}
 KDIR=$KCACHE/linux-$KERNEL_VERSION
-if [ ! -f "$KDIR/arch/x86/boot/bzImage" ] || ! cat vm/kasan.config vm/smack.config | cmp -s - "$KDIR/.moobfs-smack.config"; then
+# an s390x host (exploratory, journal 0299) builds for s390 with the fragment of vm/kasan-local.sh
+# and boots with the shell init; any other host is treated as x86-64, as before
+case "$(uname -m)" in
+    s390x) KIMAGE=arch/s390/boot/bzImage KEXTRA=vm/kasan-s390x.config VNGINIT=--no-virtme-ng-init ;;
+    *) KIMAGE=arch/x86/boot/bzImage KEXTRA='' VNGINIT='' ;;
+esac
+if [ ! -f "$KDIR/$KIMAGE" ] || ! cat vm/kasan.config ${KEXTRA:+"$KEXTRA"} vm/smack.config | cmp -s - "$KDIR/.moobfs-smack.config"; then
     mkdir -p "$KCACHE"
     if [ ! -d "$KDIR" ]; then
         curl -fsSL -o "$KCACHE/linux.tar.xz" "https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-$KERNEL_VERSION.tar.xz"
@@ -30,8 +36,9 @@ if [ ! -f "$KDIR/arch/x86/boot/bzImage" ] || ! cat vm/kasan.config vm/smack.conf
         mv "$KDIR.tmp" "$KDIR"
         rm -f "$KCACHE/linux.tar.xz"
     fi
-    (cd "$KDIR" && vng --kconfig --config "$R/vm/kasan.config" --config "$R/vm/smack.config" && vng --build)
-    cat vm/kasan.config vm/smack.config > "$KDIR/.moobfs-smack.config"
+    (cd "$KDIR" && vng --kconfig --config "$R/vm/kasan.config" ${KEXTRA:+--config "$R/$KEXTRA"} \
+        --config "$R/vm/smack.config" && vng --build)
+    cat vm/kasan.config ${KEXTRA:+"$KEXTRA"} vm/smack.config > "$KDIR/.moobfs-smack.config"
 fi
 grep -q '^CONFIG_SECURITY_SMACK=y' "$KDIR/.config" || { echo "MOOBFS_SMACK_FAIL: the kernel was built without Smack"; exit 1; }
 make layer KDIR="$KDIR"
@@ -43,7 +50,7 @@ gcc -static -O2 -Wall -Wextra -Werror tests/listdir.c -o "$B/listdir"
 gcc -static -O2 -Wall -Wextra -Werror tests/mmapfile.c -o "$B/mmapfile"
 rm -f "$B/lower.img"
 truncate -s 256M "$B/lower.img" && mkfs.ext4 -q -F "$B/lower.img"
-(cd "$KDIR" && vng --user root --cpus 2 --memory 3G --verbose \
+(cd "$KDIR" && vng --user root --cpus 2 --memory 3G --verbose ${VNGINIT:+"$VNGINIT"} \
     --disk "$B/lower.img" --rwdir "$B" \
     --exec "sh $R/vm/smack-guest.sh $R $B") > "$B/console.log" 2>&1 || true
 grep -E '^MOOBFS_SMACK|^SMACK_|^  ' "$B/console.log" || true
