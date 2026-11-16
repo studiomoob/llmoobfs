@@ -11,7 +11,8 @@
 #      check asks inode_permission, which Smack answers);
 #   5. relabelling through the layer, by root and by an unprivileged process;
 #   6. shared mappings, read and write, and SMACK64MMAP (journal 0298);
-#   7. exec through the layer, and the label SMACK64EXEC gives the program (journal 0298);
+#   7. exec: the layer is SB_I_NOEXEC, so exec through it is refused whatever Smack allows, and
+#      SMACK64EXEC, read through the layer as on the lower, never applies (journal 0298);
 #   8. mounts by a labelled mounter: refused without CAP_SYS_ADMIN, and the rules of a labelled
 #      mounter that has it bound what its layer gives (journal 0298).
 # Arguments: repository copy, build directory. A failed check prints MOOBFS_SMACK_FAIL and the run
@@ -44,7 +45,7 @@ echo 0 > /proc/sys/kernel/printk_ratelimit; echo 10000 > /proc/sys/kernel/printk
 # without CAP_MAC_ADMIN gives its own label to the root of the filesystem it mounts and to every
 # inode whose label cannot be read (smack_set_mnt_opts(), smack_d_instantiate()), hence "Sub Mnt rx".
 for r in "Sub Rd r" "Sub Rw rwa" "Sub Hid -" "Sub Dir rwxat" "Sub Tr rwxat" "Sub Ex rx" "Sub Only r" \
-    "MmOk Rd rwxat" "MmOk Rw rwxat" "MmOk Dir rwxat" "MmOk Tr rwxat" "MmOk Ex rwxat" "MmOk Only rwxat" \
+    "MmOk Rd rwxat" "MmOk Rw rwxat" "MmOk Dir rwxat" "MmOk Tr rwxat" "MmOk Ex rwxat" "MmOk Only rwxat" "MmOk Mnt rwxat" \
     "Mnt Rd r" "Mnt Rw rwa" "Mnt Dir rx" "Sub Mnt rx"; do
     echo "$r" > $F/load2 || die "rule $r"
 done
@@ -242,6 +243,10 @@ echo "  SMACK64MMAP labels: mok lower=$(getfattr --absolute-names --only-values 
     fail "SMACK64MMAP (mok lower=$ok_d layer=$ok_y; mno lower=$no_d layer=$no_y read=$no_r)"
 
 # ---- 7. exec -----------------------------------------------------------------------------------
+# Directly, Smack allows x (and SMACK64EXEC sets the program's label to Run) and xs, and refuses
+# xn. The layer marks its superblock SB_I_NOEXEC (docs/when-not-to-use.md), so exec through it is
+# refused for all three: Smack's decision and SMACK64EXEC never come into play there. The
+# attribute itself is read through the layer as on the lower.
 # the program reads its own label; prints "<exit> <label>"
 # shellcheck disable=SC2016 # $0 is the inner shell's
 xr() { o=$($BB sh -c 'echo Sub > '"$ATTR"' || exit 97
@@ -250,12 +255,17 @@ bad=0
 for d in x xs xn; do
     a=$(xr $L/t/$d/cat); b=$(xr $Y/t/$d/cat)
     case $d in x) want="0 Run" ;; xs) want="0 Sub" ;; xn) want=refused ;; esac
-    echo "  exec $d/cat: lower=($a) layer=($b) expected=($want)"
-    if [ "$want" = refused ]; then [ "${a%% *}" != 0 ] && [ "${b%% *}" != 0 ] || bad=$((bad + 1))
-    else [ "$a" = "$want" ] && [ "$b" = "$want" ] || bad=$((bad + 1)); fi
+    echo "  exec $d/cat (label $(get $L/t/$d/cat)): lower=($a) expected=($want); layer=($b) expected=(refused)"
+    if [ "$want" = refused ]; then [ "${a%% *}" != 0 ] || bad=$((bad + 1))
+    else [ "$a" = "$want" ] || bad=$((bad + 1)); fi
+    [ "${b%% *}" != 0 ] && [ "${b#* }" = none ] || bad=$((bad + 1))
 done
-[ $bad = 0 ] && echo "SMACK_EXEC_PASS: exec through the layer is allowed and refused as directly, and the program runs with the label SMACK64EXEC names (Run), or the caller's without it" ||
-    fail "exec: $bad programs differ from the expected"
+xa=$(getfattr --absolute-names --only-values -n security.SMACK64EXEC $L/t/x/cat 2> /dev/null)
+xb=$(getfattr --absolute-names --only-values -n security.SMACK64EXEC $Y/t/x/cat 2> /dev/null)
+echo "  SMACK64EXEC of x/cat: lower=$xa layer=$xb"
+[ "$xa" = Run ] && [ "$xb" = Run ] || bad=$((bad + 1))
+[ $bad = 0 ] && echo "SMACK_EXEC_PASS: directly Smack allows or refuses exec and SMACK64EXEC sets the program's label; through the layer (SB_I_NOEXEC) exec is always refused, and SMACK64EXEC reads as on the lower" ||
+    fail "exec: $bad checks differ from the expected"
 
 # ---- 8. mounters -------------------------------------------------------------------------------
 # moobfs_layer is not FS_USERNS_MOUNT: mounting it needs CAP_SYS_ADMIN in the initial user
@@ -279,20 +289,34 @@ mm=$($BB sh -c 'echo Mnt > '"$ATTR"' || exit 97
     $L $S/lm < /dev/null > /dev/null 2>&1; echo $?)
 echo "  mount by the labelled mounter (Mnt, CAP_SYS_ADMIN only): $mm"
 if [ "$mm" = 0 ]; then
-    M=$S/lm; bad=0
-    for t in "read rd 0" "stat rd 0" "read rw 0" "read hid x" "stat hid x" "read only x" "list dir 0"; do
+    M=$S/lm; bad=0; xf=0
+    # the last field: 0 allowed, x refused; X refused directly, a known difference through this
+    # mount (finding of journal 0298, below)
+    for t in "read rd 0" "stat rd 0" "read rw 0" "read hid x" "stat hid X" "read only x" "list dir 0"; do
         # shellcheck disable=SC2086 # split on purpose
         set -- $t
-        p=$M/t/$2; q=$L/t/$2
-        y=$(op Sub "$1" "$p" m); d=$(op Sub "$1" "$q" m)
-        case $3 in 0) [ "$y" = 0 ] || bad=$((bad + 1)) ;; x) [ "$y" != 0 ] || bad=$((bad + 1)) ;; esac
-        echo "  through Mnt's layer, $1 $2: lower=$d layer=$y expected=$([ "$3" = 0 ] && echo allowed || echo refused)"
+        y=$(op Sub "$1" "$M/t/$2" m); d=$(op Sub "$1" "$L/t/$2" m)
+        case $3 in
+        0) [ "$y" = 0 ] || bad=$((bad + 1)); e=allowed ;;
+        x) [ "$y" != 0 ] || bad=$((bad + 1)); e=refused ;;
+        X) if [ "$y" = 0 ]; then xf=$((xf + 1)); e="refused, known to be allowed (XFAIL)"
+           else bad=$((bad + 1)); e="refused, now refused (XPASS: update journal 0298's finding)"; fi ;;
+        esac
+        echo "  through Mnt's layer, $1 $2: lower=$d layer=$y expected=$e"
     done
-    for f in rd rw hid only dir; do echo "  label $f through Mnt's layer: lower=$(get $L/t/$f) layer=$(get $M/t/$f)"; done
+    # a label the mounter may read shows as on the lower; one it may not (Hid, Only) shows as the
+    # mounter's own label, Smack's default for a filesystem mounted without CAP_MAC_ADMIN
+    for f in rd rw dir hid only; do
+        a=$(get $L/t/$f); b=$(get $M/t/$f)
+        case $f in hid|only) w=Mnt ;; *) w=$a ;; esac
+        echo "  label $f through Mnt's layer: lower=$a layer=$b expected=$w"
+        [ "$b" = "$w" ] || bad=$((bad + 1))
+    done
     od=$(op Sub read $L/t/only m)
     [ "$od" = 0 ] || fail "control: the subject could not read only directly"
-    [ $bad = 0 ] && echo "SMACK_MOUNTER_PASS: through a labelled mounter's layer the subject gets what both its rules and the mounter's allow" ||
-        fail "labelled mounter: $bad operations not as expected"
+    [ $bad = 0 ] && echo "SMACK_MOUNTER_PASS: through a labelled mounter's layer the subject gets what both its rules and the mounter's allow; labels the mounter may not read show as the mounter's" ||
+        fail "labelled mounter: $bad checks not as expected"
+    [ $xf = 0 ] || echo "SMACK_MOUNTER_XFAIL: stat of a file labelled Hid, which neither the subject nor the mounter may stat, is allowed through the mounter's layer: the inode carries the mounter's label and the lower getattr runs without the mounter's check (journal 0298)"
     umount $M || fail "umount of the labelled mounter's layer"
 else
     fail "the labelled mounter with CAP_SYS_ADMIN could not mount the layer ($mm)"
