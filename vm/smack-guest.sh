@@ -247,10 +247,12 @@ echo "  SMACK64MMAP labels: mok lower=$(getfattr --absolute-names --only-values 
 # xn. The layer marks its superblock SB_I_NOEXEC (docs/when-not-to-use.md), so exec through it is
 # refused for all three: Smack's decision and SMACK64EXEC never come into play there. The
 # attribute itself is read through the layer as on the lower.
-# the program reads its own label; prints "<exit> <label>"
-# shellcheck disable=SC2016 # $0 is the inner shell's
+# The program reads its own label; prints "<exit> <label>". setpriv still holds root's
+# capabilities when it calls execve (CAP_MAC_OVERRIDE passes Smack's check of the program), so
+# it starts busybox, which runs without them and execs the program (journal 0298, round 2).
+# shellcheck disable=SC2016 # $0 is the inner shells'
 xr() { o=$($BB sh -c 'echo Sub > '"$ATTR"' || exit 97
-        exec '"$SP"' --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- "$0" '"$ATTR"'' "$1" 2> /dev/null < /dev/null); echo "$? ${o:-none}"; }
+        exec '"$SP"' --reuid=1000 --regid=1000 --clear-groups --inh-caps=-all --bounding-set=-all -- '"$BB"' sh -c "exec \"\$0\" '"$ATTR"'" "$0"' "$1" 2> /dev/null < /dev/null); echo "$? ${o:-none}"; }
 bad=0
 for d in x xs xn; do
     a=$(xr $L/t/$d/cat); b=$(xr $Y/t/$d/cat)
