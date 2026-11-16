@@ -127,7 +127,17 @@ reproduction pending (ADR-0039), offers the release's signed source archive, add
 and the 7.3.4 KASAN build, and says issue #117 was fixed before the tag (ADR-0038). The old
 text is in the issue's edit history.
 
+### The access table, read after the tag
+
+`docs/security-operations.md` §1 asks for the access table to be re-read "in any case before a
+tag". It was not read before `v0.6.0-experimental`; it was read on 2026-11-16, after the release,
+with the `gh api` calls that section lists, and nothing had changed (the dated note in §1). No
+written checklist lists the steps of a tag, and the release workflow does not check this one;
+a checklist is a next step.
+
 ## Next step
 
-The `.deb` packages: how and where to publish them is still to be decided, with the maintainer.
-The release workflow publishes source only.
+- The `.deb` packages: how and where to publish them is still to be decided, with the maintainer.
+  The release workflow publishes source only.
+- A written checklist of the steps of a tag (the access table among them), so that none is
+  missed at the next one.

@@ -31,6 +31,13 @@ Re-read this table when an owner, a collaborator, a secret, a key or a protectio
 and in any case before a tag. Read it again with `gh api repos/studiomoob/llmoobfs/collaborators`,
 `.../actions/secrets`, `.../keys`, `.../branches/main/protection`, `.../rulesets` and
 `.../immutable-releases`.
+*Re-read on 2026-11-16 (journal 0297), after the tag `v0.6.0-experimental` rather than before
+it:* unchanged. Three admins by inheritance from the organization and no direct or outside
+collaborator; no Actions secret; no deploy key; the classic protection of `main` with the same
+three required checks, no force push or deletion, administrators not enforced; the ruleset `main`
+active with no bypass actor (deletion, non-fast-forward, pull request, required checks, code
+scanning); immutable releases on; the `github-pages` environment only; private vulnerability
+reporting, secret scanning, push protection and Dependabot security updates enabled.
 
 ## 2. Incidents
 
