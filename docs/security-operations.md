@@ -98,7 +98,8 @@ and SLSA provenance (journal 0225). Since journal 0284 the release is created as
 assets are attached to the draft, and the last job publishes it: the repository has immutable
 releases, so a published release takes no new asset. The workflow was rehearsed in a fork on
 2026-11-12 (journal 0288): the commands below accepted its assets, with the fork's repository in
-place of `studiomoob/llmoobfs`. To verify them:
+place of `studiomoob/llmoobfs`. They accepted the assets of `v0.6.0-experimental`, the first
+release made this way, on 2026-11-16 (journal 0297). To verify them:
 
 ```sh
 python -m pip install sigstore

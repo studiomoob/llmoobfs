@@ -1,8 +1,9 @@
-# 0297 — Stage 2 declared with the third-party reproduction pending; v0.6.0-experimental prepared (ADR-0039)
+# 0297 — Stage 2 declared with the third-party reproduction pending; v0.6.0-experimental tagged (ADR-0039)
 
-Date: 2026-11-15. Work started about 09:50 Brasília time. Status: **in progress; the release
-steps wait for the maintainer.** Estimated effort S (ADR-0039). The time recorded is calendar
-time.
+Date: 2026-11-15 and 16. Work started about 09:50 Brasília time on the 15th and ended at 07:10
+on the 16th, when the published release was verified. Status: **done; the tag and its release
+exist; the body of issue #195 and the `.deb` packages remain (Next step).** Estimated effort S
+(ADR-0039); the time recorded is calendar time, most of it machine time of the test runs.
 
 ## Goal
 
@@ -90,13 +91,40 @@ the later commits change only journals:
   `MOOBFS_PYLIB_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS`, exit
   code 0.
 
+## The tag and the release
+
+With the maintainer's agreement, after the merge of #205 (`b40e3b6`, 2026-11-16 06:50):
+
+- the annotated tag `v0.6.0-experimental` on `b40e3b6`, pushed at about 06:55;
+- the release workflow, run `43844134071`, 06:55–06:56: `Source archive, signature and
+  pre-release`, the SLSA generator (`upload-assets` skipped, as configured) and `Attach the
+  provenance and publish` succeeded. The release is a published pre-release, immutable
+  (`isImmutable: true`), with `llmoobfs-v0.6.0-experimental.tar.gz`, its `.sha256`, its
+  `.sigstore.json` and `llmoobfs-v0.6.0-experimental.intoto.jsonl`:
+  <https://github.com/studiomoob/llmoobfs/releases/tag/v0.6.0-experimental>.
+
+Pushing the tag publishes the release: the workflow's last job turns the draft into a published
+pre-release, so there is no separate publishing step, as the rehearsal of journal 0288 showed.
+The list in this journal's first version counted one.
+
+Verification on the test host (Debian 13), with the commands of `docs/security-operations.md`
+§4 and the assets downloaded from the release:
+
+- `sha256sum -c llmoobfs-v0.6.0-experimental.tar.gz.sha256`: `OK` (`60cfc13f71059d33...`);
+- `python -m sigstore verify github ... --repository studiomoob/llmoobfs --ref
+  refs/tags/v0.6.0-experimental`, sigstore 4.5.1: `OK`;
+- `slsa-verifier verify-artifact ... --source-uri github.com/studiomoob/llmoobfs --source-tag
+  v0.6.0-experimental`, slsa-verifier 2.7.1 (the binary checked in journal 0288): `PASSED: SLSA
+  verification passed`.
+
+The changelog section, `CITATION.cff` and `SECURITY.md` date the release 2026-11-15, the day of
+the declaration; the tag was cut on 2026-11-16. The tagged files cannot change, so the date is
+left as it is.
+
 ## Next step
 
-After the batch is merged, each with the maintainer's agreement:
+Each with the maintainer's agreement:
 
-1. the annotated tag `v0.6.0-experimental` on the merge commit, which runs the release workflow
-   (draft first, rehearsed in journal 0288);
-2. publishing the release;
-3. the body of issue #195 pinned to the tag;
-4. the `.deb` packages: how and where to publish them is still to be decided. The release
+1. the body of issue #195 pinned to the tag (the maintainer edits it);
+2. the `.deb` packages: how and where to publish them is still to be decided. The release
    workflow publishes source only.

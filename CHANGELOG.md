@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `v0.6.0-experimental` is tagged on `b40e3b6` (2026-11-16) and its release is published: the
+  source archive, its SHA-256, the Sigstore bundle and the SLSA provenance, verified on the test
+  host with the commands of `docs/security-operations.md` §4 (journal 0297).
+
 ## v0.6.0-experimental — 2026-11-15
 
 Seventh source pre-release, and the first of stage 2 (technical preview) of
