@@ -588,9 +588,10 @@ sob KASAN (o arnês KASAN roda a suíte da camada), e não existe benchmark dele
   [roteiro de segurança](docs/security-roadmap.md), que conta pontos de chamada desde o ADR-0032
   (diários 0239 e 0245); o S3 está concluído. O SELinux em
   modo enforcing foi exercitado uma vez (diário 0104), o AppArmor uma vez (diário 0290: um processo
-  é verificado pelo caminho da camada, o montador pelo caminho de baixo), o Smack uma vez (diário
+  é verificado pelo caminho da camada, o montador pelo caminho de baixo), o Smack em duas rodadas (diário
   0294: os rótulos e as decisões de baixo valem pela camada; quem chama o `QUERY2` precisa de
-  acesso de escrita ao rótulo do domínio).
+  acesso de escrita ao rótulo do domínio). O diário 0298 acrescentou mapeamentos, escrita de
+  atributos, links, renomeações, exec e montadores sob SELinux e Smack.
 - A autorização do `QUERY` vale só no momento da consulta (contrato TOCTOU). Renomear um
   diretório pela camada torna o domínio desatualizado e a próxima consulta o reconstrói;
   mudanças diretas na árvore de baixo continuam sem rastreamento

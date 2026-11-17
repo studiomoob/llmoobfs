@@ -24,10 +24,19 @@ L=$S/lower
 mkdir $L/t && for f in rw ro none; do echo "$f" > $L/t/$f; done || fail files
 chcon -t moobtest_dir_t $L $L/t && chcon -t moobtest_rw_t $L/t/rw &&
     chcon -t moobtest_ro_t $L/t/ro && chcon -t moobtest_none_t $L/t/none || fail chcon
+# Two more sets with the labels of t, and nomap (open, read and write, not map), for the mappings
+# and the operations that change a file (journal 0298): md is reached only directly and my only
+# through the layer, so that each change is made once and the lower never changes behind the layer.
+for s in md my; do
+    mkdir $L/$s && for f in rw ro none nomap; do echo "$f" > $L/$s/$f; done &&
+        chcon -t moobtest_dir_t $L/$s && chcon -t moobtest_rw_t $L/$s/rw &&
+        chcon -t moobtest_ro_t $L/$s/ro && chcon -t moobtest_none_t $L/$s/none &&
+        chcon -t moobtest_nomap_t $L/$s/nomap || fail "set $s"
+done
 mount -t moobfs_layer -o lower=$L none $S/layer || fail "layer mount"
 # the client must be the first to reach each file through the layer: the layer reads the label
 # (security.selinux) when the inode is first set up, with the credentials of whoever asked
-# exit status of one operation run in the client domain
+# exit status of one busybox applet run in the client domain
 c() { runcon -t moobtest_client_t -- $BB "$@" < /dev/null > /dev/null 2>&1; echo $?; }
 op() {  # op-name file-path
     case $1 in
@@ -56,6 +65,46 @@ done
 d=$(c touch $L/t/new-direct); l=$(c touch $S/layer/t/new-layer)
 echo "  $TAG create: direct=$d layer=$l"
 stat -c '%C %n' $L/t/new-direct $L/t/new-layer 2>&1 | sed 's/^/  /'
+# Mapping, attribute writes, rename and hard link (journal 0298), compared the same way: each
+# operation directly on md/<f> and through the layer on my/<f>. mmapfile and moobfs-attr are
+# static and run from the labelled tmpfs, like query below.
+cp "$(dirname "$POL")/mmapfile" $S/bin/mmapfile && cp "$(dirname "$POL")/moobfs-attr" $S/bin/moobfs-attr &&
+    chcon -t bin_t $S/bin/mmapfile $S/bin/moobfs-attr || fail "helper copy"
+x() { runcon -t moobtest_client_t -- "$@" < /dev/null > /dev/null 2>&1; echo $?; }
+mop() {  # mop op-name file-path
+    case $1 in
+    mmapr) x $S/bin/mmapfile r "$2" ;;
+    mmapw) x $S/bin/mmapfile w "$2" ;;
+    setx) x $S/bin/moobfs-attr set "$2" kind string v ;;
+    link) c sh -c "ln $2 $2.l && rm $2.l" ;;
+    rename) c mv "$2" "$2.r" ;;
+    esac
+}
+mdiffer=0; mdenied=0; mallowed=0; mn=0
+for f in rw ro none nomap; do
+    for o in mmapr mmapw setx link rename; do
+        mn=$((mn + 1))
+        d=$(mop $o $L/md/$f); l=$(mop $o $S/layer/my/$f)
+        if [ "$d" = 0 ]; then mallowed=$((mallowed + 1)); else mdenied=$((mdenied + 1)); fi
+        if [ "$d" = 0 ] && [ "$l" = 0 ]; then r=same; elif [ "$d" != 0 ] && [ "$l" != 0 ]; then r=same; else r=DIFFERS; mdiffer=$((mdiffer + 1)); fi
+        echo "  $TAG $o $f: direct=$d layer=$l $r"
+    done
+done
+# what the operations allowed through the layer left on the lower file my/rw: mapped byte,
+# attribute, the new name, and no link left behind
+ef=$(head -c 1 $L/my/rw.r 2> /dev/null)
+ea=$("$(dirname "$POL")/moobfs-attr" get $L/my/rw.r kind 2> /dev/null)
+el=$(cd $L/my && echo *)
+echo "  $TAG effects on the lower of my/rw: first byte=$ef attribute kind=$ea entries: $el"
+if [ "$TAG" = fsuse ]; then
+    [ $mallowed -gt 0 ] && [ $mdenied -gt 0 ] ||
+        fail "mapping and changes: allowed=$mallowed denied=$mdenied directly; the step needs both"
+    [ $mdiffer = 0 ] || fail "mapping and changes: $mdiffer of $mn operations differ between the lower file and the layer"
+    echo "SELINUX_MAPCHANGE_PASS: $mn operations (mmap read and write, attribute write, hard link, rename), $mallowed allowed and $mdenied denied directly; every one through the layer agrees with the lower"
+    [ "$ef" = M ] && [ -n "$ea" ] && [ ! -e $L/my/rw ] && [ ! -e $L/my/rw.l ] ||
+        fail "effects: the changes allowed through the layer did not all reach the lower (byte=$ef attribute=$ea)"
+    echo "SELINUX_EFFECT_PASS: the mapped write, the attribute, the link and the rename made through the layer reached the lower"
+fi
 dmesg | grep -c 'avc:  denied' | sed "s/^/  $TAG avc denials: /"
 dmesg | grep -i "inode_doinit\|getxattr returned" | sed "s/^/  $TAG dmesg: /"
 # A confined mounter (journal 0286): a second mount of the same lower, made in the permissive

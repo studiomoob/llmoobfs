@@ -582,8 +582,14 @@ It is part of the complete run; inspect the idmap suffix independently.
 `sh vm/selinux-local.sh` (journal 0104) runs, on a Debian host with KVM and the module built,
 a guest of the host's kernel booted with SELinux enforcing: a confined client compared with
 direct access on the lower, file by file, and a `QUERY2`, under the stock policy and with
-`vm/selinux/moobfs_layer.cil`. The script's header lists the host packages and the one change
-to `/etc/selinux/semanage.conf`; SELinux is not activated on the host. Markers:
+`vm/selinux/moobfs_layer.cil`. Since journal 0298 it also compares shared mappings, read and
+write (`tests/mmapfile.c`), attribute writes, hard links and renames, for files the client may
+read and write, only read, not touch, or open but not map (`moobtest_nomap_t`); an operation
+that changes a file runs once, directly on one labelled set and through the layer on another
+that is never touched directly, and what it left on the lower is checked. The script's header
+lists the host packages and the one change to `/etc/selinux/semanage.conf`; SELinux is not
+activated on the host. Markers: `SELINUX_MAPCHANGE_PASS`, `SELINUX_EFFECT_PASS`,
+`SELINUX_MOUNTER_PASS`, `SELINUX_DIRREAD_PASS`,
 `MOOBFS_SELINUX_RESULT: <run> differ=<n> denied_directly=<n>` per run, `MOOBFS_SELINUX_FAIL`
 on any failed check. Not part of `make vm-test` nor of CI.
 
@@ -613,11 +619,17 @@ capabilities, after a self-test (it runs, may read `Rd`, may not read `Hid`). It
 read through the layer after a first contact by the subject, read, append, stat, attribute
 writes, listing and creation on the lower and through the layer, labels of new files (plain and
 transmuting directory), `QUERY2` on a domain the subject may write (a result labelled `Hid` left
-out) and on one it may not (refused by Smack's ioctl rule), and relabelling. Markers:
+out) and on one it may not (refused by Smack's ioctl rule), and relabelling. Since journal
+0298 it also compares shared mappings, read and write (`tests/mmapfile.c`; a mapped write runs
+once, directly on one set and through the layer on another), mappings under `SMACK64MMAP`, exec
+(allowed and refused directly, with `SMACK64EXEC`; always refused through the layer, which is
+`SB_I_NOEXEC`), mounts by the unprivileged subject (refused, also in its own user namespace) and
+a layer mounted by a labelled mounter with `CAP_SYS_ADMIN` only. Markers:
 `SMACK_LABELS_PASS`, `SMACK_PARITY_PASS`, `SMACK_CREATE_PASS`, `SMACK_QUERY_PASS`,
-`SMACK_QUERY_IOCTL_PASS`, `SMACK_RELABEL_PASS`, `SMACK_RELABEL_DENIED_PASS`,
-`MOOBFS_SMACK_RESULT: fails=<n>`, and `MOOBFS_SMACK_FAIL` on any failed check; any kernel
-diagnostic fails the run. Not part of `make vm-test` nor of CI.
+`SMACK_QUERY_IOCTL_PASS`, `SMACK_RELABEL_PASS`, `SMACK_RELABEL_DENIED_PASS`, `SMACK_MMAP_PASS`,
+`SMACK_MMAPLABEL_PASS`, `SMACK_EXEC_PASS`, `SMACK_UNPRIV_MOUNT_PASS`, `SMACK_MOUNTER_PASS`,
+`MOOBFS_SMACK_RESULT: fails=<n>`, and `MOOBFS_SMACK_FAIL` on any failed
+check; any kernel diagnostic fails the run. Not part of `make vm-test` nor of CI.
 
 ### Long runs on the test host: fstests `auto`, the corpus replay, nightly syzkaller
 
