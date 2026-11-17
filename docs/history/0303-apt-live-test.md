@@ -36,6 +36,11 @@ On the dedicated host, at `3b418d0`, 18:41–18:48 under KVM (383 s in the guest
 One run, Debian 13 amd64, one kernel (the image's 6.12.113), no Secure Boot. The step depends on
 the site being up and on the network.
 
+## Also in this batch
+
+`docs/security-roadmap.md`, row S10, still said "no published package"; journal 0302 missed it.
+It now says the packages are published, and the old wording is in `docs/retired-claims.txt`.
+
 ## Next step
 
 Run `make apt-live-test` after each publication; record it in that publication's journal.
