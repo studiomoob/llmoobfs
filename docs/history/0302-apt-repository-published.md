@@ -1,8 +1,8 @@
-# 0302 — v0.6.2-experimental tagged; its packages published in the signed apt repository (ADR-0041) (in progress)
+# 0302 — v0.6.2-experimental tagged; its packages published in the signed apt repository (ADR-0041)
 
-Date: 2026-11-17. Work started at 17:34 Brasília time, with the merge of #210. Status: **in
-progress; the tag and its release exist and are verified; the signed index, the key and the
-surfaces are ready in this batch; the repository is live once it is merged and the site deploys.**
+Date: 2026-11-17. Work started at 17:34 Brasília time, with the merge of #210, and ended at 18:31,
+when the published repository was installed from outside. Status: **done; the repository is live
+at `https://studiomoob.github.io/llmoobfs/apt/` with `0.6.2`.**
 Estimated effort: part of ADR-0041's M; the time recorded is calendar time.
 
 ## Goal
@@ -82,8 +82,24 @@ repository and the fingerprint), `CHANGELOG.md`, the journey milestone, and
 `docs/retired-claims.txt` with the "not published" sentences. Dated notes that said the packages
 were not published on their dates stay.
 
+## Publication
+
+- Pull request #211 (this batch): all 21 checks passed on `1b52d26`; merged at 18:25 as
+  `5a94b3c`, with the maintainer's agreement.
+- Pages run `44179708636`: `scripts/apt-site.sh` built both packages from the tag a third time,
+  with the same hashes, and printed `MOOBFS_APT_SITE_PASS`; the deploy succeeded. At 18:27 the
+  site served `moobfs-dkms_0.6.2_all.deb` (`7ff11fed...`) and `moobfs-tools_0.6.2_amd64.deb`
+  (`3f7d6ec5...`), the signed hashes.
+- From outside, 18:31, on the test host in a clean `debian:trixie-slim` container, following
+  `docs/operations.md` with the public URL: the key's fingerprint read `35E6715F...F202`;
+  `apt-get update` fetched `InRelease` and `Packages` over HTTPS with no warning; both packages
+  had candidate `0.6.2` from the repository and installed; `moobfs-attr` ran;
+  `/usr/src/moobfs-0.6.2` exists. A container has no kernel of its own, so DKMS did not build the
+  module there; installing, building and loading the module from an apt repository is what
+  `make apt-test` covers in a VM, with throwaway keys (journal 0301). An install of the module from
+  the published repository on a VM or a real host is not yet recorded.
+
 ## Next step
 
-Merge this batch with the maintainer's agreement; after the site deploys, install the packages
-from `https://studiomoob.github.io/llmoobfs/apt/` on a disposable Debian 13 host, following
-`docs/operations.md`, and record it here.
+Install from the published repository on a disposable Debian 13 VM, with the module built and
+loaded; the help-wanted call for a third party to try the packages, if the maintainer wants one.
