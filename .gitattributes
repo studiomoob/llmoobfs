@@ -3,3 +3,5 @@
 *.jpg binary
 *.img binary
 *.ko binary
+# ADR-0041: the apt index is apt-ftparchive output, hashed by the signed Release; it must stay byte for byte
+site/apt/dists/** -whitespace -text
