@@ -65,7 +65,7 @@ Core         moobfs_layer module: installation, kernel compatibility, mount, dia
 | Item | Status | Detail |
 | --- | --- | --- |
 | Compile (`make layer KDIR=...`), `insmod`/`mount -t moobfs_layer` (only in a test VM; `MODULE_ALIAS_FS` allows `modprobe`) | EXISTS | |
-| DKMS, module signing and Secure Boot | EXISTS in a VM, not published (ADR-0028) | section 6 (S10) |
+| DKMS, module signing and Secure Boot | EXISTS in a VM; packages published in a signed apt repository since 2026-11-17 (ADR-0028, ADR-0041) | section 6 (S10) |
 | Diagnostics via `GET_INFO` (caps, flags, index budget and usage, lower type) | EXISTS | ioctl; no general-purpose command-line tool |
 | Offline diagnostics of the lower (`moobfs-check`, `moobfs-index` as oracle) | EXISTS | `moobfs-check` exits with 0 clean, 2 problems, 1 error |
 
@@ -286,7 +286,7 @@ A client's first call (ioctl on the root, EXISTS; no command-line tool).
 | POSIX passthrough, typed attributes, ACLs | yes | client library | — |
 | `QUERY` authorized by the caller | yes (Debian VM) | KASAN on the branch; concurrent `chmod`/`rename` | per-candidate cost (W3) |
 | `moobfs-check` with identity | yes | check modes and ACLs | — |
-| DKMS, packages, signing, `moobfs` CLI | yes, in a VM (C4, C6; not published) | publishing, other distributions | — |
+| DKMS, packages, signing, `moobfs` CLI | yes, in a VM (C4, C6); packages published in a signed apt repository (ADR-0041) | other distributions; apt clients other than Debian 13 | — |
 | `QUERY` in a container with a subdirectory; index persistence | no | `ro` root or helper | persistence: M4 |
 | `QUERY_BATCH`, `READ_BATCH`, cursor; supported scale | no; no numbers | — | M4 (decision) |
 
@@ -318,7 +318,7 @@ table above is kept. `moobfs mount`, `status` and `workspace create`, `grant`, `
 ## 4. Complete flow (target; today only steps 2 and 3, manual in a VM, are EXISTS)
 
 Scenario: Debian host with a kernel from the matrix, ext4 lower on `/dev/vdb`.
-1. **Install (prepared in a VM, not published; ADR-0028):** `apt install moobfs-dkms moobfs-tools`; DKMS compiles for the running kernel
+1. **Install (published in a signed apt repository since 2026-11-17; ADR-0028, ADR-0041):** `apt install moobfs-dkms moobfs-tools`; DKMS compiles for the running kernel
    and refuses a kernel outside the matrix; with Secure Boot, sign with MOK. Today: `make layer KDIR=...`, `insmod`.
 2. **Lower (EXISTS, POSIX):** `mkfs.ext4 /dev/vdb`, mount at `/var/lib/moobfs/store`, `chmod 0700`.
 3. **Mount (EXISTS; `moobfs mount` FUTURE):**
@@ -520,6 +520,11 @@ tag, the release and the `.deb` packages each need the maintainer's agreement.
 *Amended, 2026-11-17 ([journal 0300](history/0300-v0-6-1-tagged.md)):* issue #195's route is
 pinned to `v0.6.1-experimental`, which has the fix of GHSA-w7w8-m49c-vrvr (ADR-0040), in place of
 `v0.6.0-experimental`. The route's steps do not change.
+
+*Amended, 2026-11-17, evening ([journal 0302](history/0302-apt-repository-published.md),
+[ADR-0041](decisions/0041-signed-apt-repository-on-pages.md)):* the `.deb` packages of stage 2
+are published, from `v0.6.2-experimental`, in a signed apt repository on the project's site; the
+key is held offline by the maintainer.
 
 ### Stage 3 — Public release
 

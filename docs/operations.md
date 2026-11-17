@@ -73,12 +73,37 @@ replaces a file or link (see Upgrade), never a directory. `make uninstall` remov
 files.
 `PREFIX` changes `/usr/local`; `DESTDIR` stages everything in another root without `depmod`.
 
-### Or: the experimental packages (item C6)
+### Or: the experimental packages (item C6, ADR-0041)
 
 `moobfs-dkms` and `moobfs-tools` ([ADR-0028](decisions/0028-dkms-and-debian-packages.md)) do
-the same through DKMS. They are **not published**: build them yourself on Debian 13 and install
-them on the test host. Use one path, not both: the package refuses to install while a copy from
+the same through DKMS. Since `0.6.2` they are published in the project's signed apt repository
+([ADR-0041](decisions/0041-signed-apt-repository-on-pages.md)); apt as a client is tested on
+Debian 13 amd64 only. Use one path, not both: the package refuses to install while a copy from
 `make install` is present (`sudo make uninstall` first).
+
+The repository's key is trusted for this source only (`Signed-By`). Check its fingerprint against
+[SECURITY.md](../SECURITY.md) before the first `apt update`; it must be
+`35E6 715F 0D27 D8FA CD84  56C2 9491 8AEE 2850 F202`.
+
+```sh
+sudo curl -fsSL -o /usr/share/keyrings/moobfs-archive-keyring.pgp \
+    https://studiomoob.github.io/llmoobfs/apt/moobfs-archive-keyring.pgp
+gpg --show-keys /usr/share/keyrings/moobfs-archive-keyring.pgp   # needs the gpg package
+sudo tee /etc/apt/sources.list.d/moobfs.sources >/dev/null <<'SOURCES'
+Types: deb
+URIs: https://studiomoob.github.io/llmoobfs/apt/
+Suites: experimental
+Components: main
+Signed-By: /usr/share/keyrings/moobfs-archive-keyring.pgp
+SOURCES
+sudo apt update
+sudo apt install linux-headers-$(uname -r) mokutil moobfs-dkms moobfs-tools
+dkms status moobfs                          # moobfs/<version>, <kernel>, x86_64: installed
+```
+
+A newer version comes with `apt upgrade`; an older one that is still in the repository with
+`sudo apt install --allow-downgrades moobfs-dkms=<version> moobfs-tools=<version>`. To build the
+packages yourself instead, from a clone:
 
 ```sh
 sudo apt install build-essential debhelper dh-dkms git

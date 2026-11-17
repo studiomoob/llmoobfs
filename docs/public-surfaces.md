@@ -32,6 +32,7 @@ until a coordinated disclosure) is named in the journal of the change, with the 
 | `docs/testing.md`, `docs/faq.md`, `docs/when-not-to-use.md`, `docs/compatibility.md`, `docs/operations.md`, `docs/container-integration.md` | what tests prove, answers, limits, compatibility | a test step, a limit or a compatibility decision changes |
 | `docs/matrix-and-limits.md` | the one-page kernel matrix and known limitations (stage 2) | a kernel, architecture or lower is added or removed, a suite runs on a new kernel, a limitation appears or closes |
 | `SECURITY.md`, `docs/security-operations.md`, `site/.well-known/security.txt` | reporting channel, supported versions, safe harbor, access, incident steps, third-party components | the channel, the supported versions, an owner, a secret, a key, a protection rule or a dependency changes; `security.txt` before its `Expires` date |
+| `site/apt/` (key, signed index, `builds`), `docs/apt-repository.md`, the key fingerprint in `SECURITY.md`, `docs/security-operations.md` §1 and `docs/operations.md` | the published packages and the key that signs them (ADR-0041) | a version is published or dropped, the key is extended, rotated or revoked; every place that gives the fingerprint at once |
 | `docs/references.md` | works used | something new is used (same commit) |
 
 ## On GitHub, outside the tree

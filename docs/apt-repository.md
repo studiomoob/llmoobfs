@@ -1,9 +1,10 @@
 # The apt repository
 
 Date: 2026-11-17 ([ADR-0041](decisions/0041-signed-apt-repository-on-pages.md), journal
-[0301](history/0301-signed-apt-repository.md)). Status: **prepared and tested in a VM with
-throwaway keys; nothing is published yet, and the project's key does not exist yet.** This page is
-the procedure; the user's side goes into `docs/operations.md` when the first version is published.
+[0301](history/0301-signed-apt-repository.md)). Status: **published since 2026-11-17 (journal
+[0302](history/0302-apt-repository-published.md)), with `0.6.2` the first version; key fingerprint
+`35E6 715F 0D27 D8FA CD84  56C2 9491 8AEE 2850 F202`.** This page is the procedure; the user's side is in
+`docs/operations.md`.
 
 ## What it is
 
