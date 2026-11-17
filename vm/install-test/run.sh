@@ -12,6 +12,7 @@ out=build/install-test
 [ "${MOOB_TEST:-install}" = package ] && out=build/package-test
 # MOOB_TEST=apt installs from a signed apt repository (ADR-0041, build/apt-test/)
 [ "${MOOB_TEST:-install}" = apt ] && out=build/apt-test
+[ "${MOOB_TEST:-install}" = apt-live ] && out=build/apt-live-test
 # MOOB_TEST=bench runs bench/ondemand.sh on a lower of MOOB_BENCH_FS (journal 0238, build/bench-test/)
 [ "${MOOB_TEST:-install}" = bench ] && out=build/bench-test
 # MOOB_TEST=workspace runs the moobfs mount, workspace and status commands (ADR-0035, build/workspace-test/)
