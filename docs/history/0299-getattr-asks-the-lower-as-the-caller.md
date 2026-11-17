@@ -1,9 +1,7 @@
 # 0299 — `stat` asks the lower's security hook as the caller (ADR-0040)
 
-Date: 2026-11-16. Work started at about 11:40 Brasília time; the last run ended on the 17th at 00:03 (calendar time). Status: **tests done; on
-the local branch `claudiofp/b34-getattr-caller` (on batch 33), batch 34; not pushed. Held for
-coordinated disclosure: the draft advisory GHSA-w7w8-m49c-vrvr is private until the fix is on
-`main`.** Estimated effort S (ADR-0040); the time recorded is calendar time, most of it machine
+Date: 2026-11-16. Work started at about 11:40 Brasília time; the last run ended on the 17th at 00:03 (calendar time). Status: **done; batch 34, branch `claudiofp/b34-getattr-caller`. The advisory
+GHSA-w7w8-m49c-vrvr is published once the fix is on `main`.** Estimated effort S (ADR-0040); the time recorded is calendar time, most of it machine
 time. Work done by Claude Code (an AI assistant) for the maintainer.
 
 ## Goal
@@ -86,12 +84,13 @@ the fix changes no SELinux decision the harness compares.
   the confined mounter of journal 0286 is permissive.
 - Linux 7.0 and 7.3 builds of the change are checked by CI only, when the pull request is opened.
 
-## Surfaces held back
+## Surfaces
 
-Until the advisory is published, the batch changes no public surface beyond these files: the
-`CHANGELOG.md` entry, `SECURITY.md` (the row of `v0.6.0-experimental` and the advisory list),
-`docs/security-roadmap.md` S12, `docs/when-not-to-use.md` and the list of exceptions in ADR-0022
-are updated in the same commit that is pushed with the advisory's publication.
+Held back while the branch was local, then updated in one commit before the push, on
+2026-11-17 (the maintainer's agreement to merge and publish): `CHANGELOG.md`, `SECURITY.md` (the
+row of `v0.6.0-experimental` and a dated update), `docs/status.md` and `docs/status.pt-BR.md`,
+`docs/review-findings.md`, security roadmap S12, the note in ADR-0022, ADR-0040's status, journal
+0298 (a dated note) and `docs/references.md` §69.
 
 ## Next step
 

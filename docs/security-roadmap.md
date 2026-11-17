@@ -545,6 +545,11 @@ test is replaced (decision in journal 0097).
   an unprivileged mounter cannot mount the layer (it is not `FS_USERNS_MOUNT`); a labelled
   mounter with `CAP_SYS_ADMIN` only bounds what its readers get. Left open: MLS/MCS, distributions booted
   with SELinux or Smack.
+- **Status, 2026-11-17 (journal 0299, ADR-0040):** the check held back in journal 0298 was
+  [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr) (severity low): through that labelled
+  mounter's layer, a reader allowed the mounter's label could `stat` a file the lower refuses it.
+  `stat` now asks the lower's security hook as the caller; the Smack run checks it, with negative
+  rounds. The SELinux analogue (a confined mounter domain without `getattr`) is not exercised.
 
 ### S13. Observability: tracepoints for the index (added 2026-10-13)
 

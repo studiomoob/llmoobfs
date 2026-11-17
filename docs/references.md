@@ -1714,3 +1714,14 @@ hand and carries the same code paths:
   across the uid change until `execvp()`, so the program setpriv starts is opened with
   `CAP_MAC_OVERRIDE` (journal 0298, round 2).
   <https://github.com/util-linux/util-linux/blob/master/sys-utils/setpriv.c>
+
+## 69. `stat` asks the lower's security hook as the caller (journal 0299, ADR-0040)
+
+- Linux 6.12.116, read on the s390x test host, `fs/stat.c`: `vfs_getattr()` refuses
+  `AT_GETATTR_NOSEC`, runs `security_inode_getattr()`, then `vfs_getattr_nosec()`, which marks
+  the call `AT_GETATTR_NOSEC`; `security/smack/smack_lsm.c`: `smack_inode_getattr()`,
+  `smack_set_mnt_opts()`. Linux 7.0.14 and 7.3.4, `fs/stat.c`, `vfs_getattr()` (hook, then
+  `vfs_getattr_nosec()`; no flag), read on 2026-11-16:
+  https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/fs/stat.c?h=v7.3.4
+- `fs/overlayfs/inode.c`, `ovl_getattr()` and `ovl_do_getattr()`, the model M8 of journal 0221
+  had followed.

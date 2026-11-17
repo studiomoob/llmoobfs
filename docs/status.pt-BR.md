@@ -140,3 +140,10 @@ em `d96b0db`. Ninguém a reproduziu ainda.
 está declarada, com a reprodução por terceiros ainda pendente: o mantenedor a tornou um item em
 aberto conhecido da prévia, e não mais uma condição. A tag `v0.6.0-experimental` a marca, e a rota
 da issue #195 passa a ser fixada nessa tag, no lugar de `d96b0db`. Ninguém a reproduziu ainda.
+*Atualização, 17/11/2026 ([diário 0299](history/0299-getattr-asks-the-lower-as-the-caller.md),
+[ADR-0040](decisions/0040-getattr-asks-the-lower-as-the-caller.md)):* uma quinta exceção ao
+congelamento do kernel corrige [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr) (severidade baixa): numa
+camada montada por um montador com rótulo Smack e sem `CAP_MAC_ADMIN`, quem tinha acesso ao
+rótulo do montador conseguia fazer `stat` de um arquivo que o sistema de baixo lhe recusa. Agora
+o `stat` consulta o gancho de segurança do sistema de baixo com as credenciais de quem chama. A
+`v0.6.0-experimental` e as tags anteriores têm o defeito.

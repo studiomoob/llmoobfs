@@ -1,7 +1,8 @@
 # ADR-0040 — A fifth narrow exception to the kernel freeze: `stat` asks the lower's security hook as the caller
 
-Date: 2026-11-16. Status: **proposed**; the maintainer agreed on 2026-11-16 to treat the defect
-below as a low-severity security defect and to fix it (journal 0299). Amends
+Date: 2026-11-16. Status: **accepted** by the maintainer on 2026-11-17 (journal 0299); on
+2026-11-16 the maintainer had classified the defect below as a low-severity security defect
+(GHSA-w7w8-m49c-vrvr) and agreed to fix it. Amends
 [ADR-0022](0022-kernel-freeze-and-user-space-consumable-track.md) by one exception, beside those
 of [ADR-0033](0033-s16-freeze-exception.md), [ADR-0034](0034-kernel-compat-freeze-exception.md),
 [ADR-0037](0037-open-lower-files-as-the-mounter.md) and

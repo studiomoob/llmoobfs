@@ -113,6 +113,8 @@ lockdep and Smack, reused from `~/.cache/moobfs-smack`. Each run took about one 
 
 ## Held-back check
 
+*Note, 2026-11-17:* the held-back check is [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr), fixed in journal 0299 (ADR-0040), where the check returned to the harness.
+
 On 2026-11-16, before publication, one check of the labelled-mounter step is held back from the published harness, recorded privately under `SECURITY.md`, and returns with its fix. The surfaces of this batch name the Smack steps without
 it; this is the stale-on-purpose case of `docs/public-surfaces.md`.
 

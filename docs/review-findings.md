@@ -203,6 +203,7 @@ checked the fix (journal 0240, ADR-0011 note after F16).
 | GHSA-4gr9-rvgr-44qj (b) | MCP `read` blocks forever on a FIFO | fixed | journal 0227; PR 175 | `python/tests/test_mcp.py::test_fifo_does_not_hang_read` | Skipped in CI |
 | GHSA-4gr9-rvgr-44qj (c) | `check_identity()` misses saved uid 0 and effective capabilities | fixed | journal 0227; PR 175 | `python/tests/test_mcp.py::test_identity_refused` | Skipped in CI |
 | GHSA-3wx4-fh9w-2v66 | LangGraph store: `batch()` operations skip the label rule, `..` escapes the root | fixed | journal 0227; PR 175 | `python/tests/test_langgraph.py::test_batched_labels_stay_inside_the_root` | Skipped in CI (no `langgraph`) |
+| GHSA-w7w8-m49c-vrvr | Smack: `stat` through a labelled mounter's layer skips the lower's hook for the caller | fixed (ADR-0040) | journal 0299 | `vm/smack-guest.sh` step 8, `SMACK_MOUNTER_PASS` (`stat hid` refused) [Smack run, not in CI] | Found by the S12 Smack run (Claude Code, for the maintainer); negative rounds on x86-64 and s390x (journal 0299) |
 | GHSA-f769-xjf5-54wc | Python scan fallback walks by path (TOCTOU, attribute oracle) | fixed (walk by descriptor) | journal 0231; PR 177 (git) | `python/tests/test_linux.py`: `test_scan_keeps_a_directory_swapped_for_a_link`, `test_scan_reads_the_file_it_judged`, `test_scan_under_a_racing_swap`, `test_scan_never_follows_links` [CI-py] | Old walk failed 3 of 11 as root (journal 0231) |
 
 ---

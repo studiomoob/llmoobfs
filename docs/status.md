@@ -134,3 +134,9 @@ everything" line: an independent run of the stage-2 test evidence on another KVM
 preview) is declared, with the third-party reproduction still pending: the maintainer made it a
 known open item of the preview instead of a condition. The tag `v0.6.0-experimental` marks it,
 and issue #195's route is pinned to that tag instead of `d96b0db`. No one has reproduced it yet.
+*Update, 2026-11-17 ([journal 0299](history/0299-getattr-asks-the-lower-as-the-caller.md),
+[ADR-0040](decisions/0040-getattr-asks-the-lower-as-the-caller.md)):* a fifth exception to the
+kernel freeze fixes [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr) (severity low): through a layer mounted
+by a Smack-labelled mounter without `CAP_MAC_ADMIN`, a reader allowed the mounter's label could
+`stat` a lower file the lower refuses it. `stat` now asks the lower's security hook as the
+caller. `v0.6.0-experimental` and earlier tags have the defect.
