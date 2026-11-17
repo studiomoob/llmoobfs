@@ -1,9 +1,10 @@
 # The apt repository
 
 Date: 2026-11-17 ([ADR-0041](decisions/0041-signed-apt-repository-on-pages.md), journal
-[0301](history/0301-signed-apt-repository.md)). Status: **prepared and tested in a VM with
-throwaway keys; nothing is published yet, and the project's key does not exist yet.** This page is
-the procedure; the user's side goes into `docs/operations.md` when the first version is published.
+[0301](history/0301-signed-apt-repository.md)). Status: **published since 2026-11-17 (journal
+[0302](history/0302-apt-repository-published.md)), with `0.6.2` the first version; key fingerprint
+`35E6 715F 0D27 D8FA CD84  56C2 9491 8AEE 2850 F202`.** This page is the procedure; the user's side is in
+`docs/operations.md`.
 
 ## What it is
 
@@ -24,7 +25,7 @@ maintainer holds offline. The repository commits only text: the key, the index a
 ## The key (once, on the maintainer's machine)
 
 ```sh
-gpg --quick-gen-key 'MoobFS apt repository <claudio@studiomoob.com>' ed25519 sign 2y
+gpg --quick-gen-key 'MoobFS apt repository' ed25519 sign 2y
 gpg --list-keys --with-colons 'MoobFS apt repository' | awk -F: '/^fpr/ { print $10; exit }'
 gpg --export <FINGERPRINT> >site/apt/moobfs-archive-keyring.pgp
 gpg --export-secret-keys --armor <FINGERPRINT> >moobfs-apt-key-backup.asc   # offline media, not this disk

@@ -101,7 +101,8 @@ its own, and a uid within its share keeps its domains
 *Update, 2026-10-29 ([journal 0229](history/0229-dkms-and-debian-packages.md)):* roadmap item C6:
 `moobfs-dkms` and `moobfs-tools` Debian packages, built with `make deb`, DKMS limited to the listed
 kernels and the module signed by the host's own DKMS key. Tested in a disposable Debian 13 VM
-under Secure Boot (`make package-test`); not published.
+under Secure Boot (`make package-test`); published since 2026-11-17 in a signed apt repository
+(update below).
 *Update, 2026-10-29 ([journal 0235](history/0235-s9-remaining-limits.md)):* the rest of S9 is
 tested and measured with no new mechanism: a domain larger than `index_budget`, retained
 `QUERY2` buffers and a build in a limited memory cgroup are refused with `ENOMEM` while another
@@ -148,3 +149,8 @@ version with the kernel code of `v0.6.1-experimental`, carries the packaging and
 signed apt repository on the project's site; its packages are to be the first published there.
 Issue #195's route stays pinned to `v0.6.1-experimental`, whose `layer/` differs only by the
 module version.
+*Update, 2026-11-17 ([journal 0302](history/0302-apt-repository-published.md)):* the packages of
+`0.6.2` are published at `https://studiomoob.github.io/llmoobfs/apt/`, signed by the
+maintainer's offline key (fingerprint in `SECURITY.md`); the site builds them again from the tag
+at each deploy and serves them only if they equal the signed hashes. apt is tested as a client on
+Debian 13 amd64 only.

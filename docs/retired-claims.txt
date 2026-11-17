@@ -541,3 +541,13 @@ Source pre-release tags exist through v0.6.1-experimental
 The latest tag, <strong>v0.6.1-experimental</strong>
 tag, `v0.6.1-experimental` (2026-11-17), a patch release
 A tag mais recente, `v0.6.1-experimental`
+
+# Journal 0302: the packages are published in a signed apt repository.
+They are **not published**: build them yourself
+(`make package-test`); not published.
+(`make package-test`); não publicados.
+EXISTS in a VM, not published (ADR-0028)
+Packages are prepared and tested in VMs, not published
+(C4, C6; not published)
+done 2026-10-29 in a VM, not published:
+nothing is published yet, and the project's key does not exist yet

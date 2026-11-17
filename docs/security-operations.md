@@ -25,6 +25,7 @@ of that organization; the project changes only what belongs to its own repositor
 | Private vulnerability reporting | Enabled. |
 | Secret scanning and push protection | Enabled. |
 | Dependabot | Alerts enabled; version updates for actions by `.github/dependabot.yml`; automatic security-fix pull requests enabled on 2026-10-26 (journal 0205). |
+| apt repository key | One OpenPGP key (Ed25519, fingerprint `35E6 715F 0D27 D8FA CD84  56C2 9491 8AEE 2850 F202`, expires 2028-11-16) signs the apt repository's index; it is held offline by the maintainer, with an offline backup, and is not on GitHub, CI or the test hosts (ADR-0041, journal 0302). Rotation and loss: `docs/apt-repository.md`. |
 | Outside GitHub | The maintainer's own kernel.org account and patch-signing key, used for upstream kernel patches, not for this repository. The dedicated benchmark host is reached by an SSH key the maintainer holds; CI has no access to it, and its address is not published. |
 
 Re-read this table when an owner, a collaborator, a secret, a key or a protection rule changes,

@@ -142,6 +142,22 @@ and we cannot authorize testing of them; denial-of-service or social-engineering
 attempts against people or services are out of scope. The wording is adapted
 from the disclose.io safe-harbor terms, CC0 (see `docs/references.md`).
 
+## Package signing key
+
+The apt repository at `https://studiomoob.github.io/llmoobfs/apt/` is signed by one OpenPGP key
+(Ed25519, created 2026-11-17, expires 2028-11-16), held offline by the maintainer and never by
+CI ([ADR-0041](docs/decisions/0041-signed-apt-repository-on-pages.md),
+[docs/apt-repository.md](docs/apt-repository.md)):
+
+```
+MoobFS apt repository
+35E6 715F 0D27 D8FA CD84  56C2 9491 8AEE 2850 F202
+```
+
+Check this fingerprint here and in `docs/operations.md` before trusting the key. A change of key
+is announced in the changelog, the status and a security advisory if the old key may be
+compromised.
+
 ## Operations
 
 How incidents other than a reported vulnerability are handled (a compromised

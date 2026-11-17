@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Packages: `moobfs-dkms` and `moobfs-tools` `0.6.2` are published in the project's signed apt
+  repository, `https://studiomoob.github.io/llmoobfs/apt/`, suite `experimental` (ADR-0041,
+  journal 0302). The index is signed by the maintainer's offline Ed25519 key, fingerprint
+  `35E6 715F 0D27 D8FA CD84  56C2 9491 8AEE 2850 F202` (`SECURITY.md`); the packages were built
+  twice from `v0.6.2-experimental`, on the test host and in CI, with identical results, and the
+  site builds them again at each deploy. `docs/operations.md` gives the user's steps.
+- `v0.6.2-experimental` is tagged on `9a7384e` (2026-11-17) and its release is published and
+  verified (journal 0302).
+
 ## v0.6.2-experimental — 2026-11-17
 
 A patch release of stage 2 (technical preview), decided on 2026-11-17 (journal 0301), with the

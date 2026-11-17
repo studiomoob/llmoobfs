@@ -31,8 +31,9 @@ pins. The rules behind the list are [compatibility.md](compatibility.md) §1.
 
 **Lower filesystems:** ext4, btrfs and XFS on a local block device, on every row marked
 "supported" and in the KASAN builds. **Packaging:** `moobfs-dkms` and `moobfs-tools` built and
-installed in one VM, also under Secure Boot with lockdown, not published ([0229](history/0229-dkms-and-debian-packages.md),
-[ADR-0028](decisions/0028-dkms-and-debian-packages.md)). What each suite step proves:
+installed in one VM, also under Secure Boot with lockdown ([0229](history/0229-dkms-and-debian-packages.md),
+[ADR-0028](decisions/0028-dkms-and-debian-packages.md)), and published since 2026-11-17 in a signed apt repository, whose install, upgrade and refusals
+are tested in a Debian 13 VM (`make apt-test`, [ADR-0041](decisions/0041-signed-apt-repository-on-pages.md)). What each suite step proves:
 [testing.md](testing.md) §3; what no step covers: [testing.md](testing.md) §9. **Leaks between
 users:** none known open; the fixed ones are the published
 [advisories](https://github.com/studiomoob/llmoobfs/security/advisories) and the findings of

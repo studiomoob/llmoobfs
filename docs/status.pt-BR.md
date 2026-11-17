@@ -105,7 +105,8 @@ uid abaixo da dele, e um uid dentro da cota mantém os seus domínios
 *Atualização, 29/10/2026 ([diário 0229](history/0229-dkms-and-debian-packages.md)):* item C6 do
 roadmap: pacotes Debian `moobfs-dkms` e `moobfs-tools`, gerados com `make deb`, com o DKMS restrito
 aos kernels da lista e o módulo assinado pela chave DKMS do próprio host. Testados numa VM
-descartável Debian 13 com Secure Boot (`make package-test`); não publicados.
+descartável Debian 13 com Secure Boot (`make package-test`); publicados desde 17/11/2026 num
+repositório apt assinado (atualização abaixo).
 *Atualização, 29/10/2026 ([diário 0235](history/0235-s9-remaining-limits.md)):* o restante do S9
 foi testado e medido sem mecanismo novo: um domínio maior que `index_budget`, buffers retidos do
 `QUERY2` e uma construção num cgroup de memória limitado são recusados com `ENOMEM` enquanto outro
@@ -155,3 +156,8 @@ correção com o código do kernel da `v0.6.1-experimental`, traz o empacotament
 repositório apt assinado no site do projeto; seus pacotes serão os primeiros publicados nele. A
 rota da issue #195 continua fixada na `v0.6.1-experimental`, cujo `layer/` só difere na versão do
 módulo.
+*Atualização, 17/11/2026 ([diário 0302](history/0302-apt-repository-published.md)):* os pacotes da
+`0.6.2` estão publicados em `https://studiomoob.github.io/llmoobfs/apt/`, assinados pela chave
+offline do mantenedor (fingerprint no `SECURITY.md`); o site os recompila a partir da tag a cada
+publicação e só os serve se forem iguais aos hashes assinados. O apt como cliente só foi testado no
+Debian 13 amd64.
