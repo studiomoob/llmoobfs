@@ -1726,3 +1726,14 @@ hand and carries the same code paths:
   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/fs/stat.c?h=v7.3.4
 - `fs/overlayfs/inode.c`, `ovl_getattr()` and `ovl_do_getattr()`, the model M8 of journal 0221
   had followed.
+
+## 70. A signed apt repository for the packages (journal 0301, ADR-0041)
+
+- apt 3.0.3 on Debian 13, read on the test host: `/usr/share/apt/default-sequoia.config` (the
+  Sequoia policy apt verifies signatures with) and `/usr/share/doc/apt/NEWS.Debian.gz` (2.9.24:
+  `Signed-By` and deb822 sources; 2.9.19: Sequoia verification).
+- Debian repository format: <https://wiki.debian.org/DebianRepository/Format>.
+- `apt-ftparchive(1)`, apt-utils: <https://manpages.debian.org/trixie/apt-utils/apt-ftparchive.1.en.html>.
+- `sources.list(5)`, deb822 format and `Signed-By`: <https://manpages.debian.org/trixie/apt/sources.list.5.en.html>.
+- `apt-secure(8)`: <https://manpages.debian.org/trixie/apt/apt-secure.8.en.html>.
+- Reproducible Builds, `SOURCE_DATE_EPOCH`: <https://reproducible-builds.org/specs/source-date-epoch/>.

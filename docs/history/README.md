@@ -316,3 +316,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0298 — SELinux and Smack: mappings, changes, exec and mounters (S12)](0298-selinux-smack-mappings-exec-mounters.md)
 - [0299 — `stat` asks the lower's security hook as the caller (ADR-0040)](0299-getattr-asks-the-lower-as-the-caller.md)
 - [0300 — v0.6.1-experimental tagged: a patch release with the fix of GHSA-w7w8-m49c-vrvr](0300-v0-6-1-tagged.md)
+- [0301 — The `.deb` packages in a signed apt repository (ADR-0041), in progress](0301-signed-apt-repository.md)
