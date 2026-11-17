@@ -4,7 +4,8 @@
 # index under site/apt/ against the published key, builds every published version again from
 # its tag (scripts/apt-debs.sh, with the snapshot site/apt/builds gives), and puts the packages
 # into site/apt/pool/ only if each one's SHA-256 is the one the signed Packages gives. Any
-# difference fails the deploy. Needs Docker, gpgv and git with the tags.
+# difference fails the deploy. Needs Docker, git with the tags, and sqv (what apt 3 verifies
+# with) or gpgv (apt 2, the CI runner).
 #
 #   sh scripts/apt-site.sh
 #
@@ -25,8 +26,14 @@ done
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 # 1. InRelease verifies with the published key and signs exactly the committed Release.
-gpgv --keyring "$K" --output "$work/Release" "$D/InRelease" 2>"$work/gpgv.log" ||
-	{ cat "$work/gpgv.log" >&2; die "InRelease does not verify with $K"; }
+if command -v sqv >/dev/null 2>&1; then
+	verify() { sqv --keyring "$K" --output "$work/Release" "$D/InRelease"; }
+elif command -v gpgv >/dev/null 2>&1; then
+	verify() { gpgv --keyring "$K" --output "$work/Release" "$D/InRelease"; }
+else
+	die "neither sqv nor gpgv found"
+fi
+verify >"$work/verify.log" 2>&1 || { cat "$work/verify.log" >&2; die "InRelease does not verify with $K"; }
 cmp -s "$work/Release" "$D/Release" || die "InRelease signs another Release than $D/Release"
 # 2. Release gives the SHA-256 of the committed Packages.
 want=$(awk '/^SHA256:/ { on = 1; next } /^[^ ]/ { on = 0 } on && $3 == "main/binary-amd64/Packages" { print $1 }' "$D/Release")
