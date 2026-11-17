@@ -214,3 +214,7 @@ advisory when it is a vulnerability under `SECURITY.md`; older versions are not 
 - 2026-11-15: `v0.6.0-experimental`, the first tag of stage 2 (ADR-0039, journal 0297). The UAPI
   header changed only in comments and the on-disk conventions did not; the module version is
   `0.6.0`.
+- 2026-11-17: `v0.6.1-experimental`, decided that day (journal 0300). A patch version: since
+  `v0.6.0-experimental` the kernel changed only by the fix of GHSA-w7w8-m49c-vrvr (ADR-0040), the
+  rest is tests and documents, and the UAPI header and the on-disk conventions did not change; the
+  module version is `0.6.1`.

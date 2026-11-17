@@ -15,9 +15,9 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 revisão humana independente do código do kernel, só ferramentas automáticas e revisões assistidas por IA ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): duas revisões do código, feitas por
 assistentes de IA, diários 0111 e 0114; os relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele, acharam três defeitos do kernel, e o revisor
 escreveu a correção de um deles, F16, diários 0215, 0216 e 0218; um colaborador de fora revisou scripts,
-ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163. A tag mais recente, `v0.6.0-experimental` (2026-11-15), a primeira da etapa 2 (prévia técnica,
+ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163. A tag mais recente, `v0.6.1-experimental` (2026-11-17), uma versão de correção da etapa 2 (prévia técnica,
 [ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)), contém as correções anteriores à tag; as mudanças posteriores abaixo indicam seu próprio estado de publicação. Tags anteriores:
-`v0.5.0-experimental` (2026-10-28) e `v0.4.1-experimental` (2026-10-20), um retrato do
+`v0.6.0-experimental` (2026-11-15), a primeira da etapa 2, `v0.5.0-experimental` (2026-10-28) e `v0.4.1-experimental` (2026-10-20), um retrato do
 código anterior a elas. Os dois achados da
 [revisão independente](history/0144-independent-review.md) têm correções na
 `main`. Esse lote passou na suíte completa integrada em VM e na
@@ -147,3 +147,5 @@ camada montada por um montador com rótulo Smack e sem `CAP_MAC_ADMIN`, quem tin
 rótulo do montador conseguia fazer `stat` de um arquivo que o sistema de baixo lhe recusa. Agora
 o `stat` consulta o gancho de segurança do sistema de baixo com as credenciais de quem chama. A
 `v0.6.0-experimental` e as tags anteriores têm o defeito.
+*Atualização, 17/11/2026 ([diário 0300](history/0300-v0-6-1-tagged.md)):* a `v0.6.1-experimental`,
+uma versão de correção, traz essa correção, e a rota da issue #195 passa a ser fixada nela.

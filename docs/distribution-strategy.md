@@ -517,6 +517,10 @@ until a third party reports a reproduction. Issue #195's route is pinned to the 
 Setting `MODULE_VERSION` to `"0.6.0"` is a release step, not a kernel change under the freeze. The
 tag, the release and the `.deb` packages each need the maintainer's agreement.
 
+*Amended, 2026-11-17 ([journal 0300](history/0300-v0-6-1-tagged.md)):* issue #195's route is
+pinned to `v0.6.1-experimental`, which has the fix of GHSA-w7w8-m49c-vrvr (ADR-0040), in place of
+`v0.6.0-experimental`. The route's steps do not change.
+
 ### Stage 3 — Public release
 
 Preconditions: **M4 completed and published** (W3 with per-candidate authorization, mount

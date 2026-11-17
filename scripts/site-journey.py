@@ -93,6 +93,8 @@ MILESTONES = [
   'O Smack roda pela primeira vez com a camada. A issue 117 é fechada no kernel: o índice não guarda mais ponteiro para inodes em cache, então a recuperação de memória não espera mais pela trava do índice, com um teste que falha no código antigo.', ['0294', '0295']),
  ('2026-11-15', 'Stage 2, the technical preview, is declared and tagged v0.6.0-experimental, before any independent reproduction: that stays an open call, pinned to the tag. Recoll\'s maintainer merges a decoder for the typed attributes, behind a build option.',
   'A etapa 2, a prévia técnica, é declarada e marcada com a tag v0.6.0-experimental, antes de qualquer reprodução independente: ela segue como chamada aberta, fixada na tag. O mantenedor do Recoll incorpora um decodificador dos atributos tipados, atrás de uma opção de compilação.', ['0296', '0297']),
+ ('2026-11-17', 'A Smack test finds that stat through a layer mounted by a labelled mounter never asked the lower\'s check for the caller. The fix lands with a test that fails on the old code, the advisory is published, and v0.6.1-experimental carries it.',
+  'Um teste com Smack descobre que o stat numa camada montada por um montador com rótulo nunca consultava a verificação do sistema de baixo para quem chama. A correção entra com um teste que falha no código antigo, o aviso de segurança é publicado e a v0.6.1-experimental a traz.', ['0298', '0299', '0300']),
 ]
 
 T = {
