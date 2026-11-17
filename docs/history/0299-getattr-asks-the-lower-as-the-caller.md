@@ -1,6 +1,6 @@
 # 0299 — `stat` asks the lower's security hook as the caller (ADR-0040)
 
-Date: 2026-11-16. Work started at about 11:40 Brasília time; END_TIME. Status: **in progress; on
+Date: 2026-11-16. Work started at about 11:40 Brasília time; the last run ended on the 17th at 00:03 (calendar time). Status: **tests done; on
 the local branch `claudiofp/b34-getattr-caller` (on batch 33), batch 34; not pushed. Held for
 coordinated disclosure: the draft advisory GHSA-w7w8-m49c-vrvr is private until the fix is on
 `main`.** Estimated effort S (ADR-0040); the time recorded is calendar time, most of it machine
@@ -64,11 +64,27 @@ of the local branch (nothing published):
 The negative round shows that the regression check fails without the fix and that nothing else
 in the Smack run depends on it.
 
+On the dedicated host (Debian 13, KVM), at `1df0763` (before the branch was rebased on the last
+journal commits of batch 33: `bf2e576` became `e7c7265` and `bc02ac2` became `f0b00d7`, with
+the same trees under `layer/` and `vm/`), each run on a fresh clone of a bundle, 2026-11-16:
+
+| Run (BRT) | Result |
+| --- | --- |
+| 22:11–22:12 `vm/smack-local.sh` | every `SMACK_*_PASS`, `MOOBFS_SMACK_RESULT: fails=0`; `stat hid` through the labelled mounter's layer `lower=1 layer=1 expected=refused`; no kernel diagnostic |
+| 22:12–22:13 the same with `layer/main.c` of `bf2e576^` (negative) | `stat hid ... lower=1 layer=0`, `MOOBFS_SMACK_FAIL: labelled mounter: 1 checks not as expected`, `fails=1`; every other step passed |
+| 22:13–22:14 `vm/selinux-local.sh` | `SELINUX_MAPCHANGE_PASS`, `SELINUX_EFFECT_PASS`, `SELINUX_MOUNTER_PASS`, `SELINUX_DIRREAD_PASS`, `fsuse differ=0`, exit 0 |
+| 22:14–22:35 full `MOOB_VM_KVM=1 make vm-test` | `MOOBFS_VM_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, exit 0 |
+| 22:35–23:53 full `vm/kasan-local.sh` | `MOOBFS_PYLIB_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS`, exit 0 |
+| 23:53–00:03 pre-push checks | lint, checkpatch, unit tests, ASan, hostile images, Python library, retired claims, pins, matrix page, mutants, site, `git diff --check` against `b40e3b6`, `make static`, Ubuntu tests: all `PASS` |
+
+The SELinux run has no step for this defect (its confined mounter is permissive); it shows that
+the fix changes no SELinux decision the harness compares.
+
 ## Limitations
 
 - The SELinux analogue (a confined mounter domain without `getattr` on a type) is not exercised:
   the confined mounter of journal 0286 is permissive.
-- Runs so far on s390x only, which is exploratory; the dedicated host's runs are pending.
+- Linux 7.0 and 7.3 builds of the change are checked by CI only, when the pull request is opened.
 
 ## Surfaces held back
 
@@ -79,6 +95,6 @@ are updated in the same commit that is pushed with the advisory's publication.
 
 ## Next step
 
-The runs on the s390x host; then, when the dedicated host is back, the batch's full `vm-test`,
-the full KASAN suite and the Smack and SELinux runs; then the maintainer's agreement to push,
-merge and publish the advisory.
+With the maintainer's agreement, in order: the pull request of batch 33; then, rebased on `main`,
+this batch's pull request with the held-back surfaces; the merge; then the advisory's
+publication, with the fix's links.
