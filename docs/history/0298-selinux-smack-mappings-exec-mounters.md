@@ -1,7 +1,7 @@
 # 0298 — SELinux and Smack: mappings, changes, exec and mounters (S12)
 
-Date: 2026-11-16. Work started at 07:14 Brasília time; ended at END_TIME. Status: **done on the
-local branch `claudiofp/b33-s12-mac-tests`, batch 33; not pushed; one check held back and
+Date: 2026-11-16. Work started at 07:14 Brasília time; ended at 22:11, when the final runs ended (calendar time, including the test host's power loss). Status: **done on the
+local branch `claudiofp/b33-s12-mac-tests`, batch 33; not pushed; final runs passed; one check held back and
 recorded privately.** Estimated effort S (hours); the time recorded is calendar time of one session,
 including waits for the test host. Work done by Claude Code (an AI assistant) for the maintainer.
 
@@ -131,7 +131,16 @@ it; this is the stale-on-purpose case of `docs/public-surfaces.md`.
 
 ## Final runs on the tip
 
-FINAL_RUNS
+On the dedicated host (Debian 13, KVM), at `43aa8d5`, each run on a fresh clone of a bundle of the
+branch, 2026-11-16:
+
+| Run (BRT) | Result |
+| --- | --- |
+| 20:22–20:23 `vm/smack-local.sh` | every `SMACK_*_PASS`, `MOOBFS_SMACK_RESULT: fails=0`, no kernel diagnostic |
+| 20:23–20:24 `vm/selinux-local.sh` | `SELINUX_MAPCHANGE_PASS` (20 operations), `SELINUX_EFFECT_PASS`, `SELINUX_MOUNTER_PASS`, `SELINUX_DIRREAD_PASS`, `fsuse differ=0`, exit 0 |
+| 20:24–20:47 full `MOOB_VM_KVM=1 make vm-test` | `MOOBFS_VM_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, exit 0 |
+| 20:47–22:00 full `vm/kasan-local.sh` | `MOOBFS_PYLIB_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS`, exit 0 |
+| 22:00–22:11 pre-push checks | lint, checkpatch, unit tests, ASan, hostile images, Python library, retired claims, pins, matrix page, mutants, site, `git diff --check` against `b40e3b6`, `make static`, Ubuntu tests: all `PASS` |
 
 ## Limitations
 
