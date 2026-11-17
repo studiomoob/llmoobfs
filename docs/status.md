@@ -12,9 +12,9 @@ meets what the project is before its status history. The facts are unchanged. Th
 human review of the kernel code yet, only automated tools and AI-assisted reviews ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): two source reviews by AI assistants, journals 0111 and 0114;
 an external reviewer's AI-assisted private reports, triaged and reproduced by the reviewer, found three kernel defects, and the reviewer wrote the fix of one, F16, journals 0215, 0216 and 0218;
 an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163. The latest
-tag, `v0.6.0-experimental` (2026-11-15), the first of stage 2 (technical preview,
+tag, `v0.6.1-experimental` (2026-11-17), a patch release of stage 2 (technical preview,
 [ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)), contains the corrections made before that tag; later changes below identify their own publication state. Earlier tags are
-`v0.5.0-experimental` (2026-10-28) and `v0.4.1-experimental` (2026-10-20), a source snapshot before this review batch.
+`v0.6.0-experimental` (2026-11-15), the first of stage 2, `v0.5.0-experimental` (2026-10-28) and `v0.4.1-experimental` (2026-10-20), a source snapshot before this review batch.
 The two findings of the [independent review](history/0144-independent-review.md)
 have corrections on `main`; the review batch passed the full integrated VM suite
 and local KASAN/UBSAN/lockdep. The required pull-request checks passed before merge.
@@ -140,3 +140,5 @@ kernel freeze fixes [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs
 by a Smack-labelled mounter without `CAP_MAC_ADMIN`, a reader allowed the mounter's label could
 `stat` a lower file the lower refuses it. `stat` now asks the lower's security hook as the
 caller. `v0.6.0-experimental` and earlier tags have the defect.
+*Update, 2026-11-17 ([journal 0300](history/0300-v0-6-1-tagged.md)):* `v0.6.1-experimental`, a
+patch version, carries this fix, and issue #195's route is pinned to it.

@@ -517,3 +517,16 @@ Smack: one run ([0294]
 Smack once, journal [0294]
 Smack once (journal 0294
 o Smack uma vez (diário
+
+# Journal 0300: v0.6.1-experimental is the latest tag.
+the latest, `v0.6.0-experimental` (2026-11-15), is the
+a mais recente, `v0.6.0-experimental`
+the latest is `v0.6.0-experimental`
+`v0.6.0-experimental` has every fix up to 2026-11-15
+a `v0.6.0-experimental` tem todas as correções até 2026-11-15
+Source pre-release tags exist through v0.6.0-experimental
+The latest tag, <strong>v0.6.0-experimental</strong>
+tag, `v0.6.0-experimental` (2026-11-15), the first of stage 2
+A tag mais recente, `v0.6.0-experimental`
+pinned to the tag `v0.6.0-experimental`, and say
+all fixed on `main` and in `v0.6.0-experimental`

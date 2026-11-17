@@ -38,6 +38,8 @@ three required checks, no force push or deletion, administrators not enforced; t
 active with no bypass actor (deletion, non-fast-forward, pull request, required checks, code
 scanning); immutable releases on; the `github-pages` environment only; private vulnerability
 reporting, secret scanning, push protection and Dependabot security updates enabled.
+*Re-read on 2026-11-17 (journal 0300), before the tag `v0.6.1-experimental`:* unchanged, item by
+item as on 2026-11-16.
 
 ## 2. Incidents
 

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.6.1-experimental — 2026-11-17
+
+A patch release of stage 2 (technical preview), decided on 2026-11-17 (journal 0300). It carries
+the fix of GHSA-w7w8-m49c-vrvr (severity low, ADR-0040, a fifth narrow exception to the kernel
+freeze), the S12 tests under SELinux and Smack and the tag checklist. A patch version: the kernel
+changed only by that fix, and the UAPI header and the on-disk conventions did not change; the
+module version is `0.6.1`. Issue #195's route is pinned to this tag. Its source archive is signed
+with Sigstore and carries SLSA provenance, as before. No binaries are attached. No independent
+human review of the kernel code.
+
 - Security (GHSA-w7w8-m49c-vrvr, severity low; journal 0299, ADR-0040, a fifth freeze
   exception): `stat` through the layer now asks the lower's security hook as the caller. Through
   a layer mounted by a Smack-labelled mounter without `CAP_MAC_ADMIN`, a reader allowed the
