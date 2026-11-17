@@ -26,13 +26,16 @@ if [ -e "$DIST/InRelease" ] && [ "${FORCE:-}" != 1 ]; then die "$DIST/InRelease 
 want=$(awk '/^SHA256:/ { on = 1; next } /^[^ ]/ { on = 0 } on && $3 == "main/binary-amd64/Packages" { print $1 }' "$rel")
 [ "$want" = "$(sha256 "$pk")" ] || die "Release does not give the SHA-256 of Packages"
 # every package in Packages must be an expected build
+hashes=$(mktemp)
+trap 'rm -f "$hashes"' EXIT
+sed -n 's/^SHA256: //p' "$pk" >"$hashes"
 n=0
-for h in $(sed -n 's/^SHA256: //p' "$pk"); do
+while read -r h; do
 	f=$(awk -v h="$h" '$1 == h { print $2 }' "$EXP")
 	[ -n "$f" ] || die "a package in Packages ($h) is not in $EXP"
 	echo "apt-sign: expected build $h $f"
 	n=$((n + 1))
-done
+done <"$hashes"
 [ "$n" -gt 0 ] || die "Packages lists no package"
 gpg --list-secret-keys "$FPR" >/dev/null 2>&1 || die "no secret key $FPR in this keyring"
 echo "apt-sign: signing $rel with $FPR ($n packages)"

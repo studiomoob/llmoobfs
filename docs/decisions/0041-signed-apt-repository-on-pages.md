@@ -1,8 +1,8 @@
 # ADR-0041 — The `.deb` packages in a signed apt repository on the project's site, signed offline by the maintainer
 
-Date: 2026-11-17. Status: **proposed**; the maintainer chose the signed apt repository on
-GitHub Pages and an offline key held by the maintainer on 2026-11-17 (journal 0301); the rest
-of this decision waits for acceptance. Publishes the packages of
+Date: 2026-11-17. Status: **accepted** by the maintainer on 2026-11-17 (journal 0301), who had
+chosen the signed apt repository on GitHub Pages and an offline key held by the maintainer the
+same day. Publishes the packages of
 [ADR-0028](0028-dkms-and-debian-packages.md), which left publication to stage 2; stage 2 was
 declared by [ADR-0039](0039-stage-2-declared-reproduction-pending.md). User space and packaging
 only under [ADR-0022](0022-kernel-freeze-and-user-space-consumable-track.md): nothing under
@@ -87,3 +87,17 @@ not labor time.
 - Tested on Debian 13 amd64 only; Ubuntu 26.04 has the kernel in the matrix but is not tested as
   an apt client until a VM step covers it.
 - The access table does not change: still no Actions secret.
+
+## Implementation notes, 2026-11-17 (journal 0301)
+
+- Item 1: the `Release` file names one architecture, `amd64`; the architecture-independent
+  `moobfs-dkms` is listed under `binary-amd64`, as `apt-ftparchive` does by default, so there is
+  no separate `binary-all` index.
+- Item 4: "the pinned Debian 13 image" alone does not fix the toolchain, since the image installs
+  its build packages from the live archive, which moves with each point release. The build
+  (`scripts/apt-debs.sh`) points apt at `snapshot.debian.org` at a fixed time, and
+  `site/apt/builds` records that time per version, so a deploy months later rebuilds the same
+  bytes. The CI build is the `apt packages build` workflow, started by hand.
+- Item 6: the packages of `v0.6.1-experimental` say "Not published" in their description and
+  changelog, text fixed in the tag. The packaging now says neither; whether the first published
+  version is `0.6.1` with that text or the next tag is the maintainer's choice (journal 0301).

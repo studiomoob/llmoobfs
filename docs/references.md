@@ -1737,3 +1737,7 @@ hand and carries the same code paths:
 - `sources.list(5)`, deb822 format and `Signed-By`: <https://manpages.debian.org/trixie/apt/sources.list.5.en.html>.
 - `apt-secure(8)`: <https://manpages.debian.org/trixie/apt/apt-secure.8.en.html>.
 - Reproducible Builds, `SOURCE_DATE_EPOCH`: <https://reproducible-builds.org/specs/source-date-epoch/>.
+- snapshot.debian.org, the Debian archive at a fixed time, which pins the build toolchain of the
+  packages so that a tag rebuilds to the same bytes later: <https://snapshot.debian.org/>.
+- GnuPG `gpgv` (`--keyring`, `--output`) and `gpg --clearsign`, the signature apt verifies in
+  `InRelease`: <https://www.gnupg.org/documentation/manuals/gnupg/>.

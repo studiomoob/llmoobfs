@@ -1,0 +1,36 @@
+# ADR-0041: the CI build of a tag's packages, one of the two builds that must agree before the
+# maintainer signs the apt repository's index. Started by hand; publishes nothing.
+name: apt packages build
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build, for example v0.6.2-experimental'
+        required: true
+      snapshot:
+        description: 'snapshot.debian.org time, YYYYMMDDTHHMMSSZ (site/apt/builds)'
+        required: true
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Build the packages of the tag
+        env:
+          TAG: ${{ inputs.tag }}
+          SNAP: ${{ inputs.snapshot }}
+        run: |
+          mkdir -p build
+          sh scripts/apt-debs.sh "$TAG" "$SNAP" build/apt-debs | tee build/apt-debs.txt
+          grep '^MOOBFS_APT_DEB' build/apt-debs.txt >>"$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: apt-debs
+          path: build/apt-debs
+          retention-days: 30

@@ -38,7 +38,7 @@ commit=${MOOB_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}
 cat >"$src/debian/changelog" <<CHANGES
 moobfs ($VERSION) unstable; urgency=medium
 
-  * Experimental build of commit $commit by scripts/build-debs.sh; not published.
+  * Experimental build of commit $commit by scripts/build-debs.sh.
 
  -- MoobFS maintainers <claudio@studiomoob.com>  $when
 CHANGES

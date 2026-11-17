@@ -18,8 +18,8 @@ Description: MoobFS layer module as DKMS sources (experimental)
  project tests (BUILD_EXCLUSIVE_KERNEL) and signs it with the DKMS machine
  owner key when the kernel supports module signing.
  .
- Experimental research software, for disposable test hosts only. Not
- published: built and tested in virtual machines (roadmap item C6).
+ Experimental research software, for disposable test hosts only. Tested in
+ virtual machines (ADR-0028, ADR-0041).
 
 Package: moobfs-tools
 Architecture: any

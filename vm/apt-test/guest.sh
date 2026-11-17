@@ -46,7 +46,9 @@ apt-get install -y --no-install-recommends curl "linux-headers-$KVER" >/dev/null
 
 # 1. The guide: the key into /usr/share/keyrings, a deb822 source naming it, apt install.
 curl -fsS -o "$KEYRING" "$REPO/key-a.pgp"
-if ls /etc/apt/trusted.gpg /etc/apt/trusted.gpg.d/* 2>/dev/null | grep -q -i moob; then fail "a MoobFS key is trusted globally"; fi
+for k in /etc/apt/trusted.gpg /etc/apt/trusted.gpg.d/*; do
+	case $k in *[Mm]oob*) fail "a MoobFS key is trusted globally: $k" ;; esac
+done
 source_to good1
 apt-get update >/tmp/u.log 2>&1 || { cat /tmp/u.log; fail "apt-get update on good1"; }
 apt-get install -y moobfs-dkms moobfs-tools >/tmp/i.log 2>&1 || { tail -n 30 /tmp/i.log; fail "apt-get install"; }
