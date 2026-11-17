@@ -8,6 +8,9 @@
 #   MOOB_TEST=package            vm/package-test/guest.sh, phases 0 1 (roadmap C6, ADR-0028):
 #     builds the .deb packages first, boots with UEFI Secure Boot, and between the phases
 #     powers the guest off and enrols the guest's DKMS key in the firmware's MokList
+#   MOOB_TEST=apt                vm/apt-test/guest.sh, phase 0 (ADR-0041): two versions of the
+#     packages in a local apt repository signed with throwaway keys, served to the guest over
+#     HTTP; install, upgrade and roll back with apt, and three copies apt must refuse
 #   MOOB_TEST=bench              vm/bench-test/guest.sh, phase 0 (journal 0238): bench/ondemand.sh
 #     on a lower of MOOB_BENCH_FS (ext4, btrfs or xfs, default ext4) made on a second virtual
 #     disk; KVM is required (emulated timings mean nothing) and the results are copied out to
@@ -27,6 +30,7 @@ case ${MOOB_TEST:-install} in
 install) OUT=build/install-test GUEST=vm/install-test/guest.sh PHASES="0 1 2" NAME=INSTALL ;;
 container) OUT=build/container-test GUEST=vm/container-test/guest.sh PHASES="0 1" NAME=CONTAINER ;;
 package) OUT=build/package-test GUEST=vm/package-test/guest.sh PHASES="0 1" NAME=PACKAGE ;;
+apt) OUT=build/apt-test GUEST=vm/apt-test/guest.sh PHASES=0 NAME=APT ;;
 bench) OUT=build/bench-test GUEST=vm/bench-test/guest.sh PHASES=0 NAME=BENCH ;;
 workspace) OUT=build/workspace-test GUEST=vm/workspace-test/guest.sh PHASES=0 NAME=WORKSPACE ;;
 *) echo "unknown MOOB_TEST ${MOOB_TEST}" >&2; exit 64 ;;
@@ -87,6 +91,37 @@ if [ "$NAME" = PACKAGE ]; then
 		-drive if=pflash,format=raw,unit=0,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd
 		-drive if=pflash,format=raw,unit=1,file=$OUT/vars.fd"
 fi
+APID=	# the apt repository server of MOOB_TEST=apt
+if [ "$NAME" = APT ]; then
+	# Two versions, one index each way the guest needs, two throwaway keys (A trusted, B not).
+	rm -rf "$OUT/debs" "$OUT/www" "$OUT/gnupg"
+	sh scripts/build-debs.sh 0.5.0~apttest1 "$OUT/debs/v1" >>"$LOG"
+	sh scripts/build-debs.sh 0.5.0~apttest2 "$OUT/debs/v2" >>"$LOG"
+	mkdir -p "$OUT/gnupg" "$OUT/www"
+	chmod 700 "$OUT/gnupg"
+	export GNUPGHOME="$OUT/gnupg"
+	for k in A B; do
+		gpg --batch --quiet --passphrase '' --quick-gen-key "MoobFS apt-test throwaway $k" ed25519 sign 1d
+	done
+	fpr() { gpg --list-keys --with-colons "MoobFS apt-test throwaway $1" | awk -F: '/^fpr/ { print $10; exit }'; }
+	gpg --export "$(fpr A)" >"$OUT/www/key-a.pgp"
+	sha256sum "$OUT"/debs/v1/*.deb "$OUT"/debs/v2/*.deb | sed 's|  .*/| |' >"$OUT/expected"
+	SOURCE_DATE_EPOCH=$(date +%s) sh scripts/apt-index.sh "$OUT/debs/v1" "$OUT/www/good1" >>"$LOG"
+	cp "$OUT"/debs/v2/*.deb "$OUT/debs/v1/"
+	SOURCE_DATE_EPOCH=$(date +%s) sh scripts/apt-index.sh "$OUT/debs/v1" "$OUT/www/good2" >>"$LOG"
+	cp -R "$OUT/www/good2" "$OUT/www/otherkey"
+	cp -R "$OUT/www/good2" "$OUT/www/tampered"
+	for r in good1 good2 tampered; do
+		sh scripts/apt-sign.sh "$OUT/www/$r/dists/experimental" "$(fpr A)" "$OUT/expected" >>"$LOG"
+	done
+	sh scripts/apt-sign.sh "$OUT/www/otherkey/dists/experimental" "$(fpr B)" "$OUT/expected" >>"$LOG"
+	# one byte of moobfs-tools V2 changed after signing, same size
+	t=$(ls "$OUT"/www/tampered/pool/main/m/moobfs/moobfs-tools_0.5.0~apttest2_*.deb)
+	python3 -c 'import sys; p=sys.argv[1]; b=bytearray(open(p,"rb").read()); b[-1]^=1; open(p,"wb").write(b)' "$t"
+	log "APT_REPOS: good1 good2 otherkey tampered; key A $(fpr A), key B $(fpr B)"
+	python3 -m http.server 8001 --bind 127.0.0.1 --directory "$OUT/www" >/dev/null 2>&1 &
+	APID=$!
+fi
 qemu-img create -q -f qcow2 -F qcow2 -b "$(pwd)/$CACHE/$IMG" "$OUT/disk.qcow2" 16G
 
 # The key stays in the container: a bind mount from macOS may not keep mode 0600.
@@ -97,6 +132,7 @@ QPID=
 HPID=
 cleanup() {
 	[ -z "$QPID" ] || kill "$QPID" 2>/dev/null || true
+	[ -z "$APID" ] || kill "$APID" 2>/dev/null || true
 	[ -z "$HPID" ] || kill "$HPID" 2>/dev/null || true
 	rm -rf "$SEED"
 	[ "$NAME" != BENCH ] || rm -f "$OUT/lower.img"
@@ -197,6 +233,7 @@ if [ "$NAME" = BENCH ]; then
 fi
 case $NAME in
 INSTALL) log "MOOBFS_INSTALL_PASS: docs/operations.md followed on Debian 13; refused an unlisted kernel release, installed on the image's 6.12.113, mounted by hand, by fstab at boot and by a mount unit, two users isolated, MemoryMax= set on their slices by the drop-in and read by moobfs diagnose, uninstalled with the lower readable" ;;
+APT) log "MOOBFS_APT_PASS: moobfs-dkms and moobfs-tools from a signed apt repository on Debian 13 (ADR-0041); installed from a deb822 source with Signed-By, upgraded and rolled back by apt; an index signed by another key, a package changed after signing and a source without Signed-By refused; purged" ;;
 PACKAGE) log "MOOBFS_PACKAGE_PASS: moobfs-dkms and moobfs-tools on Debian 13 under Secure Boot; DKMS refused an unlisted kernel, the module was refused before its key was enrolled and loaded after, an unsigned build was refused, two users isolated, upgrade and roll back with the query and moobfs-check equal to the oracle, purge left the lower readable" ;;
 BENCH) log "MOOBFS_BENCH_PASS: bench/ondemand.sh on a $BENCH_FS lower, Debian 13, kernel 6.12.113, under KVM; results in $OUT/results" ;;
 WORKSPACE) log "MOOBFS_WORKSPACE_PASS: moobfs mount, workspace and status on Debian 13, kernel 6.12.113, after make install; an open lower, an unlisted kernel, a layer as lower and a depth-1 mount refused; create with --create-users made the ADR-0035 layout and default ACL; agents isolated, shared files written through the group; ro and rw grants given and revoked; list counted per area as the caller; status matched /sys/module" ;;

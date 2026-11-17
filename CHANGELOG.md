@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## v0.6.2-experimental — 2026-11-17
+
+A patch release of stage 2 (technical preview), decided on 2026-11-17 (journal 0301), with the
+kernel code of `v0.6.1-experimental` (only the module version changes, to `0.6.2`). It carries the
+packaging and scripts of the signed apt repository of ADR-0041; its packages are to be the first
+published there, after the tag, with the maintainer's offline key. The UAPI header and the on-disk
+conventions did not change. Issue #195's route stays pinned to `v0.6.1-experimental`. Its source
+archive is signed with Sigstore and carries SLSA provenance, as before. No binaries are attached.
+No independent human review of the kernel code.
+
+- Packages: a signed apt repository on the project's site, prepared and tested, not yet
+  published (ADR-0041, journal 0301). `scripts/apt-debs.sh` builds a tag's packages
+  reproducibly, with the Debian archive pinned to a `snapshot.debian.org` time;
+  `scripts/apt-index.sh` makes the index; `scripts/apt-sign.sh` is the maintainer's offline
+  signature; `scripts/apt-site.sh` builds the published versions again at each deploy of the site
+  and serves them only if they equal the signed hashes; the `apt packages build` workflow is the
+  CI build. `make apt-test` installs, upgrades and rolls back from such a repository in a Debian 13
+  VM, and checks that apt refuses another key, a changed package and a source without
+  `Signed-By`. The procedure is `docs/apt-repository.md`.
+- The package description and changelog no longer say "not published"; the packages of
+  `v0.6.1-experimental` still do, which is why the first published version is `0.6.2`.
+- `v0.6.1-experimental` is tagged on `ead5475` (2026-11-17) and its release is published and
+  verified; GHSA-w7w8-m49c-vrvr names it as the patched version (journal 0300).
+
 ## v0.6.1-experimental — 2026-11-17
 
 A patch release of stage 2 (technical preview), decided on 2026-11-17 (journal 0300). It carries

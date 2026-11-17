@@ -40,6 +40,8 @@ scanning); immutable releases on; the `github-pages` environment only; private v
 reporting, secret scanning, push protection and Dependabot security updates enabled.
 *Re-read on 2026-11-17 (journal 0300), before the tag `v0.6.1-experimental`:* unchanged, item by
 item as on 2026-11-16.
+*Re-read on 2026-11-17 at 13:52 (journal 0301), before the tag `v0.6.2-experimental`:*
+unchanged; still no Actions secret, which ADR-0041 keeps so (the apt key is offline).
 
 ## 2. Incidents
 

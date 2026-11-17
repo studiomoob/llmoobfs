@@ -8,7 +8,7 @@ authors:
 repository-code: "https://github.com/studiomoob/llmoobfs"
 url: "https://studiomoob.github.io/llmoobfs/"
 license: GPL-2.0-only
-version: "v0.6.1-experimental"
+version: "v0.6.2-experimental"
 date-released: "2026-11-17"
 abstract: >-
   Experimental Linux kernel module (no FUSE): a stacked filesystem layer over

@@ -1521,7 +1521,7 @@ hand and carries the same code paths:
   each `run:` block: <https://github.com/rhysd/actionlint>.
 - Semantic Versioning 2.0.0, items 6 and 7 (patch for backwards-compatible bug fixes, minor for
   new backwards-compatible functionality): the reason the next tag is `0.6.0`, not `0.5.1`, and
-  that `0.6.1` is a patch (journal 0300).
+  that `0.6.1` and `0.6.2` are patches (journals 0300, 0301).
   <https://semver.org/spec/v2.0.0.html>.
 - For the SELinux test of finding 0114 item 8 (same journal): Linux 6.12.111
   `security/selinux/hooks.c`, `selinux_file_permission()` (no check when the current SID opened
@@ -1726,3 +1726,18 @@ hand and carries the same code paths:
   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/fs/stat.c?h=v7.3.4
 - `fs/overlayfs/inode.c`, `ovl_getattr()` and `ovl_do_getattr()`, the model M8 of journal 0221
   had followed.
+
+## 70. A signed apt repository for the packages (journal 0301, ADR-0041)
+
+- apt 3.0.3 on Debian 13, read on the test host: `/usr/share/apt/default-sequoia.config` (the
+  Sequoia policy apt verifies signatures with) and `/usr/share/doc/apt/NEWS.Debian.gz` (2.9.24:
+  `Signed-By` and deb822 sources; 2.9.19: Sequoia verification).
+- Debian repository format: <https://wiki.debian.org/DebianRepository/Format>.
+- `apt-ftparchive(1)`, apt-utils: <https://manpages.debian.org/trixie/apt-utils/apt-ftparchive.1.en.html>.
+- `sources.list(5)`, deb822 format and `Signed-By`: <https://manpages.debian.org/trixie/apt/sources.list.5.en.html>.
+- `apt-secure(8)`: <https://manpages.debian.org/trixie/apt/apt-secure.8.en.html>.
+- Reproducible Builds, `SOURCE_DATE_EPOCH`: <https://reproducible-builds.org/specs/source-date-epoch/>.
+- snapshot.debian.org, the Debian archive at a fixed time, which pins the build toolchain of the
+  packages so that a tag rebuilds to the same bytes later: <https://snapshot.debian.org/>.
+- GnuPG `gpgv` (`--keyring`, `--output`) and `gpg --clearsign`, the signature apt verifies in
+  `InRelease`: <https://www.gnupg.org/documentation/manuals/gnupg/>.

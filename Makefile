@@ -7,7 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUILD ?= build/host
 
 
-.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit image-setup-unit container-test package-test workspace-test bench-test deb pylib-test repro-test static mutants-check fstests-auto tla-check
+.PHONY: all help tools attr-tools bench-tools userspace-tools bench-smoke hostile-test json-test test fuzz fuzz-build lint man-lint checkpatch module layer vm-test sqlite-ext install uninstall install-test install-unit image-setup-unit container-test package-test apt-test workspace-test bench-test deb pylib-test repro-test static mutants-check fstests-auto tla-check
 all: tools
 help:
 	@echo 'Host targets (macOS or Linux; never load a module on the host):'
@@ -38,6 +38,7 @@ help:
 	@echo '  make container-test  docs/container-integration.md with Docker and Podman in a disposable VM'
 	@echo '  make deb           experimental moobfs-dkms and moobfs-tools packages into build/deb (Debian; not published)'
 	@echo '  make package-test  the packages under Secure Boot in a disposable Debian 13 VM; needs only Docker'
+	@echo '  make apt-test      the packages from a signed apt repository (throwaway keys) in a disposable Debian 13 VM; needs only Docker'
 	@echo '  make workspace-test  moobfs mount, workspace and status after make install in that VM (ADR-0035)'
 	@echo '  make repro-test    build the module and the packages twice in clean containers; byte-identical or fail (Docker)'
 	@echo '  make bench-test    the on-demand index benchmark (issue #68) in that VM; MOOB_BENCH_FS=ext4|btrfs|xfs'
@@ -202,6 +203,9 @@ deb:
 	sh scripts/build-debs.sh
 package-test:
 	MOOB_TEST=package sh vm/install-test/run.sh
+# ADR-0041: install, upgrade and roll back from a signed apt repository; three copies apt must refuse
+apt-test:
+	MOOB_TEST=apt sh vm/install-test/run.sh
 # ADR-0035 (journal 0273): the user-space workspace commands in the same disposable Debian 13 VM
 workspace-test:
 	MOOB_TEST=workspace sh vm/install-test/run.sh
