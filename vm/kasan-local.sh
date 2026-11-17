@@ -29,6 +29,11 @@ KERNEL_SHA256=$(sed -n "s/^ *${KPIN}_SHA256: *//p" .github/workflows/kasan.yml)
 [ -n "$KERNEL_VERSION" ] && [ -n "$KERNEL_SHA256" ] || { echo "kasan-local: no ${KPIN} pin in kasan.yml" >&2; exit 1; }
 # KCONFIG selects another fragment (vm/kcsan.config for the data-race run); give it its own KCACHE
 KCONFIG=${KCONFIG:-vm/kasan.config}
+# KCC=clang builds the kernel and the module with Clang, which KMSAN needs (KCONFIG=vm/kmsan.config,
+# journal 0304), with a KCACHE of its own, since the kernel is built in its source tree:
+#   KCONFIG=vm/kmsan.config KCC=clang KCACHE=$HOME/.cache/moobfs-kmsan sh vm/kasan-local.sh
+# Empty, the default, keeps virtme-ng's compiler (GCC) and the cache of earlier runs valid.
+KCC=${KCC:-}
 KCACHE=${KCACHE:-$HOME/.cache/moobfs-kasan}
 KDIR=$KCACHE/linux-$KERNEL_VERSION
 R=$(pwd)
@@ -46,7 +51,7 @@ case "$(uname -m)" in
     *) KIMAGE=arch/x86/boot/bzImage KEXTRA='' VNGINIT='' ;;
 esac
 # kernel: rebuilt only when missing or when $KCONFIG (and KEXTRA) changed since the last build
-if [ ! -f "$KDIR/$KIMAGE" ] || ! cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"} | cmp -s - "$KDIR/.moobfs-kasan.config"; then
+if [ ! -f "$KDIR/$KIMAGE" ] || ! { cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"}; [ -z "$KCC" ] || echo "KCC=$KCC"; } | cmp -s - "$KDIR/.moobfs-kasan.config"; then
     mkdir -p "$KCACHE"
     if [ ! -d "$KDIR" ]; then
         curl -fsSL -o "$KCACHE/linux.tar.xz" "https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-$KERNEL_VERSION.tar.xz"
@@ -56,12 +61,23 @@ if [ ! -f "$KDIR/$KIMAGE" ] || ! cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"} | cmp -s - 
         mv "$KDIR.tmp" "$KDIR"
         rm -f "$KCACHE/linux.tar.xz"
     fi
-    (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} && vng --build)
-    cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"} > "$KDIR/.moobfs-kasan.config"
+    if [ -z "$KCC" ]; then
+        (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} && vng --build)
+    else
+        # vng --kconfig evaluates the config with GCC, which drops what needs Clang (KMSAN), so
+        # it is evaluated again with $KCC and built with it; every CONFIG_*=y of the fragment
+        # must survive
+        (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} &&
+            make CC="$KCC" olddefconfig && make CC="$KCC" -j"$(nproc)")
+        for o in $(sed -n 's/^\(CONFIG_[A-Z0-9_]*\)=y$/\1/p' "$KCONFIG"); do
+            grep -q "^$o=y" "$KDIR/.config" || { echo "kasan-local: $o is not set with CC=$KCC" >&2; exit 1; }
+        done
+    fi
+    { cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"}; [ -z "$KCC" ] || echo "KCC=$KCC"; } > "$KDIR/.moobfs-kasan.config"
 fi
 
 # module and test binaries, as in the workflow
-make layer KDIR="$KDIR"
+make layer KDIR="$KDIR" ${KCC:+CC="$KCC"}
 mkdir -p build/vng
 make attr-tools BUILD=build/vng CFLAGS="-O2 -g -static"
 make bench-tools BUILD=build/vng CFLAGS="-O2 -g -static" SQLITE_LIBS="-lsqlite3 -ldl -lpthread"
