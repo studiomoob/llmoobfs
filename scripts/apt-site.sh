@@ -27,14 +27,15 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 # 1. InRelease verifies with the published key and signs exactly the committed Release.
 if command -v sqv >/dev/null 2>&1; then
-	verify() { sqv --keyring "$K" --output "$work/Release" "$D/InRelease"; }
+	verify() { sqv --keyring "$K" --cleartext --output "$work/Release" "$D/InRelease"; }
 elif command -v gpgv >/dev/null 2>&1; then
 	verify() { gpgv --keyring "$K" --output "$work/Release" "$D/InRelease"; }
 else
 	die "neither sqv nor gpgv found"
 fi
 verify >"$work/verify.log" 2>&1 || { cat "$work/verify.log" >&2; die "InRelease does not verify with $K"; }
-cmp -s "$work/Release" "$D/Release" || die "InRelease signs another Release than $D/Release"
+# sqv drops the final newline of a cleartext message; trailing newlines carry nothing in Release
+[ "$(cat "$work/Release")" = "$(cat "$D/Release")" ] || die "InRelease signs another Release than $D/Release"
 # 2. Release gives the SHA-256 of the committed Packages.
 want=$(awk '/^SHA256:/ { on = 1; next } /^[^ ]/ { on = 0 } on && $3 == "main/binary-amd64/Packages" { print $1 }' "$D/Release")
 [ "$want" = "$(sha256sum "$D/main/binary-amd64/Packages" | cut -d' ' -f1)" ] ||
