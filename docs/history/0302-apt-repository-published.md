@@ -59,6 +59,16 @@ commit of the branch's head, not of the tag.
   the signed index`. The first `sqv` call failed with "File exists" because it was given
   `/dev/null` as output; with a temporary file it verified.
 
+## Pre-push checks
+
+On the test host at `49d965f`, 17:53–18:03: 13 of the 14 checks passed; `git diff --check` failed
+on `site/apt/dists/experimental/main/binary-amd64/Packages` ("new blank line at EOF"). The blank
+line ends the last stanza of `apt-ftparchive`'s output, and `Release`, which the maintainer signed,
+gives the hash of the file as it is, so the file cannot change. `.gitattributes` now marks
+`site/apt/dists/**` `-whitespace -text`, so Git neither reports nor normalizes it; the committed
+`Packages` still has the signed SHA-256 (`94dd8240...`), and `git diff --check` against
+`9a7384e` passes.
+
 ## Surfaces
 
 Changed in this batch: `docs/operations.md` (the user's steps: the key into
