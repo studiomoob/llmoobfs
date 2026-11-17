@@ -88,6 +88,25 @@ On the dedicated host (Debian 13, KVM), 2026-11-17:
   A build at snapshot `20260301T000000Z` failed to build at all; it is not counted as a test of a
   differing build.
 
+Full runs of the batch, on the dedicated host, each on a fresh clone (times Brasília,
+2026-11-17):
+
+| Commit | Run | Start | End | Result |
+| --- | --- | --- | --- | --- |
+| `8a8d29b` | `make apt-test`, `package-test`, `repro-test`, full `make vm-test` | 12:01 | 13:04 | `MOOBFS_APT_PASS`, `MOOBFS_PACKAGE_PASS`, `MOOBFS_REPRO_PASS` and `MOOBFS_REPRO_DEB_PASS`, `MOOBFS_VM_PASS`/`ACCEPTANCE`/`LAYER`; all rc=0 |
+| `8a8d29b` | full KASAN | 13:04 | 13:53 | stopped by hand to run again on the commit that sets version `0.6.2`; not counted |
+| `b829727` | `make apt-test` | 13:55 | 14:03 | `MOOBFS_APT_PASS`, rc=0 |
+| `b829727` | `make package-test` (Secure Boot) | 14:03 | 14:14 | `MOOBFS_PACKAGE_PASS`, rc=0 |
+| `b829727` | `make repro-test` | 14:14 | 14:23 | three modules and the two `0.6.2` packages byte-identical (`moobfs-dkms_0.6.2_all.deb` `56d9fa4a...`, `moobfs-tools_0.6.2_amd64.deb` `301d3eb9...`), rc=0 |
+| `b829727` | full `MOOB_VM_KVM=1 make vm-test` | 14:23 | 14:43 | `MOOBFS_VM_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, rc=0 |
+| `b829727` | full `sh vm/kasan-local.sh` | 14:43 | 15:58 | `MOOBFS_PYLIB_PASS`, `MOOBFS_ACCEPTANCE_PASS`, `MOOBFS_LAYER_PASS`, `MOOBFS_KASAN_PASS` (no kernel diagnostic), rc=0 |
+| `b829727` | pre-push checks (diffcheck against `ead5475`) | 15:58 | 16:08 | the 14 checks, shellcheck of the new scripts included in lint: all `PASS` |
+
+The first start of the `b829727` queue, at 13:54, failed before any test: the directories of the
+earlier queue held files Docker had made as root, so the fresh clones could not replace them and
+two steps ran outside a work tree (`No rule to make target`). The queue was stopped and started
+again at 13:55 with new directory names.
+
 ## The first version to publish
 
 The packages of `v0.6.1-experimental` describe themselves as "Not published" (`moobfs-dkms`'s
