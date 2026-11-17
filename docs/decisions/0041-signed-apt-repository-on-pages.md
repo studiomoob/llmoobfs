@@ -101,3 +101,4 @@ not labor time.
 - Item 6: the packages of `v0.6.1-experimental` say "Not published" in their description and
   changelog, text fixed in the tag. The packaging now says neither; whether the first published
   version is `0.6.1` with that text or the next tag is the maintainer's choice (journal 0301).
+  Decided the same day: the first published version is `0.6.2`, from `v0.6.2-experimental`.

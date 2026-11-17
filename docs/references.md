@@ -1521,7 +1521,7 @@ hand and carries the same code paths:
   each `run:` block: <https://github.com/rhysd/actionlint>.
 - Semantic Versioning 2.0.0, items 6 and 7 (patch for backwards-compatible bug fixes, minor for
   new backwards-compatible functionality): the reason the next tag is `0.6.0`, not `0.5.1`, and
-  that `0.6.1` is a patch (journal 0300).
+  that `0.6.1` and `0.6.2` are patches (journals 0300, 0301).
   <https://semver.org/spec/v2.0.0.html>.
 - For the SELinux test of finding 0114 item 8 (same journal): Linux 6.12.111
   `security/selinux/hooks.c`, `selinux_file_permission()` (no check when the current SID opened

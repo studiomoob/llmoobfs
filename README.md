@@ -134,7 +134,7 @@ from your own run, see [Try it in a VM](#try-it-in-a-vm).
 
 ## Status
 
-**Experimental. Source pre-release tags only; the latest, `v0.6.1-experimental` (2026-11-17), is a
+**Experimental. Source pre-release tags only; the latest, `v0.6.2-experimental` (2026-11-17), is a
 patch release of stage 2, the technical preview, which `v0.6.0-experimental` (2026-11-15) opened
 before any independent reproduction
 ([ADR-0039](docs/decisions/0039-stage-2-declared-reproduction-pending.md)); it has the fixes of
@@ -548,7 +548,7 @@ KASAN harness runs the layer suite), and no benchmark exists.
   [0035](docs/history/0035-phase-q2a-domain-query.md),
   [0082](docs/history/0082-index-lock-and-reclaim.md) and
   [0083](docs/history/0083-index-inspection-fixes.md). Tags up to `v0.4.1-experimental` carry
-  defects fixed later; `v0.6.1-experimental` has every fix up to 2026-11-17, later ones land on `main`. fstests' `quick` group passes with an exclusion list. The initial `auto` run had 1 to 4
+  defects fixed later; `v0.6.2-experimental` has every fix up to 2026-11-17, later ones land on `main`. fstests' `quick` group passes with an exclusion list. The initial `auto` run had 1 to 4
   failures per lower filesystem, none a layer defect; the rerun with justified exclusions
   passed on all three lowers with zero failures ([vm/fstests/](vm/fstests/README.md),
   journals 0239 and 0248). Skipped cases are not counted as executed tests. syzkaller ran for seven six-hour rounds with no open report. The last two cover every

@@ -218,3 +218,8 @@ advisory when it is a vulnerability under `SECURITY.md`; older versions are not 
   `v0.6.0-experimental` the kernel changed only by the fix of GHSA-w7w8-m49c-vrvr (ADR-0040), the
   rest is tests and documents, and the UAPI header and the on-disk conventions did not change; the
   module version is `0.6.1`.
+- 2026-11-17: `v0.6.2-experimental`, decided that day (journal 0301). A patch version: the kernel
+  code is that of `v0.6.1-experimental` except the module version; the release adds the packaging
+  text and the scripts of the apt repository (ADR-0041), so that its packages, the first
+  published, do not say they are unpublished. The UAPI header and the on-disk conventions did not
+  change; the module version is `0.6.2`.

@@ -530,3 +530,14 @@ tag, `v0.6.0-experimental` (2026-11-15), the first of stage 2
 A tag mais recente, `v0.6.0-experimental`
 pinned to the tag `v0.6.0-experimental`, and say
 all fixed on `main` and in `v0.6.0-experimental`
+
+# Journal 0301: v0.6.2-experimental is the latest tag.
+the latest, `v0.6.1-experimental` (2026-11-17), is a
+a mais recente, `v0.6.1-experimental`
+the latest is `v0.6.1-experimental`
+`v0.6.1-experimental` has every fix up to 2026-11-17
+a `v0.6.1-experimental` tem todas as correções até 2026-11-17
+Source pre-release tags exist through v0.6.1-experimental
+The latest tag, <strong>v0.6.1-experimental</strong>
+tag, `v0.6.1-experimental` (2026-11-17), a patch release
+A tag mais recente, `v0.6.1-experimental`

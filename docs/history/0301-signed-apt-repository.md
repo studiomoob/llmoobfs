@@ -19,6 +19,9 @@ separate (journal 0297), so that a test host installs and updates them with `apt
   Actions secret. The repository keeps no secret, and a compromised workflow cannot sign a package.
 - About 12:00: ADR-0041 accepted as proposed (layout, the two builds that must agree, rebuilding
   at deploy, tests, no `Valid-Until`).
+- About 13:50: the first published version is `0.6.2`, from a new tag `v0.6.2-experimental` cut
+  from this batch, not `0.6.1` (below, "The first version to publish"). Issue #195's route stays
+  pinned to `v0.6.1-experimental`: `layer/` differs only by the module version.
 
 ## Prior art read
 
@@ -90,7 +93,25 @@ On the dedicated host (Debian 13, KVM), 2026-11-17:
 The packages of `v0.6.1-experimental` describe themselves as "Not published" (`moobfs-dkms`'s
 description and both changelogs), text fixed in the tag. Publishing them would ship a stated fact
 that is false. The choice is the maintainer's: publish `0.6.1` with that text, or publish from the
-next tag, whose packaging no longer says it.
+next tag, whose packaging no longer says it. The maintainer chose the next tag.
+
+## `v0.6.2-experimental` prepared
+
+Checklist steps 1 to 8 (`docs/tag-checklist.md`), in this batch:
+
+- Version `0.6.2`, a patch by the rule of journal 0284: the kernel code is that of
+  `v0.6.1-experimental` except `MODULE_VERSION`; the rest is packaging text, scripts, a workflow,
+  a VM step and documents. The UAPI header and the on-disk conventions did not change.
+- `MODULE_VERSION("0.6.2")`; `CHANGELOG.md` section `v0.6.2-experimental — 2026-11-17`, whose
+  entries are this batch's; `CITATION.cff`, `CONTRIBUTING.md`, both READMEs, `SECURITY.md` (a row
+  for the tag; GHSA-w7w8-m49c-vrvr fixed in `v0.6.1-experimental` "and later tags"),
+  `docs/status.md` and `docs/status.pt-BR.md` (a dated update), `docs/faq.md` and `site/faq.html`,
+  `docs/compatibility.md` §5, `site/index.html`, `site/guide.html`, `site/plan.html`;
+  `docs/retired-claims.txt`; `docs/references.md`. The tagged files say the packages are to be
+  published, not that they are: the key and the signed index come after the tag. The journey
+  milestone waits for the publication.
+- Access table (step 7) read at 13:52 with the `gh api` calls of `docs/security-operations.md` §1:
+  unchanged; a dated note in §1.
 
 ## Next step
 
