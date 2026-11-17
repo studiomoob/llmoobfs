@@ -1,0 +1,47 @@
+Package: moobfs-dkms
+Architecture: all
+Version: 0.6.2
+Priority: optional
+Section: kernel
+Source: moobfs
+Maintainer: MoobFS maintainers <claudio@studiomoob.com>
+Installed-Size: 275
+Depends: dkms (>= 2.1.0.0)
+Recommends: linux-headers-amd64
+Filename: pool/main/m/moobfs/moobfs-dkms_0.6.2_all.deb
+Size: 65240
+SHA256: 7ff11fed1bdf1322a850a7c99016c38d41daf0b125e7c9059fbe6adf32b6e537
+SHA512: 5bbd4dbc5b6ee177183604e3c6bec2d6bf042e40aab76fdefde144b4ef98b93906bf88c181add5b790ef7f84b6d7075aacd12d3c4793a891b0dac14fa66eb986
+Homepage: https://github.com/studiomoob/llmoobfs
+Description: MoobFS layer module as DKMS sources (experimental)
+ Sources of moobfs_layer, a stacking Linux filesystem that keeps an index of
+ the typed user.moob.* attributes of each directory domain and answers
+ queries from it. DKMS builds the module only for the kernel releases the
+ project tests (BUILD_EXCLUSIVE_KERNEL) and signs it with the DKMS machine
+ owner key when the kernel supports module signing.
+ .
+ Experimental research software, for disposable test hosts only. Tested in
+ virtual machines (ADR-0028, ADR-0041).
+
+Package: moobfs-tools
+Architecture: amd64
+Version: 0.6.2
+Priority: optional
+Section: kernel
+Source: moobfs
+Maintainer: MoobFS maintainers <claudio@studiomoob.com>
+Installed-Size: 181
+Depends: libc6 (>= 2.38)
+Recommends: moobfs-dkms
+Filename: pool/main/m/moobfs/moobfs-tools_0.6.2_amd64.deb
+Size: 60484
+SHA256: 3f7d6ec53022cbe93abc7df219c6a962ff5f93e0b378b977b3c2e130493e827f
+SHA512: 3551443b00fe759eaae377d8ea27a7e108ea985e5398c34ad7c43b778cc5f5dc3c548eac2f5afe2dd091c74ce763aee04352d26b394666725ad87f358542b87c
+Homepage: https://github.com/studiomoob/llmoobfs
+Description: MoobFS user-space tools (experimental)
+ moobfs (query and inspect a mount), moobfs-attr (typed attributes),
+ moobfs-check (consistency check of a lower directory) and moobfs-index
+ (user-space index of a domain), with their manual pages.
+ .
+ Experimental research software, for disposable test hosts only.
+

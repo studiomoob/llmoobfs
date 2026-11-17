@@ -24,7 +24,7 @@ maintainer holds offline. The repository commits only text: the key, the index a
 ## The key (once, on the maintainer's machine)
 
 ```sh
-gpg --quick-gen-key 'MoobFS apt repository <claudio@studiomoob.com>' ed25519 sign 2y
+gpg --quick-gen-key 'MoobFS apt repository' ed25519 sign 2y
 gpg --list-keys --with-colons 'MoobFS apt repository' | awk -F: '/^fpr/ { print $10; exit }'
 gpg --export <FINGERPRINT> >site/apt/moobfs-archive-keyring.pgp
 gpg --export-secret-keys --armor <FINGERPRINT> >moobfs-apt-key-backup.asc   # offline media, not this disk

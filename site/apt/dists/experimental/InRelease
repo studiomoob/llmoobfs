@@ -1,0 +1,22 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Architectures: amd64
+Codename: experimental
+Components: main
+Date: Tue, 17 Nov 2026 20:34:55 +0000
+Description: MoobFS experimental packages (ADR-0041); for disposable test hosts only
+Label: MoobFS
+Origin: MoobFS
+Suite: experimental
+SHA256:
+ 94dd824021ae71dd2d2bd3e2fdc8cbbf2c06c0dfbd3b18eaa2d084cf04b85c8a             1978 main/binary-amd64/Packages
+SHA512:
+ 5f6be86f1772920874389178dd8ecfb29d20dd3cc04f1fe072948ca0ff45299fe583b9af13c78082117f1f2d7c27a703d55d6978cd844e0bbbe66affaec5c37c             1978 main/binary-amd64/Packages
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYKAB0WIQQ15nFfDSfY+s2EVsKUkYruKFDyAgUCavy9pgAKCRCUkYruKFDy
+ArPTAP4pKliauGclnEPU5yDc+YfDKInccSOa1RMVKD2CpXmH8QD7BYycCPyce364
+Ae7GfCkKsz0XVsvCqihqvHcth4a3+AQ=
+=uA8i
+-----END PGP SIGNATURE-----
