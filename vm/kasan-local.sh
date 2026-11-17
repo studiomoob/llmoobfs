@@ -64,14 +64,17 @@ if [ ! -f "$KDIR/$KIMAGE" ] || ! { cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"}; [ -z "$K
     if [ -z "$KCC" ]; then
         (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} && vng --build)
     else
-        # vng --kconfig evaluates the config with GCC, which drops what needs Clang (KMSAN), so
-        # it is evaluated again with $KCC and built with it; every CONFIG_*=y of the fragment
-        # must survive
+        # vng --kconfig evaluates the config with GCC, which writes "# CONFIG_KMSAN is not set";
+        # olddefconfig keeps such an explicit choice, so the fragment is merged in again
+        # (scripts/kconfig/merge_config.sh) and evaluated with $KCC. Every CONFIG_*=y of the
+        # fragment must survive before anything is built (journal 0304).
         (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} &&
-            make CC="$KCC" olddefconfig && make CC="$KCC" -j"$(nproc)")
+            CC="$KCC" ./scripts/kconfig/merge_config.sh -m .config "$R/$KCONFIG" >/dev/null &&
+            make CC="$KCC" olddefconfig)
         for o in $(sed -n 's/^\(CONFIG_[A-Z0-9_]*\)=y$/\1/p' "$KCONFIG"); do
             grep -q "^$o=y" "$KDIR/.config" || { echo "kasan-local: $o is not set with CC=$KCC" >&2; exit 1; }
         done
+        (cd "$KDIR" && make CC="$KCC" -j"$(nproc)")
     fi
     { cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"}; [ -z "$KCC" ] || echo "KCC=$KCC"; } > "$KDIR/.moobfs-kasan.config"
 fi

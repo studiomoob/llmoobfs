@@ -35,6 +35,17 @@ Clang 19.1.7.
 - `vm/kasan-guest.sh` names "KMSAN and lockdep" in its final marker when the boot printed
   KMSAN's line.
 
+## Runs
+
+- k1, `b9c1816`, 19:06–19:38: the kernel built with Clang, then the run stopped with
+  "kasan-local: CONFIG_KMSAN is not set with CC=clang", as the check meant it to, but only after
+  a full kernel build without KMSAN. `vng --kconfig` evaluates the fragment with GCC and writes
+  `# CONFIG_KMSAN is not set`; `olddefconfig` with Clang keeps an explicit choice. Every
+  dependency held (`CC_IS_CLANG`, `HAVE_KMSAN_COMPILER`, no KASAN or KCSAN). Fix: the fragment is
+  merged in again with `scripts/kconfig/merge_config.sh -m` before `make CC=clang olddefconfig`,
+  and the check runs before the build. On the test host this gives `CONFIG_KMSAN=y`,
+  `CONFIG_KMSAN_CHECK_PARAM_RETVAL=y` and every other `=y` of the fragment.
+
 ## Next step
 
 The first full run on the test host:
