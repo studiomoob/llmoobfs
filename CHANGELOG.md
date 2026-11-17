@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Security (GHSA-w7w8-m49c-vrvr, severity low; journal 0299, ADR-0040, a fifth freeze
+  exception): `stat` through the layer now asks the lower's security hook as the caller. Through
+  a layer mounted by a Smack-labelled mounter without `CAP_MAC_ADMIN`, a reader allowed the
+  mounter's label could `stat` a lower file the lower refuses it (mode, owner, size, times);
+  reads, writes and opens were already refused. Every tag from `v0.4.0-experimental` to
+  `v0.6.0-experimental` has the defect. The Smack run checks it again (the check held back in
+  journal 0298), and `vm/smack-local.sh` builds and boots on an s390x host.
 - `v0.6.0-experimental` is tagged on `b40e3b6` (2026-11-16) and its release is published: the
   source archive, its SHA-256, the Sigstore bundle and the SLSA provenance, verified on the test
   host with the commands of `docs/security-operations.md` §4 (journal 0297).

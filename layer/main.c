@@ -1267,26 +1267,22 @@ static void moobl_statx_lower(struct kstat *stat, const struct kstat *lower)
 }
 
 /*
- * As ovl_do_getattr() and ecryptfs_do_getattr(): the lower's security hook runs unless the caller
- * came through vfs_getattr_nosec(), which marks the call AT_GETATTR_NOSEC (and vfs_getattr() itself
- * refuses the flag). In Linux 6.12 vfs_getattr() also ends in vfs_getattr_nosec(), so every call
- * from the VFS carries the flag and this changes nothing yet (fs/stat.c); it keeps the decision
- * the caller's, not the layer's (M8, journal 0221).
+ * The lower's security hook runs as the caller on every call (ADR-0040): vfs_getattr() calls
+ * security_inode_getattr() on the lower path, then vfs_getattr_nosec(). The hook on the layer's
+ * inode is not enough: that inode's label is read under the mounter's credentials (journal
+ * 0104), and when the mounter may not read it the inode keeps the mount's default label, which a
+ * caller the lower refuses may be allowed. Until ADR-0040 this followed ovl_do_getattr(), which
+ * skips the lower's hook for a call marked AT_GETATTR_NOSEC; in Linux 6.12 every call from the
+ * VFS carries the flag (fs/stat.c), and 7.0 and 7.3 have no flag, so the lower was never asked.
+ * vfs_getattr() of 6.12 refuses the flag; it is cleared here, not passed down.
  */
 static int moobl_lower_getattr(const struct path *path, struct kstat *stat, u32 request_mask,
 			       unsigned int flags)
 {
 #if MOOBL_VFS_70
-	/*
-	 * 7.0 and 7.3 have no AT_GETATTR_NOSEC: every call is the one 6.12 always made, as ovl_getattr()
-	 * does with ovl_real_getattr_nosec() (fs/overlayfs/inode.c); the caller's security hook
-	 * ran on the layer's inode in vfs_getattr().
-	 */
-	return vfs_getattr_nosec(path, stat, request_mask, flags);
-#else
-	if (flags & AT_GETATTR_NOSEC)
-		return vfs_getattr_nosec(path, stat, request_mask, flags);
 	return vfs_getattr(path, stat, request_mask, flags);
+#else
+	return vfs_getattr(path, stat, request_mask, flags & ~AT_GETATTR_NOSEC);
 #endif
 }
 

@@ -11,7 +11,7 @@ a problem and what to expect; the longer-term plan is in
 | Version | Supported |
 | --- | --- |
 | `main` | Use this. Fixes land here only; there are no backports and no maintenance branches. |
-| `v0.6.0-experimental` | Source snapshot of 2026-11-15, not supported, the first of stage 2 (technical preview, ADR-0039): fixes F1 to F17 including fair shares of F2, issue 117 (ADR-0038) and GHSA-f769-xjf5-54wc (journals 0228, 0231, 0295, 0297). Its source archive is signed with Sigstore and has SLSA provenance (`docs/security-operations.md`). |
+| `v0.6.0-experimental` | Source snapshot of 2026-11-15, not supported, the first of stage 2 (technical preview, ADR-0039): fixes F1 to F17 including fair shares of F2, issue 117 (ADR-0038) and GHSA-f769-xjf5-54wc (journals 0228, 0231, 0295, 0297). It has [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr) (severity low: `stat` through a layer mounted by a Smack-labelled mounter), fixed on `main` (journal 0299, ADR-0040), as do the tags back to `v0.4.0-experimental`. Its source archive is signed with Sigstore and has SLSA provenance (`docs/security-operations.md`). |
 | `v0.5.0-experimental` | Source snapshot of 2026-10-28, not supported: fixes F1 to F17 except fair shares of F2, review 0144 R1/R2, the defects of review round 2 except the part of issue 117 left open, and the user-space advisories GHSA-4gr9-rvgr-44qj and GHSA-3wx4-fh9w-2v66 (journals 0226, 0227). It still has the scan fallback's walk by path, GHSA-f769-xjf5-54wc (severity low), fixed on `main` (journal 0231). Its source archive is signed with Sigstore and has SLSA provenance (`docs/security-operations.md`). |
 | `v0.4.1-experimental` | Source snapshot of 2026-10-20, not supported: fixes F1 to F12 except fair shares of F2, but contains review 0144 R1/R2, F13 (review 0151) and F14 with the other defects of review round 2 (journal 0155); their corrections (journals 0149, 0150, 0152, 0156) are newer than this tag and are in `v0.5.0-experimental`. It also contains F15, F16, F17 and GHSA-756j-cgwq-gvwm, fixed on `main` in journals 0215, 0216, 0218 and 0222, and the defects of issues 115, 117 (in part) and 119, fixed in journals 0221 to 0224. |
 | `v0.4.0-experimental` | Source snapshot, not supported. Its queries are about twice as slow as they should be (a buffer allocated per query, journal 0139). |
@@ -189,6 +189,12 @@ model is [ADR-0011](docs/decisions/0011-threat-and-credential-model.md)
 (accepted 2026-10-12): adversaries, promises, non-promises, unprivileged surfaces and the
 findings F1 to F17, all fixed on `main` (F2's fair shares by ADR-0027, after `v0.5.0-experimental`). [docs/security-roadmap.md](docs/security-roadmap.md) lists
 fstests, syzkaller, hostile-lower handling and the other open items.
+*Update, 2026-11-17 ([journal 0299](docs/history/0299-getattr-asks-the-lower-as-the-caller.md)):*
+the S12 Smack run, carried out with Claude Code (an AI assistant) for the maintainer, found that
+through a layer mounted by a Smack-labelled mounter without `CAP_MAC_ADMIN` a reader allowed the
+mounter's label could `stat` a lower file the lower refuses it ([GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr), severity low). `stat` now asks the lower's security hook as the
+caller ([ADR-0040](docs/decisions/0040-getattr-asks-the-lower-as-the-caller.md)); tags
+`v0.4.0-experimental` to `v0.6.0-experimental` have the defect.
 
 Known availability limit (issue 118): an authorized, unprivileged `QUERY2`
 can build a whole domain with the mounter's credentials, again after a
