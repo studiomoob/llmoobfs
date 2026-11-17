@@ -97,7 +97,8 @@ were not published on their dates stay.
   `/usr/src/moobfs-0.6.2` exists. A container has no kernel of its own, so DKMS did not build the
   module there; installing, building and loading the module from an apt repository is what
   `make apt-test` covers in a VM, with throwaway keys (journal 0301). An install of the module from
-  the published repository on a VM or a real host is not yet recorded.
+  the published repository on a VM or a real host is not yet recorded. *Note, 2026-11-17, 18:49:*
+  journal 0303 records it, in a VM (`make apt-live-test`).
 
 ## Next step
 

@@ -51,7 +51,8 @@ repository or an assistant's session. The fingerprint goes into `SECURITY.md`,
 4. **The pull request.** The required checks run; after the merge, `pages.yml` runs
    `scripts/apt-site.sh`, which verifies `InRelease` with the committed key, builds every version
    again from its tag and deploys only if each package equals its signed hash.
-5. **Check from outside**: on a disposable host, the user's steps of `docs/operations.md`.
+5. **Check from outside**: `make apt-live-test` follows the user's steps of `docs/operations.md` in
+   a disposable Debian 13 VM against the published repository (journal 0303).
 
 ## Rotation and loss
 
