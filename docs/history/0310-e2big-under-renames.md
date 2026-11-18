@@ -1,8 +1,8 @@
 # 0310 — Finding 1 of issue #195: renames spent the build allowance, and the build said "too large"
 
-Date: 2026-11-18. Work started at 16:30 Brasília time. Status: **in progress**: the cause is
-shown, the fix is written and passes the steps it touches; ADR-0043 is accepted; the full suite
-and the full KASAN/lockdep suite are running. Estimated effort M
+Date: 2026-11-18. Work started at 16:30 Brasília time and ended at 19:20. Status: **done**: the
+cause is shown, the fix passes the steps it touches, the full suite and the full KASAN/lockdep
+suite; ADR-0043 is accepted. Estimated effort M
 (journal 0306); the time recorded is calendar time.
 
 ## Goal
@@ -83,7 +83,15 @@ On the test host, in fresh clones of `15512bf`:
   (`QUERY_BUILD_MOVED_CHILD_PASS: moved rescan exhausted the allowance: EAGAIN without output`;
   the oversized quiet domains still get `E2BIG`, `BUILD_LIMIT_PASS`, `BUILD_WORK_OPTION_PASS`).
 - `MOOB_VM_KVM=1 MOOB_ONLY="buildrace buildmoved"` on 6.12.111: pass.
-- Running: `make lint`, the full `MOOB_VM_KVM=1 make vm-test`, the full `vm/kasan-local.sh`.
+- From 17:24 to 19:04, in one fresh clone: `make lint` pass; the full `MOOB_VM_KVM=1 make
+  vm-test` (6.12.111), `MOOBFS_VM_PASS`, with the new check at `builds=24 e2big=0 eagain=0` on
+  ext4, btrfs and XFS; the full `vm/kasan-local.sh`, `MOOBFS_KASAN_PASS: layer suite under KASAN,
+  UBSAN and lockdep with no kernel diagnostics`.
+
+These runs were made at `15512bf`, before the branch was rebased on `main` after pull requests
+#214 and #215; the rebase changed no kernel code and no test of this batch. After the rebase, on
+this Mac: `make test`, `check-retired-claims`, `check-pins`, `check-matrix-page`, `check-site`,
+`site-faq --check` and `git diff --check`, all pass.
 
 The change touches no lock and no object lifetime.
 
@@ -96,6 +104,5 @@ The change touches no lock and no object lifetime.
 
 ## Next step
 
-The full runs; publication in one pull request; then
-the link on issue #195, and `docs/matrix-and-limits.md`'s known limit closed (it lands with
-journal 0306's pull request).
+Publication in one pull request, then a reply on issue #195 with its link (drafted outside the
+repository, posted by the maintainer), asking the reproducer to confirm on his host.
