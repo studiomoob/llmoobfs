@@ -9,6 +9,15 @@
 [  685.161765]  moobl_fsync+0x10f/0x1b0 [moobfs_layer]
 [  685.161766]  __x64_sys_fsync+0x1db/0x350
 [  685.161767] 
+[  685.161767] Uninit was stored to memory at:
+[  685.161767]  __write_extent_buffer+0x43d/0x6b0
+[  685.161767]  copy_extent_buffer_full+0x2db/0x3f0
+[  685.161767]  btrfs_force_cow_block+0x6d2/0x26a0
+[  685.161767]  btrfs_rename2+0x4326/0x5250
+[  685.161767]  vfs_rename+0x117c/0x2430
+[  685.161767]  moobl_rename+0xfe7/0x1610 [moobfs_layer]
+[  685.161767]  vfs_rename+0x117c/0x2430
+[  685.161767] 
 [  685.161768] Uninit was created at:
 [  685.161769]  free_unref_page+0x187/0x14b0
 [  685.161770]  tlb_remove_table_rcu+0x5c/0xb0

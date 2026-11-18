@@ -73,20 +73,37 @@ Clang 19.1.7.
 
 ## KMSAN reports judged as KCSAN's are
 
-`vm/kdiag.sh` now treats a KMSAN report as journal 0115 treats a KCSAN one. It fails a run when
-the use is in the module (the first frame of the report's first stack is a function of
-`moobfs_layer`) or when the memory came from it (a frame of `moobfs_layer` after "Uninit was
-created at:", "Uninit was stored to memory at:" or "Local variable ... created at:"); the second
-rule is what catches an uninitialized buffer of the layer copied to user space, whose report
-starts in `instrument_copy_to_user`. Other reports are counted on one `KMSAN_OUTSIDE` line, with
-how many were reached through the layer.
+`vm/kdiag.sh` now treats a KMSAN report as journal 0115 treats a KCSAN one. Each stack of a
+report (the use, then each "Uninit was stored to memory at:", "Uninit was created at:" or "Local
+variable ... created at:") is decided by its first frame that is not a generic helper (an
+allocator, a copy, KMSAN itself). One in `moobfs_layer` fails the run, as the use or as the
+origin of the memory; this catches an uninitialized buffer of the layer copied to user space,
+whose use starts in `instrument_copy_to_user` and whose memory was allocated by the layer. The
+module further down a stack, as the caller that passed an `fsync` or a `rename` to the lower,
+does not fail it. Other reports are counted on one `KMSAN_OUTSIDE` line, with how many were
+reached through the layer.
 
-`tests/kdiag/run.sh`, now part of `make test`, runs `kdiag` on five captures: the first k3
-report and a `vring_map_one_sg` one (outside, counted), three made-up reports (use in the
-module; memory allocated by the module and copied to user space; a local variable of the module
-copied to user space), and a plain `WARNING:`. `KDIAG_TEST_PASS`. Negative round: with the
-`kdiag.sh` of `main`, four of the five fail (`KDIAG_TEST_FAIL: 4`): every KMSAN report fails the
-run, the outside ones included, and none names why.
+The first version of the rule failed a report when `moobfs_layer` appeared anywhere in an origin
+stack. Run on the k3 console, it blamed the module for nearly all of btrfs's reports: they have an
+"Uninit was stored to memory at:" stack in which btrfs's `__write_extent_buffer`, during the
+copy-on-write of its own tree block, is reached from a `rename` that `moobl_rename` passed to
+`vfs_rename`. The store is btrfs's, and so is the memory (created by `free_unref_page`); the rule
+was narrowed to the first non-helper frame before anything was committed with it.
+
+`tests/kdiag/run.sh`, now part of `make test`, runs `kdiag` on six captures: the first k3
+report with its "stored to memory at" stack through `moobl_rename`, and a `vring_map_one_sg`
+one (outside, counted); four made-up reports (use in the module; memory allocated by the module
+and copied to user space; a local variable of the module copied to user space; a `kmalloc` of
+the module behind the allocator's own frames); and a plain `WARNING:`. `KDIAG_TEST_PASS` with
+BSD awk (macOS), gawk 5.2.1 (Debian 13) and mawk (Ubuntu 26.04, the CI runner's awk). Negative
+round: with the `kdiag.sh` of `main`, five of the six fail (`KDIAG_TEST_FAIL: 5`): every KMSAN
+report fails the run, the outside ones included, and none names why.
+
+Over the whole k3 console as far as it had run (23 242 KMSAN reports): exit 0 and one line,
+`KMSAN_OUTSIDE: 23242 report(s) with neither the use nor the memory in moobfs_layer (22148
+reached through it)`. The kinds: `use-after-free` and `uninit-value` in `__crc32c_le_base` and
+in `vring_map_one_sg` (btrfs's tree-block checksums and their trip to the virtual disk), and
+three `uninit-value in rcu_core` on an idle CPU, from a local variable of RCU itself.
 
 ## Next step
 

@@ -17,24 +17,28 @@
 # The timestamp is removed before REGEX is tried, so a kernel warning is matched as ^WARNING:
 # (with KVM the boot prints "Speculative Return Stack Overflow: WARNING: ...", not a warning).
 kdiag() {
-    awk -v re="$2" '
+    awk -v re="$2" -v helper='^ (kmsan_|__msan_|instrument_|_?_?copy_(to|from)_user|__?mem(cpy|move|set)|slab_|___?slab_alloc|kmem_cache_alloc|__kmem_cache_alloc|__?kmalloc|kmalloc_|__do_kmalloc|__?kvmalloc|krealloc|__?alloc_pages|__?folio_alloc|alloc_slab_page|new_slab|__?vmalloc|__get_free_pages)' '
     { sub(/\r$/, ""); sub(/^\[ *[0-9.]+\] /, "") }
     /BUG: KCSAN:/ { ink = 1; layer = 0; via = 0; want = 0; title = $0; next }
-    /BUG: KMSAN:/ { inm = 1; mlayer = 0; mvia = 0; top = 1; origin = 0; mtitle = $0; next }
+    /BUG: KMSAN:/ { inm = 1; mlayer = 0; mvia = 0; first = 1; origin = 0; mtitle = $0; next }
     inm && /^=+$/ {
         if (mlayer) { print mtitle " (" mwhy ")"; bad = 1 }
         else { mout++; if (mvia) moutvia++ }
         inm = 0; next
     }
     inm {
-        if ($0 ~ /^(Uninit was created at|Uninit was stored to memory at|Local variable .* created at)/) { origin = 1; next }
+        # each stack of the report (the use, then where the memory was stored or created) is
+        # decided by its first frame that is not a generic helper: an allocator, a copy, KMSAN
+        if ($0 ~ /^(Uninit was created at|Uninit was stored to memory at|Local variable .* created at)/) { origin = 1; first = 1; next }
         if ($0 ~ /^ [A-Za-z_][A-Za-z0-9_.]*\+0x/) {
-            if ($0 ~ /\[moobfs_layer\]/) {
-                if (top) { mlayer = 1; mwhy = "use in moobfs_layer" }
-                else if (origin) { mlayer = 1; mwhy = "memory from moobfs_layer" }
-                else mvia = 1
+            if ($0 ~ /\[moobfs_layer\]/) mvia = 1
+            if (first && $0 !~ helper) {
+                if ($0 ~ /\[moobfs_layer\]/) {
+                    mlayer = 1
+                    mwhy = origin ? "memory from moobfs_layer" : "use in moobfs_layer"
+                }
+                first = 0
             }
-            top = 0
         }
         next
     }

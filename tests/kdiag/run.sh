@@ -20,5 +20,6 @@ expect kmsan-outside.txt 0 'KMSAN_OUTSIDE: 2 report(s) with neither the use nor 
 expect kmsan-use-in-layer.txt 1 'BUG: KMSAN: uninit-value in moobl_query_page+0x10/0x200 [moobfs_layer] (use in moobfs_layer)'
 expect kmsan-memory-from-layer.txt 1 '(memory from moobfs_layer)'
 expect kmsan-local-in-layer.txt 1 '(memory from moobfs_layer)'
+expect kmsan-slab-from-layer.txt 1 'BUG: KMSAN: uninit-value in btrfs_setxattr+0x1/0x100 (memory from moobfs_layer)'
 expect plain-warning.txt 1 'WARNING: CPU: 0'
 [ "$fails" = 0 ] && echo "KDIAG_TEST_PASS" || { echo "KDIAG_TEST_FAIL: $fails"; exit 1; }
