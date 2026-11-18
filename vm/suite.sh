@@ -1663,10 +1663,17 @@ rm -f /tmp/lr.done.*
 ("$BIN/moobfs-attr" set "$LAYER/gone" kind string note > /dev/null && echo ok > /tmp/lr.done.xattr) &
 sleep 2
 lr_early=$(ls /tmp/lr.done.* 2>/dev/null)
-lr_warn=$(dmesg | sed -n '/moobfs-suite: lowerro freeze/,$p' | grep -E '\] WARNING:|^WARNING:|BUG:' | head -3)
+# kdiag (the KASAN harness) leaves out KCSAN reports with no access in the layer: one in virtio,
+# from this check's own read of the 9p root, failed it once (issue #195, finding 4; journal 0306)
+dmesg | sed -n '/moobfs-suite: lowerro freeze/,$p' > /tmp/lr.dmesg
+if command -v kdiag > /dev/null 2>&1; then
+    lr_warn=$(kdiag /tmp/lr.dmesg '\] WARNING:|^WARNING:|BUG:' | grep -v -E '^(KCSAN|KMSAN)_OUTSIDE:' | head -3)
+else
+    lr_warn=$(grep -E '\] WARNING:|^WARNING:|BUG:' /tmp/lr.dmesg | head -3)
+fi
 fsfreeze --unfreeze "$LOWER" || fail "lr-fz-thaw"
 wait
-[ -z "$lr_warn" ] || { dmesg | sed -n '/moobfs-suite: lowerro freeze/,$p' | grep -E -A15 '\] WARNING:|^WARNING:' | head -40; fail "lr-fz-kernel-warning"; }
+[ -z "$lr_warn" ] || { echo "$lr_warn"; grep -E -A15 '\] WARNING:|^WARNING:|BUG:' /tmp/lr.dmesg | head -40; fail "lr-fz-kernel-warning"; }
 [ -z "$lr_early" ] || fail "lr-fz-change-completed-while-frozen: $lr_early"
 for k in create setattr xattr; do [ -f /tmp/lr.done.$k ] || fail "lr-fz-$k-failed-after-thaw"; done
 [ -f "$LOWER/lr/d/new" ] && [ "$(stat -c %a "$LOWER/lr/d/f")" = 600 ] || fail "lr-fz-lower-not-changed-after-thaw"

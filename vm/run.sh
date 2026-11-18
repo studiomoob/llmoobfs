@@ -39,4 +39,9 @@ if [ "${MOOB_VM_KVM:-}" = 1 ]; then
     [ -w /dev/kvm ] || { echo "MOOB_VM_KVM=1 needs a writable /dev/kvm" >&2; exit 1; }
     set -- --device /dev/kvm
 fi
-docker run --rm --platform "linux/$MOOB_ARCH" "$@" -e MOOB_ARCH="$MOOB_ARCH" -e MOOB_DEBIAN_KERNEL="$MOOB_DEBIAN_KERNEL" -e MOOB_UBUNTU_KERNEL="$MOOB_UBUNTU_KERNEL" -e MOOB_ONLY="${MOOB_ONLY:-}" -e MOOB_PERMCHURN="${MOOB_PERMCHURN:-}" -e MOOB_SELFCHECK="${MOOB_SELFCHECK:-}" -e MOOB_WALKLAT="${MOOB_WALKLAT:-}" -e MOOB_VM_KVM="${MOOB_VM_KVM:-}" -e MOOB_VM_MEM="${MOOB_VM_MEM:-}" -e MOOB_CROSS="${MOOB_CROSS:-}" -v "$PWD:/work" "$TAG" sh vm/in-container.sh
+docker run --rm --platform "linux/$MOOB_ARCH" "$@" -e MOOB_ARCH="$MOOB_ARCH" -e MOOB_DEBIAN_KERNEL="$MOOB_DEBIAN_KERNEL" -e MOOB_UBUNTU_KERNEL="$MOOB_UBUNTU_KERNEL" -e MOOB_ONLY="${MOOB_ONLY:-}" -e MOOB_PERMCHURN="${MOOB_PERMCHURN:-}" -e MOOB_SELFCHECK="${MOOB_SELFCHECK:-}" -e MOOB_WALKLAT="${MOOB_WALKLAT:-}" -e MOOB_VM_KVM="${MOOB_VM_KVM:-}" -e MOOB_VM_MEM="${MOOB_VM_MEM:-}" -e MOOB_CROSS="${MOOB_CROSS:-}" -v "$PWD:/work" "$TAG" sh vm/in-container.sh || rc=$?
+# The container runs as root on the bind-mounted checkout; hand what it made back to the caller, or
+# a later step as that user (vm/kasan-local.sh, vm/fstests-local.sh: make layer) fails on a
+# root-owned build product (issue #195, finding 2; journal 0306).
+docker run --rm --platform "linux/$MOOB_ARCH" -v "$PWD:/work" "$TAG" find /work -user 0 -exec chown "$(id -u):$(id -g)" {} +
+exit "${rc:-0}"

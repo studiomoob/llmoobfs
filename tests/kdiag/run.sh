@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
-# vm/kdiag.sh on recorded and made-up dmesg captures (journal 0304): which KMSAN reports fail a
-# run and which are counted as KMSAN_OUTSIDE. Run from the repository root: sh tests/kdiag/run.sh
+# vm/kdiag.sh on recorded and made-up dmesg captures (journals 0304 and 0306): which KMSAN and
+# KCSAN reports fail a run and which are counted as KMSAN_OUTSIDE or KCSAN_OUTSIDE. Run from the repository root: sh tests/kdiag/run.sh
 set -eu
 . vm/kdiag.sh
 D=tests/kdiag
@@ -22,4 +22,9 @@ expect kmsan-memory-from-layer.txt 1 '(memory from moobfs_layer)'
 expect kmsan-local-in-layer.txt 1 '(memory from moobfs_layer)'
 expect kmsan-slab-from-layer.txt 1 'BUG: KMSAN: uninit-value in btrfs_setxattr+0x1/0x100 (memory from moobfs_layer)'
 expect plain-warning.txt 1 'WARNING: CPU: 0'
+# issue #195, finding 4: a KCSAN report in virtio during the lowerro freeze check (an outside
+# reproducer's capture); the check's kdiag filter (vm/suite.sh) must leave nothing for it to fail on
+expect kcsan-lowerro-outside.txt 0 'KCSAN_OUTSIDE: 1 report(s) with no racing access in moobfs_layer (0 reached through it)'
+lr_warn=$(kdiag "$D/kcsan-lowerro-outside.txt" '\] WARNING:|^WARNING:|BUG:' | grep -v -E '^(KCSAN|KMSAN)_OUTSIDE:' | head -3)
+if [ -z "$lr_warn" ]; then echo "ok: lowerro filter"; else echo "FAIL: lowerro filter: $lr_warn"; fails=$((fails + 1)); fi
 [ "$fails" = 0 ] && echo "KDIAG_TEST_PASS" || { echo "KDIAG_TEST_FAIL: $fails"; exit 1; }

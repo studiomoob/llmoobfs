@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- The first independent reproduction of stage 2: Marcelo Jorge Vieira ran Parts A, B and C of
+  issue #195's route at `v0.6.1-experimental` on his own KVM host (journal 0306); the maintainer
+  counts it as the reproduction ADR-0039 left pending. Fixed from his findings: Docker-based steps
+  give root-owned build products back to the caller (`vm/run.sh`, `vm/install-test/run.sh`); the
+  `lowerro` freeze check judges its dmesg with `kdiag`, so a KCSAN report of the kernel alone no
+  longer fails it (with his capture as a test); `pkgconf` in the fstests package list; the
+  regenerated `vm/syzkaller/moobfs.txt.const`; a note on the W^X warning of Debian 6.12.117 host
+  kernels in fstests runs. Open: `buildrace` gets `E2BIG` on Debian 7.3 under a fast KVM guest.
+  AGENTS.md: outside people may be credited by name when they ask for it publicly.
 - ADR-0042 (accepted 2026-11-18, journal 0305): stage 3 (public release) no longer requires an
   independent human review; in its place, two independent AI-assisted reviews of the credential
   paths and the `QUERY2` authorization, made with different tools, every finding reproduced with

@@ -146,7 +146,9 @@ na sua própria execução, veja [Experimente numa VM](#experimente-numa-vm).
 **Experimental. Só tags de pré-lançamento do código-fonte; a mais recente, `v0.6.2-experimental`
 (2026-11-17), é uma versão de correção da etapa 2, a prévia técnica, que a `v0.6.0-experimental`
 (2026-11-15) abriu antes de qualquer reprodução independente
-([ADR-0039](docs/decisions/0039-stage-2-declared-reproduction-pending.md)); contém as correções
+([ADR-0039](docs/decisions/0039-stage-2-declared-reproduction-pending.md)), que veio em
+2026-11-18: Marcelo Jorge Vieira reproduziu as Partes A, B e C na `v0.6.1-experimental` no seu
+próprio host com KVM, com seis achados ([diário 0306](docs/history/0306-first-independent-reproduction.md)); contém as correções
 dos achados F1 a F17 do ADR-0011, inclusive as cotas justas do F2, e do GHSA-w7w8-m49c-vrvr. Não
 é para produção.** A `v0.6.0-experimental` tem o GHSA-w7w8-m49c-vrvr (severidade baixa,
 [SECURITY.md](SECURITY.md)). A `v0.5.0-experimental` (2026-10-28) não tem as cotas justas do F2 nem as correções
@@ -232,8 +234,8 @@ requests 161 a 163). O que mais ajudaria, organizado por
 quanto conhecimento de kernel exige, está em **[docs/help-wanted.md](docs/help-wanted.md)**: uma
 revisão do modelo de credenciais ou das travas do índice, se você conhece o VFS; uma verificação
 de se o seu sistema de memória se encaixa, se você constrói um; uma rodada dos testes na sua
-máquina ou em outro kernel (a chamada aberta [#195](https://github.com/studiomoob/llmoobfs/issues/195) pede uma reprodução independente das
-evidências da etapa 2 num host com KVM); e correções de documentação ou de reprodutibilidade que não exigem
+máquina ou em outro kernel (a chamada [#195](https://github.com/studiomoob/llmoobfs/issues/195) teve a primeira
+reprodução independente das evidências da etapa 2 em 2026-11-18; mais hosts e kernels ainda ajudam); e correções de documentação ou de reprodutibilidade que não exigem
 conhecimento de kernel. As regras para
 mudanças estão em [CONTRIBUTING.md](CONTRIBUTING.md).
 

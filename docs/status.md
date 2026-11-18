@@ -135,6 +135,13 @@ everything" line: an independent run of the stage-2 test evidence on another KVM
 preview) is declared, with the third-party reproduction still pending: the maintainer made it a
 known open item of the preview instead of a condition. The tag `v0.6.0-experimental` marks it,
 and issue #195's route is pinned to that tag instead of `d96b0db`. No one has reproduced it yet.
+*Update, 2026-11-18 ([journal 0306](history/0306-first-independent-reproduction.md)):* the first independent reproduction: Marcelo Jorge
+Vieira ran Parts A, B and C of issue #195's route at `v0.6.1-experimental` on his own KVM host
+(ThinkPad X1 Carbon, Debian 13). Part A passed except `buildrace` on Debian 7.3 under KVM
+(`E2BIG`, under investigation) and two steps that failed only on root-owned build products; every
+fstests failure of Part B is in the exclusion lists, with a kernel diagnostic from the host's own
+6.12.117 kernel, not the layer; Part C found no crash in six hours and reached 89.0 % of the
+call sites. The maintainer counts it as the reproduction ADR-0039 left pending.
 *Update, 2026-11-17 ([journal 0299](history/0299-getattr-asks-the-lower-as-the-caller.md),
 [ADR-0040](decisions/0040-getattr-asks-the-lower-as-the-caller.md)):* a fifth exception to the
 kernel freeze fixes [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr) (severity low): through a layer mounted

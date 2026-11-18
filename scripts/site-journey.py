@@ -97,6 +97,8 @@ MILESTONES = [
   'Um teste com Smack descobre que o stat numa camada montada por um montador com rótulo nunca consultava a verificação do sistema de baixo para quem chama. A correção entra com um teste que falha no código antigo, o aviso de segurança é publicado e a v0.6.1-experimental a traz.', ['0298', '0299', '0300']),
  ('2026-11-17', 'The Debian packages are published in a signed apt repository on the project\'s site, from v0.6.2-experimental. The maintainer signs offline; the site builds the packages again from the tag at every deploy and serves them only if they match the signature.',
   'Os pacotes Debian são publicados num repositório apt assinado no site do projeto, a partir da v0.6.2-experimental. O mantenedor assina offline; o site recompila os pacotes a partir da tag a cada publicação e só os serve se baterem com a assinatura.', ['0301', '0302']),
+ ('2026-11-18', 'The first independent reproduction: Marcelo Jorge Vieira runs the whole stage-2 route on his own KVM host. Almost everything passes; his six findings, among them a build that reports E2BIG on a small domain under fast writers on Debian 7.3, become fixes and an open investigation.',
+  'A primeira reprodução independente: Marcelo Jorge Vieira roda toda a rota da etapa 2 no seu próprio host com KVM. Quase tudo passa; os seus seis achados, entre eles um build que devolve E2BIG num domínio pequeno sob escritas rápidas no Debian 7.3, viram correções e uma investigação em aberto.', ['0306']),
 ]
 
 T = {

@@ -9,8 +9,9 @@ the layer in a virtme-ng guest of the host's running kernel, so that a crash sta
 
 1. On a Debian host with KVM, as in `vm/kasan-local.sh`: the build dependencies of fstests
    (`automake libtool libtool-bin gawk indent libacl1-dev libaio-dev libattr1-dev libcap-dev
-   libgdbm-dev liburing-dev uuid-dev uuid-runtime xfslibs-dev attr acl bc dbench dump quota psmisc
-   fio`), `busybox-static` for `vng -r`, and the headers of the running kernel.
+   libgdbm-dev liburing-dev pkgconf uuid-dev uuid-runtime xfslibs-dev attr acl bc dbench dump quota
+   psmisc fio`; without `pkgconf`, configure fails with "possibly undefined macro: AC_DEFINE",
+   issue #195, journal 0306), `busybox-static` for `vng -r`, and the headers of the running kernel.
 2. `git clone --depth 1 --branch v2026.09.22
    https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git ~/fstests && make -C ~/fstests -j8`
 3. From the repository root: `sh vm/fstests-local.sh ~/fstests ext4 -g quick` (lower filesystem,
@@ -18,6 +19,12 @@ the layer in a virtme-ng guest of the host's running kernel, so that a crash sta
    results in `build/fstests/tree/results/`. `MOOB_KVER=<release>` boots another installed
    kernel in the guest (image in `/boot`, modules and headers under `/lib/modules`) instead of
    the running one, and the layer is built against its headers (journal 0206).
+   Use it with a kernel of the matrix (`docs/matrix-and-limits.md`) when the host runs a newer
+   one: from Debian `6.12.117` on, the kernel warns once per module load in an Intel KVM guest
+   (`CPA detected W^X violation`, `arch/x86/mm/pat/set_memory.c`, from the ITS thunks of
+   `apply_retpolines`), fstests' loop and device-mapper tests load modules, and the console then
+   ends in `MOOBFS_FSTESTS_KERNEL_DIAGNOSTIC` with no fault of the layer (reproduced without the
+   layer; issue #195, journal 0306).
 
 `moobfs_layer.patch` is the whole port: fstests learns the type in the eight places where it
 already handles filesystems without a block device (virtiofs, 9p). The "devices" are two names,

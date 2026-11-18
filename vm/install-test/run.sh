@@ -32,4 +32,9 @@ docker build --platform linux/amd64 -t moobfs-install-test -f vm/install-test/Do
 KVM=
 [ ! -w /dev/kvm ] || KVM=--device=/dev/kvm
 # shellcheck disable=SC2086   # $KVM is empty or one option
-docker run --rm --platform linux/amd64 $KVM -e MOOB_COMMIT="${MOOB_COMMIT:-$(git rev-parse --short HEAD)}" -e MOOB_TEST="${MOOB_TEST:-install}" -e MOOB_BENCH_FS="${MOOB_BENCH_FS:-ext4}" -e MOOB_BENCH_CACHE="${MOOB_BENCH_CACHE:-host}" -v "$PWD:/work" moobfs-install-test sh vm/install-test/in-container.sh
+docker run --rm --platform linux/amd64 $KVM -e MOOB_COMMIT="${MOOB_COMMIT:-$(git rev-parse --short HEAD)}" -e MOOB_TEST="${MOOB_TEST:-install}" -e MOOB_BENCH_FS="${MOOB_BENCH_FS:-ext4}" -e MOOB_BENCH_CACHE="${MOOB_BENCH_CACHE:-host}" -v "$PWD:/work" moobfs-install-test sh vm/install-test/in-container.sh || rc=$?
+# The container runs as root on the bind-mounted checkout; hand what it made back to the caller, or
+# a later step as that user (vm/kasan-local.sh, vm/fstests-local.sh: make layer) fails on a
+# root-owned build product (issue #195, finding 2; journal 0306).
+docker run --rm --platform linux/amd64 -v "$PWD:/work" moobfs-install-test find /work -user 0 -exec chown "$(id -u):$(id -g)" {} +
+exit "${rc:-0}"
