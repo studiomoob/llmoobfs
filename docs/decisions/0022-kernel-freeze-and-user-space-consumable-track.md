@@ -1,7 +1,9 @@
 # ADR-0022 — Kernel freeze stays; user-space work toward a consumable module may proceed
 
 Date: 2026-10-25. Status: **accepted by the maintainer on 2026-10-25**, in the session
-recorded in journal 0196. Estimated effort of the decision itself: S (hours). The work it
+recorded in journal 0196. *Note, 2026-11-18:* decision 1 (the kernel freeze) is replaced by
+[ADR-0042](0042-no-human-review-gate-and-kernel-features-one-at-a-time.md): kernel features enter one at a time, each by its own ADR; decisions 2 to 5
+stand. Estimated effort of the decision itself: S (hours). The work it
 opens is estimated per item in the "Consumable path" section of `ROADMAP.md`.
 This is ADR-0022 because ADR-0021 is the latest on `main` at `4f5148f`.
 

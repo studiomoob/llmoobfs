@@ -158,3 +158,12 @@ four rename sites. 0114 item 6: the opt-in suite step `walklatency`, a real-time
 on the walk's CPU, meaningful on kernels without forced preemption. Four exceptions remain:
 0114 item 3, M7, M8.2 and M8.3. Recorded without the maintainer, by the rule applied to item 8;
 for the maintainer to confirm, in particular that V8's partial coverage suffices.
+
+## Note, 2026-11-18 ([ADR-0042](0042-no-human-review-gate-and-kernel-features-one-at-a-time.md), journal 0305)
+
+The stage-3 precondition of the decision above (an independent human review of the credential
+paths and the `QUERY2` authorization) is replaced: stage 3 needs two independent AI-assisted reviews
+of that scope, made with different tools, under criterion (2). The kernel freeze ended with the same
+ADR, so, by the rule of the amendment of 2026-11-11, the four exceptions left (0114 item 3, M7,
+M8.2 and M8.3) are reopened: each gets a regression test or a renewed reason in a later batch, and
+"it would need a kernel change" is no longer a reason by itself.

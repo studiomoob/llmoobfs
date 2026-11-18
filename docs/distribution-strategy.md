@@ -464,6 +464,8 @@ above is kept.
   contention under load, with no wrong answer and no security effect. Removing it changes the
   kernel, which is frozen ([ADR-0022](decisions/0022-kernel-freeze-and-user-space-consumable-track.md)); the issue stays open as a candidate for when
   the freeze is reviewed after `v0.6.0`. [when-not-to-use.md](when-not-to-use.md) §3 lists it.
+  *Note, 2026-11-18:* the freeze ended ([ADR-0042](decisions/0042-no-human-review-gate-and-kernel-features-one-at-a-time.md)); kernel features enter one at a time,
+  each by its own ADR.
   *Note, 2026-11-14:* the maintainer authorized that kernel change before the tag
   ([ADR-0038](decisions/0038-index-keeps-no-inode-pointer.md)); journal
   [0295](history/0295-index-keeps-no-inode-pointer.md) removes the remainder, so this limit no
@@ -546,6 +548,14 @@ further precondition of stage 3: at least one independent human review, read by 
 volunteer who knows the VFS, targeted at the credential paths (`override_creds()` and the paths
 that reach the lower filesystem) and the `QUERY2` authorization. A hand-read review of all of
 the kernel code is a goal of stage 3.
+
+*Amended, 2026-11-18 ([ADR-0042](decisions/0042-no-human-review-gate-and-kernel-features-one-at-a-time.md), journal 0305):* stage 3 no longer requires an
+independent human review. In its place: at least two independent AI-assisted reviews of the
+credential paths and the `QUERY2` authorization, made with two different tools, each started
+without the other's findings, every finding reproduced with a regression test or recorded as an
+exception with its reason (ADR-0030's criterion (2)); and every surface keeps saying that there has
+been no independent human review of the kernel code while that is true. A human review remains
+welcome and gates nothing.
 
 ## 9. Repository files that would need to change
 

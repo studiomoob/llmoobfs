@@ -555,3 +555,7 @@ a rebuild by a third party, no published package.
 Still open under S8: KMSAN
 KMSAN left; journal 0237
 Open: KMSAN.
+stage 3 needs a hand-read human review
+the hand-read review stage 3 needs
+a etapa 3 exige uma revisão humana
+The kernel freeze stays: these items

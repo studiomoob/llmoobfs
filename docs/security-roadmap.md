@@ -174,6 +174,9 @@ model, reviewers cannot tell whether the credentials scheme is exploitable.
   automated coverage, on every AI-assisted finding reproduced with a regression test and on S14
   to S21; stage 3 needs a hand-read human review of the credential paths and the `QUERY2`
   authorization.
+- *Note, 2026-11-18 ([ADR-0042](decisions/0042-no-human-review-gate-and-kernel-features-one-at-a-time.md), journal 0305):* stage 3 no longer needs a
+  human review. It needs two independent AI-assisted reviews of the same scope, made with
+  different tools, every finding reproduced with a regression test.
 
 ### S2. fstests (xfstests) over the layer
 
