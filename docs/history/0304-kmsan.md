@@ -172,6 +172,12 @@ without the filter and pass with it; the seven local consoles above pass; a KASA
 QEMU's line added passes, and with a KMSAN report of the module or a kernel `WARNING:` in the
 module added it fails.
 
+With the fix (`c3d06e8`) the pull request's checks passed, the four KASAN legs among them. The
+`KCSAN` workflow runs weekly and by hand, not on pull requests, so it was started by hand on the
+branch (run 44295002243): `MOOBFS_KASAN_ONLY_PASS: steps buildrace release under KCSAN and lockdep`,
+and the console check printed the same `KCSAN_OUTSIDE: 27 report(s) with no racing access in
+moobfs_layer (9 reached through it)` as the guest's dmesg, and passed.
+
 ## Decisions after the runs
 
 - KMSAN runs on the test host, by hand, not in a workflow: k4 took about 3 h 10 min of suite on a
