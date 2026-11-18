@@ -443,6 +443,10 @@ security roadmap done. The other deliverables and acceptance steps are unchanged
 against `scripts/supported-kernels` and the KASAN pins. No third party has reproduced stage 2 yet.
 *Note, 2026-11-11 (journal 0283):* issue [#195](https://github.com/studiomoob/llmoobfs/issues/195) asks for that reproduction, with a route
 pinned to `d96b0db`.
+*Note, 2026-11-18 ([journal 0306](history/0306-first-independent-reproduction.md)):* the first third-party reproduction came: Parts A, B and
+C of that route at `v0.6.1-experimental`, on the reproducer's own KVM host. The maintainer counts
+it as the reproduction stage 2 left pending (ADR-0039); its six findings are recorded there, one
+of them (`buildrace` with `E2BIG` under KVM on Debian 7.3) still open.
 
 *Amended, 2026-11-11 (maintainer's decisions of that day, [journal 0283](history/0283-stage-2-decisions.md);
 [ADR-0030](decisions/0030-stage-2-review-criterion.md), amendment of the same date):* the text

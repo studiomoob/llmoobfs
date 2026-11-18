@@ -137,7 +137,9 @@ from your own run, see [Try it in a VM](#try-it-in-a-vm).
 **Experimental. Source pre-release tags only; the latest, `v0.6.2-experimental` (2026-11-17), is a
 patch release of stage 2, the technical preview, which `v0.6.0-experimental` (2026-11-15) opened
 before any independent reproduction
-([ADR-0039](docs/decisions/0039-stage-2-declared-reproduction-pending.md)); it has the fixes of
+([ADR-0039](docs/decisions/0039-stage-2-declared-reproduction-pending.md)), which came on
+2026-11-18: Marcelo Jorge Vieira reproduced Parts A, B and C at `v0.6.1-experimental` on his own
+KVM host, with six findings ([journal 0306](docs/history/0306-first-independent-reproduction.md)); it has the fixes of
 findings F1 to F17 of ADR-0011, F2's fair shares included, and of GHSA-w7w8-m49c-vrvr. Not for
 production.** `v0.6.0-experimental` has GHSA-w7w8-m49c-vrvr (severity low, [SECURITY.md](SECURITY.md)).
 `v0.5.0-experimental` (2026-10-28) lacks F2's fair shares and the later fixes
@@ -214,8 +216,8 @@ external reviewer's AI-assisted private reports found three kernel defects, and 
 the fix of one (F16), and an outside contributor reviewed the scripts, tools and Python library (pull requests 161 to 163).
 What would help most, by how much kernel knowledge it takes, is in **[docs/help-wanted.md](docs/help-wanted.md)**: a review of the
 credential model or of the index locking, if you know the VFS; a check of whether your memory
-system fits, if you build one; a run of the tests on your machine or on another kernel (the open
-call [#195](https://github.com/studiomoob/llmoobfs/issues/195) asks for one independent reproduction of the stage-2 evidence on a KVM host); and
+system fits, if you build one; a run of the tests on your machine or on another kernel (the call
+[#195](https://github.com/studiomoob/llmoobfs/issues/195) got its first independent reproduction of the stage-2 evidence on 2026-11-18; more hosts and kernels still help); and
 documentation or reproducibility corrections that need no kernel knowledge. Rules for changes are in
 [CONTRIBUTING.md](CONTRIBUTING.md).
 

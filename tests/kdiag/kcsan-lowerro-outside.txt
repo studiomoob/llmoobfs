@@ -1,0 +1,31 @@
+[  964.092977] moobfs-suite: lowerro freeze
+[  966.261090] ==================================================================
+[  966.263138] BUG: KCSAN: data-race in virtqueue_kick_prepare+0x116/0x1b0
+
+[  966.265309] race at unknown origin, with read to 0xffff8cf5c6f3e844 of 2 bytes by task 1530 on cpu 1:
+[  966.267851]  virtqueue_kick_prepare+0x116/0x1b0
+[  966.269057]  virtqueue_kick+0x13/0x70
+[  966.270055]  p9_virtio_request+0x2df/0x310
+[  966.271195]  p9_client_rpc+0x198/0x5c0
+[  966.272222]  p9_client_clunk+0x4b/0xa0
+[  966.273260]  v9fs_dentry_release+0x103/0x150
+[  966.274414]  __dentry_kill+0x115/0x2e0
+[  966.275558]  dput.part.0+0x28f/0x540
+[  966.276419]  dput+0x13/0x20
+[  966.277154]  walk_component+0x101/0x260
+[  966.278116]  link_path_walk.part.0.constprop.0+0x2bd/0x5c0
+[  966.279404]  path_openat+0x112/0x1210
+[  966.280290]  do_filp_open+0x16a/0x260
+[  966.281179]  do_sys_openat2+0xb6/0xf0
+[  966.282063]  __x64_sys_openat+0x80/0xe0
+[  966.283150]  x64_sys_call+0x1405/0x1bb0
+[  966.284356]  do_syscall_64+0xbb/0x1f0
+[  966.285666]  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+
+[  966.287356] value changed: 0x5b8c -> 0x5b8d
+
+[  966.288865] Reported by Kernel Concurrency Sanitizer on:
+[  966.290131] CPU: 1 UID: 0 PID: 1530 Comm: sed Tainted: G           O       6.12.116-virtme #1
+[  966.292183] Tainted: [O]=OOT_MODULE
+[  966.293069] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.16.3-debian-1.16.3-2 04/01/2014
+[  966.295332] ==================================================================

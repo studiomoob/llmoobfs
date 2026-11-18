@@ -1,10 +1,9 @@
 # Matrix and known limitations
 
 One page, for the technical preview (stage 2 of [distribution-strategy.md](distribution-strategy.md)
-§8, declared on 2026-11-15 with the third-party reproduction pending,
-[ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)). It points to the sources of truth instead of copying them; `scripts/check-matrix-page.sh`
-checks in CI that the releases below match `scripts/supported-kernels` and the KASAN workflow's
-pins. The rules behind the list are [compatibility.md](compatibility.md) §1.
+§8, declared on 2026-11-15, [ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md);
+first independent reproduction on 2026-11-18, [journal 0306](history/0306-first-independent-reproduction.md)). It points to the sources of truth instead of copying them; `scripts/check-matrix-page.sh`
+checks in CI that the releases below match `scripts/supported-kernels` and the KASAN workflow's pins. The rules behind the list are [compatibility.md](compatibility.md) §1.
 
 ## Kernels and architectures
 
@@ -53,6 +52,7 @@ leak ([0283](history/0283-stage-2-decisions.md)).
   five steps fail, two more miss time thresholds; left unchanged by decision ([0280](history/0280-first-s390x-run.md), [testing.md](testing.md) §9).
 - **s390x**: the `ixlock` 1 s threshold cannot tell a lock wait from `drop_caches`' own cost
   there; one host, no fstests, no 7.3 ([0280](history/0280-first-s390x-run.md)).
+- **Debian 7.3, fast KVM guest**: `buildrace` on a 60-file domain under writers can get `E2BIG` (an outside host, every run); under investigation, [journal 0306](history/0306-first-independent-reproduction.md).
 - **A very slow lower disk**: CPU-time build deadline, 120 s elapsed backstop; no run on a slow device ([ADR-0031](decisions/0031-build-deadline-counts-cpu-time.md)).
 - **Index in RAM only**, per-mount `index_budget`; one uid may fill it; no CPU or I/O cap on a
   build ([when-not-to-use.md](when-not-to-use.md) §3).

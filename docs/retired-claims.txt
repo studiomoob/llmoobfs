@@ -559,3 +559,5 @@ stage 3 needs a hand-read human review
 the hand-read review stage 3 needs
 a etapa 3 exige uma revisão humana
 The kernel freeze stays: these items
+asks for one independent reproduction of the stage-2 evidence
+pede uma reprodução independente das

@@ -4,7 +4,10 @@ Date: 2026-11-15. Status: **accepted** by the maintainer on 2026-11-15, about 09
 time (journal 0297). Amends the "Done when" line of stage 2 in
 [distribution-strategy.md](../distribution-strategy.md) §8 and decisions 2 and 3 of
 [journal 0284](../history/0284-release-workflow-and-part-a-gaps.md); the text of both is kept.
-Estimated effort: S (hours). Estimate, not labor time.
+Estimated effort: S (hours).
+*Note, 2026-11-18 (journal 0306):* the reproduction came: Parts A, B and C of issue #195's route
+at `v0.6.1-experimental`, by an outside reproducer on his own KVM host. The maintainer counts it as
+the reproduction this decision left pending; its findings are in journal 0306. Estimate, not labor time.
 
 ## Context
 

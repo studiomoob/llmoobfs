@@ -321,3 +321,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0303 — The published apt repository installed in a VM: `make apt-live-test`](0303-apt-live-test.md)
 - [0304 — KMSAN over the layer suite: passed, no report in the module; S8 complete](0304-kmsan.md)
 - [0305 — No human-review gate for stage 3; the kernel freeze ends, features one at a time (ADR-0042); G6 starts](0305-review-gate-and-kernel-features.md)
+- [0306 — The first independent reproduction of stage 2 (issue #195), and its findings](0306-first-independent-reproduction.md)
