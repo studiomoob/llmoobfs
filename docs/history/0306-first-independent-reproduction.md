@@ -105,9 +105,16 @@ in both languages, `docs/status.md`, `docs/status.pt-BR.md`, `docs/distribution-
 
 ## Checks
 
-See the pull request: `make test` with the new kdiag case, the document and site checks, and on
-the test host `make lint` and a `vm-test` run through `vm/run.sh` to check the hand-back of
-ownership.
+On this Mac: `make test` (with the new kdiag case, `KDIAG_TEST_PASS`), `check-retired-claims`,
+`check-pins`, `check-matrix-page` (the page kept to 70 lines), `check-site`, `site-faq --check`,
+`git diff --check`. On the test host, in a fresh clone of `64c95ae`, in the order the reproducer
+ran them: `make lint` PASS; `MOOB_VM_KVM=1 MOOB_ONLY=lowerro make vm-test`, `LOWERRO_PASS` and
+`MOOBFS_ONLY_PASS`, then 0 root-owned paths in the checkout; `MOOB_ONLY=lowerro sh
+vm/kasan-local.sh` as the user, `MOOBFS_KASAN_ONLY_PASS ... under KASAN, UBSAN and lockdep`;
+`MOOB_TEST=workspace sh vm/install-test/run.sh` rc 0, then 0 root-owned paths. Negative round, the
+same order on `main` (`b2b84d9`): after `vm-test`, 73 root-owned paths, and `vm/kasan-local.sh`
+stopped with `cannot create .../layer/moobfs_layer.mod: Permission denied`, finding 2 as reported.
+The `lowerro` change was checked against the reproducer's capture (above); no KCSAN run was made.
 
 ## Limitations
 
