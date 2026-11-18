@@ -411,7 +411,7 @@ drops the partially built domain. Individual `QUERY2` calls do not publish
 a successful partial result; on any `QUERY2_BATCH` error, clients must
 discard all outputs, including buffers copied by earlier subqueries.
 
-*2026-11-18 proposal, ADR-0043 and journal 0310:* `E2BIG` is returned only
+*2026-11-18, ADR-0043 (accepted) and journal 0310:* `E2BIG` is returned only
 when the allowance runs out in the first walk of a build's first attempt.
 When it runs out after a rescan of a renamed directory, or in a later
 attempt, the build returns `EAGAIN`: the domain fits, the changes made

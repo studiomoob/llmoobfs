@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Finding 1 of the first independent reproduction (issue #195) is explained and fixed (journal
-  0310, ADR-0043, proposed): a domain whose first query raced with directory renames could be
+  0310, ADR-0043, accepted): a domain whose first query raced with directory renames could be
   refused with `E2BIG`, "too large", although it fitted `index_build_work`; the rescans of the
   renamed directories had spent the build's allowance. Such a build now returns `EAGAIN`, which
   callers retry; `E2BIG` is left to a build that reaches the allowance in its first walk. The

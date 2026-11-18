@@ -1,8 +1,8 @@
 # 0310 — Finding 1 of issue #195: renames spent the build allowance, and the build said "too large"
 
 Date: 2026-11-18. Work started at 16:30 Brasília time. Status: **in progress**: the cause is
-shown, the fix is written and passes the steps it touches; ADR-0043 waits for the maintainer's
-acceptance, and the full suite and the full KASAN/lockdep suite are running. Estimated effort M
+shown, the fix is written and passes the steps it touches; ADR-0043 is accepted; the full suite
+and the full KASAN/lockdep suite are running. Estimated effort M
 (journal 0306); the time recorded is calendar time.
 
 ## Goal
@@ -43,7 +43,7 @@ Why 7.3 and not 6.12: not established. On the test host, under the same writers,
 every domain within 1 024 units; the reproducer's host runs guests about three times faster,
 which on 7.3 is enough to reach 32 768. Recorded as not explained.
 
-## Decision (proposed): ADR-0043
+## Decision: ADR-0043, accepted by the maintainer on 2026-11-18
 
 ADR-0019 decision 3 made an exhausted allowance `E2BIG` in every case, and
 `tests/query-build-moved.c` asserted it for a domain that fits one walk and is rescanned after a
@@ -92,6 +92,6 @@ The change touches no lock and no object lifetime.
 
 ## Next step
 
-The maintainer's acceptance of ADR-0043; the full runs; publication in one pull request; then
+The full runs; publication in one pull request; then
 the link on issue #195, and `docs/matrix-and-limits.md`'s known limit closed (it lands with
 journal 0306's pull request).

@@ -1,6 +1,6 @@
 # ADR-0043 — `E2BIG` only for a build that met no change: an allowance spent on rescans or another attempt is `EAGAIN`
 
-Date: 2026-11-18. Status: **proposed**, for the maintainer's acceptance (journal 0310). Amends
+Date: 2026-11-18. Status: **accepted** by the maintainer on 2026-11-18 (journal 0310). Amends
 decision 3 of [ADR-0019](0019-bound-query-build-work-and-frequency.md) on the errno of an
 exhausted work allowance; the allowance itself, its size, what it counts and its cumulative
 accounting (decision 2) are unchanged. It is a correction under

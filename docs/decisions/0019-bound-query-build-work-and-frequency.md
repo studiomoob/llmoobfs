@@ -185,6 +185,6 @@ experimental cap and the legitimate 17,000-file denial remain unchanged;
 publication still requires the maintainer's explicit choice.
 
 *Dated note, 2026-11-18 (journal 0310):* [ADR-0043](0043-e2big-only-for-a-build-that-met-no-change.md),
-proposed, amends decision 3: an allowance that runs out on rescans of renamed directories or on
+accepted, amends decision 3: an allowance that runs out on rescans of renamed directories or on
 another attempt returns `EAGAIN`, and `E2BIG` is left to a build that reached the allowance in
 its first walk. Decision 2, one cumulative allowance per build, is unchanged.
