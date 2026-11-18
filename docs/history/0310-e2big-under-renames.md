@@ -65,6 +65,10 @@ are in the ADR.
 - `docs/decisions/0043-e2big-only-for-a-build-that-met-no-change.md` (new, proposed); a dated
   note in ADR-0019; `docs/spec-query-v2.md`, `docs/compatibility.md`, `docs/operations.md`,
   `docs/tools.md`; `CHANGELOG.md`.
+- Finding 1 closed on the surfaces that stated it open: `docs/status.md`, `docs/status.pt-BR.md`,
+  `docs/matrix-and-limits.md` (the known limit removed), `docs/distribution-strategy.md` §8,
+  `ROADMAP.md`, the site's journey page (both languages, regenerated), a dated note in journal
+  0306, and five retired wordings in `docs/retired-claims.txt`.
 
 ## Checks
 

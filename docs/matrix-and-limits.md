@@ -52,7 +52,6 @@ leak ([0283](history/0283-stage-2-decisions.md)).
   five steps fail, two more miss time thresholds; left unchanged by decision ([0280](history/0280-first-s390x-run.md), [testing.md](testing.md) §9).
 - **s390x**: the `ixlock` 1 s threshold cannot tell a lock wait from `drop_caches`' own cost
   there; one host, no fstests, no 7.3 ([0280](history/0280-first-s390x-run.md)).
-- **Debian 7.3, fast KVM guest**: `buildrace` on a 60-file domain under writers can get `E2BIG` (an outside host, every run); under investigation, [journal 0306](history/0306-first-independent-reproduction.md).
 - **A very slow lower disk**: CPU-time build deadline, 120 s elapsed backstop; no run on a slow device ([ADR-0031](decisions/0031-build-deadline-counts-cpu-time.md)).
 - **Index in RAM only**, per-mount `index_budget`; one uid may fill it; no CPU or I/O cap on a
   build ([when-not-to-use.md](when-not-to-use.md) §3).

@@ -138,7 +138,7 @@ and issue #195's route is pinned to that tag instead of `d96b0db`. No one has re
 *Update, 2026-11-18 ([journal 0306](history/0306-first-independent-reproduction.md)):* the first independent reproduction: Marcelo Jorge
 Vieira ran Parts A, B and C of issue #195's route at `v0.6.1-experimental` on his own KVM host
 (ThinkPad X1 Carbon, Debian 13). Part A passed except `buildrace` on Debian 7.3 under KVM
-(`E2BIG`, under investigation) and two steps that failed only on root-owned build products; every
+(`E2BIG`; explained and fixed the same day, [journal 0310](history/0310-e2big-under-renames.md)) and two steps that failed only on root-owned build products; every
 fstests failure of Part B is in the exclusion lists, with a kernel diagnostic from the host's own
 6.12.117 kernel, not the layer; Part C found no crash in six hours and reached 89.0 % of the
 call sites. The maintainer counts it as the reproduction ADR-0039 left pending.
