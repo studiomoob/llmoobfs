@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Force a directory move during QUERY2's first scan and require the moved
- * rescan to share the original work allowance. Dedicated VM and ftrace only.
+ * rescan to share the original work allowance. Since ADR-0043 the exhausted
+ * allowance of a rescan is EAGAIN, not E2BIG: the domain fits one walk.
+ * Dedicated VM and ftrace only.
  * With "any" after the domain, the query's own answer is not judged: the suite
  * then checks what the build stored for the moved directory (journal 0215).
  * "any OLD NEW" moves DOMAIN/OLD to DOMAIN/NEW instead of s to t (journal 0242). */
@@ -80,13 +82,13 @@ static int query_child(const char *domain, int any)
 		printf("QUERY_BUILD_MOVED_CHILD_DONE: rc=%d errno=%d\n", rc, rc ? saved : 0);
 		return 0;
 	}
-	if (rc != -1 || saved != E2BIG || q.count != 777 || q.truncated != 777 ||
+	if (rc != -1 || saved != EAGAIN || q.count != 777 || q.truncated != 777 ||
 	    memcmp(&result, &before, sizeof(result)) ||
 	    memcmp(q.cursor, (unsigned char[MOOB_QUERY2_CURSOR]){0}, sizeof(q.cursor))) {
 		fprintf(stderr, "query-build-moved: rc=%d errno=%d count=%u\n", rc, saved, q.count);
 		return 1;
 	}
-	printf("QUERY_BUILD_MOVED_CHILD_PASS: moved rescan returned E2BIG without output\n");
+	printf("QUERY_BUILD_MOVED_CHILD_PASS: moved rescan exhausted the allowance: EAGAIN without output\n");
 	return 0;
 }
 

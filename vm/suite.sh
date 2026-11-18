@@ -2829,7 +2829,8 @@ fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildmoved; then
 # Function tracing synchronizes a same-domain directory rename with the
 # first scan. Each of the 9,000 names fits alone; scanning them twice must
-# exceed the cumulative 32,768-unit allowance.
+# exceed the cumulative 32,768-unit allowance. Since ADR-0043 that refusal is
+# EAGAIN: the domain fits one walk, the rescan is what it could not pay for.
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail bm-lower-mount
 mkdir -p "$LOWER/bm/d/s" || fail bm-mkdir
 "$BIN/query-build-limit" plant "$LOWER/bm/d/s" 9000 || fail bm-plant
