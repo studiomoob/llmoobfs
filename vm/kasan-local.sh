@@ -71,9 +71,10 @@ if [ ! -f "$KDIR/$KIMAGE" ] || ! { cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"}; [ -z "$K
         (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} &&
             CC="$KCC" ./scripts/kconfig/merge_config.sh -m .config "$R/$KCONFIG" >/dev/null &&
             make CC="$KCC" olddefconfig)
-        for o in $(sed -n 's/^\(CONFIG_[A-Z0-9_]*\)=y$/\1/p' "$KCONFIG"); do
-            grep -q "^$o=y" "$KDIR/.config" || { echo "kasan-local: $o is not set with CC=$KCC" >&2; exit 1; }
-        done
+        missing=$(sed -n 's/^\(CONFIG_[A-Z0-9_]*\)=y$/\1/p' "$KCONFIG" | while read -r o; do
+            grep -q "^$o=y" "$KDIR/.config" || echo "$o"
+        done)
+        [ -z "$missing" ] || { echo "kasan-local: not set with CC=$KCC: $(echo "$missing" | tr '\n' ' ')" >&2; exit 1; }
         (cd "$KDIR" && make CC="$KCC" -j"$(nproc)")
     fi
     { cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"}; [ -z "$KCC" ] || echo "KCC=$KCC"; } > "$KDIR/.moobfs-kasan.config"
