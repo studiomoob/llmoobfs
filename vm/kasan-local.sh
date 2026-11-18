@@ -124,4 +124,12 @@ else
     grep -q '^MOOBFS_KASAN_PASS:' build/vng/console.log || exit 1
 fi
 if grep -q '^MOOBFS_VM_FAIL:\|^MOOBFS_VM_ENV_FAIL:' build/vng/console.log; then exit 1; fi
+# The guest judges its dmesg, whose ring buffer keeps only the latest messages: under KMSAN it held
+# 53 of the run's 20 280 reports (journal 0304). The console has them all; judge it too, with the
+# guest's patterns.
+. "$R/vm/kdiag.sh"
+if ! kdiag build/vng/console.log 'BUG: KASAN|KASAN: |BUG:|Oops:|^WARNING:|possible (circular|recursive) locking|INFO: (task|rcu)|UBSAN:'; then
+    echo "kasan-local: kernel diagnostics in the console that the guest's dmesg no longer held"
+    exit 1
+fi
 echo "kasan-local: pass (console in build/vng/console.log)"

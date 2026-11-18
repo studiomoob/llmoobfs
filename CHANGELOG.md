@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Security roadmap S8 is complete: the full layer suite passed under KMSAN (6.12.116, Clang
+  19.1.7, `vm/kmsan.config`, `KCC=clang sh vm/kasan-local.sh`) on the test host, with no report
+  whose use or memory is the module's (journal 0304). `vm/kdiag.sh` judges KMSAN reports as it
+  judges KCSAN's, tested by `tests/kdiag/run.sh` in `make test`. `vm/kasan-local.sh` and the
+  `KASAN and lockdep` and `KCSAN` workflows now also judge the whole guest console, since the
+  guest's dmesg ring buffer can lose early reports.
 - Packages: `moobfs-dkms` and `moobfs-tools` `0.6.2` are published in the project's signed apt
   repository, `https://studiomoob.github.io/llmoobfs/apt/`, suite `experimental` (ADR-0041,
   journal 0302). The index is signed by the maintainer's offline Ed25519 key, fingerprint

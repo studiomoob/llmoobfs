@@ -739,8 +739,9 @@ The matrix and the known limitations on one page: [matrix-and-limits.md](matrix-
 - Inside `make vm-test`: fstests over the layer (only the vendored `fsx`; fstests
   runs separately, `vm/fstests/`, with `quick` passing and one `auto` run, journal
   0239), syzkaller over the ioctls and `setxattr` (run by hand, seven six-hour rounds,
-  `vm/syzkaller-local.sh`), and KMSAN: see [security-roadmap.md](security-roadmap.md)
-  S2, S3 and S7 to S8.
+  `vm/syzkaller-local.sh`), and KMSAN (run by hand with `KCONFIG=vm/kmsan.config KCC=clang`
+  `sh vm/kasan-local.sh`, journal 0304): see [security-roadmap.md](security-roadmap.md) S2, S3
+  and S7 to S8.
 - Kernels other than Debian 6.12.111, 6.12.113, 6.12.115, 7.3.3 and 7.3.4, Ubuntu 7.0.0-43 and
   upstream 6.12.116, 7.0.14, 7.3.3 and 7.3.4; the M1 module on 7.3; architectures other than x86-64 in CI (arm64 runs in an
   exploratory job, journal 0137; s390x ran by hand on one host, journal 0280).

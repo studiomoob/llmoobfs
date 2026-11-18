@@ -1,8 +1,9 @@
-# 0304 — KMSAN over the layer suite (security roadmap S8) (in progress)
+# 0304 — KMSAN over the layer suite (security roadmap S8)
 
-Date: 2026-11-17. Work started at 19:05 Brasília time. Status: **in progress; the harness is
-written; the first full run stopped at a time cap (k3); k4 is running.** Estimated effort M (one
-to three days; S8's remaining item); the time recorded is calendar time.
+Date: 2026-11-17. Work started at 19:05 Brasília time. Status: **done: the full layer suite
+passed under KMSAN (k4) with no report in the module.** Ended 2026-11-18 at 06:40. Estimated effort
+M (one to three days; S8's remaining item); calendar time about 11.5 hours, most of it unattended
+runs on the test host.
 
 ## Goal
 
@@ -83,6 +84,33 @@ Clang 19.1.7.
   moobfs_layer (39300 reached through it)`. A copy of the first, wrong rule left on the test host
   had been run over it first and blamed 35 197 of them on the module; it was deleted.
 
+- A first k4 at 02:50 stopped at once: the background shell that started it lacked virtme-ng's
+  environment on `PATH` (`kasan-local: vng (virtme-ng) not in PATH`). Nothing ran; it was started
+  again in a fresh clone.
+- k4, `8e406c6`, 02:51–06:02 (the kernel from the cache; the suite took about 3 h 10 min):
+  `MOOBFS_KASAN_PASS: layer suite under KMSAN with no kernel diagnostics`, `kasan-local: pass`.
+  Every step ran; `OVERBUDGET_PASS` on ext4, btrfs and XFS. Skipped, as in every run of this
+  kernel configuration: `memcg`, `limits` and `diag`'s memory-controller parts (no
+  `CONFIG_MEMCG`), `dirstall` (no userfaultfd for kernel faults) and `landlock`. The guest's
+  `kdiag` printed `KMSAN_OUTSIDE` three times (its dmesg slices: 53, 53 and 3 reports).
+  The console held 20 280 KMSAN reports: `use-after-free` in `__crc32c_le_base` (17 125) and in
+  `vring_map_one_sg` (1 844), `uninit-value` in `__crc32c_le_base` (1 016), in
+  `vring_map_one_sg` (289) and in `rcu_core` (6). `kdiag` over the whole console: exit 0,
+  `KMSAN_OUTSIDE: 20280 report(s) with neither the use nor the memory in moobfs_layer (18969
+  reached through it)`. None has its use, or the creation or store of its memory, in the module.
+
+## The console is judged as well as the dmesg
+
+k4 showed that the guest's `dmesg` held 53 of the 20 280 reports: the kernel's ring buffer keeps
+only the latest messages, and the guest judges it once, after the suite (the fault-injection blocks
+judge and clear their own slices). A report of the module early in a long run could have been
+overwritten before the guest read it. Fix: after the guest's own checks, `vm/kasan-local.sh`, and
+the `KASAN and lockdep` and `KCSAN` workflows, run `kdiag` over the whole console with the guest's
+patterns, and fail on what it finds. Checked on the test host against earlier consoles before it
+was committed: four full KASAN, UBSAN and lockdep runs (b26/27, b28, b29 and the 6.12.116 release
+candidate), one KCSAN run (`KCSAN_OUTSIDE: 30`) and k3 and k4 under KMSAN: exit 0 on all. Not yet
+run in CI: the workflows take it on this batch's pull request.
+
 ## KMSAN reports judged as KCSAN's are
 
 `vm/kdiag.sh` now treats a KMSAN report as journal 0115 treats a KCSAN one. Each stack of a
@@ -117,7 +145,22 @@ reached through it)`. The kinds: `use-after-free` and `uninit-value` in `__crc32
 in `vring_map_one_sg` (btrfs's tree-block checksums and their trip to the virtual disk), and
 three `uninit-value in rcu_core` on an idle CPU, from a local variable of RCU itself.
 
+## Decisions after the runs
+
+- KMSAN runs on the test host, by hand, not in a workflow: k4 took about 3 h 10 min of suite on a
+  KVM host after a Clang build of about 30 minutes, and a hosted runner gives 4 CPUs and a 6-hour job limit,
+  with no kernel cache between runs. It is run again when the module's copies to user space or
+  its handling of lower data change, as the KCSAN run is for races.
+- S8 is complete: KCSAN (journal 0127), the hardening options of journal 0237 and now KMSAN.
+
+## Limitations
+
+- One KMSAN run, on 6.12.116 with Clang 19.1.7, x86-64; not on 7.x, not with lockdep.
+- KMSAN sees only paths the suite takes. The fault-injection steps ran, so error paths that fail
+  allocations were covered as far as `failnth` reaches.
+- The reports of btrfs and virtio were not investigated as kernel defects; they are counted.
+
 ## Next step
 
-The first full run on the test host:
-`KCONFIG=vm/kmsan.config KCC=clang KCACHE=$HOME/.cache/moobfs-kmsan sh vm/kasan-local.sh`.
+None for S8. The pull request of this batch runs the new console check in the `KASAN and lockdep`
+and `KCSAN` workflows.

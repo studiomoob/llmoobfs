@@ -319,4 +319,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0301 — The `.deb` packages in a signed apt repository (ADR-0041)](0301-signed-apt-repository.md)
 - [0302 — v0.6.2-experimental tagged; its packages published in the signed apt repository (ADR-0041)](0302-apt-repository-published.md)
 - [0303 — The published apt repository installed in a VM: `make apt-live-test`](0303-apt-live-test.md)
-- [0304 — KMSAN over the layer suite (security roadmap S8), in progress](0304-kmsan.md)
+- [0304 — KMSAN over the layer suite: passed, no report in the module; S8 complete](0304-kmsan.md)
