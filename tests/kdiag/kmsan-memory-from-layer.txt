@@ -1,0 +1,10 @@
+[   10.000000] =====================================================
+[   10.000001] BUG: KMSAN: kernel-infoleak in instrument_copy_to_user+0x1/0x100
+[   10.000002]  instrument_copy_to_user+0x1/0x100
+[   10.000003]  _copy_to_user+0x1/0x100
+[   10.000004]  moobl_ioctl+0x20/0x300 [moobfs_layer]
+[   10.000005] Uninit was created at:
+[   10.000006]  __kmalloc_noprof+0x1/0x100
+[   10.000007]  moobl_query_alloc+0x1/0x100 [moobfs_layer]
+[   10.000008] Bytes 8-15 of 64 are uninitialized
+[   10.000009] =====================================================

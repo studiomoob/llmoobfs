@@ -1,0 +1,7 @@
+[   10.000000] =====================================================
+[   10.000001] BUG: KMSAN: kernel-infoleak in instrument_copy_to_user+0x1/0x100
+[   10.000002]  instrument_copy_to_user+0x1/0x100
+[   10.000003]  _copy_to_user+0x1/0x100
+[   10.000004] Local variable info created at:
+[   10.000005]  moobl_get_info+0x1/0x100 [moobfs_layer]
+[   10.000006] =====================================================

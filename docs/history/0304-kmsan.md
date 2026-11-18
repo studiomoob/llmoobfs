@@ -61,6 +61,33 @@ Clang 19.1.7.
   not measured past 20 minutes. Decision: the KMSAN run goes without lockdep, which the KASAN run
   of every batch and the KCSAN run keep; `vm/kmsan.config` drops the three options.
 
+- k3, `68d92fd`, from 23:15: KMSAN booted and the suite ran. At 685 s, in the first `fsync`
+  through a layer over btrfs, KMSAN reported `use-after-free in __crc32c_le_base`, then many
+  more (146 when first read: 128 in `__crc32c_le_base`, 18 in `vring_map_one_sg`). The first
+  report's use is btrfs's checksum of one of its own tree blocks (`csum_tree_block`,
+  `btree_csum_one_bio`, `btrfs_sync_log`, `btrfs_sync_file`, `vfs_fsync_range`), reached from
+  `moobl_fsync`, which only passes the `fsync` to the lower; the memory was created by
+  `free_unref_page` from `tlb_remove_table_rcu`, the kernel's freeing of page-table pages. Neither
+  the use nor the memory is the module's. Whether it is a btrfs defect or a KMSAN false positive
+  is not judged here.
+
+## KMSAN reports judged as KCSAN's are
+
+`vm/kdiag.sh` now treats a KMSAN report as journal 0115 treats a KCSAN one. It fails a run when
+the use is in the module (the first frame of the report's first stack is a function of
+`moobfs_layer`) or when the memory came from it (a frame of `moobfs_layer` after "Uninit was
+created at:", "Uninit was stored to memory at:" or "Local variable ... created at:"); the second
+rule is what catches an uninitialized buffer of the layer copied to user space, whose report
+starts in `instrument_copy_to_user`. Other reports are counted on one `KMSAN_OUTSIDE` line, with
+how many were reached through the layer.
+
+`tests/kdiag/run.sh`, now part of `make test`, runs `kdiag` on five captures: the first k3
+report and a `vring_map_one_sg` one (outside, counted), three made-up reports (use in the
+module; memory allocated by the module and copied to user space; a local variable of the module
+copied to user space), and a plain `WARNING:`. `KDIAG_TEST_PASS`. Negative round: with the
+`kdiag.sh` of `main`, four of the five fail (`KDIAG_TEST_FAIL: 4`): every KMSAN report fails the
+run, the outside ones included, and none names why.
+
 ## Next step
 
 The first full run on the test host:

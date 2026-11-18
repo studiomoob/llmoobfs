@@ -1,0 +1,24 @@
+[  685.100000] BTRFS info (device vdb): enabling free space tree
+[  685.161700] =====================================================
+[  685.161758] BUG: KMSAN: use-after-free in __crc32c_le_base+0x2c9/0x920
+[  685.161760]  __crc32c_le_base+0x2c9/0x920
+[  685.161761]  chksum_update+0x50/0xc0
+[  685.161762]  csum_tree_block+0x457/0x5c0
+[  685.161763]  btrfs_sync_file+0x1414/0x1890
+[  685.161764]  vfs_fsync_range+0x15b/0x200
+[  685.161765]  moobl_fsync+0x10f/0x1b0 [moobfs_layer]
+[  685.161766]  __x64_sys_fsync+0x1db/0x350
+[  685.161767] 
+[  685.161768] Uninit was created at:
+[  685.161769]  free_unref_page+0x187/0x14b0
+[  685.161770]  tlb_remove_table_rcu+0x5c/0xb0
+[  685.161771]  rcu_core+0xa74/0x2ad0
+[  685.161772] 
+[  685.161773] CPU: 1 UID: 0 PID: 4384 Comm: layer Tainted: G           O       6.12.116 #4
+[  685.161774] =====================================================
+[  685.200000] BUG: KMSAN: uninit-value in vring_map_one_sg+0x1/0x100
+[  685.200001]  vring_map_one_sg+0x1/0x100
+[  685.200002]  virtqueue_add_split+0x1/0x100
+[  685.200003] Uninit was created at:
+[  685.200004]  free_unref_page+0x187/0x14b0
+[  685.200005] =====================================================

@@ -121,6 +121,7 @@ test: tools
 	$(BUILD)/diag_test
 	$(BUILD)/workspace_test
 	MOOB_BUILD_DIR=$(BUILD) python3 tests/test_images.py
+	sh tests/kdiag/run.sh
 # libFuzzer runs (needs LLVM clang with libFuzzer, e.g. on Linux), FUZZ_TIME seconds per target:
 # attr (common/attr.c), image (the image parser common/format.c) and tools (query terms and ACL
 # values of the tools; journal 0237). New inputs go to $(BUILD)/fuzz-corpus/<target>, never to
