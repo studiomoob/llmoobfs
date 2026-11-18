@@ -552,3 +552,6 @@ Packages are prepared and tested in VMs, not published
 done 2026-10-29 in a VM, not published:
 nothing is published yet, and the project's key does not exist yet
 a rebuild by a third party, no published package.
+Still open under S8: KMSAN
+KMSAN left; journal 0237
+Open: KMSAN.

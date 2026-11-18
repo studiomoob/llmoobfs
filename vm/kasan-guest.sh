@@ -22,8 +22,10 @@ fail() {
 # kdiag: diagnostics in a dmesg capture; KCSAN reports fail only with a racing access in the
 # layer (vm/kdiag.sh, journal 0115)
 . "$REPO/vm/kdiag.sh"
-# the detectors of this kernel, named in the final marker: vm/kasan.config or vm/kcsan.config
-if dmesg | grep -q 'kcsan: enabled'; then SAN="KCSAN and lockdep"; else SAN="KASAN, UBSAN and lockdep"; fi
+# the detectors of this kernel, named in the final marker: vm/kasan.config, vm/kcsan.config or vm/kmsan.config
+if dmesg | grep -q 'kcsan: enabled'; then SAN="KCSAN and lockdep"
+elif dmesg | grep -q 'Starting KernelMemorySanitizer'; then SAN="KMSAN"   # vm/kmsan.config, journal 0304 (no lockdep)
+else SAN="KASAN, UBSAN and lockdep"; fi
 echo "kernel: $(uname -r); KASAN init lines in dmesg: $(dmesg | grep -c 'KernelAddressSanitizer'); lockdep: $(grep -c . /proc/lockdep_stats 2>/dev/null || echo absent)"
 # A diagnostic emitted before anything of ours is loaded belongs to the boot of the debug
 # kernel under emulation, not to the layer; it also taints the kernel and turns lockdep off,

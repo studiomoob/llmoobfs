@@ -29,6 +29,11 @@ KERNEL_SHA256=$(sed -n "s/^ *${KPIN}_SHA256: *//p" .github/workflows/kasan.yml)
 [ -n "$KERNEL_VERSION" ] && [ -n "$KERNEL_SHA256" ] || { echo "kasan-local: no ${KPIN} pin in kasan.yml" >&2; exit 1; }
 # KCONFIG selects another fragment (vm/kcsan.config for the data-race run); give it its own KCACHE
 KCONFIG=${KCONFIG:-vm/kasan.config}
+# KCC=clang builds the kernel and the module with Clang, which KMSAN needs (KCONFIG=vm/kmsan.config,
+# journal 0304), with a KCACHE of its own, since the kernel is built in its source tree:
+#   KCONFIG=vm/kmsan.config KCC=clang KCACHE=$HOME/.cache/moobfs-kmsan sh vm/kasan-local.sh
+# Empty, the default, keeps virtme-ng's compiler (GCC) and the cache of earlier runs valid.
+KCC=${KCC:-}
 KCACHE=${KCACHE:-$HOME/.cache/moobfs-kasan}
 KDIR=$KCACHE/linux-$KERNEL_VERSION
 R=$(pwd)
@@ -46,7 +51,7 @@ case "$(uname -m)" in
     *) KIMAGE=arch/x86/boot/bzImage KEXTRA='' VNGINIT='' ;;
 esac
 # kernel: rebuilt only when missing or when $KCONFIG (and KEXTRA) changed since the last build
-if [ ! -f "$KDIR/$KIMAGE" ] || ! cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"} | cmp -s - "$KDIR/.moobfs-kasan.config"; then
+if [ ! -f "$KDIR/$KIMAGE" ] || ! { cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"}; [ -z "$KCC" ] || echo "KCC=$KCC"; } | cmp -s - "$KDIR/.moobfs-kasan.config"; then
     mkdir -p "$KCACHE"
     if [ ! -d "$KDIR" ]; then
         curl -fsSL -o "$KCACHE/linux.tar.xz" "https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-$KERNEL_VERSION.tar.xz"
@@ -56,12 +61,27 @@ if [ ! -f "$KDIR/$KIMAGE" ] || ! cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"} | cmp -s - 
         mv "$KDIR.tmp" "$KDIR"
         rm -f "$KCACHE/linux.tar.xz"
     fi
-    (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} && vng --build)
-    cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"} > "$KDIR/.moobfs-kasan.config"
+    if [ -z "$KCC" ]; then
+        (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} && vng --build)
+    else
+        # vng --kconfig evaluates the config with GCC, which writes "# CONFIG_KMSAN is not set";
+        # olddefconfig keeps such an explicit choice, so the fragment is merged in again
+        # (scripts/kconfig/merge_config.sh) and evaluated with $KCC. Every CONFIG_*=y of the
+        # fragment must survive before anything is built (journal 0304).
+        (cd "$KDIR" && vng --kconfig --config "$R/$KCONFIG" ${KEXTRA:+--config "$R/$KEXTRA"} &&
+            CC="$KCC" ./scripts/kconfig/merge_config.sh -m .config "$R/$KCONFIG" >/dev/null &&
+            make CC="$KCC" olddefconfig)
+        missing=$(sed -n 's/^\(CONFIG_[A-Z0-9_]*\)=y$/\1/p' "$KCONFIG" | while read -r o; do
+            grep -q "^$o=y" "$KDIR/.config" || echo "$o"
+        done)
+        [ -z "$missing" ] || { echo "kasan-local: not set with CC=$KCC: $(echo "$missing" | tr '\n' ' ')" >&2; exit 1; }
+        (cd "$KDIR" && make CC="$KCC" -j"$(nproc)")
+    fi
+    { cat "$KCONFIG" ${KEXTRA:+"$KEXTRA"}; [ -z "$KCC" ] || echo "KCC=$KCC"; } > "$KDIR/.moobfs-kasan.config"
 fi
 
 # module and test binaries, as in the workflow
-make layer KDIR="$KDIR"
+make layer KDIR="$KDIR" ${KCC:+CC="$KCC"}
 mkdir -p build/vng
 make attr-tools BUILD=build/vng CFLAGS="-O2 -g -static"
 make bench-tools BUILD=build/vng CFLAGS="-O2 -g -static" SQLITE_LIBS="-lsqlite3 -ldl -lpthread"
@@ -105,4 +125,15 @@ else
     grep -q '^MOOBFS_KASAN_PASS:' build/vng/console.log || exit 1
 fi
 if grep -q '^MOOBFS_VM_FAIL:\|^MOOBFS_VM_ENV_FAIL:' build/vng/console.log; then exit 1; fi
+# The guest judges its dmesg, whose ring buffer keeps only the latest messages: under KMSAN it held
+# 53 of the run's 20 280 reports (journal 0304). The console has them all; judge it too, with the
+# guest's patterns, over the kernel's lines only (they start with its timestamp): the console also
+# has the host's QEMU and the guest's programs, and QEMU prints "WARNING: Image format was not
+# specified" for the raw disks of the workflows.
+. "$R/vm/kdiag.sh"
+grep -a '^\[ *[0-9][0-9]*\.[0-9]*\]' build/vng/console.log > build/vng/console-kernel.txt || true
+if ! kdiag build/vng/console-kernel.txt 'BUG: KASAN|KASAN: |BUG:|Oops:|^WARNING:|possible (circular|recursive) locking|INFO: (task|rcu)|UBSAN:'; then
+    echo "kasan-local: kernel diagnostics in the console that the guest's dmesg no longer held"
+    exit 1
+fi
 echo "kasan-local: pass (console in build/vng/console.log)"

@@ -175,6 +175,12 @@ jobs:
           # a negated command outside a condition does not stop a bash -e step (SC2251)
           if grep -q '^MOOBFS_VM_FAIL:' "$R/build/vng/console.log"; then exit 1; fi
           if grep -q '^MOOBFS_VM_ENV_FAIL:' "$R/build/vng/console.log"; then exit 1; fi
+          # the guest judged its dmesg, whose ring buffer keeps only the latest messages; the
+          # console has them all (journal 0304); only the kernel's lines, which start with its
+          # timestamp, since QEMU's own "WARNING: Image format was not specified" is there too
+          . "$R/vm/kdiag.sh"
+          grep -a '^\[ *[0-9][0-9]*\.[0-9]*\]' "$R/build/vng/console.log" > "$R/build/vng/console-kernel.txt" || true
+          if ! kdiag "$R/build/vng/console-kernel.txt" 'BUG: KASAN|KASAN: |BUG:|Oops:|^WARNING:|possible (circular|recursive) locking|INFO: (task|rcu)|UBSAN:'; then exit 1; fi
       - name: Preserve evidence
         if: always() && steps.need.outputs.run == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

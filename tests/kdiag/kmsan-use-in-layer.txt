@@ -1,0 +1,8 @@
+[   10.000000] =====================================================
+[   10.000001] BUG: KMSAN: uninit-value in moobl_query_page+0x10/0x200 [moobfs_layer]
+[   10.000002]  moobl_query_page+0x10/0x200 [moobfs_layer]
+[   10.000003]  moobl_ioctl+0x20/0x300 [moobfs_layer]
+[   10.000004]  __x64_sys_ioctl+0x1/0x100
+[   10.000005] Uninit was created at:
+[   10.000006]  __kmalloc_noprof+0x1/0x100
+[   10.000007] =====================================================
