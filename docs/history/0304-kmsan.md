@@ -145,6 +145,20 @@ reached through it)`. The kinds: `use-after-free` and `uninit-value` in `__crc32
 in `vring_map_one_sg` (btrfs's tree-block checksums and their trip to the virtual disk), and
 three `uninit-value in rcu_core` on an idle CPU, from a local variable of RCU itself.
 
+## Checks before publication
+
+On the test host, in a fresh clone of the branch: `make lint`, `make checkpatch`, `make test`
+(with `tests/kdiag/run.sh`), `make pylib-test`, `make hostile-test`, `make mutants-check`,
+`scripts/check-retired-claims.sh`, `scripts/check-pins.sh`, `scripts/check-matrix-page.sh`,
+`scripts/check-site.py` and `git diff --check main...HEAD`. The first pass failed twice, and both
+were fixed: shellcheck SC2013 on the loop of `vm/kasan-local.sh` that checks the fragment's options
+(rewritten as a `while read` that collects the missing ones; checked against the cached KMSAN
+kernel's `.config`, where it passes, and with a made-up option added, where it stops and names
+it), and trailing spaces in `tests/kdiag/` captures, which are the kernel's own empty report
+lines (`.gitattributes` exempts those captures from whitespace checks). The second pass: all
+`PASS`. No C code changed, so the sanitizer build of the tools and the Ubuntu test build were not
+run; the CI runs both.
+
 ## Decisions after the runs
 
 - KMSAN runs on the test host, by hand, not in a workflow: k4 took about 3 h 10 min of suite on a
