@@ -11,6 +11,8 @@
 #   MOOB_TEST=apt                vm/apt-test/guest.sh, phase 0 (ADR-0041): two versions of the
 #     packages in a local apt repository signed with throwaway keys, served to the guest over
 #     HTTP; install, upgrade and roll back with apt, and three copies apt must refuse
+#   MOOB_TEST=apt-live           vm/apt-test/live.sh, phase 0 (ADR-0041, journal 0303): the published
+#     repository with the project's key, as docs/operations.md says; the module built and mounted
 #   MOOB_TEST=bench              vm/bench-test/guest.sh, phase 0 (journal 0238): bench/ondemand.sh
 #     on a lower of MOOB_BENCH_FS (ext4, btrfs or xfs, default ext4) made on a second virtual
 #     disk; KVM is required (emulated timings mean nothing) and the results are copied out to
@@ -31,6 +33,7 @@ install) OUT=build/install-test GUEST=vm/install-test/guest.sh PHASES="0 1 2" NA
 container) OUT=build/container-test GUEST=vm/container-test/guest.sh PHASES="0 1" NAME=CONTAINER ;;
 package) OUT=build/package-test GUEST=vm/package-test/guest.sh PHASES="0 1" NAME=PACKAGE ;;
 apt) OUT=build/apt-test GUEST=vm/apt-test/guest.sh PHASES=0 NAME=APT ;;
+apt-live) OUT=build/apt-live-test GUEST=vm/apt-test/live.sh PHASES=0 NAME=APTLIVE ;;
 bench) OUT=build/bench-test GUEST=vm/bench-test/guest.sh PHASES=0 NAME=BENCH ;;
 workspace) OUT=build/workspace-test GUEST=vm/workspace-test/guest.sh PHASES=0 NAME=WORKSPACE ;;
 *) echo "unknown MOOB_TEST ${MOOB_TEST}" >&2; exit 64 ;;
@@ -233,6 +236,7 @@ if [ "$NAME" = BENCH ]; then
 fi
 case $NAME in
 INSTALL) log "MOOBFS_INSTALL_PASS: docs/operations.md followed on Debian 13; refused an unlisted kernel release, installed on the image's 6.12.113, mounted by hand, by fstab at boot and by a mount unit, two users isolated, MemoryMax= set on their slices by the drop-in and read by moobfs diagnose, uninstalled with the lower readable" ;;
+APTLIVE) log "MOOBFS_APTLIVE_PASS: docs/operations.md followed on Debian 13 against the published apt repository; the key's fingerprint is SECURITY.md's, both packages installed by apt, DKMS built the module for 6.12.113, a layer mounted and passed a typed attribute to the lower, purged" ;;
 APT) log "MOOBFS_APT_PASS: moobfs-dkms and moobfs-tools from a signed apt repository on Debian 13 (ADR-0041); installed from a deb822 source with Signed-By, upgraded and rolled back by apt; an index signed by another key, a package changed after signing and a source without Signed-By refused; purged" ;;
 PACKAGE) log "MOOBFS_PACKAGE_PASS: moobfs-dkms and moobfs-tools on Debian 13 under Secure Boot; DKMS refused an unlisted kernel, the module was refused before its key was enrolled and loaded after, an unsigned build was refused, two users isolated, upgrade and roll back with the query and moobfs-check equal to the oracle, purge left the lower readable" ;;
 BENCH) log "MOOBFS_BENCH_PASS: bench/ondemand.sh on a $BENCH_FS lower, Debian 13, kernel 6.12.113, under KVM; results in $OUT/results" ;;

@@ -1,9 +1,12 @@
-# 0301 — The `.deb` packages in a signed apt repository (ADR-0041) (in progress)
+# 0301 — The `.deb` packages in a signed apt repository (ADR-0041)
 
 Date: 2026-11-17. Work started at 11:25 Brasília time. Status: **in progress; ADR-0041 is
 accepted; the scripts, the VM step and the site's check are written and tested with throwaway
 keys; the project's key does not exist yet and nothing is published.** Estimated effort M
 (ADR-0041); the time recorded is calendar time.
+*Note, 2026-11-17, 19:10:* done. The work of this journal ended with the merge of #210 at 17:34;
+the key, the signed index and the publication are journal 0302, the install from the published
+repository in a VM journal 0303. Calendar time from 11:25 to 18:49, within the estimate M.
 
 ## Goal
 
