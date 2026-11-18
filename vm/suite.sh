@@ -2039,7 +2039,10 @@ for fs in ext4 btrfs xfs; do
     ob_budget=$((ob_one * 3 / 2 + 65536)); [ "$ob_budget" -ge 1048576 ] || fail "ob-domain-too-small-$fs ($ob_one)"
     mount -t moobfs_layer -o lower="$LOWER/ob",domain_depth=1,index_budget=$ob_budget none "$LAYER" || fail "ob-budget-mount-$fs"
     tr_on moobfs_domain_build moobfs_domain_release || fail "ob-trace-$fs"
-    run_logged /tmp/ob.txt "$BIN/overbudget-race" run "$LAYER" 10 4; rc=$?
+    # under KMSAN a build of x or y takes about 2.5 s, so 10 s (a 60 s cap) gave 24 queries, not
+    # the 30 the test needs (journal 0304); the pass condition is the same
+    ob_secs=10; [ "${SAN:-}" = KMSAN ] && ob_secs=30
+    run_logged /tmp/ob.txt "$BIN/overbudget-race" run "$LAYER" "$ob_secs" 4; rc=$?
     tr_off moobfs_domain_build moobfs_domain_release
     if [ $rc -ne 0 ]; then
         # the builds of x and y that failed with ENOMEM, and what was released around them

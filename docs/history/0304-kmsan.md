@@ -1,8 +1,8 @@
 # 0304 — KMSAN over the layer suite (security roadmap S8) (in progress)
 
 Date: 2026-11-17. Work started at 19:05 Brasília time. Status: **in progress; the harness is
-written; the first run is pending.** Estimated effort M (one to three days; S8's remaining item);
-the time recorded is calendar time.
+written; the first full run stopped at a time cap (k3); k4 is running.** Estimated effort M (one
+to three days; S8's remaining item); the time recorded is calendar time.
 
 ## Goal
 
@@ -70,6 +70,18 @@ Clang 19.1.7.
   `free_unref_page` from `tlb_remove_table_rcu`, the kernel's freeing of page-table pages. Neither
   the use nor the memory is the module's. Whether it is a btrfs defect or a KMSAN false positive
   is not judged here.
+  The run ended at 02:18 on 2026-11-18 with `MOOBFS_VM_FAIL: overbudget-race-ext4`, after every
+  step before it had passed. The step did not fail on what it checks: `24 queries of x and y,
+  0 EAGAIN, 0 ENOMEM, 0 other`, with 23 releases of x and y by the budget, then
+  `OVERBUDGET_RACE_FAIL: only 24 queries before the time cap`. `tests/overbudget-race.c` runs
+  until 30 queries, up to six times the seconds it is given; the suite gives 10, and under KMSAN
+  a build of x or y took about 2.5 s, so 24 fit in the 60-second cap. Fix (`vm/suite.sh`): the
+  step gives 30 seconds when the harness runs KMSAN (a 180-second cap), 10 otherwise; the pass
+  condition is unchanged. The steps after it did not run in k3.
+  Judged afterwards with the committed `vm/kdiag.sh`, the whole k3 console (40 438 KMSAN
+  reports) gave exit 0 and `KMSAN_OUTSIDE: 40438 report(s) with neither the use nor the memory in
+  moobfs_layer (39300 reached through it)`. A copy of the first, wrong rule left on the test host
+  had been run over it first and blamed 35 197 of them on the module; it was deleted.
 
 ## KMSAN reports judged as KCSAN's are
 
