@@ -159,6 +159,10 @@ or `QUERY2_BATCH` request may now fail with `EDQUOT` (unprivileged build
 admission), `E2BIG` (scan work) or `ETIMEDOUT` (cooperative build deadline;
 ten seconds of the builder's CPU time or 120 s elapsed since ADR-0031, accepted,
 which only admits builds the elapsed deadline refused).
+Since ADR-0043 (2026-11-18, accepted, journal 0310), a build whose allowance
+ran out on rescans of renamed directories or on another attempt returns
+`EAGAIN` instead of `E2BIG`; `E2BIG` is left to a build that reached the
+allowance in its first walk.
 Successful request and cursor meanings, structure layouts and command
 numbers do not change, so the request versions stay 2. This is a new
 resource-availability failure, not a new interpretation of a successful

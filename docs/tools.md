@@ -142,7 +142,7 @@ directory listing (`READ_DIR` under Landlock) on `<dir>`, `info` on the mount ro
 | 64 | usage |
 | 65 | invalid terms, or a query the kernel refused as invalid (`EINVAL`); `workspace`: an invalid name, a missing user or group, or a namespace that is not a workspace; `mount`: a lower refused (a layer, reachable by others, a comma in its path) or options the layer refused |
 | 69 | no layer there: the module is not loaded, `<path>` is on another filesystem, `<dir>` is not a domain directory (`ENOTTY`), or the index is off (`noindex`); `workspace create`: the mount's domain depth is not 2; `mount`: a kernel outside the list, or no list |
-| 75 | temporary: the domain does not fit `index_budget`, or the caller's memory cgroup reached its `memory.max` (`ENOMEM`; the message says which), too many first queries in a minute (`EDQUOT`), the build needs more than `index_build_work` (`E2BIG`) or took longer than its deadline (`ETIMEDOUT`), or the domain kept changing (`EAGAIN`) |
+| 75 | temporary: the domain does not fit `index_budget`, or the caller's memory cgroup reached its `memory.max` (`ENOMEM`; the message says which), too many first queries in a minute (`EDQUOT`), the build needs more than `index_build_work` in one walk (`E2BIG`) or took longer than its deadline (`ETIMEDOUT`), or the domain kept changing (`EAGAIN`) |
 | 77 | permission denied (`EACCES`, or `EPERM` for the mount-wide `QUERY` of a user when domains are on); `mount`, `workspace create`, `grant` and `revoke` run by a user other than root |
 
 ## moobfs-attr

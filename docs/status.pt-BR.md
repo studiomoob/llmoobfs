@@ -144,7 +144,7 @@ da issue #195 passa a ser fixada nessa tag, no lugar de `d96b0db`. Ninguém a re
 *Atualização, 18/11/2026 ([diário 0306](history/0306-first-independent-reproduction.md)):* a primeira reprodução independente: Marcelo Jorge
 Vieira rodou as Partes A, B e C da rota da issue #195 na `v0.6.1-experimental` no seu próprio host
 com KVM (ThinkPad X1 Carbon, Debian 13). A Parte A passou, exceto o `buildrace` no Debian 7.3 sob
-KVM (`E2BIG`, em investigação) e dois passos que falharam só por arquivos de build com dono root;
+KVM (`E2BIG`; explicado e corrigido no mesmo dia, [diário 0310](history/0310-e2big-under-renames.md)) e dois passos que falharam só por arquivos de build com dono root;
 toda falha do fstests na Parte B está nas listas de exclusão, com um diagnóstico de kernel vindo do
 kernel 6.12.117 do próprio host, não da camada; a Parte C não achou nenhum crash em seis horas e
 chegou a 89,0 % dos pontos de chamada. O mantenedor a conta como a reprodução que o ADR-0039

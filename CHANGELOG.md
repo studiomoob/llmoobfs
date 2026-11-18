@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Finding 1 of the first independent reproduction (issue #195) is explained and fixed (journal
+  0310, ADR-0043, accepted): a domain whose first query raced with directory renames could be
+  refused with `E2BIG`, "too large", although it fitted `index_build_work`; the rescans of the
+  renamed directories had spent the build's allowance. Such a build now returns `EAGAIN`, which
+  callers retry; `E2BIG` is left to a build that reaches the allowance in its first walk. The
+  allowance itself is unchanged. The `buildrace` step gains a check under the smallest
+  allowance, which failed on Debian 7.3.4 under KVM before the fix.
 - The first independent reproduction of stage 2: Marcelo Jorge Vieira ran Parts A, B and C of
   issue #195's route at `v0.6.1-experimental` on his own KVM host (journal 0306); the maintainer
   counts it as the reproduction ADR-0039 left pending. Fixed from his findings: Docker-based steps

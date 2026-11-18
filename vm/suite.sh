@@ -1358,6 +1358,29 @@ for fs in ext4 btrfs xfs; do
     [ $rc -ne 1 ] || fail "br-chmod-during-build-still-answered-$fs"
     [ $rc -eq 0 ] || fail "br-chmod-run-$fs"
     [ "$cr_retries" -gt 0 ] || fail "br-chmod-not-in-the-window-$fs (the test proved nothing)"
+    # Finding 1 of issue #195 (journal 0310): a domain that fits index_build_work is not refused
+    # with E2BIG, "too large", because writers made its build read and scan again. With the
+    # smallest allowance every domain is first built with no writer, which shows it fits; the
+    # same domains, on a new mount, are then built under the writers of tests/buildrace.c.
+    umount "$LAYER" || fail "br-small-umount-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/br",domain_depth=1,index_build_work=1024 none "$LAYER" || fail "br-small-mount-$fs"
+    for p in "$LOWER/br/"r*; do
+        "$BIN/query" "$LAYER/${p##*/}" q2 kind exists - - > /dev/null || fail "br-small-quiet-${p##*/}-$fs"
+    done
+    umount "$LAYER" || fail "br-small-umount2-$fs"
+    mount -t moobfs_layer -o lower="$LOWER/br",domain_depth=1,index_build_work=1024 none "$LAYER" || fail "br-small-mount2-$fs"
+    tr_on moobfs_domain_build || fail "br-small-trace-on-$fs"
+    echo 40 > /sys/module/moobfs_layer/parameters/scan_delay_us || fail "br-small-delay-$fs"
+    run_logged /tmp/br-small.txt "$BIN/buildrace" "$LAYER" 24 60; rc=$?
+    echo 0 > /sys/module/moobfs_layer/parameters/scan_delay_us
+    sm_builds=$(tr_count moobfs_domain_build)
+    sm_e2big=$(grep -c ' moobfs_domain_build: .* err=-7 ' $TR/trace)
+    sm_again=$(grep -c ' moobfs_domain_build: .* err=-11 ' $TR/trace)
+    tr_off moobfs_domain_build
+    echo "br-small-$fs: builds=$sm_builds e2big=$sm_e2big eagain=$sm_again"
+    grep ' moobfs_domain_build: .* err=-' $TR/trace | sed 's/^.*moobfs_domain_build: /br-small-refused: /' | head -5
+    [ $rc -eq 0 ] || fail "br-small-budget-refused-a-domain-that-fits-$fs"
+    br_cmp || fail "br-small-index-differs-from-oracle-$fs"
     umount "$LAYER" && rm -rf "$LOWER/br" && umount "$LOWER" || fail "br-cleanup-$fs"
     echo "BUILD_RACE_PASS: $fs, $(cut -d' ' -f2- /tmp/br.txt) readings_repeated=$retries; every domain equal to the oracle; chmod during a build: absent"
 done
@@ -2806,7 +2829,8 @@ fi
 if [ -n "${MOOB_ONLY:-}" ] && want buildmoved; then
 # Function tracing synchronizes a same-domain directory rename with the
 # first scan. Each of the 9,000 names fits alone; scanning them twice must
-# exceed the cumulative 32,768-unit allowance.
+# exceed the cumulative 32,768-unit allowance. Since ADR-0043 that refusal is
+# EAGAIN: the domain fits one walk, the rescan is what it could not pay for.
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail bm-lower-mount
 mkdir -p "$LOWER/bm/d/s" || fail bm-mkdir
 "$BIN/query-build-limit" plant "$LOWER/bm/d/s" 9000 || fail bm-plant

@@ -2397,6 +2397,7 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 	kuid_t builder = current_fsuid();
 	unsigned int nofs, released = 0;
 	u64 t0, used0, refused = 0;
+	bool again = false;	/* the allowance also paid for a rescan or another attempt */
 	int tries, err;
 
 	if (domain_fresh_for(ix, dom, lower)) {
@@ -2437,6 +2438,8 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 		LIST_HEAD(todo);
 		unsigned int rounds;
 
+		if (tries || released)
+			again = true;
 		err = scan_check(&job, false);
 		if (err)
 			break;
@@ -2460,6 +2463,7 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 				break;
 			list_splice_init(&dom->moved, &todo);
 			ix_write_unlock(ix, nofs);
+			again = true;
 			err = scan_moved(&job, &todo, lower, domain);
 			moved_list_free(&todo);
 		}
@@ -2503,6 +2507,14 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 	}
 	revert_creds(old);
 	attr_buf_free(&job.buf);
+	/*
+	 * ADR-0043: E2BIG says the domain is too large for index_build_work, so only a build that
+	 * reached the allowance in its first walk returns it. When writes made it rescan renamed
+	 * directories or start again, the same exhausted allowance is the domain changing: EAGAIN.
+	 * The allowance itself stays one per build, as ADR-0019 set.
+	 */
+	if (err == -E2BIG && again)
+		err = -EAGAIN;
 	trace_moobfs_domain_build(ix->dev, domain, err, min_t(int, tries + 1, MOOBL_BUILD_TRIES),
 				  released, (s64)(READ_ONCE(ix->used) - used0), ktime_get_ns() - t0);
 	mutex_unlock(&dom->build);

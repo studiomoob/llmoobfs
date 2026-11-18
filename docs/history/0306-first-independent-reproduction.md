@@ -128,3 +128,7 @@ Finding 1: a test that reproduces the misreported `E2BIG` on any host (for examp
 `index_build_work` with writers on a small domain), then the fix in `layer/index.c` under the
 kernel-correction rules. Reply on issue #195 (drafted outside the repository, posted by the
 maintainer).
+
+*Dated note, 2026-11-18:* finding 1 is explained and fixed in journal 0310 (ADR-0043): the rescans
+of directories renamed during the first build spent its allowance; such a build now returns
+`EAGAIN`. The known limit of `docs/matrix-and-limits.md` is removed there.

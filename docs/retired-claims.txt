@@ -561,3 +561,8 @@ a etapa 3 exige uma revisão humana
 The kernel freeze stays: these items
 asks for one independent reproduction of the stage-2 evidence
 pede uma reprodução independente das
+(`E2BIG`, under investigation)
+(`E2BIG`, em investigação)
+with one finding still open
+become fixes and an open investigation
+viram correções e uma investigação em aberto
