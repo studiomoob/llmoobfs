@@ -108,8 +108,8 @@ overwritten before the guest read it. Fix: after the guest's own checks, `vm/kas
 the `KASAN and lockdep` and `KCSAN` workflows, run `kdiag` over the whole console with the guest's
 patterns, and fail on what it finds. Checked on the test host against earlier consoles before it
 was committed: four full KASAN, UBSAN and lockdep runs (b26/27, b28, b29 and the 6.12.116 release
-candidate), one KCSAN run (`KCSAN_OUTSIDE: 30`) and k3 and k4 under KMSAN: exit 0 on all. Not yet
-run in CI: the workflows take it on this batch's pull request.
+candidate), one KCSAN run (`KCSAN_OUTSIDE: 30`) and k3 and k4 under KMSAN: exit 0 on all. Its first CI run is
+the next section.
 
 ## KMSAN reports judged as KCSAN's are
 
@@ -158,6 +158,19 @@ it), and trailing spaces in `tests/kdiag/` captures, which are the kernel's own 
 lines (`.gitattributes` exempts those captures from whitespace checks). The second pass: all
 `PASS`. No C code changed, so the sanitizer build of the tools and the Ubuntu test build were not
 run; the CI runs both.
+
+## The first CI run of the console check
+
+On pull request 213 the four `KASAN and lockdep` legs (6.12.116, 7.0.14, 7.3.3, 7.3.4) failed on
+the new check, after `MOOBFS_KASAN_PASS` in each. The cause was not the kernel: the workflows' console
+also has the host's QEMU, which printed `WARNING: Image format was not specified for '...img' and
+probing guessed raw.` for each of the five raw disks, and `^WARNING:` matched it. The local
+consoles of the test host had no such line, so the check against them before the push did not
+show it. Fix: the check reads only the console's kernel lines, those that start with the kernel's
+timestamp, which is what the guest's dmesg holds. Checked: the four consoles of that CI run fail
+without the filter and pass with it; the seven local consoles above pass; a KASAN console with
+QEMU's line added passes, and with a KMSAN report of the module or a kernel `WARNING:` in the
+module added it fails.
 
 ## Decisions after the runs
 
