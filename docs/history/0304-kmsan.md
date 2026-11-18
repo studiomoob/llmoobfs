@@ -22,8 +22,8 @@ Clang 19.1.7.
 ## Decisions
 
 - One more fragment, `vm/kmsan.config`: the KCSAN fragment of journal 0115 with KCSAN replaced by
-  `CONFIG_KMSAN=y` and `CONFIG_KMSAN_CHECK_PARAM_RETVAL=y`; lockdep stays. Like KCSAN, KMSAN needs
-  a kernel of its own.
+  `CONFIG_KMSAN=y` and `CONFIG_KMSAN_CHECK_PARAM_RETVAL=y`. Like KCSAN, KMSAN needs a kernel of
+  its own. Lockdep was in the first version of the fragment and is out since run k2 (below).
 - `vm/kasan-local.sh` gets `KCC=clang`. `vng --kconfig` evaluates the configuration with GCC, which
   drops KMSAN, so the configuration is evaluated again with `make CC=clang olddefconfig` and the
   kernel and the module are built with Clang; the run stops if any `CONFIG_*=y` of the fragment is
@@ -32,8 +32,7 @@ Clang 19.1.7.
 - A KMSAN report is a `BUG:` line, which `vm/kdiag.sh` already fails on. Whether reports of the
   kernel itself, outside the module, appear and need to be judged apart, as KCSAN's are, is left
   to the first run.
-- `vm/kasan-guest.sh` names "KMSAN and lockdep" in its final marker when the boot printed
-  KMSAN's line.
+- `vm/kasan-guest.sh` names "KMSAN" in its final marker when the boot printed KMSAN's line.
 
 ## Runs
 
@@ -45,6 +44,22 @@ Clang 19.1.7.
   merged in again with `scripts/kconfig/merge_config.sh -m` before `make CC=clang olddefconfig`,
   and the check runs before the build. On the test host this gives `CONFIG_KMSAN=y`,
   `CONFIG_KMSAN_CHECK_PARAM_RETVAL=y` and every other `=y` of the fragment.
+
+- k2, `16f4004`, from 19:40: `CONFIG_KMSAN=y`; kernel and module built with Clang 19.1.7. The
+  guest's console stopped at 0.66 s, right after "Starting KernelMemorySanitizer", at 20:18, and
+  QEMU ran at 100 % of a CPU with no more output until the run was stopped at 21:43. A normal
+  KASAN console records the whole run, so this was not a quiet log.
+- Boot-only tests (`vng -r ... --memory 4G --cpus 2 --verbose`, 20-minute limit), each kernel
+  configured as the harness does:
+  - the same fragment, 4 GiB instead of 3: stopped at the same place (0.75 s), 20 minutes;
+    memory is not the cause;
+  - virtme-ng's defaults with only `CONFIG_DEBUG_KERNEL` and `CONFIG_KMSAN`: booted, powered off
+    at 37.7 s;
+  - the whole fragment without `PROVE_LOCKING`, `LOCKDEP` and `PROVE_RCU`: booted, powered off
+    at 36.2 s.
+  So lockdep with KMSAN stalls the boot on this host; whether it is a hang or only very slow was
+  not measured past 20 minutes. Decision: the KMSAN run goes without lockdep, which the KASAN run
+  of every batch and the KCSAN run keep; `vm/kmsan.config` drops the three options.
 
 ## Next step
 
