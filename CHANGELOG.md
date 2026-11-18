@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- ADR-0042 (accepted 2026-11-18, journal 0305): stage 3 (public release) no longer requires an
+  independent human review; in its place, two independent AI-assisted reviews of the credential
+  paths and the `QUERY2` authorization, made with different tools, every finding reproduced with
+  a regression test. There is still no independent human review of the kernel code, and the
+  surfaces keep saying so; one remains welcome. The kernel freeze of ADR-0022 ends: a kernel, UAPI
+  or format feature enters one at a time, each by its own ADR accepted by the maintainer. The four
+  recorded exceptions to ADR-0030's criterion (2) are reopened. G6 is the current roadmap item.
 - Security roadmap S8 is complete: the full layer suite passed under KMSAN (6.12.116, Clang
   19.1.7, `vm/kmsan.config`, `KCC=clang sh vm/kasan-local.sh`) on the test host, with no report
   whose use or memory is the module's (journal 0304). `vm/kdiag.sh` judges KMSAN reports as it
