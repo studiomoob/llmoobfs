@@ -340,7 +340,8 @@ query answers does not change.
 - **Errors a first query can now return**, besides those of section 4: `ENOMEM` (no memory, or
   the domain does not fit `index_budget`), `EAGAIN` (the domain kept changing: 16 readings of
   one file each overtaken by a write to that file, or directories renamed in it for 64 rounds
-  or between 8 attempts to start; the caller may retry), `EINTR`, and any error
+  or between 8 attempts to start, or, since ADR-0043, the work allowance spent on rescans of
+  renamed directories or on another attempt; the caller may retry), `EINTR`, and any error
   the lower filesystem returned to the scan. After a failed build nothing of the domain is left
   in the index, and the next query tries again. A build never answers with part of a domain: an
   ACL or a name that could not be read fails it. One exception, by decision (journal 0156): a file
@@ -409,6 +410,13 @@ choice is the later note in this section. An error
 drops the partially built domain. Individual `QUERY2` calls do not publish
 a successful partial result; on any `QUERY2_BATCH` error, clients must
 discard all outputs, including buffers copied by earlier subqueries.
+
+*2026-11-18 proposal, ADR-0043 and journal 0310:* `E2BIG` is returned only
+when the allowance runs out in the first walk of a build's first attempt.
+When it runs out after a rescan of a renamed directory, or in a later
+attempt, the build returns `EAGAIN`: the domain fits, the changes made
+meanwhile are what the allowance could not pay for. The allowance stays one
+per build, cumulative as above.
 
 *2026-10-29 proposal, ADR-0031 and journal 0241:* the ten-second deadline
 counts the building task's CPU time (`se.sum_exec_runtime`, as `RLIMIT_CPU`)
