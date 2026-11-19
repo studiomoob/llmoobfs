@@ -3329,7 +3329,7 @@ sb_root=$(sb_flags "$sb_bin/query"); sb_user=$(sb_flags "$BIN/asuid" 1001 "$sb_b
 [ $(( sb_root & 4 )) -ne 0 ] || fail "sb-root-lost-the-flag ($sb_root)"
 [ $(( sb_user & 4 )) -eq 0 ] || fail "sb-flag-told-uid-1001-of-a-rename-in-a-private-domain ($sb_user)"
 umount "$LAYER" || fail sb-umount
-mount -t moobfs_layer -o lower="$LOWER/sb" none "$LAYER" || fail sb-mount-0
+mount -t moobfs_layer -o lower="$LOWER/sb",domain_depth=0 none "$LAYER" || fail sb-mount-0
 mv "$LAYER/priv/e" "$LAYER/priv/d" || fail sb-rename-0
 sb_user=$(sb_flags "$BIN/asuid" 1001 "$sb_bin/query")
 [ $(( sb_user & 4 )) -ne 0 ] || fail "sb-depth0-flag-lost ($sb_user)"
