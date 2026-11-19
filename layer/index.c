@@ -3461,23 +3461,23 @@ static int caller_may_getxattr(struct dentry *d, const char *name)
 	return n == -ENOMEM ? -ENOMEM : 0;
 }
 
-/* Every attribute the query reads of the file at d: its terms and the order. */
+/* Every attribute the query reads of the file at d: its terms and the order (may be NULL). */
 static int caller_may_get_terms(struct dentry *d, const struct moob_query_term *terms,
-				u32 nterms, const struct moobl_qscope *sc)
+				u32 nterms, const char *order)
 {
 	int ok = 1;
 	u32 i;
 
 	for (i = 0; i < nterms && ok == 1; i++)
 		ok = caller_may_getxattr(d, terms[i].name);
-	if (ok == 1 && sc->ordered)
-		ok = caller_may_getxattr(d, sc->scan);
+	if (ok == 1 && order)
+		ok = caller_may_getxattr(d, order);
 	return ok;
 }
 
+/* terms, nterms and order: the attributes to authorize as getxattr would; NULL terms: none */
 static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino,
-			   const struct moob_query_term *terms, u32 nterms,
-			   const struct moobl_qscope *sc)
+			   const struct moob_query_term *terms, u32 nterms, const char *order)
 {
 	struct path p;
 	unsigned int seq, tries;
@@ -3499,8 +3499,8 @@ static int caller_may_read(struct file *file, struct super_block *sb, const char
 			ok = err == -ENOMEM ? err : !err;
 			if (ok == 1)
 				ok = caller_may_list_above(file->f_path.dentry, p.dentry);
-			if (ok == 1 && sc->xattrs)
-				ok = caller_may_get_terms(p.dentry, terms, nterms, sc);
+			if (ok == 1 && terms)
+				ok = caller_may_get_terms(p.dentry, terms, nterms, order);
 		}
 		path_put(&p);
 		if (ok != 1 || !read_seqretry(&rename_lock, seq))
@@ -4030,7 +4030,8 @@ chunk_done:
 			up_read(&ix->query_sem);
 			for (i = 0; i < ncand && !err; i++) {
 				int readable = caller_may_read(file, sb, cand[i].path, cand[i].ino,
-							       terms, nterms, sc);
+							       sc->xattrs ? terms : NULL, nterms,
+							       sc->ordered ? sc->scan : NULL);
 
 				if (readable < 0)
 					err = readable;
