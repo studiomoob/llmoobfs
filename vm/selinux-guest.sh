@@ -21,9 +21,10 @@ cp /bin/busybox $S/bin/ && chcon -t bin_t $S/bin/busybox || fail busybox
 BB=$S/bin/busybox
 mount -t ext4 /dev/vda $S/lower || fail "lower mount"
 L=$S/lower
-mkdir $L/t && for f in rw ro none; do echo "$f" > $L/t/$f; done || fail files
+mkdir $L/t && for f in rw ro none noxattr; do echo "$f" > $L/t/$f; done || fail files
 chcon -t moobtest_dir_t $L $L/t && chcon -t moobtest_rw_t $L/t/rw &&
-    chcon -t moobtest_ro_t $L/t/ro && chcon -t moobtest_none_t $L/t/none || fail chcon
+    chcon -t moobtest_ro_t $L/t/ro && chcon -t moobtest_none_t $L/t/none &&
+    chcon -t moobtest_noxattr_t $L/t/noxattr || fail chcon
 # Two more sets with the labels of t, and nomap (open, read and write, not map), for the mappings
 # and the operations that change a file (journal 0298): md is reached only directly and my only
 # through the layer, so that each change is made once and the lower never changes behind the layer.
@@ -144,15 +145,27 @@ fi
 # rw and ro, not none
 B=$(dirname "$POL")
 cp "$B/query" $S/bin/query && chcon -t bin_t $S/bin/query || fail "query copy"
-for f in rw ro none; do
+for f in rw ro none noxattr; do
     "$B/moobfs-attr" set $S/layer/t/$f kind string secret > /dev/null || fail "attr $f"
 done
+cp "$B/moobfs-attr" $S/bin/moobfs-attr && chcon -t bin_t $S/bin/moobfs-attr || fail "moobfs-attr copy"
+# C1 controls: the client reads noxattr's contents and is refused its attribute, directly and
+# through the layer; it may read ro's attribute
+ca() { runcon -t moobtest_client_t -- "$@" < /dev/null > /dev/null 2>&1; echo $?; }
+nx_read_d=$(c cat $L/t/noxattr); nx_read_l=$(c cat $S/layer/t/noxattr)
+nx_attr_d=$(ca $S/bin/moobfs-attr get $L/t/noxattr kind); nx_attr_l=$(ca $S/bin/moobfs-attr get $S/layer/t/noxattr kind)
+ro_attr_l=$(ca $S/bin/moobfs-attr get $S/layer/t/ro kind)
+echo "  $TAG noxattr: read direct=$nx_read_d layer=$nx_read_l; attribute direct=$nx_attr_d layer=$nx_attr_l; ro attribute layer=$ro_attr_l"
 echo "  $TAG query2 as root: $($S/bin/query $S/layer/t q2 kind eq string secret 2>&1 | tr '\n' ' ')"
 q=$(runcon -t moobtest_client_t -- $S/bin/query $S/layer/t q2 kind eq string secret 2>&1; echo "exit=$?")
 echo "$q" | sed "s/^/  $TAG query2: /"
 if [ "$TAG" = fsuse ]; then
     # finding F6: the answer holds what the client may read, and nothing the policy hides
     echo "$q" | grep -q '[[:space:]]none$' && fail "QUERY2 names a file the client may not even getattr (F6)"
+    [ "$nx_read_d" = 0 ] && [ "$nx_read_l" = 0 ] && [ "$nx_attr_d" != 0 ] && [ "$nx_attr_l" != 0 ] &&
+        [ "$ro_attr_l" = 0 ] || fail "C1 controls: noxattr must be readable and its attribute refused, ro's attribute allowed"
+    echo "$q" | grep -q '[[:space:]]noxattr$' &&
+        fail "QUERY2 names a file whose attributes the client may not read (stage-3 review #2 C1)"
     echo "$q" | grep -q '[[:space:]]rw$' && echo "$q" | grep -q '[[:space:]]ro$' ||
         fail "QUERY2 left out a file the client may read"
 fi

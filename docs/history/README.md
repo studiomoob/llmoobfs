@@ -323,3 +323,4 @@ Journals 0001 to 0050 were written in Portuguese and translated to English in pl
 - [0305 — No human-review gate for stage 3; the kernel freeze ends, features one at a time (ADR-0042); G6 starts](0305-review-gate-and-kernel-features.md)
 - [0306 — The first independent reproduction of stage 2 (issue #195), and its findings](0306-first-independent-reproduction.md)
 - [0310 — Finding 1 of issue #195 reproduced and explained: renames spent the build allowance; `EAGAIN`, not `E2BIG` (ADR-0043)](0310-e2big-under-renames.md)
+- [0312 — Stage 3: two AI-assisted reviews of the credential paths and the `QUERY2` authorization](0312-stage3-ai-reviews-credentials-and-query2.md)

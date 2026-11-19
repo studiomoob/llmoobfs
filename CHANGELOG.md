@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Stage 3's two independent AI-assisted reviews of the credential paths and the `QUERY2`
+  authorization (ADR-0042; Claude Code and Codex, journal 0312; [GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72)). Fixed, each with a regression
+  test that failed before its fix: the `domain_records` and `selfcheck_counts` module parameters
+  are root-only; with domains on, `GET_INFO` gives `MOOB_FLAG_PATHS_STALE` to administrators
+  only; a `QUERY2` answer gives no name outside the queried domain, also inside a rename's
+  window; under SELinux or Smack, a checked result also needs `getxattr` permission on each
+  attribute the query reads; a query refused by the build admission (`EDQUOT`) leaves no domain
+  record. Recorded exceptions: mount-namespace hiding does not filter homogeneous answers, the
+  `E2BIG` of the build allowance counts entries the caller cannot list, and the admission is per
+  uid, subordinate uids included.
 - Finding 1 of the first independent reproduction (issue #195) is explained and fixed (journal
   0310, ADR-0043, accepted): a domain whose first query raced with directory renames could be
   refused with `E2BIG`, "too large", although it fitted `index_build_work`; the rescans of the

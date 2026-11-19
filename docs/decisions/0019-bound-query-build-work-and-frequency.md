@@ -100,6 +100,11 @@ expires. These are intentional availability tradeoffs, not fair index-memory
 shares (S9). The scope restriction to `QUERY2` followed the failed full-suite
 legacy-query race in journal 0182; it is an explicit compatibility choice.
 
+*Note, 2026-11-19 (journal 0312, stage-3 reviews):* subordinate uids let one person fill the uid
+table (R5, a recorded exception, ADR-0011 note to non-promise 5). A query refused here used to
+leave the domain record it had made until unmount (C2); a build that fails before it began now
+drops it.
+
 Three repeated ext4 KVM probes of each measured size (journal 0182) gave
 45.932–49.011 ms and 159,744–167,936 read bytes for 1,000 files, and
 196.926–210.976 ms and 1,986,560–2,002,944 read bytes for 7,500 files.

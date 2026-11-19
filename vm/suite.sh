@@ -110,7 +110,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault|mounthide|paramperm|renamewin|stalebit|refusedrecs) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -3239,6 +3239,139 @@ stat "$LAYER/$dn_other" > /dev/null || fail dn-stat
 [ "$(cat /tmp/dn-2.txt)" = "$dn_other" ] || { cat /tmp/dn-2.txt; fail "dn-not-from-dentry-cache (recorded $dn_rec, in memory $dn_other)"; }
 umount "$LAYER" && rm -rf "$LOWER/dn" && umount "$LOWER" || fail dn-cleanup
 echo "DCNAME_PASS: recorded name $dn_rec; with only $dn_other in the dentry cache, the answer named $dn_other"
+fi
+if [ -n "${MOOB_ONLY:-}" ] && want mounthide; then
+# Opt-in, and it fails on this code: R1 is a recorded exception (maintainer, 2026-11-19, journal
+# 0312), next to ADR-0011 non-promise 3. It is kept to show the limit and to test a later fix.
+# Stage-3 review #1, R1 (journal 0312): a homogeneous QUERY2 answer named a file under a
+# directory that the caller's mount namespace hides (a tmpfs mounted over it, as a container or
+# systemd's InaccessiblePaths= does); the per-result check leaves it out, since it does not
+# cross a mount. Both answers must leave it out. Without the hiding mount, it is answered.
+mh_bin=/tmp/mh-bin
+rm -rf "$mh_bin" && mkdir -m 755 "$mh_bin" && cp "$BIN/moobfs" "$mh_bin/" || fail mh-bin
+for mh_fs in ext4 btrfs xfs; do
+    case $mh_fs in ext4) mh_dev=$DEV_EXT4 ;; btrfs) mh_dev=$DEV_BTRFS ;; xfs) mh_dev=$DEV_XFS ;; esac
+    mount -t "$mh_fs" "$mh_dev" "$LOWER" || fail "mh-lower-mount-$mh_fs"
+    rm -rf "$LOWER/mh" && mkdir -p "$LOWER/mh/dom/s" "$LOWER/mh/dom/v" && chmod -R 755 "$LOWER/mh" || fail "mh-mkdir-$mh_fs"
+    for f in s/hidden v/shown; do
+        echo "$f" > "$LOWER/mh/dom/$f" && chmod 644 "$LOWER/mh/dom/$f" &&
+            "$BIN/moobfs-attr" set "$LOWER/mh/dom/$f" kind string note > /dev/null || fail "mh-file-$f-$mh_fs"
+    done
+    mount -t moobfs_layer -o lower="$LOWER/mh",domain_depth=1 none "$LAYER" || fail "mh-mount-$mh_fs"
+    "$BIN/asuid" 1001 "$mh_bin/moobfs" query "$LAYER/dom" kind eq string note > /tmp/mh-o.txt 2>&1 || { cat /tmp/mh-o.txt; fail "mh-query-free-$mh_fs"; }
+    grep -q 's/hidden' /tmp/mh-o.txt && grep -q 'v/shown' /tmp/mh-o.txt || { cat /tmp/mh-o.txt; fail "mh-free-answer-$mh_fs"; }
+    unshare -m --propagation private sh -c "mount -t tmpfs none '$LAYER/dom/s' && '$BIN/asuid' 1001 '$mh_bin/moobfs' query '$LAYER/dom' kind eq string note" > /tmp/mh-k.txt 2>&1 || { cat /tmp/mh-k.txt; fail "mh-query-hidden-$mh_fs"; }
+    grep -q 'v/shown' /tmp/mh-k.txt || { cat /tmp/mh-k.txt; fail "mh-hidden-answer-$mh_fs"; }
+    ! grep -q 's/hidden' /tmp/mh-k.txt || { cat /tmp/mh-k.txt; fail "mh-answer-named-a-file-under-a-hiding-mount-$mh_fs"; }
+    umount "$LAYER" && rm -rf "$LOWER/mh" && umount "$LOWER" || fail "mh-cleanup-$mh_fs"
+done
+echo "MOUNTHIDE_PASS: a file under a directory the caller's mount namespace hides is not answered on ext4, btrfs and XFS"
+fi
+if want paramperm; then
+# Stage-3 review #1, R3 (journal 0312): no module parameter that counts every user's activity
+# may be readable by other users; domain_records (a test counter, journal 0210) is root-only.
+pp_dir=/sys/module/moobfs_layer/parameters
+for pp in domain_records selfcheck_counts; do
+    [ -e "$pp_dir/$pp" ] || fail "pp-missing-$pp"
+    pp_mode=$(stat -c %a "$pp_dir/$pp")
+    [ "$pp_mode" = 400 ] || fail "pp-$pp-readable-by-others (mode $pp_mode)"
+    "$BIN/asuid" 1001 /bin/cat "$pp_dir/$pp" > /dev/null 2>&1 && fail "pp-$pp-read-by-uid-1001"
+done
+echo "PARAMPERM_PASS: the cross-user counters of the module are root-only"
+fi
+if want renamewin; then
+# Stage-3 review #1, R7 (journal 0312): between a file rename's index hook and the VFS's move of
+# the dentries, the file is in its new domain's partition while its dentry still has the old
+# name. A homogeneous answer from the new domain must not give the old path (here priv/x, a
+# directory of another domain that uid 1001 cannot traverse). rename_end_delay_us holds a
+# rename in that window while uid 1001 queries the new domain.
+rw_bin=/tmp/rw-bin
+rw_param=/sys/module/moobfs_layer/parameters/rename_end_delay_us
+[ -w "$rw_param" ] || fail "rw-no-param (module without rename_end_delay_us)"
+rm -rf "$rw_bin" && mkdir -m 755 "$rw_bin" && cp "$BIN/moobfs" "$rw_bin/" || fail rw-bin
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail rw-lower-mount
+rm -rf "$LOWER/rw" && mkdir -p "$LOWER/rw/a/priv" "$LOWER/rw/e" && chmod -R 755 "$LOWER/rw" && chmod 700 "$LOWER/rw/a/priv" || fail rw-mkdir
+for f in a/priv/x e/y; do
+    echo "$f" > "$LOWER/rw/$f" && chmod 644 "$LOWER/rw/$f" &&
+        "$BIN/moobfs-attr" set "$LOWER/rw/$f" kind string note > /dev/null || fail "rw-file-$f"
+done
+mount -t moobfs_layer -o lower="$LOWER/rw",domain_depth=1 none "$LAYER" || fail rw-mount
+"$BIN/asuid" 1001 "$rw_bin/moobfs" query "$LAYER/e" kind eq string note > /tmp/rw-o.txt 2>&1 || { cat /tmp/rw-o.txt; fail rw-query-before; }
+ls -l "$LAYER/a/priv/x" > /dev/null || fail rw-cache-x
+echo 1500000 > "$rw_param" || fail rw-param-set
+mv "$LAYER/a/priv/x" "$LAYER/e/x" & rw_pid=$!
+sleep 0.5
+"$BIN/asuid" 1001 "$rw_bin/moobfs" query "$LAYER/e" kind eq string note > /tmp/rw-k.txt 2>&1; rw_rc=$?
+wait $rw_pid; rw_mv=$?
+echo 0 > "$rw_param"
+[ $rw_mv -eq 0 ] || fail rw-mv
+[ $rw_rc -eq 0 ] || { cat /tmp/rw-k.txt; fail rw-query-window; }
+! grep -q 'priv' /tmp/rw-k.txt || { cat /tmp/rw-k.txt; fail "rw-window-answer-named-a-directory-of-another-domain"; }
+grep -q '^y$' /tmp/rw-k.txt || { cat /tmp/rw-k.txt; fail rw-window-answer; }
+"$BIN/asuid" 1001 "$rw_bin/moobfs" query "$LAYER/e" kind eq string note > /tmp/rw-a.txt 2>&1 || fail rw-query-after
+grep -q '^x$' /tmp/rw-a.txt || { cat /tmp/rw-a.txt; fail rw-after-answer; }
+umount "$LAYER" && rm -rf "$LOWER/rw" && umount "$LOWER" || fail rw-cleanup
+echo "RENAMEWIN_PASS: inside the rename window the new domain's answer gives no name from the old domain"
+fi
+if want stalebit; then
+# Stage-3 review #1 R4 and review #2 C3 (journal 0312): with domains on, MOOB_FLAG_PATHS_STALE
+# (0x4) told every user that some directory had been renamed, also inside a domain the user
+# cannot traverse. It is now given to administrators only, like the counters (ADR-0011, F1);
+# with domain_depth=0 (a single-user mount) it is unchanged.
+sb_bin=/tmp/sb-bin
+rm -rf "$sb_bin" && mkdir -m 755 "$sb_bin" && cp "$BIN/query" "$sb_bin/" || fail sb-bin
+sb_flags() { "$@" "$LAYER" info | sed -n 's/.* flags=\(0x[0-9a-f]*\|0\) .*/\1/p'; }
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail sb-lower-mount
+rm -rf "$LOWER/sb" && mkdir -p "$LOWER/sb/pub" "$LOWER/sb/priv/d" && chmod -R 755 "$LOWER/sb" && chmod 700 "$LOWER/sb/priv" || fail sb-mkdir
+mount -t moobfs_layer -o lower="$LOWER/sb",domain_depth=1 none "$LAYER" || fail sb-mount
+[ $(( $(sb_flags "$BIN/asuid" 1001 "$sb_bin/query") & 4 )) -eq 0 ] || fail sb-stale-before
+mv "$LAYER/priv/d" "$LAYER/priv/e" || fail sb-rename
+sb_root=$(sb_flags "$sb_bin/query"); sb_user=$(sb_flags "$BIN/asuid" 1001 "$sb_bin/query")
+[ -n "$sb_root" ] && [ -n "$sb_user" ] || fail "sb-no-flags (root '$sb_root', user '$sb_user')"
+[ $(( sb_root & 4 )) -ne 0 ] || fail "sb-root-lost-the-flag ($sb_root)"
+[ $(( sb_user & 4 )) -eq 0 ] || fail "sb-flag-told-uid-1001-of-a-rename-in-a-private-domain ($sb_user)"
+umount "$LAYER" || fail sb-umount
+mount -t moobfs_layer -o lower="$LOWER/sb",domain_depth=0 none "$LAYER" || fail sb-mount-0
+mv "$LAYER/priv/e" "$LAYER/priv/d" || fail sb-rename-0
+sb_user=$(sb_flags "$BIN/asuid" 1001 "$sb_bin/query")
+[ $(( sb_user & 4 )) -ne 0 ] || fail "sb-depth0-flag-lost ($sb_user)"
+umount "$LAYER" && rm -rf "$LOWER/sb" && umount "$LOWER" || fail sb-cleanup
+echo "STALEBIT_PASS: with domains on, PATHS_STALE is given to administrators only; with domain_depth=0 to everyone"
+fi
+if want refusedrecs; then
+# Stage-3 review #2 C2 (journal 0312): a query refused by the build admission (EDQUOT) left the
+# domain record it had made, outside the index budget and the shrinker, until unmount; an
+# unprivileged user could make one per directory. A refused query must leave no record.
+rr_param=/sys/module/moobfs_layer/parameters/domain_records
+rr_bin=/tmp/rr-bin
+[ -r "$rr_param" ] || fail rr-no-counter
+rm -rf "$rr_bin" && mkdir -m 755 "$rr_bin" && cp "$BIN/moobfs" "$rr_bin/" || fail rr-bin
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail rr-lower-mount
+rm -rf "$LOWER/rr" && mkdir -m 755 "$LOWER/rr" || fail rr-mkdir
+i=0; while [ $i -lt 56 ]; do
+    mkdir -m 755 "$LOWER/rr/d$i" && echo x > "$LOWER/rr/d$i/f" && chmod 644 "$LOWER/rr/d$i/f" &&
+        "$BIN/moobfs-attr" set "$LOWER/rr/d$i/f" kind string note > /dev/null || fail "rr-dir-$i"
+    i=$((i + 1))
+done
+mount -t moobfs_layer -o lower="$LOWER/rr",domain_depth=1 none "$LAYER" || fail rr-mount
+rr_ok=0; i=0
+while [ $i -lt 16 ]; do
+    "$BIN/asuid" 1001 "$rr_bin/moobfs" query "$LAYER/d$i" kind eq string note > /dev/null 2>&1 && rr_ok=$((rr_ok + 1))
+    i=$((i + 1))
+done
+[ $rr_ok -eq 16 ] || fail "rr-admitted ($rr_ok of 16)"
+rr_before=$(cat "$rr_param")
+rr_refused=0
+while [ $i -lt 56 ]; do
+    "$BIN/asuid" 1001 "$rr_bin/moobfs" query "$LAYER/d$i" kind eq string note > /tmp/rr-e.txt 2>&1 || rr_refused=$((rr_refused + 1))
+    i=$((i + 1))
+done
+rr_after=$(cat "$rr_param")
+[ $rr_refused -eq 40 ] || { cat /tmp/rr-e.txt; fail "rr-refused ($rr_refused of 40)"; }
+[ "$rr_after" -eq "$rr_before" ] || fail "rr-refused-queries-left-records ($rr_before before, $rr_after after 40 refusals)"
+"$BIN/query" "$LAYER/d20" q2 kind eq string note > /tmp/rr-root.txt || fail rr-root-query
+umount "$LAYER" && rm -rf "$LOWER/rr" && umount "$LOWER" || fail rr-cleanup
+echo "REFUSEDRECS_PASS: 40 queries refused by the build admission left no domain record"
 fi
 if want landlock; then
 # Issue #167 (journal 0230): the moobfs CLI read /proc/self/mountinfo before every query and

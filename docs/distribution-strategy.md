@@ -561,6 +561,9 @@ without the other's findings, every finding reproduced with a regression test or
 exception with its reason (ADR-0030's criterion (2)); and every surface keeps saying that there has
 been no independent human review of the kernel code while that is true. A human review remains
 welcome and gates nothing.
+*Status, 2026-11-19 (journal 0312):* the two reviews are done (Claude Code and Codex); their
+findings are fixed with regression tests or recorded as exceptions (`docs/review-findings.md`
+Part A7). The other preconditions of stage 3 are unchanged.
 
 ## 9. Repository files that would need to change
 

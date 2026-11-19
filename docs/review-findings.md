@@ -206,6 +206,26 @@ checked the fix (journal 0240, ADR-0011 note after F16).
 | GHSA-w7w8-m49c-vrvr | Smack: `stat` through a labelled mounter's layer skips the lower's hook for the caller | fixed (ADR-0040) | journal 0299 | `vm/smack-guest.sh` step 8, `SMACK_MOUNTER_PASS` (`stat hid` refused) [Smack run, not in CI] | Found by the S12 Smack run (Claude Code, for the maintainer); negative rounds on x86-64 and s390x (journal 0299) |
 | GHSA-f769-xjf5-54wc | Python scan fallback walks by path (TOCTOU, attribute oracle) | fixed (walk by descriptor) | journal 0231; PR 177 (git) | `python/tests/test_linux.py`: `test_scan_keeps_a_directory_swapped_for_a_link`, `test_scan_reads_the_file_it_judged`, `test_scan_under_a_racing_swap`, `test_scan_never_follows_links` [CI-py] | Old walk failed 3 of 11 as root (journal 0231) |
 
+### A7. Stage-3 AI-assisted reviews of the credential paths and the `QUERY2` authorization (journal 0312, 2026-11-19)
+
+Two independent reviews of `d9ee667` required by ADR-0042 decision 1.1, each started without
+the other's findings: review 1 by Claude Code (Opus), review 2 by Codex, both run for the
+maintainer, no human reviewer. Handled through the private path of `SECURITY.md`: [GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72).
+
+| ID | Finding | Triage | Fix | Regression test | Notes |
+| --- | --- | --- | --- | --- | --- |
+| R1 | A homogeneous `QUERY2` answer names a file under a directory the caller's mount namespace hides | recorded exception (maintainer, 2026-11-19), ADR-0011 note to non-promise 3 | none | step `mounthide` [opt-in], fails on this code | The fix tried cost 4.4 times a query on 1 000 cached files (journal 0312) |
+| R2 | `E2BIG` of the build allowance counts entries the caller cannot list | recorded exception (maintainer, 2026-11-19) | none | none | Reason in journal 0312 and the ADR-0011 note |
+| R3, C3 (a) | `domain_records` and `selfcheck_counts` readable by every user | fixed | journal 0312 | step `paramperm`, `PARAMPERM_PASS` [suite] | Found by both reviews |
+| R4, C3 (b) | `PATHS_STALE` given to every user | fixed (administrators only with domains on) | journal 0312 | step `stalebit`, `STALEBIT_PASS` [suite] | Found by both reviews |
+| R5 | Build admission keyed by the real uid; subordinate uids take the mount's slots | recorded exception (maintainer, 2026-11-19) | none | none | ADR-0019 trade-off, ADR-0011 non-promise 5 |
+| R6 | Owner checks use the layer inode's copy of the attributes | known | journal 0079 | — | |
+| R7 | Inside a rename's window, an answer gives the old path, a name from another domain | fixed | journal 0312 | step `renamewin`, `RENAMEWIN_PASS` [suite] | Test parameter `rename_end_delay_us` |
+| C1 | Under SELinux, read allowed and `getattr` refused: queries gave the attribute values | fixed | journal 0312 | `vm/selinux-guest.sh`, type `moobtest_noxattr_t` [SELinux run, not in CI] | Also S2 of review 1 |
+| C2 | A query refused by the admission left its domain record until unmount | fixed | journal 0312 | step `refusedrecs`, `REFUSEDRECS_PASS` [suite] | KASAN run of the touched steps |
+
+Suspicions not reproduced (journal 0312): S1, S3, S4, S5 of review 1; two of review 2.
+
 ---
 
 ## Part B — Other reviews in the journals, not classified by ADR-0030

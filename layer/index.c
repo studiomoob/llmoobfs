@@ -1029,7 +1029,8 @@ static int domain_records_get(char *buf, const struct kernel_param *kp)
 }
 
 static const struct kernel_param_ops domain_records_ops = { .get = domain_records_get };
-module_param_cb(domain_records, &domain_records_ops, NULL, 0444);
+/* root only: it counts every user's domains (stage-3 review #1 R3, journal 0312) */
+module_param_cb(domain_records, &domain_records_ops, NULL, 0400);
 MODULE_PARM_DESC(domain_records, "tests only: domain records held by every mount");
 
 static void domain_takedown(struct moobl_index *ix, struct moobl_domain *dom, u64 domain);
@@ -1634,7 +1635,8 @@ static int selfcheck_counts_get(char *buf, const struct kernel_param *kp)
 }
 
 static const struct kernel_param_ops selfcheck_counts_ops = { .get = selfcheck_counts_get };
-module_param_cb(selfcheck_counts, &selfcheck_counts_ops, NULL, 0444);
+/* root only: it counts every user's updates (stage-3 review #1 R3, journal 0312) */
+module_param_cb(selfcheck_counts, &selfcheck_counts_ops, NULL, 0400);
 MODULE_PARM_DESC(selfcheck_counts, "tests only: self-checks done, differences found, readings that were not conclusive");
 
 #define MOOBL_SELFCHECK_TRIES 3
@@ -2524,6 +2526,26 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 	return err;
 }
 
+/*
+ * A build that failed before it began (EDQUOT from the admission, a signal, no memory) leaves a
+ * record with nothing in it. Nobody else holding it, it is marked as a removed one is, and
+ * domain_unpin() drops it: otherwise each refused query on another directory left one, outside
+ * the index budget and the shrinker, until unmount (stage-3 review #2 C2, journal 0312). A
+ * later query makes a new one, as domain_get() does for any directory without a record.
+ */
+static void domain_forget_unbuilt(struct moobl_index *ix, struct moobl_domain *dom)
+{
+	unsigned int nofs = ix_write_lock(ix);
+
+	/* two references: ix->domains and the caller's */
+	if (dom->state == MOOBL_DOM_NONE && !dom->gone && list_empty(&dom->moved) &&
+	    refcount_read(&dom->ref) == 2) {
+		dom->gone = true;
+		ix->domains_gone++;
+	}
+	ix_write_unlock(ix, nofs);
+}
+
 /* domain_ensure_dom() on the record of domain, which it holds for the build (issue #113). */
 static int domain_ensure(struct super_block *sb, struct dentry *lower, u64 domain, const char *path,
 			 u64 gen, bool may_release)
@@ -2535,6 +2557,8 @@ static int domain_ensure(struct super_block *sb, struct dentry *lower, u64 domai
 	if (!dom)
 		return -ENOMEM;
 	err = domain_ensure_dom(sb, dom, lower, domain, path, gen, may_release);
+	if (err && dom != &ix->outside)
+		domain_forget_unbuilt(ix, dom);
 	domain_unpin(ix, dom);
 	return err;
 }
@@ -3417,7 +3441,43 @@ static int caller_may_list_above(struct dentry *top, struct dentry *d)
  * only if no rename happened meanwhile (rename_lock, as where_is() and path lookup use it);
  * otherwise it is decided again, and left out after a few tries, as a stale result is.
  */
-static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino)
+/*
+ * Whether the caller may read the attribute name of the file at d, as getxattr(2) would decide:
+ * an inode-labelling LSM may allow reading a file's contents and refuse its attributes (SELinux
+ * "getattr"), so the read check above does not answer it (stage-3 review #2 C1, journal 0312).
+ * vfs_getxattr() runs the same checks as the system call, on the layer and, through the
+ * layer's handler, on the lower. 1 yes, 0 no, -ENOMEM.
+ */
+static int caller_may_getxattr(struct dentry *d, const char *name)
+{
+	char full[XATTR_NAME_MAX + 1];
+	ssize_t n;
+
+	if (snprintf(full, sizeof(full), MOOB_ATTR_PREFIX "%s", name) >= (int)sizeof(full))
+		return 0;
+	n = vfs_getxattr(&nop_mnt_idmap, d, full, NULL, 0);
+	if (n >= 0 || n == -ENODATA)
+		return 1;
+	return n == -ENOMEM ? -ENOMEM : 0;
+}
+
+/* Every attribute the query reads of the file at d: its terms and the order (may be NULL). */
+static int caller_may_get_terms(struct dentry *d, const struct moob_query_term *terms,
+				u32 nterms, const char *order)
+{
+	int ok = 1;
+	u32 i;
+
+	for (i = 0; i < nterms && ok == 1; i++)
+		ok = caller_may_getxattr(d, terms[i].name);
+	if (ok == 1 && order)
+		ok = caller_may_getxattr(d, order);
+	return ok;
+}
+
+/* terms, nterms and order: the attributes to authorize as getxattr would; NULL terms: none */
+static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino,
+			   const struct moob_query_term *terms, u32 nterms, const char *order)
 {
 	struct path p;
 	unsigned int seq, tries;
@@ -3439,6 +3499,8 @@ static int caller_may_read(struct file *file, struct super_block *sb, const char
 			ok = err == -ENOMEM ? err : !err;
 			if (ok == 1)
 				ok = caller_may_list_above(file->f_path.dentry, p.dentry);
+			if (ok == 1 && terms)
+				ok = caller_may_get_terms(p.dentry, terms, nterms, order);
 		}
 		path_put(&p);
 		if (ok != 1 || !read_seqretry(&rename_lock, seq))
@@ -3567,6 +3629,7 @@ struct moobl_qscope {
 	bool all;		/* v1: every partition of terms[0].name */
 	u64 domain;		/* QUERY2: the domain's homogeneous partition */
 	bool check;		/* authorize each result with the caller's credentials */
+	bool xattrs;		/* with check: also each attribute asked, as getxattr would */
 	unsigned int strip;	/* leading path components dropped from mount-relative paths */
 	const char *scan;	/* attribute tree walked: order_by, or terms[0].name */
 	bool ordered;		/* walk the order_type run of scan; test every term */
@@ -3575,6 +3638,8 @@ struct moobl_qscope {
 	bool leap;		/* intersect the equality terms below by leapfrog (spec §4.4) */
 	u8 nleap;
 	u8 leap_idx[MOOB_QUERY_MAX_TERMS];	/* equality terms; the first one leads */
+	const char *prefix;	/* QUERY2: the domain directory's mount-relative path */
+	size_t plen;		/* its length; 0 when there is no domain (v1) */
 };
 
 /* Path relative to the scope: the mount-relative path without its first `strip` names. */
@@ -3603,7 +3668,16 @@ static int add_candidate(struct moobl_index *ix, struct moobl_ix_entry *e,
 	c->path = NULL;
 	c->value = NULL;
 	if (path) {
-		const char *rel = scope_path(path, sc->strip);
+		const char *rel;
+
+		/*
+		 * A name outside the queried domain is the old name of a file whose rename has
+		 * passed its hook but whose dentry the VFS has not moved yet; it belongs to another
+		 * domain and is not given (stage-3 review #1 R7, journal 0312).
+		 */
+		if (sc->plen && (strncmp(path, sc->prefix, sc->plen) || path[sc->plen] != '/'))
+			path = "";
+		rel = scope_path(path, sc->strip);
 
 		/* the whole name: the permission check resolves it; only the reply is cut */
 		if (rel) {
@@ -3955,7 +4029,9 @@ chunk_done:
 
 			up_read(&ix->query_sem);
 			for (i = 0; i < ncand && !err; i++) {
-				int readable = caller_may_read(file, sb, cand[i].path, cand[i].ino);
+				int readable = caller_may_read(file, sb, cand[i].path, cand[i].ino,
+							       sc->xattrs ? terms : NULL, nterms,
+							       sc->ordered ? sc->scan : NULL);
 
 				if (readable < 0)
 					err = readable;
@@ -3998,6 +4074,8 @@ out:
 		free_page((unsigned long)pathbuf);
 	return err;
 }
+
+static bool lsm_labels(struct super_block *sb);
 
 /* v1: every partition, each result checked; privileged when domains are on (spec §4.5). */
 static long do_query(struct super_block *sb, struct file *file, void __user *arg)
@@ -4049,6 +4127,7 @@ static long do_query(struct super_block *sb, struct file *file, void __user *arg
 		}
 	}
 	sc.scan = q->terms[0].name;
+	sc.xattrs = lsm_labels(sb);
 	err = query_run(sb, file, q->terms, q->nterms, q->limit, kres, &sc, NULL, NULL,
 			&q->count, &q->truncated);
 	up_read(&ix->query_sem);
@@ -4338,14 +4417,16 @@ static long query2_exec(struct super_block *sb, struct file *file, struct moob_q
 	struct moobl_qscope sc = { 0 };
 	struct moobl_resume *start = NULL, *last = NULL;
 	struct moob_query_term *t = NULL;
+	char *dbuf = NULL;
 	u64 qhash;
 	u32 i;
 	long err;
 
 	sc.domain = domain;
 	sc.strip = depth;
+	sc.xattrs = lsm_labels(sb);
 	sc.check = READ_ONCE(ix->fallback_all) ||
-		   xa_load(&ix->fallback, (unsigned long)domain) != NULL || lsm_labels(sb);
+		   xa_load(&ix->fallback, (unsigned long)domain) != NULL || sc.xattrs;
 	sc.ordered = q->order_by[0] != '\0';
 	sc.desc = q->order == MOOB_ORDER_DESC;
 	sc.otype = q->order_type;
@@ -4356,10 +4437,20 @@ static long query2_exec(struct super_block *sb, struct file *file, struct moob_q
 	t = kmemdup(q->terms, sizeof(q->terms), GFP_KERNEL_ACCOUNT);
 	start = kzalloc(sizeof(*start), GFP_KERNEL_ACCOUNT);
 	last = kzalloc(sizeof(*last), GFP_KERNEL_ACCOUNT);
-	if (!t || !start || !last) {
+	dbuf = kmalloc(PATH_MAX, GFP_KERNEL_ACCOUNT);
+	if (!t || !start || !last || !dbuf) {
 		err = -ENOMEM;
 		goto out;
 	}
+	/* the domain's own name, for the check of each result's name in add_candidate() */
+	sc.prefix = dentry_path_raw(file->f_path.dentry, dbuf, PATH_MAX);
+	if (IS_ERR(sc.prefix)) {
+		err = PTR_ERR(sc.prefix);
+		goto out;
+	}
+	if (*sc.prefix == '/')
+		sc.prefix++;
+	sc.plen = strlen(sc.prefix);
 	if (!sc.ordered && (t[0].flags & MOOB_TERM_MISSING_OK)) {
 		for (i = 1; i < q->nterms; i++)
 			if (!(t[i].flags & MOOB_TERM_MISSING_OK)) {
@@ -4392,6 +4483,7 @@ out:
 	kfree(t);
 	kfree(start);
 	kfree(last);
+	kfree(dbuf);
 	return err;
 }
 
@@ -4507,7 +4599,12 @@ static long do_get_info(struct super_block *sb, void __user *arg)
 		info.caps |= MOOB_CAP_XATTR;
 	if (!ix->enabled)
 		info.flags |= MOOB_FLAG_INDEX_OFF;
-	if (ix->paths_stale)
+	/*
+	 * With domains, a rename anywhere on the mount sets it, also in a domain the caller cannot
+	 * traverse, and domains rebuild themselves after one (ADR-0012): administrators only, as
+	 * the counters (stage-3 review #1 R4, journal 0312). Unchanged on a single-user mount.
+	 */
+	if (ix->paths_stale && (admin || !ix->domain_depth))
 		info.flags |= MOOB_FLAG_PATHS_STALE;
 	if (ix->incomplete)
 		info.flags |= MOOB_FLAG_INDEX_INCOMPLETE;
