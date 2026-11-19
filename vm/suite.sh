@@ -110,7 +110,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault|mounthide|paramperm) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -3239,6 +3239,43 @@ stat "$LAYER/$dn_other" > /dev/null || fail dn-stat
 [ "$(cat /tmp/dn-2.txt)" = "$dn_other" ] || { cat /tmp/dn-2.txt; fail "dn-not-from-dentry-cache (recorded $dn_rec, in memory $dn_other)"; }
 umount "$LAYER" && rm -rf "$LOWER/dn" && umount "$LOWER" || fail dn-cleanup
 echo "DCNAME_PASS: recorded name $dn_rec; with only $dn_other in the dentry cache, the answer named $dn_other"
+fi
+if want mounthide; then
+# Stage-3 review #1, R1 (journal 0312): a homogeneous QUERY2 answer named a file under a
+# directory that the caller's mount namespace hides (a tmpfs mounted over it, as a container or
+# systemd's InaccessiblePaths= does); the per-result check leaves it out, since it does not
+# cross a mount. Both answers must leave it out. Without the hiding mount, it is answered.
+mh_bin=/tmp/mh-bin
+rm -rf "$mh_bin" && mkdir -m 755 "$mh_bin" && cp "$BIN/moobfs" "$mh_bin/" || fail mh-bin
+for mh_fs in ext4 btrfs xfs; do
+    case $mh_fs in ext4) mh_dev=$DEV_EXT4 ;; btrfs) mh_dev=$DEV_BTRFS ;; xfs) mh_dev=$DEV_XFS ;; esac
+    mount -t "$mh_fs" "$mh_dev" "$LOWER" || fail "mh-lower-mount-$mh_fs"
+    rm -rf "$LOWER/mh" && mkdir -p -m 755 "$LOWER/mh/dom/s" "$LOWER/mh/dom/v" || fail "mh-mkdir-$mh_fs"
+    for f in s/hidden v/shown; do
+        echo "$f" > "$LOWER/mh/dom/$f" && chmod 644 "$LOWER/mh/dom/$f" &&
+            "$BIN/moobfs-attr" set "$LOWER/mh/dom/$f" kind string note > /dev/null || fail "mh-file-$f-$mh_fs"
+    done
+    mount -t moobfs_layer -o lower="$LOWER/mh",domain_depth=1 none "$LAYER" || fail "mh-mount-$mh_fs"
+    "$BIN/asuid" 1001 "$mh_bin/moobfs" query "$LAYER/dom" kind eq string note > /tmp/mh-o.txt 2>&1 || { cat /tmp/mh-o.txt; fail "mh-query-free-$mh_fs"; }
+    grep -q 's/hidden' /tmp/mh-o.txt && grep -q 'v/shown' /tmp/mh-o.txt || { cat /tmp/mh-o.txt; fail "mh-free-answer-$mh_fs"; }
+    unshare -m --propagation private sh -c "mount -t tmpfs none '$LAYER/dom/s' && '$BIN/asuid' 1001 '$mh_bin/moobfs' query '$LAYER/dom' kind eq string note" > /tmp/mh-k.txt 2>&1 || { cat /tmp/mh-k.txt; fail "mh-query-hidden-$mh_fs"; }
+    grep -q 'v/shown' /tmp/mh-k.txt || { cat /tmp/mh-k.txt; fail "mh-hidden-answer-$mh_fs"; }
+    ! grep -q 's/hidden' /tmp/mh-k.txt || { cat /tmp/mh-k.txt; fail "mh-answer-named-a-file-under-a-hiding-mount-$mh_fs"; }
+    umount "$LAYER" && rm -rf "$LOWER/mh" && umount "$LOWER" || fail "mh-cleanup-$mh_fs"
+done
+echo "MOUNTHIDE_PASS: a file under a directory the caller's mount namespace hides is not answered on ext4, btrfs and XFS"
+fi
+if want paramperm; then
+# Stage-3 review #1, R3 (journal 0312): no module parameter that counts every user's activity
+# may be readable by other users; domain_records (a test counter, journal 0210) is root-only.
+pp_dir=/sys/module/moobfs_layer/parameters
+for pp in domain_records selfcheck_counts; do
+    [ -e "$pp_dir/$pp" ] || fail "pp-missing-$pp"
+    pp_mode=$(stat -c %a "$pp_dir/$pp")
+    [ "$pp_mode" = 400 ] || fail "pp-$pp-readable-by-others (mode $pp_mode)"
+    "$BIN/asuid" 1001 /bin/cat "$pp_dir/$pp" > /dev/null 2>&1 && fail "pp-$pp-read-by-uid-1001"
+done
+echo "PARAMPERM_PASS: the cross-user counters of the module are root-only"
 fi
 if want landlock; then
 # Issue #167 (journal 0230): the moobfs CLI read /proc/self/mountinfo before every query and
