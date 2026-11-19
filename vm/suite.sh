@@ -3252,7 +3252,7 @@ rm -rf "$mh_bin" && mkdir -m 755 "$mh_bin" && cp "$BIN/moobfs" "$mh_bin/" || fai
 for mh_fs in ext4 btrfs xfs; do
     case $mh_fs in ext4) mh_dev=$DEV_EXT4 ;; btrfs) mh_dev=$DEV_BTRFS ;; xfs) mh_dev=$DEV_XFS ;; esac
     mount -t "$mh_fs" "$mh_dev" "$LOWER" || fail "mh-lower-mount-$mh_fs"
-    rm -rf "$LOWER/mh" && mkdir -p -m 755 "$LOWER/mh/dom/s" "$LOWER/mh/dom/v" || fail "mh-mkdir-$mh_fs"
+    rm -rf "$LOWER/mh" && mkdir -p "$LOWER/mh/dom/s" "$LOWER/mh/dom/v" && chmod -R 755 "$LOWER/mh" || fail "mh-mkdir-$mh_fs"
     for f in s/hidden v/shown; do
         echo "$f" > "$LOWER/mh/dom/$f" && chmod 644 "$LOWER/mh/dom/$f" &&
             "$BIN/moobfs-attr" set "$LOWER/mh/dom/$f" kind string note > /dev/null || fail "mh-file-$f-$mh_fs"
@@ -3290,7 +3290,7 @@ rw_param=/sys/module/moobfs_layer/parameters/rename_end_delay_us
 [ -w "$rw_param" ] || fail "rw-no-param (module without rename_end_delay_us)"
 rm -rf "$rw_bin" && mkdir -m 755 "$rw_bin" && cp "$BIN/moobfs" "$rw_bin/" || fail rw-bin
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail rw-lower-mount
-rm -rf "$LOWER/rw" && mkdir -p -m 755 "$LOWER/rw/a/priv" "$LOWER/rw/e" && chmod 700 "$LOWER/rw/a/priv" || fail rw-mkdir
+rm -rf "$LOWER/rw" && mkdir -p "$LOWER/rw/a/priv" "$LOWER/rw/e" && chmod -R 755 "$LOWER/rw" && chmod 700 "$LOWER/rw/a/priv" || fail rw-mkdir
 for f in a/priv/x e/y; do
     echo "$f" > "$LOWER/rw/$f" && chmod 644 "$LOWER/rw/$f" &&
         "$BIN/moobfs-attr" set "$LOWER/rw/$f" kind string note > /dev/null || fail "rw-file-$f"
@@ -3322,7 +3322,7 @@ sb_bin=/tmp/sb-bin
 rm -rf "$sb_bin" && mkdir -m 755 "$sb_bin" && cp "$BIN/query" "$sb_bin/" || fail sb-bin
 sb_flags() { "$@" "$LAYER" info | sed -n 's/.* flags=\(0x[0-9a-f]*\|0\) .*/\1/p'; }
 mount -t ext4 "$DEV_EXT4" "$LOWER" || fail sb-lower-mount
-rm -rf "$LOWER/sb" && mkdir -p -m 755 "$LOWER/sb/pub" "$LOWER/sb/priv/d" && chmod 700 "$LOWER/sb/priv" || fail sb-mkdir
+rm -rf "$LOWER/sb" && mkdir -p "$LOWER/sb/pub" "$LOWER/sb/priv/d" && chmod -R 755 "$LOWER/sb" && chmod 700 "$LOWER/sb/priv" || fail sb-mkdir
 mount -t moobfs_layer -o lower="$LOWER/sb",domain_depth=1 none "$LAYER" || fail sb-mount
 [ $(( $(sb_flags "$BIN/asuid" 1001 "$sb_bin/query") & 4 )) -eq 0 ] || fail sb-stale-before
 mv "$LAYER/priv/d" "$LAYER/priv/e" || fail sb-rename
