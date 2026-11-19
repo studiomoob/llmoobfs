@@ -29,6 +29,7 @@
 #include <linux/fileattr.h>
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
+#include <linux/delay.h>
 #include "moobfs_attr.h"
 
 #include "moobl.h"
@@ -788,6 +789,15 @@ static int moobl_rmdir(struct inode *dir, struct dentry *dentry)
 	return err;
 }
 
+/*
+ * For tests only (vm/suite.sh step renamewin, journal 0312): microseconds a successful rename
+ * waits after its index hook and before it returns, that is before the VFS moves the dentries,
+ * so that a test can query inside that window. 0, the default, adds nothing.
+ */
+static unsigned int rename_end_delay_us;
+module_param(rename_end_delay_us, uint, 0644);
+MODULE_PARM_DESC(rename_end_delay_us, "tests only: microseconds a rename waits after its index hook, before the VFS moves the dentries");
+
 static int moobl_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			struct dentry *old_dentry, struct inode *new_dir,
 			struct dentry *new_dentry, unsigned int flags)
@@ -923,6 +933,8 @@ out_unlock:
 		moobl_index_selfcheck(old_dir->i_sb, old_dentry);
 		if ((flags & RENAME_EXCHANGE) && target)
 			moobl_index_selfcheck(old_dir->i_sb, new_dentry);
+		if (unlikely(READ_ONCE(rename_end_delay_us)))
+			fsleep(READ_ONCE(rename_end_delay_us));
 	}
 out_drop:
 	moobl_drop_write(old_dir->i_sb);

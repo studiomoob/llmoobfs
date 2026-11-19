@@ -110,7 +110,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault|mounthide|paramperm) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault|mounthide|paramperm|renamewin) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -3276,6 +3276,40 @@ for pp in domain_records selfcheck_counts; do
     "$BIN/asuid" 1001 /bin/cat "$pp_dir/$pp" > /dev/null 2>&1 && fail "pp-$pp-read-by-uid-1001"
 done
 echo "PARAMPERM_PASS: the cross-user counters of the module are root-only"
+fi
+if want renamewin; then
+# Stage-3 review #1, R7 (journal 0312): between a file rename's index hook and the VFS's move of
+# the dentries, the file is in its new domain's partition while its dentry still has the old
+# name. A homogeneous answer from the new domain must not give the old path (here priv/x, a
+# directory of another domain that uid 1001 cannot traverse). rename_end_delay_us holds a
+# rename in that window while uid 1001 queries the new domain.
+rw_bin=/tmp/rw-bin
+rw_param=/sys/module/moobfs_layer/parameters/rename_end_delay_us
+[ -w "$rw_param" ] || fail "rw-no-param (module without rename_end_delay_us)"
+rm -rf "$rw_bin" && mkdir -m 755 "$rw_bin" && cp "$BIN/moobfs" "$rw_bin/" || fail rw-bin
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail rw-lower-mount
+rm -rf "$LOWER/rw" && mkdir -p -m 755 "$LOWER/rw/a/priv" "$LOWER/rw/e" && chmod 700 "$LOWER/rw/a/priv" || fail rw-mkdir
+for f in a/priv/x e/y; do
+    echo "$f" > "$LOWER/rw/$f" && chmod 644 "$LOWER/rw/$f" &&
+        "$BIN/moobfs-attr" set "$LOWER/rw/$f" kind string note > /dev/null || fail "rw-file-$f"
+done
+mount -t moobfs_layer -o lower="$LOWER/rw",domain_depth=1 none "$LAYER" || fail rw-mount
+"$BIN/asuid" 1001 "$rw_bin/moobfs" query "$LAYER/e" kind eq string note > /tmp/rw-o.txt 2>&1 || { cat /tmp/rw-o.txt; fail rw-query-before; }
+ls -l "$LAYER/a/priv/x" > /dev/null || fail rw-cache-x
+echo 1500000 > "$rw_param" || fail rw-param-set
+mv "$LAYER/a/priv/x" "$LAYER/e/x" & rw_pid=$!
+sleep 0.5
+"$BIN/asuid" 1001 "$rw_bin/moobfs" query "$LAYER/e" kind eq string note > /tmp/rw-k.txt 2>&1; rw_rc=$?
+wait $rw_pid; rw_mv=$?
+echo 0 > "$rw_param"
+[ $rw_mv -eq 0 ] || fail rw-mv
+[ $rw_rc -eq 0 ] || { cat /tmp/rw-k.txt; fail rw-query-window; }
+! grep -q 'priv' /tmp/rw-k.txt || { cat /tmp/rw-k.txt; fail "rw-window-answer-named-a-directory-of-another-domain"; }
+grep -q '^y$' /tmp/rw-k.txt || { cat /tmp/rw-k.txt; fail rw-window-answer; }
+"$BIN/asuid" 1001 "$rw_bin/moobfs" query "$LAYER/e" kind eq string note > /tmp/rw-a.txt 2>&1 || fail rw-query-after
+grep -q '^x$' /tmp/rw-a.txt || { cat /tmp/rw-a.txt; fail rw-after-answer; }
+umount "$LAYER" && rm -rf "$LOWER/rw" && umount "$LOWER" || fail rw-cleanup
+echo "RENAMEWIN_PASS: inside the rename window the new domain's answer gives no name from the old domain"
 fi
 if want landlock; then
 # Issue #167 (journal 0230): the moobfs CLI read /proc/self/mountinfo before every query and
