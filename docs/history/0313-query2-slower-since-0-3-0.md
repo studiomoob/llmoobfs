@@ -77,6 +77,6 @@ Two corrections, each measured against `99302cb` and `main` with 30 repetitions:
 per-result transient allocations gathered in one accounted buffer per chunk; (2) the recorded
 path used when the domain's names are fresh, the inode cache only when they are not, if every
 rename path keeps the recorded path current (to be checked; an ADR, since it changes where a
-result's name comes from). A reply on issue #68 (drafted outside the repository, posted by the
-maintainer). README, FAQ and `docs/when-not-to-use.md` state the 1 to 3 % residual of journal
+result's name comes from). The reply on issue #68, drafted outside the repository and posted by the maintainer
+([comment](https://github.com/studiomoob/llmoobfs/issues/68#issuecomment-7018502478)). README, FAQ and `docs/when-not-to-use.md` state the 1 to 3 % residual of journal
 0143 as the current difference: updated in this batch.
