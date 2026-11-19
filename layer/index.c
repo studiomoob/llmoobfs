@@ -4532,7 +4532,12 @@ static long do_get_info(struct super_block *sb, void __user *arg)
 		info.caps |= MOOB_CAP_XATTR;
 	if (!ix->enabled)
 		info.flags |= MOOB_FLAG_INDEX_OFF;
-	if (ix->paths_stale)
+	/*
+	 * With domains, a rename anywhere on the mount sets it, also in a domain the caller cannot
+	 * traverse, and domains rebuild themselves after one (ADR-0012): administrators only, as
+	 * the counters (stage-3 review #1 R4, journal 0312). Unchanged on a single-user mount.
+	 */
+	if (ix->paths_stale && (admin || !ix->domain_depth))
 		info.flags |= MOOB_FLAG_PATHS_STALE;
 	if (ix->incomplete)
 		info.flags |= MOOB_FLAG_INDEX_INCOMPLETE;
