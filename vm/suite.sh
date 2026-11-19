@@ -110,7 +110,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault|mounthide|paramperm|renamewin|stalebit) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault|mounthide|paramperm|renamewin|stalebit|refusedrecs) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -3335,6 +3335,41 @@ sb_user=$(sb_flags "$BIN/asuid" 1001 "$sb_bin/query")
 [ $(( sb_user & 4 )) -ne 0 ] || fail "sb-depth0-flag-lost ($sb_user)"
 umount "$LAYER" && rm -rf "$LOWER/sb" && umount "$LOWER" || fail sb-cleanup
 echo "STALEBIT_PASS: with domains on, PATHS_STALE is given to administrators only; with domain_depth=0 to everyone"
+fi
+if want refusedrecs; then
+# Stage-3 review #2 C2 (journal 0312): a query refused by the build admission (EDQUOT) left the
+# domain record it had made, outside the index budget and the shrinker, until unmount; an
+# unprivileged user could make one per directory. A refused query must leave no record.
+rr_param=/sys/module/moobfs_layer/parameters/domain_records
+rr_bin=/tmp/rr-bin
+[ -r "$rr_param" ] || fail rr-no-counter
+rm -rf "$rr_bin" && mkdir -m 755 "$rr_bin" && cp "$BIN/moobfs" "$rr_bin/" || fail rr-bin
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail rr-lower-mount
+rm -rf "$LOWER/rr" && mkdir -m 755 "$LOWER/rr" || fail rr-mkdir
+i=0; while [ $i -lt 56 ]; do
+    mkdir -m 755 "$LOWER/rr/d$i" && echo x > "$LOWER/rr/d$i/f" && chmod 644 "$LOWER/rr/d$i/f" &&
+        "$BIN/moobfs-attr" set "$LOWER/rr/d$i/f" kind string note > /dev/null || fail "rr-dir-$i"
+    i=$((i + 1))
+done
+mount -t moobfs_layer -o lower="$LOWER/rr",domain_depth=1 none "$LAYER" || fail rr-mount
+rr_ok=0; i=0
+while [ $i -lt 16 ]; do
+    "$BIN/asuid" 1001 "$rr_bin/moobfs" query "$LAYER/d$i" kind eq string note > /dev/null 2>&1 && rr_ok=$((rr_ok + 1))
+    i=$((i + 1))
+done
+[ $rr_ok -eq 16 ] || fail "rr-admitted ($rr_ok of 16)"
+rr_before=$(cat "$rr_param")
+rr_refused=0
+while [ $i -lt 56 ]; do
+    "$BIN/asuid" 1001 "$rr_bin/moobfs" query "$LAYER/d$i" kind eq string note > /tmp/rr-e.txt 2>&1 || rr_refused=$((rr_refused + 1))
+    i=$((i + 1))
+done
+rr_after=$(cat "$rr_param")
+[ $rr_refused -eq 40 ] || { cat /tmp/rr-e.txt; fail "rr-refused ($rr_refused of 40)"; }
+[ "$rr_after" -eq "$rr_before" ] || fail "rr-refused-queries-left-records ($rr_before before, $rr_after after 40 refusals)"
+"$BIN/query" "$LAYER/d20" q2 kind eq string note > /tmp/rr-root.txt || fail rr-root-query
+umount "$LAYER" && rm -rf "$LOWER/rr" && umount "$LOWER" || fail rr-cleanup
+echo "REFUSEDRECS_PASS: 40 queries refused by the build admission left no domain record"
 fi
 if want landlock; then
 # Issue #167 (journal 0230): the moobfs CLI read /proc/self/mountinfo before every query and
