@@ -1,8 +1,9 @@
 # 0312 — Stage 3: two AI-assisted reviews of the credential paths and the `QUERY2` authorization
 
 Date: 2026-11-19. Work started at about 07:35 Brasília time (the first review) and the
-last run recorded here ended at 08:50, besides the batch's full runs (see Checks).
-Status: **in progress; batch 44, branch `claudiofp/b44-stage3-review1`, local.** The findings are security defects
+last run recorded here ended at 10:56.
+Status: **fixes and checks done; batch 44, branch `claudiofp/b44-stage3-review1`, local; the
+advisory and the pull request wait for the maintainer.** The findings are security defects
 handled through the private path of `SECURITY.md`: the public surfaces and the advisory wait
 until the fixes are ready (maintainer, 2026-11-19). Estimated effort: M (ADR-0042 decision 1.1);
 the time recorded is calendar time, most of it machine time. Work done by Claude Code (an AI
@@ -107,8 +108,16 @@ On the test host (Mac mini, KVM, Debian 6.12.111), in fresh clones of the branch
   record's lifetime; at `5013c7e`: `vm/selinux-local.sh` (`fsuse differ=0`, the four earlier
   SELinux checks pass, `rw` and `ro` still answered), `make checkpatch`, and `stalebit diag
   permmatrix permgaps permchurn fallbackfault renamewin paramperm refusedrecs`, pass.
-- The batch's full runs (`make lint`, full `make vm-test`, full `vm/kasan-local.sh`,
-  `vm/smack-local.sh`) at `88aa88f`: running.
+- The batch's full runs at `88aa88f`, from 08:51 to 10:43: full `MOOB_VM_KVM=1 make vm-test`,
+  `MOOBFS_VM_PASS`; full `vm/kasan-local.sh`, `MOOBFS_KASAN_PASS: layer suite under KASAN, UBSAN
+  and lockdep with no kernel diagnostics`; `vm/smack-local.sh`, `MOOBFS_SMACK_RESULT: fails=0`
+  (Smack is the other labelling LSM C1's check runs under). `make lint` failed on three
+  `mkdir -p -m` of the new steps (shellcheck SC2174), fixed in `652e388`; there, `make lint`
+  passes and `renamewin stalebit` pass; `mounthide` fails as recorded
+  (`mh-answer-named-a-file-under-a-hiding-mount-ext4`).
+- On this Mac, after the surfaces' commit: `make test`, `scripts/check-retired-claims.sh`,
+  `scripts/check-pins.sh`, `scripts/check-matrix-page.sh`, `scripts/check-site.py`,
+  `scripts/site-faq.py --check` and `git diff --check`, pass.
 
 ## Limitations
 
@@ -117,15 +126,15 @@ On the test host (Mac mini, KVM, Debian 6.12.111), in fresh clones of the branch
 - C1's check costs one `getxattr` per attribute per checked result, only under a labelling LSM.
 - The suspicions above are not reproduced.
 
-## Surfaces held back
+## Surfaces
 
-Until the fixes are ready and the advisory is published (maintainer, 2026-11-19):
+Updated in this branch, which stays local until the advisory (maintainer, 2026-11-19):
 `CHANGELOG.md`, `SECURITY.md`, `docs/status.md` and `docs/status.pt-BR.md`,
 `docs/review-findings.md`, notes in ADR-0011 (R1, R2, R4, R5, C1) and ADR-0019 (R5),
-`docs/spec-query-v2.md` and `docs/compatibility.md` (R4, R7), `docs/distribution-strategy.md`
-§8 and the security roadmap.
+`docs/spec-query-v2.md` and `docs/compatibility.md` (R4, R7, C1), `docs/distribution-strategy.md`
+§8 and the security roadmap S1. Left for the advisory: `SECURITY.md` and the advisory links.
 
 ## Next step
 
-The full runs; then the held-back surfaces in one commit, a draft advisory with the maintainer,
-the pull request with the maintainer's agreement, and the advisory's publication after the merge.
+A draft advisory with the maintainer; then `SECURITY.md` and the advisory's links, the pull
+request with the maintainer's agreement, and the advisory's publication after the merge.
