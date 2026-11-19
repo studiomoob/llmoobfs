@@ -1029,7 +1029,8 @@ static int domain_records_get(char *buf, const struct kernel_param *kp)
 }
 
 static const struct kernel_param_ops domain_records_ops = { .get = domain_records_get };
-module_param_cb(domain_records, &domain_records_ops, NULL, 0444);
+/* root only: it counts every user's domains (stage-3 review #1 R3, journal 0312) */
+module_param_cb(domain_records, &domain_records_ops, NULL, 0400);
 MODULE_PARM_DESC(domain_records, "tests only: domain records held by every mount");
 
 static void domain_takedown(struct moobl_index *ix, struct moobl_domain *dom, u64 domain);
@@ -1634,7 +1635,8 @@ static int selfcheck_counts_get(char *buf, const struct kernel_param *kp)
 }
 
 static const struct kernel_param_ops selfcheck_counts_ops = { .get = selfcheck_counts_get };
-module_param_cb(selfcheck_counts, &selfcheck_counts_ops, NULL, 0444);
+/* root only: it counts every user's updates (stage-3 review #1 R3, journal 0312) */
+module_param_cb(selfcheck_counts, &selfcheck_counts_ops, NULL, 0400);
 MODULE_PARM_DESC(selfcheck_counts, "tests only: self-checks done, differences found, readings that were not conclusive");
 
 #define MOOBL_SELFCHECK_TRIES 3
