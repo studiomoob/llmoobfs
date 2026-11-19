@@ -2526,6 +2526,26 @@ static int domain_ensure_dom(struct super_block *sb, struct moobl_domain *dom, s
 	return err;
 }
 
+/*
+ * A build that failed before it began (EDQUOT from the admission, a signal, no memory) leaves a
+ * record with nothing in it. Nobody else holding it, it is marked as a removed one is, and
+ * domain_unpin() drops it: otherwise each refused query on another directory left one, outside
+ * the index budget and the shrinker, until unmount (stage-3 review #2 C2, journal 0312). A
+ * later query makes a new one, as domain_get() does for any directory without a record.
+ */
+static void domain_forget_unbuilt(struct moobl_index *ix, struct moobl_domain *dom)
+{
+	unsigned int nofs = ix_write_lock(ix);
+
+	/* two references: ix->domains and the caller's */
+	if (dom->state == MOOBL_DOM_NONE && !dom->gone && list_empty(&dom->moved) &&
+	    refcount_read(&dom->ref) == 2) {
+		dom->gone = true;
+		ix->domains_gone++;
+	}
+	ix_write_unlock(ix, nofs);
+}
+
 /* domain_ensure_dom() on the record of domain, which it holds for the build (issue #113). */
 static int domain_ensure(struct super_block *sb, struct dentry *lower, u64 domain, const char *path,
 			 u64 gen, bool may_release)
@@ -2537,6 +2557,8 @@ static int domain_ensure(struct super_block *sb, struct dentry *lower, u64 domai
 	if (!dom)
 		return -ENOMEM;
 	err = domain_ensure_dom(sb, dom, lower, domain, path, gen, may_release);
+	if (err && dom != &ix->outside)
+		domain_forget_unbuilt(ix, dom);
 	domain_unpin(ix, dom);
 	return err;
 }
