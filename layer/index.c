@@ -3577,6 +3577,8 @@ struct moobl_qscope {
 	bool leap;		/* intersect the equality terms below by leapfrog (spec §4.4) */
 	u8 nleap;
 	u8 leap_idx[MOOB_QUERY_MAX_TERMS];	/* equality terms; the first one leads */
+	const char *prefix;	/* QUERY2: the domain directory's mount-relative path */
+	size_t plen;		/* its length; 0 when there is no domain (v1) */
 };
 
 /* Path relative to the scope: the mount-relative path without its first `strip` names. */
@@ -3605,7 +3607,16 @@ static int add_candidate(struct moobl_index *ix, struct moobl_ix_entry *e,
 	c->path = NULL;
 	c->value = NULL;
 	if (path) {
-		const char *rel = scope_path(path, sc->strip);
+		const char *rel;
+
+		/*
+		 * A name outside the queried domain is the old name of a file whose rename has
+		 * passed its hook but whose dentry the VFS has not moved yet; it belongs to another
+		 * domain and is not given (stage-3 review #1 R7, journal 0312).
+		 */
+		if (sc->plen && (strncmp(path, sc->prefix, sc->plen) || path[sc->plen] != '/'))
+			path = "";
+		rel = scope_path(path, sc->strip);
 
 		/* the whole name: the permission check resolves it; only the reply is cut */
 		if (rel) {
@@ -4340,6 +4351,7 @@ static long query2_exec(struct super_block *sb, struct file *file, struct moob_q
 	struct moobl_qscope sc = { 0 };
 	struct moobl_resume *start = NULL, *last = NULL;
 	struct moob_query_term *t = NULL;
+	char *dbuf = NULL;
 	u64 qhash;
 	u32 i;
 	long err;
@@ -4358,10 +4370,20 @@ static long query2_exec(struct super_block *sb, struct file *file, struct moob_q
 	t = kmemdup(q->terms, sizeof(q->terms), GFP_KERNEL_ACCOUNT);
 	start = kzalloc(sizeof(*start), GFP_KERNEL_ACCOUNT);
 	last = kzalloc(sizeof(*last), GFP_KERNEL_ACCOUNT);
-	if (!t || !start || !last) {
+	dbuf = kmalloc(PATH_MAX, GFP_KERNEL_ACCOUNT);
+	if (!t || !start || !last || !dbuf) {
 		err = -ENOMEM;
 		goto out;
 	}
+	/* the domain's own name, for the check of each result's name in add_candidate() */
+	sc.prefix = dentry_path_raw(file->f_path.dentry, dbuf, PATH_MAX);
+	if (IS_ERR(sc.prefix)) {
+		err = PTR_ERR(sc.prefix);
+		goto out;
+	}
+	if (*sc.prefix == '/')
+		sc.prefix++;
+	sc.plen = strlen(sc.prefix);
 	if (!sc.ordered && (t[0].flags & MOOB_TERM_MISSING_OK)) {
 		for (i = 1; i < q->nterms; i++)
 			if (!(t[i].flags & MOOB_TERM_MISSING_OK)) {
@@ -4394,6 +4416,7 @@ out:
 	kfree(t);
 	kfree(start);
 	kfree(last);
+	kfree(dbuf);
 	return err;
 }
 
