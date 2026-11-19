@@ -77,3 +77,12 @@ Anything else in the module stays frozen under ADR-0022.
   number, already confuses them.
 - Issue #117 can be closed. The surfaces that state its remainder as a limit change in the same
   unit of work.
+
+*Note, 2026-11-19 (journal 0313, issue #68):* the lookup per candidate, with the accounted
+allocations per result of journal 0180, made steady-state `QUERY2` 50 to 68 % slower than
+module 0.3.0. A result in a domain is now named by its recorded name when the domain's names are
+fresh (no directory renamed since it was built): a file in a domain has one name, and every
+write path that names or renames it updates the record under the index lock. The inode cache is
+asked only when the recorded names may be stale, and outside the domains, where of two hard
+links the name in memory is still preferred (step `dcname`). The decision above is unchanged:
+records hold no pointer to the layer inode.
