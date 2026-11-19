@@ -47,6 +47,10 @@ files_type(moobtest_none_t)
 # mapping is refused by the "map" check, not by the open
 type moobtest_nomap_t;
 files_type(moobtest_nomap_t)
+# stage-3 review #2 C1 (journal 0312): a file the client may open and read but not getattr, so
+# that it may read the contents but not the typed attributes (getxattr needs getattr)
+type moobtest_noxattr_t;
+files_type(moobtest_noxattr_t)
 
 allow moobtest_client_t moobtest_dir_t:dir { list_dir_perms add_entry_dir_perms del_entry_dir_perms };
 allow moobtest_client_t moobtest_rw_t:file { manage_file_perms map };
@@ -54,6 +58,7 @@ allow moobtest_client_t moobtest_ro_t:file { read_file_perms map };
 allow moobtest_client_t moobtest_ro_t:dir list_dir_perms;
 type_transition moobtest_client_t moobtest_dir_t:file moobtest_rw_t;
 allow moobtest_client_t moobtest_nomap_t:file rw_file_perms;
+allow moobtest_client_t moobtest_noxattr_t:file { open read };
 # moobtest_none_t: no rule at all
 
 # the layer's typed attributes are user.* xattrs, governed by the file's own setattr/getattr
