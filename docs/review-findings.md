@@ -210,7 +210,7 @@ checked the fix (journal 0240, ADR-0011 note after F16).
 
 Two independent reviews of `d9ee667` required by ADR-0042 decision 1.1, each started without
 the other's findings: review 1 by Claude Code (Opus), review 2 by Codex, both run for the
-maintainer, no human reviewer. Handled through the private path of `SECURITY.md`.
+maintainer, no human reviewer. Handled through the private path of `SECURITY.md`: [GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72).
 
 | ID | Finding | Triage | Fix | Regression test | Notes |
 | --- | --- | --- | --- | --- | --- |

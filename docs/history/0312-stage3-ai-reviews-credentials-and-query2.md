@@ -128,13 +128,13 @@ On the test host (Mac mini, KVM, Debian 6.12.111), in fresh clones of the branch
 
 ## Surfaces
 
-Updated in this branch, which stays local until the advisory (maintainer, 2026-11-19):
+Updated in this branch (maintainer, 2026-11-19); the draft advisory is [GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72):
 `CHANGELOG.md`, `SECURITY.md`, `docs/status.md` and `docs/status.pt-BR.md`,
 `docs/review-findings.md`, notes in ADR-0011 (R1, R2, R4, R5, C1) and ADR-0019 (R5),
 `docs/spec-query-v2.md` and `docs/compatibility.md` (R4, R7, C1), `docs/distribution-strategy.md`
-§8 and the security roadmap S1. Left for the advisory: `SECURITY.md` and the advisory links.
+§8, the security roadmap S1 and `SECURITY.md`.
 
 ## Next step
 
-A draft advisory with the maintainer; then `SECURITY.md` and the advisory's links, the pull
-request with the maintainer's agreement, and the advisory's publication after the merge.
+The pull request with the maintainer's agreement; after the merge, the advisory's patched
+version and publication.

@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Stage 3's two independent AI-assisted reviews of the credential paths and the `QUERY2`
-  authorization (ADR-0042; Claude Code and Codex, journal 0312). Fixed, each with a regression
+  authorization (ADR-0042; Claude Code and Codex, journal 0312; [GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72)). Fixed, each with a regression
   test that failed before its fix: the `domain_records` and `selfcheck_counts` module parameters
   are root-only; with domains on, `GET_INFO` gives `MOOB_FLAG_PATHS_STALE` to administrators
   only; a `QUERY2` answer gives no name outside the queried domain, also inside a rename's

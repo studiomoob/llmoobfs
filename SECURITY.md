@@ -11,7 +11,7 @@ a problem and what to expect; the longer-term plan is in
 | Version | Supported |
 | --- | --- |
 | `main` | Use this. Fixes land here only; there are no backports and no maintenance branches. |
-| `v0.6.2-experimental` | Source snapshot of 2026-11-17, not supported: the kernel code of `v0.6.1-experimental` (the module version aside) with the packaging and scripts of the signed apt repository (ADR-0041, journal 0301); its packages are to be the first published there. Its source archive is signed with Sigstore and has SLSA provenance (`docs/security-operations.md`). |
+| `v0.6.2-experimental` | Source snapshot of 2026-11-17, not supported: it has the defects of [GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72) (fixed on `main`, journal 0312); the kernel code of `v0.6.1-experimental` (the module version aside) with the packaging and scripts of the signed apt repository (ADR-0041, journal 0301); its packages are to be the first published there. Its source archive is signed with Sigstore and has SLSA provenance (`docs/security-operations.md`). |
 | `v0.6.1-experimental` | Source snapshot of 2026-11-17, not supported, a patch release of stage 2: everything in `v0.6.0-experimental` and the fix of [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr) (journals 0299, 0300). Its source archive is signed with Sigstore and has SLSA provenance (`docs/security-operations.md`). |
 | `v0.6.0-experimental` | Source snapshot of 2026-11-15, not supported, the first of stage 2 (technical preview, ADR-0039): fixes F1 to F17 including fair shares of F2, issue 117 (ADR-0038) and GHSA-f769-xjf5-54wc (journals 0228, 0231, 0295, 0297). It has [GHSA-w7w8-m49c-vrvr](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-w7w8-m49c-vrvr) (severity low: `stat` through a layer mounted by a Smack-labelled mounter), fixed on `main` and in `v0.6.1-experimental` (journal 0299, ADR-0040), as do the tags back to `v0.4.0-experimental`. Its source archive is signed with Sigstore and has SLSA provenance (`docs/security-operations.md`). |
 | `v0.5.0-experimental` | Source snapshot of 2026-10-28, not supported: fixes F1 to F17 except fair shares of F2, review 0144 R1/R2, the defects of review round 2 except the part of issue 117 left open, and the user-space advisories GHSA-4gr9-rvgr-44qj and GHSA-3wx4-fh9w-2v66 (journals 0226, 0227). It still has the scan fallback's walk by path, GHSA-f769-xjf5-54wc (severity low), fixed on `main` (journal 0231). Its source archive is signed with Sigstore and has SLSA provenance (`docs/security-operations.md`). |
@@ -214,6 +214,15 @@ mounter's label could `stat` a lower file the lower refuses it ([GHSA-w7w8-m49c-
 caller ([ADR-0040](docs/decisions/0040-getattr-asks-the-lower-as-the-caller.md)); tags
 `v0.4.0-experimental` to `v0.6.0-experimental` have the defect, and `v0.6.1-experimental`
 (2026-11-17, journal 0300) and later tags have the fix.
+*Update, 2026-11-19 ([journal 0312](docs/history/0312-stage3-ai-reviews-credentials-and-query2.md)):*
+stage 3's two AI-assisted reviews of the credential paths and the `QUERY2` authorization, by
+Claude Code and by Codex for the maintainer, found five defects ([GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72), severity moderate): under
+SELinux, attribute values given to a caller refused `getattr`; domain records retained after a
+query refused by the build admission; a name from another domain inside a rename's window; two
+module parameters and the `PATHS_STALE` flag readable across users. All are fixed on `main`
+with regression tests; every tag up to `v0.6.2-experimental` has them. Three related limits are
+recorded in ADR-0011 instead (mount-namespace hiding, the count behind `E2BIG`, per-uid
+admission with subordinate uids).
 
 Known availability limit (issue 118): an authorized, unprivileged `QUERY2`
 can build a whole domain with the mounter's credentials, again after a
