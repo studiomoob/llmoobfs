@@ -3241,7 +3241,8 @@ umount "$LAYER" && rm -rf "$LOWER/dn" && umount "$LOWER" || fail dn-cleanup
 echo "DCNAME_PASS: recorded name $dn_rec; with only $dn_other in the dentry cache, the answer named $dn_other"
 fi
 if [ -n "${MOOB_ONLY:-}" ] && want mounthide; then
-# Opt-in until the maintainer decides R1 (journal 0312): it fails on this code.
+# Opt-in, and it fails on this code: R1 is a recorded exception (maintainer, 2026-11-19, journal
+# 0312), next to ADR-0011 non-promise 3. It is kept to show the limit and to test a later fix.
 # Stage-3 review #1, R1 (journal 0312): a homogeneous QUERY2 answer named a file under a
 # directory that the caller's mount namespace hides (a tmpfs mounted over it, as a container or
 # systemd's InaccessiblePaths= does); the per-result check leaves it out, since it does not
