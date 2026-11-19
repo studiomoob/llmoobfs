@@ -3441,7 +3441,43 @@ static int caller_may_list_above(struct dentry *top, struct dentry *d)
  * only if no rename happened meanwhile (rename_lock, as where_is() and path lookup use it);
  * otherwise it is decided again, and left out after a few tries, as a stale result is.
  */
-static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino)
+/*
+ * Whether the caller may read the attribute name of the file at d, as getxattr(2) would decide:
+ * an inode-labelling LSM may allow reading a file's contents and refuse its attributes (SELinux
+ * "getattr"), so the read check above does not answer it (stage-3 review #2 C1, journal 0312).
+ * vfs_getxattr() runs the same checks as the system call, on the layer and, through the
+ * layer's handler, on the lower. 1 yes, 0 no, -ENOMEM.
+ */
+static int caller_may_getxattr(struct dentry *d, const char *name)
+{
+	char full[XATTR_NAME_MAX + 1];
+	ssize_t n;
+
+	if (snprintf(full, sizeof(full), MOOB_ATTR_PREFIX "%s", name) >= (int)sizeof(full))
+		return 0;
+	n = vfs_getxattr(&nop_mnt_idmap, d, full, NULL, 0);
+	if (n >= 0 || n == -ENODATA)
+		return 1;
+	return n == -ENOMEM ? -ENOMEM : 0;
+}
+
+/* Every attribute the query reads of the file at d: its terms and the order. */
+static int caller_may_get_terms(struct dentry *d, const struct moob_query_term *terms,
+				u32 nterms, const struct moobl_qscope *sc)
+{
+	int ok = 1;
+	u32 i;
+
+	for (i = 0; i < nterms && ok == 1; i++)
+		ok = caller_may_getxattr(d, terms[i].name);
+	if (ok == 1 && sc->ordered)
+		ok = caller_may_getxattr(d, sc->scan);
+	return ok;
+}
+
+static int caller_may_read(struct file *file, struct super_block *sb, const char *path, u64 ino,
+			   const struct moob_query_term *terms, u32 nterms,
+			   const struct moobl_qscope *sc)
 {
 	struct path p;
 	unsigned int seq, tries;
@@ -3463,6 +3499,8 @@ static int caller_may_read(struct file *file, struct super_block *sb, const char
 			ok = err == -ENOMEM ? err : !err;
 			if (ok == 1)
 				ok = caller_may_list_above(file->f_path.dentry, p.dentry);
+			if (ok == 1 && sc->xattrs)
+				ok = caller_may_get_terms(p.dentry, terms, nterms, sc);
 		}
 		path_put(&p);
 		if (ok != 1 || !read_seqretry(&rename_lock, seq))
@@ -3591,6 +3629,7 @@ struct moobl_qscope {
 	bool all;		/* v1: every partition of terms[0].name */
 	u64 domain;		/* QUERY2: the domain's homogeneous partition */
 	bool check;		/* authorize each result with the caller's credentials */
+	bool xattrs;		/* with check: also each attribute asked, as getxattr would */
 	unsigned int strip;	/* leading path components dropped from mount-relative paths */
 	const char *scan;	/* attribute tree walked: order_by, or terms[0].name */
 	bool ordered;		/* walk the order_type run of scan; test every term */
@@ -3990,7 +4029,8 @@ chunk_done:
 
 			up_read(&ix->query_sem);
 			for (i = 0; i < ncand && !err; i++) {
-				int readable = caller_may_read(file, sb, cand[i].path, cand[i].ino);
+				int readable = caller_may_read(file, sb, cand[i].path, cand[i].ino,
+							       terms, nterms, sc);
 
 				if (readable < 0)
 					err = readable;
@@ -4033,6 +4073,8 @@ out:
 		free_page((unsigned long)pathbuf);
 	return err;
 }
+
+static bool lsm_labels(struct super_block *sb);
 
 /* v1: every partition, each result checked; privileged when domains are on (spec §4.5). */
 static long do_query(struct super_block *sb, struct file *file, void __user *arg)
@@ -4084,6 +4126,7 @@ static long do_query(struct super_block *sb, struct file *file, void __user *arg
 		}
 	}
 	sc.scan = q->terms[0].name;
+	sc.xattrs = lsm_labels(sb);
 	err = query_run(sb, file, q->terms, q->nterms, q->limit, kres, &sc, NULL, NULL,
 			&q->count, &q->truncated);
 	up_read(&ix->query_sem);
@@ -4380,8 +4423,9 @@ static long query2_exec(struct super_block *sb, struct file *file, struct moob_q
 
 	sc.domain = domain;
 	sc.strip = depth;
+	sc.xattrs = lsm_labels(sb);
 	sc.check = READ_ONCE(ix->fallback_all) ||
-		   xa_load(&ix->fallback, (unsigned long)domain) != NULL || lsm_labels(sb);
+		   xa_load(&ix->fallback, (unsigned long)domain) != NULL || sc.xattrs;
 	sc.ordered = q->order_by[0] != '\0';
 	sc.desc = q->order == MOOB_ORDER_DESC;
 	sc.otype = q->order_type;
