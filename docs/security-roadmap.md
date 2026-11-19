@@ -177,6 +177,9 @@ model, reviewers cannot tell whether the credentials scheme is exploitable.
 - *Note, 2026-11-18 ([ADR-0042](decisions/0042-no-human-review-gate-and-kernel-features-one-at-a-time.md), journal 0305):* stage 3 no longer needs a
   human review. It needs two independent AI-assisted reviews of the same scope, made with
   different tools, every finding reproduced with a regression test.
+- *Note, 2026-11-19 (journal 0312):* both reviews done, by Claude Code and by Codex. Five
+  findings fixed, each with a regression test that failed before its fix; three recorded
+  exceptions (ADR-0011 notes); one known (journal 0079). `docs/review-findings.md` Part A7.
 
 ### S2. fstests (xfstests) over the layer
 

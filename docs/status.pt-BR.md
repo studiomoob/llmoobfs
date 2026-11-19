@@ -13,7 +13,7 @@ seção [Estado](../README.pt-BR.md#estado) do README mantém a lista-resumo, e
 
 **Experimental. Não é para produção.** Três séries de kernel (6.12; o 7.0 do Ubuntu e o 7.3 do Debian só para o módulo da camada), testadas só em VM; ainda sem
 revisão humana independente do código do kernel, só ferramentas automáticas e revisões assistidas por IA ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): duas revisões do código, feitas por
-assistentes de IA, diários 0111 e 0114; os relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele, acharam três defeitos do kernel, e o revisor
+assistentes de IA, diários 0111 e 0114; as duas revisões da etapa 3 dos caminhos de credenciais e da autorização da `QUERY2`, pelo Claude Code e pelo Codex, cujos achados estão corrigidos com testes de regressão ou registrados como exceções, diário 0312; os relatos privados de um revisor externo, assistidos por IA e triados e reproduzidos por ele, acharam três defeitos do kernel, e o revisor
 escreveu a correção de um deles, F16, diários 0215, 0216 e 0218; um colaborador de fora revisou scripts,
 ferramentas e a biblioteca Python com um assistente de IA, pull requests 161 a 163. A tag mais recente, `v0.6.2-experimental` (2026-11-17), uma versão de correção da etapa 2 (prévia técnica,
 [ADR-0039](decisions/0039-stage-2-declared-reproduction-pending.md)), contém as correções anteriores à tag; as mudanças posteriores abaixo indicam seu próprio estado de publicação. Tags anteriores:

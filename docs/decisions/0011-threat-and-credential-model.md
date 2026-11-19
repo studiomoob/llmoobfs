@@ -114,10 +114,22 @@ Against A2 and A3:
    held only for directories the process may read. For a search-only directory it did not, and
    that was finding F15 below; since this date an answer requires read and search of every
    directory on the way, so the argument holds again for mode bits and ACLs.
+   *Note, 2026-11-19 (journal 0312, stage-3 review R1, recorded exception):* mount namespaces do
+   not filter homogeneous answers either. A process that can open a domain but has a directory
+   inside it hidden by a mount (a container's tmpfs, systemd's `InaccessiblePaths=`) sees in the
+   answers the names and attribute matches of the files below it; per-result checks, which do
+   not cross a mount, leave them out. Detecting the mounts at each query cost 4.4 times a query
+   on 1 000 cached files. To hide a domain from a confined process, hide the domain directory.
 4. **`domain_depth=0`** keeps v1 open to everyone with per-result checks and its timing channel
    (about 1 µs per hidden match, journal 0030). It is an administrator's choice for single-user
    mounts and is documented as such.
 5. **Fair sharing of the index budget** (finding F2 below) and other resource limits (S9).
+   *Note, 2026-11-19 (journal 0312, stage-3 review R5, recorded exception):* the build admission
+   counts per uid (ADR-0019), so one user who holds subordinate uids counts as many users and can
+   take the mount's 64 slots and 64 builds a minute. *Same date, R2, recorded exception:* a build
+   counts its domain as the mounter sees it, so its `E2BIG` depends on entries the caller cannot
+   list; with write access inside the domain, about 15 queries give their number. A private
+   subtree belongs in its own domain.
 
 ## Unprivileged surfaces
 
@@ -137,6 +149,12 @@ and S7 (fuzzing).
   the counters only for `CAP_SYS_ADMIN`, zero for others, with the static fields (limits, lower
   type, capabilities, flags) unchanged; a UAPI note and a test. **Fixed on 2026-10-12** (journal
   0061): `MOOB_FLAG_COUNTERS` marks a reply that carries them.
+  *Note, 2026-11-19 (journal 0312, stage-3 reviews R3, R4 and C3):* two channels of the same
+  class remained. The module parameters `domain_records` and `selfcheck_counts` counted every
+  user's activity and were readable by all; they are now root-only. With domains on, the flag
+  `MOOB_FLAG_PATHS_STALE` told every user that some directory had been renamed, also inside a
+  domain the user cannot traverse; it is now given to administrators only (with
+  `domain_depth=0`, a single-user mount, it is unchanged).
 - **F2 — One budget for all users.** `index_budget` (128 MiB by default) is shared by the mount. A1
   with write access can fill it with attributes; the index is then marked incomplete for everyone
   until remount (`MOOB_FLAG_INDEX_INCOMPLETE`, one `pr_warn`). Not a crash, but a cross-user
@@ -220,6 +238,11 @@ Added on 2026-10-14, from the first run under SELinux enforcing (security roadma
   in journal 0104: when an LSM keeps labels for the layer's inodes, every `QUERY2` result is
   checked for the caller (path walk and `inode_permission(MAY_READ)`), as after a permission
   change. Non-promise 3 (path-based LSMs) is unchanged.
+  *Note, 2026-11-19 (journal 0312, stage-3 review C1):* the check asked only `MAY_READ`, and a
+  policy may allow a file's contents and refuse its attributes (SELinux `getattr`): predicates
+  and the cursor then gave values `getxattr` refuses. Under a labelling LSM a checked result now
+  also needs `getxattr` permission (`vfs_getxattr()`, as the system call decides) on each
+  attribute the query reads, terms and order.
 - **Credentials:** `security.*` attributes are now read from the lower with the mounter's
   credentials, as overlayfs reads every attribute. An LSM reads a new inode's label through the
   layer with the credentials of whoever reached the file first; a confined first caller was

@@ -9,7 +9,7 @@ meets what the project is before its status history. The facts are unchanged. Th
 ## Last tag and later corrections
 
 **Experimental. Not for production.** Three kernel series (6.12; Ubuntu's 7.0 and Debian's 7.3 for the layer module only), tested in a VM only; no independent
-human review of the kernel code yet, only automated tools and AI-assisted reviews ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): two source reviews by AI assistants, journals 0111 and 0114;
+human review of the kernel code yet, only automated tools and AI-assisted reviews ([ADR-0030](decisions/0030-stage-2-review-criterion.md)): two source reviews by AI assistants, journals 0111 and 0114; the two stage-3 reviews of the credential paths and the `QUERY2` authorization, by Claude Code and by Codex, whose findings are fixed with regression tests or recorded exceptions, journal 0312;
 an external reviewer's AI-assisted private reports, triaged and reproduced by the reviewer, found three kernel defects, and the reviewer wrote the fix of one, F16, journals 0215, 0216 and 0218;
 an outside contributor reviewed the scripts, tools and Python library with an AI assistant, pull requests 161 to 163. The latest
 tag, `v0.6.2-experimental` (2026-11-17), a patch release of stage 2 (technical preview,

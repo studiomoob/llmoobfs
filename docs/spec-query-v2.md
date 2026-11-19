@@ -333,7 +333,11 @@ query answers does not change.
   homogeneity may have changed. The next query on the domain takes it down and builds it
   again. A rename of a domain directory, or of a directory above it, does the same to every
   domain. This replaces "names stay stale until the next mount" (`MOOB_FLAG_PATHS_STALE` still
-  reports that a directory was renamed since mount). Cost: the query after such a rename pays
+  reports that a directory was renamed since mount; since 2026-11-19, with domains on, to
+  `CAP_SYS_ADMIN` only, since a rename in a domain the caller cannot traverse also sets it,
+  journal 0312). A result whose cached name is not under the queried domain, as between a
+  rename's index hook and the VFS's move of the dentry, is given without a path
+  (`MOOB_RES_PATH_UNKNOWN`). Cost: the query after such a rename pays
   the build of the whole domain.
 - **A running query keeps its domain.** `QUERY2`, `QUERY2_BATCH` and `QUERY` hold a semaphore
   for reading while they run; taking a built domain down takes it for writing.

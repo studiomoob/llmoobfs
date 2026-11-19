@@ -170,6 +170,15 @@ request. It is nevertheless a compatibility cost for callers that assumed
 every otherwise valid domain could be indexed; the changelog and query
 specification state it explicitly. No disk format changes.
 
+**Stage-3 review fixes, 2026-11-19 (journal 0312).** With domains on, `GET_INFO` sets
+`MOOB_FLAG_PATHS_STALE` only for `CAP_SYS_ADMIN`; others always see it clear (with
+`domain_depth=0` it is unchanged). A `QUERY2` result whose cached name is not under the queried
+domain, as inside a rename's window, carries `MOOB_RES_PATH_UNKNOWN` and no path. Under a
+labelling LSM, a checked result also needs `getxattr` permission on each attribute the query
+reads, so a policy that grants read without `getattr` gets fewer results than before. The
+module parameters `domain_records` and `selfcheck_counts` are root-only. Layouts, command
+numbers and request versions do not change. No disk format changes.
+
 **Reserved byte of the query term, 2026-10-28 (ADR-0026).** The implicit tail padding byte of
 `struct moob_query_term` became `pad[3]`, checked for zero (`EINVAL`). Layouts, command numbers
 and request versions do not change; a request that left a nonzero byte there, valid before, is
