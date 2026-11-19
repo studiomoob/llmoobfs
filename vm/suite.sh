@@ -110,7 +110,7 @@ want() {
     return 1
 }
 for step in ${MOOB_ONLY:-}; do
-    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault|mounthide|paramperm|renamewin) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
+    case "$step" in ext4|btrfs|xfs|demo|clients|powerloss|ioerror|reserve|casefold|faults|buildrace|hookrace|deeptree|samedir|attrlist|release|sqlext|permmatrix|permchurn|selfcheck|permgaps|rootpath|overbudget|memcg|buildcost|buildcostlarge|builddenial|buildclient|buildcostevict|buildlimit|buildwork|buildtime|buildmoved|walklatency|stall|dirstall|lowerro|bigdir|xattrread|domainrecs|domainreuse|minacl|pylib|ixlock|dcname|fairshare|limits|diag|mountscale|landlock|crossmachine|fallbackfault|mounthide|paramperm|renamewin|stalebit) ;; *) fail "unknown MOOB_ONLY step $step" ;; esac
 done
 LOWER=${LOWER:-/lower}
 LAYER=${LAYER:-/mnt/layer}
@@ -3310,6 +3310,31 @@ grep -q '^y$' /tmp/rw-k.txt || { cat /tmp/rw-k.txt; fail rw-window-answer; }
 grep -q '^x$' /tmp/rw-a.txt || { cat /tmp/rw-a.txt; fail rw-after-answer; }
 umount "$LAYER" && rm -rf "$LOWER/rw" && umount "$LOWER" || fail rw-cleanup
 echo "RENAMEWIN_PASS: inside the rename window the new domain's answer gives no name from the old domain"
+fi
+if want stalebit; then
+# Stage-3 review #1 R4 and review #2 C3 (journal 0312): with domains on, MOOB_FLAG_PATHS_STALE
+# (0x4) told every user that some directory had been renamed, also inside a domain the user
+# cannot traverse. It is now given to administrators only, like the counters (ADR-0011, F1);
+# with domain_depth=0 (a single-user mount) it is unchanged.
+sb_bin=/tmp/sb-bin
+rm -rf "$sb_bin" && mkdir -m 755 "$sb_bin" && cp "$BIN/query" "$sb_bin/" || fail sb-bin
+sb_flags() { "$@" "$LAYER" info | sed -n 's/.* flags=\(0x[0-9a-f]*\|0\) .*/\1/p'; }
+mount -t ext4 "$DEV_EXT4" "$LOWER" || fail sb-lower-mount
+rm -rf "$LOWER/sb" && mkdir -p -m 755 "$LOWER/sb/pub" "$LOWER/sb/priv/d" && chmod 700 "$LOWER/sb/priv" || fail sb-mkdir
+mount -t moobfs_layer -o lower="$LOWER/sb",domain_depth=1 none "$LAYER" || fail sb-mount
+[ $(( $(sb_flags "$BIN/asuid" 1001 "$sb_bin/query") & 4 )) -eq 0 ] || fail sb-stale-before
+mv "$LAYER/priv/d" "$LAYER/priv/e" || fail sb-rename
+sb_root=$(sb_flags "$sb_bin/query"); sb_user=$(sb_flags "$BIN/asuid" 1001 "$sb_bin/query")
+[ -n "$sb_root" ] && [ -n "$sb_user" ] || fail "sb-no-flags (root '$sb_root', user '$sb_user')"
+[ $(( sb_root & 4 )) -ne 0 ] || fail "sb-root-lost-the-flag ($sb_root)"
+[ $(( sb_user & 4 )) -eq 0 ] || fail "sb-flag-told-uid-1001-of-a-rename-in-a-private-domain ($sb_user)"
+umount "$LAYER" || fail sb-umount
+mount -t moobfs_layer -o lower="$LOWER/sb" none "$LAYER" || fail sb-mount-0
+mv "$LAYER/priv/e" "$LAYER/priv/d" || fail sb-rename-0
+sb_user=$(sb_flags "$BIN/asuid" 1001 "$sb_bin/query")
+[ $(( sb_user & 4 )) -ne 0 ] || fail "sb-depth0-flag-lost ($sb_user)"
+umount "$LAYER" && rm -rf "$LOWER/sb" && umount "$LOWER" || fail sb-cleanup
+echo "STALEBIT_PASS: with domains on, PATHS_STALE is given to administrators only; with domain_depth=0 to everyone"
 fi
 if want landlock; then
 # Issue #167 (journal 0230): the moobfs CLI read /proc/self/mountinfo before every query and
