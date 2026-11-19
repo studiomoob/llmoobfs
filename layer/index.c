@@ -3340,6 +3340,18 @@ static const char *result_path(struct moobl_index *ix, struct moobl_ix_inode *re
 
 	lockdep_assert_held(&ix->lock);
 	*held = NULL;
+	*held_inode = NULL;
+	/*
+	 * In a domain, the recorded name first, when the domain has had no directory renamed
+	 * since it was built: a file in a domain has one name (target_ok() leaves linked files
+	 * out), and every write path that names or renames it updates the record under the index
+	 * lock (moobl_index_renamed() before the VFS moves the dentry). The inode cache, a lookup
+	 * by number for every result since ADR-0038, cost about 75 ns a result (issue #68,
+	 * journal 0313); it is now asked only when the recorded names may be stale, and outside
+	 * the domains, where of two hard links the one in memory is named (step dcname).
+	 */
+	if (rec->domain && rec->path && paths_fresh(ix, rec))
+		return rec->path;
 	/* may sleep on an inode being freed or made; neither path takes the index lock */
 	upper = moobl_find_cached_inode(ix->sb, rec->ino, rec->gen);
 	*held_inode = upper;
@@ -3354,8 +3366,6 @@ static const char *result_path(struct moobl_index *ix, struct moobl_ix_inode *re
 				return *p == '/' ? p + 1 : p;
 		}
 	}
-	if (rec->path && paths_fresh(ix, rec))
-		return rec->path;
 	return NULL;
 }
 
