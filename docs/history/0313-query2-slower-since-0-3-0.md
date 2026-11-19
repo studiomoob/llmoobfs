@@ -1,8 +1,8 @@
 # 0313 — Issue #68: steady-state `QUERY2` is 50 to 68 % slower than module 0.3.0; two merges
 
-Date: 2026-11-19. Work started at about 12:40 Brasília time; the measurements recorded here
-ended at 12:51 (calendar time). Status: **in progress; batch 45, branch
-`claudiofp/b45-query-cost`, local.** The cause is located; the fixes are not written.
+Date: 2026-11-19. Work started at about 12:40 Brasília time and ended at 17:30 (calendar time,
+most of it machine time). Status: **done; batch 45, branch `claudiofp/b45-query-cost`.** Estimated
+effort S (a correction, ADR-0042); actual: one afternoon.
 Work done by Claude Code (an AI assistant) for the maintainer.
 
 ## Goal
@@ -71,12 +71,69 @@ except `6502d46` (#71) to `2808f5c` (#97), the regression of journal 0139 fixed 
 
 These are inferences from the diffs and the per-result arithmetic; no profile was taken.
 
+## Fixes
+
+1. `9535fb0`, `add_candidate()`: the names and keys of a chunk's candidates come from one
+   accounted buffer per query (`struct moobl_arena`, 128 bytes a candidate of the first chunk),
+   reset after each chunk; what does not fit is `kmalloc`'ed as before. The memcg policy of
+   journal 0180 holds: the buffer is accounted to the caller.
+2. `a8695c9`, `result_path()`: a result in a domain is named by its recorded path when the
+   domain's names are fresh (`paths_fresh()`), without the inode-cache lookup. A file in a domain
+   has one name (`target_ok()` leaves linked files out), and every write path that names or
+   renames it updates the record under the index lock, `moobl_index_renamed()` before the VFS
+   moves the dentry. Outside the domains (a mount with `domain_depth=0`, or files above the
+   domain depth) the lookup stays first, so of two hard links the name in memory is still
+   given (step `dcname`). A dated note in ADR-0038 records it; no new ADR, since what a
+   result is named does not change where a file has one name.
+3. `8cea6af`: an error of fix 2, found by the full suite (`query-after-remount-ext4`): it had
+   dropped the fall-back to the recorded name when the inode is not in memory, so outside the
+   domains, right after a remount, every result of the mount-wide `QUERY` lost its name and its
+   per-result check. Restored.
+
+## Measurements of the fixes
+
+Final, 30 repetitions (`final/`), the method above, p50 medians in µs against `99302cb`
+(95 % interval):
+
+| Shape | 0.3.0 `99302cb` | `main` `d9ee667` | batch 45 (`ae16b2c`, = `8cea6af`) |
+| --- | --- | --- | --- |
+| v2-dom Q1 | 179.1 | 269.7 (+50.6 %, +49.4..+51.2) | 153.8 (-14.2 %, -14.7..-13.5) |
+| v2-dom Q2 | 117.8 | 196.2 (+66.5 %, +61.4..+69.4) | 95.0 (-19.4 %, -20.4..-18.0) |
+| v2-dom Q3 | 1 363.0 | 2 303.7 (+69.0 %, +63.2..+71.1) | 1 020.7 (-25.1 %, -27.7..-24.2) |
+| v2-recent Q1 | 28.2 | 37.4 (+32.4 %) | 28.5 (+0.9 %, +0.2..+1.7) |
+| v2-recent Q2 | 144.2 | 146.8 (+1.8 %) | 135.8 (-5.8 %, -6.7..-5.2) |
+
+Every row "differs" (p < 0.05, interval excludes 0). Per-repetition p99, batch 45 against
+0.3.0: v2-dom Q1 +38.4 % (+37.7..+40.9), Q2 -19.3 %, Q3 -17.6 %, v2-recent Q1 +7.9 %, Q2
++11.2 %: the tail of the two-equality shape and of the ordered shapes stays above 0.3.0, as
+journal 0143 found against module 0102.
+
+Steps, 12 repetitions: fix 1 alone brought the `v2-dom` shapes to +0.5, -5.3 and -6.8 % of
+0.3.0; fix 2 then took 13.8, 14.2 and 18.7 % more off fix 1. So fix 1 recovered more than the
+first step's share and fix 2 more than the second's: the estimates per result in "Cause" were
+inferences, and these are the measurements. Batch 44 (`9851dd8`) measured 1 to 5 % above `main`
+before the fixes; its per-result prefix check stays.
+
+## Checks
+
+On the test host, at `ae16b2c` (the tree of `8cea6af` before the rebase on `ef63b26`):
+`make checkpatch`; full `MOOB_VM_KVM=1 make vm-test`, `MOOBFS_VM_PASS`; full
+`vm/kasan-local.sh`, `MOOBFS_KASAN_PASS: layer suite under KASAN, UBSAN and lockdep with no
+kernel diagnostics` (fix 1 changes the lifetime of the candidates' copies);
+`vm/selinux-local.sh`, `fsuse differ=0`. `make lint` passed at `d26dd24` (fix 2 before its
+correction, which changed only `layer/index.c`). The first full run, at `d26dd24`, failed with
+`query-after-remount-ext4` (fix 3).
+
+## Limitations
+
+- One host and one data set, as journal 0139. The reproducer's host is not remeasured.
+- The p99 of three shapes stays above 0.3.0.
+- `docs/benchmark-plan.md` asks for 30 repetitions; the merge survey used 6 and the
+  intermediate rounds 12, flagged.
+
 ## Next step
 
-Two corrections, each measured against `99302cb` and `main` with 30 repetitions: (1) the
-per-result transient allocations gathered in one accounted buffer per chunk; (2) the recorded
-path used when the domain's names are fresh, the inode cache only when they are not, if every
-rename path keeps the recorded path current (to be checked; an ADR, since it changes where a
-result's name comes from). The reply on issue #68, drafted outside the repository and posted by the maintainer
-([comment](https://github.com/studiomoob/llmoobfs/issues/68#issuecomment-7018502478)). README, FAQ and `docs/when-not-to-use.md` state the 1 to 3 % residual of journal
-0143 as the current difference: updated in this batch.
+The pull request of batch 45 with the maintainer's agreement, and the numbers posted on issue
+#68. The reply on issue #68, drafted outside the repository and posted by the maintainer
+([comment](https://github.com/studiomoob/llmoobfs/issues/68#issuecomment-7018502478)). README (both languages), `docs/faq.md`, the site's FAQ and `docs/when-not-to-use.md`
+stated the 1 to 3 % residual of journal 0143 as the current difference: updated in this batch.

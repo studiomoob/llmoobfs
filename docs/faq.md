@@ -133,11 +133,10 @@ indexes, `QUERY2` was 1.1 to 6 times faster on the five synthetic shapes after t
 of journal 0048 (the low end is a tie). Earlier, SQLite was 4 to 6 times faster on "N most
 recent"; that result predates the optimization. The real client's long ordered traversal still
 lost, while answers matched from 150 to 60 000 memories. A later 40-repetition module comparison
-with confidence intervals found and fixed a roughly 2x regression; a residual 1 to 3 % in p50
-against module 0102 remains unexplained, with larger differences in some p99 results. It did not repeat the SQLite comparison. Small-budget recovery
-is tested, but default-budget saturation at scale, long-running operation and performance on
-other hardware remain open. There is no independent reproduction yet (issue #68 asks for one of the measurements; issue #195, since 2026-11-11, of the stage-2 test evidence).
-[`README.md` "What was measured"; journals 0047, 0048, 0088, 0130, 0139, 0143; `docs/benchmark-plan.md`]
+with confidence intervals found and fixed a roughly 2x regression; its p50 stayed 1 to 3 %
+above module 0102, unexplained, with larger differences in some p99 results. It did not repeat the SQLite comparison. On 2026-11-19 an outside contributor's run on a second machine (issue #68) showed `main` slower than module 0.3.0 in steady state; the reference host confirmed it, found the two causes and fixed them: `main` is now 14 to 25 % faster than 0.3.0 in p50 on the filtered shapes, with the two-equality p99 still 38 % above (journal 0313). Small-budget recovery
+is tested, but default-budget saturation at scale and long-running operation remain open. The stage-2 test evidence was reproduced independently on 2026-11-18 (issue #195, journal 0306).
+[`README.md` "What was measured"; journals 0047, 0048, 0088, 0130, 0139, 0143, 0313; `docs/benchmark-plan.md`]
 
 ## 14. Which kernels are supported?
 Three series. 6.12: Debian kernels 6.12.111, 6.12.113 and 6.12.115 in a QEMU VM, and upstream

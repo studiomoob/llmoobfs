@@ -213,7 +213,9 @@ tag. The [40-repetition confirmation](history/0143-syzkaller-fifth-run-threshold
 compares modules, with confidence intervals: it confirms the query-buffer regression is fixed
 and leaves a 1 to 3 % residual in p50 against module 0102 on filtered queries, with larger
 differences in some p99 results. It does not update the
-SQLite comparison. See the [measurement plan](benchmark-plan.md) for the remaining methodology.
+SQLite comparison. *Update, 2026-11-19 (journal 0313, issue #68):* later merges had made
+steady-state `QUERY2` 50 to 69 % slower than module 0.3.0; with their fixes `main` is 14 to 25 %
+faster than 0.3.0 in p50 on the filtered shapes, and the two-equality p99 stays 38 % above it. See the [measurement plan](benchmark-plan.md) for the remaining methodology.
 
 | Measurement | Evidence and remaining gap |
 | --- | --- |

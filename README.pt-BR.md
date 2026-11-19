@@ -338,6 +338,13 @@ segue sem explicação. É uma máquina e um conjunto de dados; essa comparaçã
 medições contra SQLite nem com o cliente real. A latência de cauda difere mais em alguns
 formatos: a mediana dos p99 de cada rodada na consulta de duas igualdades ficou 54 % acima do
 módulo 0102 nessa confirmação (intervalo de 95 %: +51 a +55 %).
+*Atualização, 2026-11-19 ([diário 0313](docs/history/0313-query2-slower-since-0-3-0.md), issue #68):*
+uma segunda máquina, medida por um colaborador de fora, mostrou a `main` 15 a 76 % mais lenta que
+o módulo 0.3.0 em regime estável; a máquina de referência confirmou (50 a 69 % nas formas com
+filtro, 30 repetições) e localizou a causa em dois merges posteriores, custos por resultado da
+contabilização no cgroup de memória e do nome buscado no cache de inodes. Com as correções, a
+`main` fica 14 a 25 % mais rápida que a 0.3.0 no p50 das três formas com filtro, a 1 % dela em
+"20 mais novos de um tipo" e 6 % mais rápida em "20 mais novos de um agente"; no p99, a forma de duas igualdades segue 38 % acima da 0.3.0.
 
 O que a camada acrescentou por operação na campanha do relatório M4 (10 000 memórias, medianas,
 sistema de baixo puro contra a camada): uma leitura por caminho passou de 8,5 para 11,0 µs no
