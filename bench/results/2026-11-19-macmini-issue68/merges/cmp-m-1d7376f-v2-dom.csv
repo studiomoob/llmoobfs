@@ -1,0 +1,10 @@
+workload,op,metric,reps_a,reps_b,median_a,median_b,rel_diff,ci_low,ci_high,p_value,verdict
+W3,query:Q1,p50_us,6,6,178.6465,242.4943,0.3574,0.3271,0.3978,0.0051,differs (fewer than 30 repetitions)
+W3,query:Q1,p95_us,6,6,185.4759,251.8910,0.3581,0.3019,0.3987,0.0051,differs (fewer than 30 repetitions)
+W3,query:Q1,p99_us,6,6,235.9023,419.5656,0.7786,0.6926,0.8450,0.0051,differs (fewer than 30 repetitions)
+W3,query:Q2,p50_us,6,6,117.4540,178.3138,0.5182,0.4411,0.5746,0.0051,differs (fewer than 30 repetitions)
+W3,query:Q2,p95_us,6,6,121.2766,182.6629,0.5062,0.4014,0.5784,0.0051,differs (fewer than 30 repetitions)
+W3,query:Q2,p99_us,6,6,137.3688,188.7753,0.3742,0.3038,0.4642,0.0051,differs (fewer than 30 repetitions)
+W3,query:Q3,p50_us,6,6,1368.0770,2063.0648,0.5080,0.4495,0.5740,0.0051,differs (fewer than 30 repetitions)
+W3,query:Q3,p95_us,6,6,1401.1060,2095.2584,0.4954,0.4439,0.5609,0.0051,differs (fewer than 30 repetitions)
+W3,query:Q3,p99_us,6,6,1687.6530,2424.8818,0.4368,0.3913,0.4884,0.0051,differs (fewer than 30 repetitions)

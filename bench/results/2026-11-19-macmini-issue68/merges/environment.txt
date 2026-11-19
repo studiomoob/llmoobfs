@@ -1,0 +1,51 @@
+date: 2026-11-19T12:49:18-03:00
+uname: Linux debian 6.12.111+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.111-1 (2026-09-28) x86_64 GNU/Linux
+commit (main module and all user-space tools): d9ee667
+cpu: model name	: Intel(R) Core(TM) i7-2635QM CPU @ 2.00GHz
+loadavg before: 0.58 0.67 1.13 1/198 460296
+moobfs mounts before (unmounted by this driver, not remounted):
+module loaded before: none
+module m-99302cb: /home/debian/perf68/mods/m-99302cb.ko sha256 7f23d2a1aebd0fb9
+module m-fcf6dbc: /home/debian/perf68/mods/m-fcf6dbc.ko sha256 94992b39648d6dd5
+module m-c8801dc: /home/debian/perf68/mods/m-c8801dc.ko sha256 a7bd588e4dc8539c
+module m-6502d46: /home/debian/perf68/mods/m-6502d46.ko sha256 43ef691f141f6a60
+module m-ed613fd: /home/debian/perf68/mods/m-ed613fd.ko sha256 6a7379d797c7dcb9
+module m-b752ec3: /home/debian/perf68/mods/m-b752ec3.ko sha256 80e171ed7a684982
+module m-f54ea05: /home/debian/perf68/mods/m-f54ea05.ko sha256 5880a2eeb4460c6d
+module m-8efedea: /home/debian/perf68/mods/m-8efedea.ko sha256 c75eddcb419b4839
+module m-441f35c: /home/debian/perf68/mods/m-441f35c.ko sha256 d5f5a95180c835e0
+module m-2808f5c: /home/debian/perf68/mods/m-2808f5c.ko sha256 a78c807cf8223ee5
+module m-a003c0c: /home/debian/perf68/mods/m-a003c0c.ko sha256 ad0f397fe3e5e12e
+module m-d110d4e: /home/debian/perf68/mods/m-d110d4e.ko sha256 60f9b448ac8fe4b0
+module m-c33f8b1: /home/debian/perf68/mods/m-c33f8b1.ko sha256 8009b038e28e3fa6
+module m-7cc6da8: /home/debian/perf68/mods/m-7cc6da8.ko sha256 0220ae58fe65499e
+module m-2d15455: /home/debian/perf68/mods/m-2d15455.ko sha256 90df44a0fd62ce8e
+module m-ca52fa7: /home/debian/perf68/mods/m-ca52fa7.ko sha256 33a76e15d1397cd1
+module m-0d37836: /home/debian/perf68/mods/m-0d37836.ko sha256 0b56278b6d076c7d
+module m-40645e2: /home/debian/perf68/mods/m-40645e2.ko sha256 adaeb87b0595d131
+module m-2396c16: /home/debian/perf68/mods/m-2396c16.ko sha256 977fb8bbe550065b
+module m-b7ae1b8: /home/debian/perf68/mods/m-b7ae1b8.ko sha256 efd5109e26221f43
+module m-e57d8c5: /home/debian/perf68/mods/m-e57d8c5.ko sha256 22bc3d24f4d00fd4
+module m-f7c83cf: /home/debian/perf68/mods/m-f7c83cf.ko sha256 015e7ace70a6fd61
+module m-b2ab227: /home/debian/perf68/mods/m-b2ab227.ko sha256 c3f55284f3c873f5
+module m-e5b6591: /home/debian/perf68/mods/m-e5b6591.ko sha256 97254bc114edd827
+module m-dfd779c: /home/debian/perf68/mods/m-dfd779c.ko sha256 351cea4ea5ae72ea
+module m-1d7376f: /home/debian/perf68/mods/m-1d7376f.ko sha256 2c50fba5bdcb967b
+module m-9274153: /home/debian/perf68/mods/m-9274153.ko sha256 c560908b1dbb50da
+module m-a1f313b: /home/debian/perf68/mods/m-a1f313b.ko sha256 727fb15faa2e466c
+module m-d6ce35e: /home/debian/perf68/mods/m-d6ce35e.ko sha256 4b10fb5db0fd9887
+module m-1cac601: /home/debian/perf68/mods/m-1cac601.ko sha256 08ea585b07ac3702
+module m-b35dbf9: /home/debian/perf68/mods/m-b35dbf9.ko sha256 dc5e3bee276b71c6
+module m-d96b0db: /home/debian/perf68/mods/m-d96b0db.ko sha256 2788ab0303a3f2cd
+module m-fc589c8: /home/debian/perf68/mods/m-fc589c8.ko sha256 44adb6c11a015756
+module m-1f9dd80: /home/debian/perf68/mods/m-1f9dd80.ko sha256 c95a7574fea75868
+module m-b40e3b6: /home/debian/perf68/mods/m-b40e3b6.ko sha256 fb5283149f31ef84
+module m-ab82034: /home/debian/perf68/mods/m-ab82034.ko sha256 01d682a664d8d57e
+module m-ead5475: /home/debian/perf68/mods/m-ead5475.ko sha256 ff7faf11165be1f8
+module m-9a7384e: /home/debian/perf68/mods/m-9a7384e.ko sha256 2afed1ac4b673d33
+module m-d9ee667: /home/debian/perf68/mods/m-d9ee667.ko sha256 d86056f85b63a8d4
+cpu-freq show (before fix): cpufreq: governors [schedutil x8] no_turbo=0 driver intel_cpufreq
+cpu-freq fix printed: cpufreq: governors [performance x8] no_turbo=1 driver intel_cpufreq
+cpu-freq restore printed: cpufreq: governors [schedutil x8] no_turbo=0 driver intel_cpufreq
+loadavg after: 1.13 0.91 1.15 1/198 467662
+module loaded after: none
