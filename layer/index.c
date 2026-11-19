@@ -3366,6 +3366,9 @@ static const char *result_path(struct moobl_index *ix, struct moobl_ix_inode *re
 				return *p == '/' ? p + 1 : p;
 		}
 	}
+	/* not in memory: the recorded name, if its domain's names are fresh */
+	if (rec->path && paths_fresh(ix, rec))
+		return rec->path;
 	return NULL;
 }
 
