@@ -315,6 +315,13 @@ that built its index at mount. The cause of the remaining 1 to 3 % is unresolved
 host and one data set; it does not rerun the comparisons with SQLite or the real client.
 Tail latency differs more on some shapes: the median of per-run p99 for the two-equality
 query is 54 % above module 0102 in that confirmation (95 % interval: +51 to +55 %).
+*Update, 2026-11-19 ([journal 0313](docs/history/0313-query2-slower-since-0-3-0.md), issue #68):*
+a second machine, measured by an outside contributor, showed `main` 15 to 76 % slower than
+module 0.3.0 in steady state; the reference host confirmed it (50 to 69 % on the filtered
+shapes, 30 repetitions) and located it in two later merges, per-result costs of memory-cgroup
+accounting and of naming results through the inode cache. With their fixes, `main` is 14 to
+25 % faster than 0.3.0 in p50 on the three filtered shapes, within 1 % of it on "newest 20 of one
+kind" and 6 % faster on "newest 20 of one agent"; in p99 the two-equality shape stays 38 % above 0.3.0.
 
 What the layer added per operation in the M4 report's campaign (10 000 memories, medians, bare
 lower against the layer): a read by path went from 8.5 to 11.0 µs on ext4 (10.1 to 12.0 on btrfs,

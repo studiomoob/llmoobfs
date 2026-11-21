@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Issue #68 (journal 0313): Marcelo Jorge Vieira's run on a second machine showed steady-state
+  `QUERY2` on `main` 15 to 76 % slower than module 0.3.0. The reference host confirmed it and
+  measured the module of every merge since: two steps, the memory-cgroup accounting of each
+  result's transient copies (journal 0180) and the inode-cache lookup that names each result
+  (ADR-0038). Fixed: a query copies its candidates into one accounted buffer, and a result in a
+  domain is named by its recorded path when the domain's names are fresh. `main` is now 14 to
+  25 % faster than 0.3.0 in p50 on the filtered shapes (30 repetitions); the two-equality p99
+  stays 38 % above it.
 - Stage 3's two independent AI-assisted reviews of the credential paths and the `QUERY2`
   authorization (ADR-0042; Claude Code and Codex, journal 0312; [GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72)). Fixed, each with a regression
   test that failed before its fix: the `domain_records` and `selfcheck_counts` module parameters

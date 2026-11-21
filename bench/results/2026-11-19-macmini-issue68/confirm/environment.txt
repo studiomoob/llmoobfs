@@ -1,0 +1,15 @@
+date: 2026-11-19T12:43:15-03:00
+uname: Linux debian 6.12.111+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.111-1 (2026-09-28) x86_64 GNU/Linux
+commit (main module and all user-space tools): d9ee667
+cpu: model name	: Intel(R) Core(TM) i7-2635QM CPU @ 2.00GHz
+loadavg before: 0.83 0.54 1.33 1/197 448275
+moobfs mounts before (unmounted by this driver, not remounted):
+module loaded before: none
+module m-99302cb: /home/debian/perf68/mods/m-99302cb.ko sha256 7f23d2a1aebd0fb9
+module m-d9ee667: /home/debian/perf68/mods/m-d9ee667.ko sha256 d86056f85b63a8d4
+module m-b44: /home/debian/perf68/mods/m-b44.ko sha256 83956ce9eb99c4e5
+cpu-freq show (before fix): cpufreq: governors [schedutil x8] no_turbo=0 driver intel_cpufreq
+cpu-freq fix printed: cpufreq: governors [performance x8] no_turbo=1 driver intel_cpufreq
+cpu-freq restore printed: cpufreq: governors [schedutil x8] no_turbo=0 driver intel_cpufreq
+loadavg after: 1.11 0.63 1.34 1/200 449506
+module loaded after: none

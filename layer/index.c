@@ -3340,6 +3340,18 @@ static const char *result_path(struct moobl_index *ix, struct moobl_ix_inode *re
 
 	lockdep_assert_held(&ix->lock);
 	*held = NULL;
+	*held_inode = NULL;
+	/*
+	 * In a domain, the recorded name first, when the domain has had no directory renamed
+	 * since it was built: a file in a domain has one name (target_ok() leaves linked files
+	 * out), and every write path that names or renames it updates the record under the index
+	 * lock (moobl_index_renamed() before the VFS moves the dentry). The inode cache, a lookup
+	 * by number for every result since ADR-0038, cost about 75 ns a result (issue #68,
+	 * journal 0313); it is now asked only when the recorded names may be stale, and outside
+	 * the domains, where of two hard links the one in memory is named (step dcname).
+	 */
+	if (rec->domain && rec->path && paths_fresh(ix, rec))
+		return rec->path;
 	/* may sleep on an inode being freed or made; neither path takes the index lock */
 	upper = moobl_find_cached_inode(ix->sb, rec->ino, rec->gen);
 	*held_inode = upper;
@@ -3354,6 +3366,7 @@ static const char *result_path(struct moobl_index *ix, struct moobl_ix_inode *re
 				return *p == '/' ? p + 1 : p;
 		}
 	}
+	/* not in memory: the recorded name, if its domain's names are fresh */
 	if (rec->path && paths_fresh(ix, rec))
 		return rec->path;
 	return NULL;
@@ -3383,7 +3396,52 @@ struct moobl_candidate {
 	u16 len;
 	u8 *value;
 	bool ok;	/* a result: the caller may read it, or no check is asked */
+	bool path_heap;	/* path, value: kmalloc'ed, not taken from the chunk's arena */
+	bool value_heap;
 };
+
+/*
+ * The names and keys of a chunk's candidates, copied out of the index under its lock, live
+ * only until the chunk's results are copied. They were one accounted kmalloc each (journal
+ * 0180), about 250 ns a result in all (issue #68, journal 0313); they now come from one
+ * accounted buffer per query, reused by every chunk, and only what does not fit is
+ * kmalloc'ed.
+ */
+struct moobl_arena {
+	char *buf;
+	size_t size, used;
+};
+
+/* Average bytes a candidate takes in the arena: a path of a few names and a short key. */
+#define MOOBL_ARENA_PER_CAND 128U
+
+static void *arena_alloc(struct moobl_arena *a, size_t n, bool *heap)
+{
+	size_t need = ALIGN(n, sizeof(long));
+
+	if (a->buf && a->size - a->used >= need) {
+		void *p = a->buf + a->used;
+
+		a->used += need;
+		*heap = false;
+		return p;
+	}
+	*heap = true;
+	return kmalloc(n, GFP_KERNEL_ACCOUNT);
+}
+
+/* Frees what a candidate took outside the arena; the arena itself is reset per chunk. */
+static void cand_free(struct moobl_candidate *c)
+{
+	if (c->path_heap)
+		kfree(c->path);
+	if (c->value_heap)
+		kfree(c->value);
+	c->path = NULL;
+	c->value = NULL;
+	c->path_heap = false;
+	c->value_heap = false;
+}
 
 struct moobl_resume {
 	u64 pdomain;		/* partition being scanned */
@@ -3657,7 +3715,7 @@ static const char *scope_path(const char *path, unsigned int strip)
 /* Records the inode of e as a candidate; with want_key, also e's scan key for the cursor. */
 static int add_candidate(struct moobl_index *ix, struct moobl_ix_entry *e,
 			 const struct moobl_qscope *sc, struct moobl_candidate *c, char *pathbuf,
-			 bool want_key)
+			 struct moobl_arena *arena, bool want_key)
 {
 	const char *path;
 	int err = 0;
@@ -3681,15 +3739,19 @@ static int add_candidate(struct moobl_index *ix, struct moobl_ix_entry *e,
 
 		/* the whole name: the permission check resolves it; only the reply is cut */
 		if (rel) {
-			c->path = kstrdup(rel, GFP_KERNEL_ACCOUNT);
-			if (!c->path)
+			size_t len = strlen(rel) + 1;
+
+			c->path = arena_alloc(arena, len, &c->path_heap);
+			if (c->path)
+				memcpy(c->path, rel, len);
+			else
 				err = -ENOMEM;
 		}
 	}
 	if (want_key) {
 		c->type = e->type;
 		c->len = e->len;
-		c->value = kmalloc(max_t(u16, e->len, 1), GFP_KERNEL_ACCOUNT);
+		c->value = arena_alloc(arena, max_t(u16, e->len, 1), &c->value_heap);
 		if (c->value)
 			memcpy(c->value, e->value, e->len);
 		else
@@ -3742,7 +3804,8 @@ static bool in_eq_run(const struct moobl_ix_entry *e, const struct moob_query_te
 static int leap_collect(struct moobl_index *ix, const struct moobl_qscope *sc,
 			const struct moob_query_term *terms, u32 nterms,
 			struct moobl_resume *resume, struct moobl_candidate *cand, u32 *ncand,
-			u32 cap, char *pathbuf, bool want_key, bool *more)
+			u32 cap, char *pathbuf, struct moobl_arena *arena, bool want_key,
+			bool *more)
 {
 	struct moobl_ix_name *nm[MOOB_QUERY_MAX_TERMS];
 	struct moobl_ix_name *tn[MOOB_QUERY_MAX_TERMS];
@@ -3796,7 +3859,7 @@ static int leap_collect(struct moobl_index *ix, const struct moobl_qscope *sc,
 		resume->ino = e->owner->ino;
 		memcpy(resume->value, e->value, e->len);
 		if (inode_matches_all(e->owner, terms, nterms, tn)) {
-			int err = add_candidate(ix, e, sc, &cand[*ncand], pathbuf, want_key);
+			int err = add_candidate(ix, e, sc, &cand[*ncand], pathbuf, arena, want_key);
 
 			(*ncand)++;
 			if (err)
@@ -3908,6 +3971,7 @@ static long query_run(struct super_block *sb, struct file *file,
 	struct moobl_index *ix = IX(sb);
 	struct moobl_candidate *cand;
 	struct moobl_resume *resume;
+	struct moobl_arena arena = { 0 };
 	char *pathbuf;
 	struct moobl_ix_name *tn_buf[MOOB_QUERY_MAX_TERMS];
 	struct moobl_ix_name **tn = sc->all ? NULL : tn_buf;
@@ -3922,6 +3986,12 @@ static long query_run(struct super_block *sb, struct file *file,
 		err = -ENOMEM;
 		goto out;
 	}
+	/* sized for the first chunk; without it every copy falls back to kmalloc */
+	arena.size = MOOBL_ARENA_PER_CAND *
+		     (sc->check ? MOOBL_QUERY_CHUNK : min_t(u32, MOOBL_QUERY_CHUNK, limit + 1));
+	arena.buf = kvmalloc(arena.size, GFP_KERNEL_ACCOUNT);
+	if (!arena.buf)
+		arena.size = 0;
 	if (start)
 		*resume = *start;
 	resume->lead = -1;
@@ -3945,7 +4015,7 @@ static long query_run(struct super_block *sb, struct file *file,
 		nofs = ix_read_lock(ix);
 		if (sc->leap) {
 			err = leap_collect(ix, sc, terms, nterms, resume, cand, &ncand, cap, pathbuf,
-					   last != NULL, &more);
+					   &arena, last != NULL, &more);
 			goto chunk_done;
 		}
 		/*
@@ -3997,7 +4067,7 @@ static long query_run(struct super_block *sb, struct file *file,
 					inode_matches_rest(e->owner, terms, nterms, tn);
 			if (!match)
 				continue;
-			err = add_candidate(ix, e, sc, &cand[ncand], pathbuf, last != NULL);
+			err = add_candidate(ix, e, sc, &cand[ncand], pathbuf, &arena, last != NULL);
 			ncand++;
 			if (ncand == cap) {
 				more = true;
@@ -4052,11 +4122,9 @@ chunk_done:
 				put_result(&kres[count], &cand[i], last);
 				count++;
 			}
-			kfree(cand[i].path);
-			cand[i].path = NULL;
-			kfree(cand[i].value);
-			cand[i].value = NULL;
+			cand_free(&cand[i]);
 		}
+		arena.used = 0;
 	}
 	*count_out = count;
 	*truncated_out = truncated;
@@ -4065,10 +4133,10 @@ out:
 		for (i = 0; i < MOOBL_QUERY_CHUNK; i++) {
 			dput(cand[i].held);
 			iput(cand[i].held_inode);
-			kfree(cand[i].path);
-			kfree(cand[i].value);
+			cand_free(&cand[i]);
 		}
 	kfree(cand);
+	kvfree(arena.buf);
 	kfree(resume);
 	if (pathbuf)
 		free_page((unsigned long)pathbuf);

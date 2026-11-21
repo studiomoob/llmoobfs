@@ -138,3 +138,9 @@ Updated in this branch (maintainer, 2026-11-19); the draft advisory is [GHSA-59q
 
 The pull request with the maintainer's agreement; after the merge, the advisory's patched
 version and publication.
+
+*Note, 2026-11-19 (journal 0313):* pull request #217 was merged as `ef63b26` after its 27 checks
+passed, with the maintainer's agreement; the advisory, its patched version set to `main` at
+`ef63b26`, was published the same day at 16:50 Brasília time
+([GHSA-59qj-q6gj-8p72](https://github.com/studiomoob/llmoobfs/security/advisories/GHSA-59qj-q6gj-8p72)).
+

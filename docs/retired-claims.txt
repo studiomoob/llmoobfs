@@ -566,3 +566,6 @@ pede uma reprodução independente das
 with one finding still open
 become fixes and an open investigation
 viram correções e uma investigação em aberto
+There is no independent reproduction yet (issue #68 asks
+a residual 1 to 3 % in p50
+against module 0102 remains unexplained
